@@ -15,7 +15,7 @@ import 'package:onexray/service/connect/routing/custom/configuration.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/service/connect/routing/custom/document.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
-import 'package:onexray/service/connect/routing/dns.dart';
+import 'package:onexray/service/connect/routing/options.dart';
 import 'package:onexray/service/shared/share/configuration_transfer.dart';
 import 'package:onexray/service/shared/xray/fragment.dart';
 
@@ -34,7 +34,11 @@ class CustomRoutingEditorState {
   final List<Object> ruleKeys;
   final Object? selectedRuleKey;
   final int entryCount;
-  final String directDnsAddress;
+  final RoutingDnsSettings dns;
+  final RoutingSniffingSettings sniffing;
+  final RoutingSelectionSettings selection;
+
+  String get directDnsAddress => dns.directAddress;
   final bool fakeDns;
   final Map<String, dynamic>? fragmentOutbound;
   final bool processing;
@@ -52,7 +56,10 @@ class CustomRoutingEditorState {
     Iterable<Object> ruleKeys = const [],
     this.selectedRuleKey,
     this.entryCount = 1,
-    this.directDnsAddress = RoutingDns.defaultAddress,
+    String? directDnsAddress,
+    RoutingDnsSettings? dns,
+    this.sniffing = const RoutingSniffingSettings(),
+    this.selection = const RoutingSelectionSettings(),
     this.fakeDns = false,
     this.fragmentOutbound,
     this.processing = true,
@@ -61,13 +68,20 @@ class CustomRoutingEditorState {
     this.deleting = false,
     this.inlineEditing = false,
     this.error,
-  }) : profiles = List.unmodifiable(profiles),
+  }) : dns =
+           dns ??
+           (directDnsAddress == null
+               ? const RoutingDnsSettings()
+               : const RoutingDnsSettings().withDirectAddress(
+                   directDnsAddress,
+                 )),
+       profiles = List.unmodifiable(profiles),
        rules = List.unmodifiable(rules),
        ruleKeys = List.unmodifiable(ruleKeys);
 
   bool get loaded => original != null;
   bool get busy => processing || transferBusy;
-  bool get editingBlocked => deleting || transferBusy;
+  bool get editingBlocked => busy || deleting;
   bool get fragment => fragmentOutbound != null;
 
   CustomRoutingEditorState copyWith({
@@ -79,6 +93,9 @@ class CustomRoutingEditorState {
     Object? selectedRuleKey = _unchangedCustomRoutingValue,
     int? entryCount,
     String? directDnsAddress,
+    RoutingDnsSettings? dns,
+    RoutingSniffingSettings? sniffing,
+    RoutingSelectionSettings? selection,
     bool? fakeDns,
     Map<String, dynamic>? fragmentOutbound,
     bool clearFragment = false,
@@ -100,7 +117,13 @@ class CustomRoutingEditorState {
         ? this.selectedRuleKey
         : selectedRuleKey,
     entryCount: entryCount ?? this.entryCount,
-    directDnsAddress: directDnsAddress ?? this.directDnsAddress,
+    dns:
+        dns ??
+        (directDnsAddress == null
+            ? this.dns
+            : this.dns.withDirectAddress(directDnsAddress)),
+    sniffing: sniffing ?? this.sniffing,
+    selection: selection ?? this.selection,
     fakeDns: fakeDns ?? this.fakeDns,
     fragmentOutbound: clearFragment
         ? null
@@ -148,7 +171,7 @@ class CustomRoutingEditorController
   int get routeCount => state.profiles.length + (profileId == null ? 1 : 0);
 
   void _nameChanged() {
-    if (_syncingName) return;
+    if (_syncingName || state.editingBlocked) return;
     emit(state.copyWith(name: name.text));
   }
 
@@ -199,7 +222,9 @@ class CustomRoutingEditorController
           ruleKeys: keys,
           selectedRuleKey: selected,
           entryCount: value.entryCount,
-          directDnsAddress: value.directDnsAddress,
+          dns: value.dns,
+          sniffing: value.sniffing,
+          selection: value.selection,
           fakeDns: value.fakeDns,
           fragmentOutbound: value.fragmentOutbound,
           processing: false,
@@ -240,7 +265,9 @@ class CustomRoutingEditorController
     id: profileId,
     name: state.name.trim(),
     entryCount: state.entryCount,
-    directDnsAddress: state.directDnsAddress.trim(),
+    dns: state.dns,
+    sniffing: state.sniffing,
+    selection: state.selection,
     fakeDns: state.fakeDns,
     fragmentOutbound: state.fragmentOutbound,
     rules: state.rules,
@@ -265,7 +292,9 @@ class CustomRoutingEditorController
       state.copyWith(
         name: nextName,
         entryCount: value.entryCount,
-        directDnsAddress: value.directDnsAddress,
+        dns: value.dns,
+        sniffing: value.sniffing,
+        selection: value.selection,
         fakeDns: value.fakeDns,
         fragmentOutbound: value.fragmentOutbound,
         clearFragment: !value.fragment,
@@ -327,7 +356,7 @@ class CustomRoutingEditorController
     if (!identical(inlineRule, source)) return;
     final key = _inlineRuleKey;
     final index = key == null ? -1 : state.ruleKeys.indexOf(key);
-    if (!isPageActive || index < 0) return;
+    if (!isPageActive || state.editingBlocked || index < 0) return;
     final rules = state.rules.toList();
     rules[index] = source.draftRule;
     emit(state.copyWith(rules: rules));
@@ -347,18 +376,39 @@ class CustomRoutingEditorController
   }
 
   void setEntryCount(int value) {
+    if (state.editingBlocked) return;
     emit(state.copyWith(entryCount: value));
   }
 
   void setDirectDnsAddress(String value) {
+    if (state.editingBlocked) return;
     emit(state.copyWith(directDnsAddress: value, error: null));
   }
 
   void setFakeDns(bool value) {
+    if (state.editingBlocked) return;
+    if (value && !state.sniffing.enabled) return;
     emit(state.copyWith(fakeDns: value, error: null));
   }
 
+  void setDns(RoutingDnsSettings value) {
+    if (state.editingBlocked) return;
+    emit(state.copyWith(dns: value, error: null));
+  }
+
+  void setSniffing(RoutingSniffingSettings value) {
+    if (state.editingBlocked) return;
+    if (state.fakeDns && !value.enabled) return;
+    emit(state.copyWith(sniffing: value, error: null));
+  }
+
+  void setSelection(RoutingSelectionSettings value) {
+    if (state.editingBlocked) return;
+    emit(state.copyWith(selection: value, error: null));
+  }
+
   void setFragment(bool value) {
+    if (state.editingBlocked) return;
     if (value == state.fragment) return;
     emit(
       state.copyWith(

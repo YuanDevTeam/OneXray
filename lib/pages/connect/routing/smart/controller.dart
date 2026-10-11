@@ -92,7 +92,7 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
   }
 
   void update(String key, Object? value) {
-    if (state.original == null) return;
+    if (state.original == null || state.busy) return;
     emit(
       state.copyWith(
         draft: SmartRoutingSettings.fromJson({

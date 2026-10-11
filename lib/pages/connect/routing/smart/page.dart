@@ -11,7 +11,7 @@ import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
-import 'package:onexray/pages/shared/widgets/dns_text_field.dart';
+import 'package:onexray/pages/connect/routing/options_form.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -147,95 +147,117 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
   Widget _settings(BuildContext context, SmartRoutingEditorState state) {
     final l = AppLocalizations.of(context)!;
     final smart = state.draft;
-    return RoutingCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          RoutingCardHeader(title: l.prototypeSmartRoutingSettings),
-          _switch(
-            l.prototypeDirectPrivateAddresses,
-            l.prototypeDirectPrivateAddressesHint,
-            LucideIcons.network,
-            'directPrivate',
-            smart.directPrivate,
-            state,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 16,
+      children: [
+        RoutingCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              RoutingCardHeader(title: l.prototypeSmartRoutingSettings),
+              _switch(
+                l.prototypeDirectPrivateAddresses,
+                l.prototypeDirectPrivateAddressesHint,
+                LucideIcons.network,
+                'directPrivate',
+                smart.directPrivate,
+                state,
+              ),
+              _switch(
+                l.prototypeDirectAppleServices,
+                l.prototypeDirectAppleServicesHint,
+                LucideIcons.apple,
+                'directApple',
+                smart.directApple,
+                state,
+              ),
+              _switch(
+                l.directWindowsServices,
+                l.directWindowsServicesHint,
+                LucideIcons.appWindow,
+                'directWindows',
+                smart.directWindows,
+                state,
+              ),
+              _switch(
+                l.prototypeDirectDns,
+                l.prototypeDirectDnsHint,
+                LucideIcons.earth,
+                'directDns',
+                smart.directDns,
+                state,
+              ),
+              RoutingFakeDnsRow(
+                value: smart.fakeDns,
+                enabled:
+                    !state.busy && (smart.fakeDns || smart.sniffing.enabled),
+                onChanged: (value) => controller.update('fakeDns', value),
+              ),
+              RoutingFragmentRow(
+                value: smart.fragment,
+                enabled: state.original != null && !state.busy,
+                onChanged: (value) => controller.update('fragment', value),
+              ),
+              _switch(
+                l.prototypeBlockAdDomains,
+                l.prototypeBlockAdDomainsHint,
+                LucideIcons.shieldCheck,
+                'blockAds',
+                smart.blockAds,
+                state,
+              ),
+              RoutingEntryCountRow(
+                value: smart.entryCount,
+                onChanged: state.busy
+                    ? null
+                    : (count) => controller.update('entryCount', count),
+              ),
+              RoutingSelectionSettingsForm(
+                value: smart.selection,
+                enabled: !state.busy,
+                entryCount: controller.effectiveEntryCount,
+                onChanged: (value) =>
+                    controller.update('selection', value.toJson()),
+              ),
+              RoutingSettingRow(
+                icon: LucideIcons.earth,
+                title: l.prototypeDirectRegions,
+                description: l.prototypeDirectRegionsHint,
+                value: controller.regionsSummary(l),
+                enabled: !state.busy,
+                onTap: () =>
+                    controller.chooseRegions(context, widget.openRegions),
+              ),
+              RoutingSettingRow(
+                icon: LucideIcons.server,
+                title: l.prototypeVpnFinalExit,
+                description: l.prototypeVpnFinalExitHint,
+                value: smart.finalExitId == null
+                    ? l.prototypeNotSet
+                    : state.finalExitName ?? l.prototypeTemporarilyUnavailable,
+                enabled: !state.busy,
+                divider: false,
+                onTap: () =>
+                    controller.chooseFinalExit(context, widget.openFinalExit),
+              ),
+            ],
           ),
-          _switch(
-            l.prototypeDirectAppleServices,
-            l.prototypeDirectAppleServicesHint,
-            LucideIcons.apple,
-            'directApple',
-            smart.directApple,
-            state,
-          ),
-          _switch(
-            l.directWindowsServices,
-            l.directWindowsServicesHint,
-            LucideIcons.appWindow,
-            'directWindows',
-            smart.directWindows,
-            state,
-          ),
-          _switch(
-            l.prototypeDirectDns,
-            l.prototypeDirectDnsHint,
-            LucideIcons.earth,
-            'directDns',
-            smart.directDns,
-            state,
-            below: smart.directDns
-                ? DnsTextField(
-                    label: l.routingLocalDnsAddress,
-                    value: smart.directDnsAddress,
-                    onChanged: (value) =>
-                        controller.update('directDnsAddress', value),
-                  )
-                : null,
-          ),
-          RoutingFakeDnsRow(
-            value: smart.fakeDns,
-            enabled: state.original != null,
-            onChanged: (value) => controller.update('fakeDns', value),
-          ),
-          RoutingFragmentRow(
-            value: smart.fragment,
-            enabled: state.original != null,
-            onChanged: (value) => controller.update('fragment', value),
-          ),
-          _switch(
-            l.prototypeBlockAdDomains,
-            l.prototypeBlockAdDomainsHint,
-            LucideIcons.shieldCheck,
-            'blockAds',
-            smart.blockAds,
-            state,
-          ),
-          RoutingEntryCountRow(
-            value: smart.entryCount,
-            onChanged: (count) => controller.update('entryCount', count),
-          ),
-          RoutingSettingRow(
-            icon: LucideIcons.earth,
-            title: l.prototypeDirectRegions,
-            description: l.prototypeDirectRegionsHint,
-            value: controller.regionsSummary(l),
-            enabled: !state.busy,
-            onTap: () => controller.chooseRegions(context, widget.openRegions),
-          ),
-          RoutingSettingRow(
-            icon: LucideIcons.server,
-            title: l.prototypeVpnFinalExit,
-            description: l.prototypeVpnFinalExitHint,
-            value: smart.finalExitId == null
-                ? l.prototypeNotSet
-                : state.finalExitName ?? l.prototypeTemporarilyUnavailable,
-            enabled: !state.busy,
-            divider: false,
-            onTap: () =>
-                controller.chooseFinalExit(context, widget.openFinalExit),
-          ),
-        ],
-      ),
+        ),
+        RoutingDnsSettingsForm(
+          value: smart.dns,
+          enabled: !state.busy,
+          directEnabled: smart.directDns,
+          fakeDns: smart.fakeDns,
+          onChanged: (value) => controller.update('dns', value.toJson()),
+        ),
+        RoutingSniffingSettingsForm(
+          value: smart.sniffing,
+          enabled: !state.busy,
+          fakeDns: smart.fakeDns,
+          onChanged: (value) => controller.update('sniffing', value.toJson()),
+        ),
+      ],
     );
   }
 
@@ -251,13 +273,13 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
     icon: icon,
     title: title,
     description: description,
-    enabled: state.original != null,
+    enabled: state.original != null && !state.busy,
     below: below,
     trailing: Semantics(
       label: title,
       child: ShadSwitch(
         value: value,
-        enabled: state.original != null,
+        enabled: state.original != null && !state.busy,
         onChanged: (value) => controller.update(key, value),
       ),
     ),
