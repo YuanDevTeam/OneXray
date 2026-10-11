@@ -61,7 +61,16 @@ void main() {
     final actual = jsonDecode(XrayValidation.normal(config));
     expect(actual['routing'], config.routing!.toJson());
     expect(actual['dns'], config.dns!.toJson());
-    expect(actual.keys.toSet(), {'env', 'log', 'outbounds', 'routing', 'dns'});
+    expect(actual['inbounds'].single['protocol'], 'socks');
+    expect(actual['inbounds'].single['listen'], '127.0.0.1');
+    expect(actual.keys.toSet(), {
+      'env',
+      'log',
+      'outbounds',
+      'routing',
+      'dns',
+      'inbounds',
+    });
     expect(jsonEncode(config.toJson()), before);
   });
 

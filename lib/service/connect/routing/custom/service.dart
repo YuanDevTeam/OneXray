@@ -8,6 +8,7 @@ import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/state_db.dart';
 import 'package:onexray/service/connect/routing/dns.dart';
 import 'package:onexray/service/shared/xray/runtime_outbounds.dart';
+import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/validation.dart';
 import 'package:onexray/service/shared/xray/fake_dns.dart';
 import 'package:onexray/service/shared/xray/fragment.dart';
@@ -57,11 +58,9 @@ class CustomRoutingService {
     state as RoutingProfileState;
     final config = state.xrayJson;
     config.dns = RoutingDns.compile(
-      directAddress: state.directDnsAddress.trim(),
+      settings: state.dns,
       fakeDns: state.fakeDns,
-      directDomains: RoutingDns.directDomains(
-        config.routing?.rules ?? const [],
-      ),
+      rules: config.routing?.rules ?? const [],
     );
     config.fakedns = FakeDns.poolsFor(config.dns);
     final tags = [for (var i = 0; i < state.entryCount; i++) 'app-entry-$i'];
@@ -75,16 +74,16 @@ class CustomRoutingService {
       createFreedomOutbound(tag: 'direct').toJson(),
       createBlackholeOutbound(tag: 'block').toJson(),
     ];
-    (config.routing ??= XrayRouting()).balancers = [
-      XrayBalancer(
-        tag: 'proxy',
-        selector: tags,
-        strategy: XrayBalancingStrategy(type: 'roundRobin'),
-        fallbackTag: 'direct',
+    config.inbounds = [
+      createSocksInbound(
+        '1080',
+        fakeDns: state.fakeDns,
+        sniffing: state.sniffing,
       ),
     ];
-    // fallbackTag requires the same Observatory dependency as runtime routing.
-    config.observatory = XrayObservatory(subjectSelector: []);
+    final selection = state.selection.compile(selector: tags);
+    (config.routing ??= XrayRouting()).balancers = [selection.balancer];
+    config.observatory = selection.observatory;
     return XrayValidation.normal(config);
   }
 

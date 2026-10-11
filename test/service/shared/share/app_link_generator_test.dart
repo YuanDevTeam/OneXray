@@ -163,6 +163,68 @@ void main() {
       expect(links[1].name, 'z-domain');
       expect(links[2], isA<OneXrayConfigLink>());
     });
+
+    test(
+      'shares DNS aliases, response filters and sniffing exclusion assets',
+      () async {
+        final source = {
+          'dns': {
+            'servers': [
+              {
+                'address': '1.1.1.1',
+                'expectIPs': ['!ext:alias-ip.dat:blocked'],
+                'unexpectedIPs': ['ext:response-ip.dat:untrusted'],
+              },
+            ],
+          },
+          'inbounds': [
+            {
+              'tag': 'tunIn',
+              'sniffing': {
+                'domainsExcluded': ['ext:excluded-domain.dat:internal'],
+                'ipsExcluded': ['!ext:excluded-ip.dat:internal'],
+              },
+            },
+          ],
+          'outbounds': [
+            {
+              'protocol': 'vless',
+              'settings': {'password': 'ext:credential.dat:private'},
+            },
+          ],
+        };
+        final config = _config(
+          type: CoreConfigType.raw.name,
+          data: base64Encode(utf8.encode(jsonEncode(source))),
+        );
+        expect(OneXrayAppLinkGenerator.referencedGeoDataNames(config), {
+          'alias-ip',
+          'response-ip',
+          'excluded-domain',
+          'excluded-ip',
+        });
+        final service = OneXrayAppLinkShareService(
+          geoDataLookup: (name) async =>
+              _geoData(name)
+                  .copyWith(type: name.endsWith('-ip') ? 'ip' : 'domain'),
+        );
+        final shared = await service.config(config);
+        final links = shared!
+            .split('\n')
+            .map(Uri.parse)
+            .map(OneXrayAppLinkParser.parse)
+            .whereType<OneXrayAppLink>()
+            .toList();
+        expect(links.whereType<OneXrayGeoDataLink>().map((link) => link.name), [
+          'alias-ip',
+          'excluded-domain',
+          'excluded-ip',
+          'response-ip',
+        ]);
+        expect(links.last, isA<OneXrayConfigLink>());
+        expect((links.last as OneXrayConfigLink).xrayJson, jsonEncode(source));
+      },
+    );
   });
 
   group('subscription links', () {

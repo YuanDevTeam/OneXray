@@ -161,12 +161,24 @@ void main() {
     expect(content.assets.single.fileName, 'rules.dat');
     expect(content.assets.single.type, GeoDataType.domain);
     expect(json['outbounds'], [{}, {}]);
-    expect(json['dns'], {
-      'servers': [
-        {'tag': 'app-dns-direct', 'address': '1.1.1.1'},
-        {'tag': 'app-dns-fake', 'address': 'fakedns'},
-      ],
-    });
+    expect(
+      (json['dns']['servers'] as List).singleWhere(
+        (server) => server['tag'] == 'app-dns-direct',
+      )['address'],
+      '1.1.1.1',
+    );
+    expect(
+      (json['dns']['servers'] as List).singleWhere(
+        (server) => server['tag'] == 'app-dns-fake',
+      )['address'],
+      'fakedns',
+    );
+    expect(
+      (json['dns']['servers'] as List).singleWhere(
+        (server) => server['tag'] == 'app-dns-proxy',
+      )['address'],
+      '8.8.8.8',
+    );
     expect(
       (json['routing']['rules'] as List).single['ruleTag'],
       'Local websites',
@@ -248,12 +260,25 @@ void main() {
       expect(link.name, 'Shared');
       expect(jsonDecode(link.xrayJson)['name'], 'Shared');
       expect(jsonDecode(link.xrayJson)['outbounds'], [{}, {}]);
-      expect(jsonDecode(link.xrayJson)['dns'], {
-        'servers': [
-          {'tag': 'app-dns-direct', 'address': '1.1.1.1'},
-          {'tag': 'app-dns-fake', 'address': 'fakedns'},
-        ],
-      });
+      final servers = jsonDecode(link.xrayJson)['dns']['servers'] as List;
+      expect(
+        servers.singleWhere(
+          (server) => server['tag'] == 'app-dns-direct',
+        )['address'],
+        '1.1.1.1',
+      );
+      expect(
+        servers.singleWhere(
+          (server) => server['tag'] == 'app-dns-fake',
+        )['address'],
+        'fakedns',
+      );
+      expect(
+        servers.singleWhere(
+          (server) => server['tag'] == 'app-dns-proxy',
+        )['address'],
+        '8.8.8.8',
+      );
     },
   );
 

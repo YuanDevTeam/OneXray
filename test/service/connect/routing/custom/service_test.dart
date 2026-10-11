@@ -52,22 +52,36 @@ void main() {
     final row = (await db.routingProfileDao.searchRow(id))!;
     final stored = jsonDecode(utf8.decode(base64Decode(row.data)));
     expect(stored.containsKey('fakedns'), false);
-    expect(stored['dns']['servers'].last, {
-      'tag': 'app-dns-fake',
-      'address': 'fakedns',
-    });
+    expect(
+      (stored['dns']['servers'] as List).singleWhere(
+        (server) => server['tag'] == 'app-dns-fake',
+      ),
+      {'tag': 'app-dns-fake', 'address': 'fakedns'},
+    );
     expect(CustomRoutingService.read(row).fakeDns, true);
     await CustomRoutingService.validate(
       state,
       testXray: (text) async {
         final config = jsonDecode(text) as Map<String, dynamic>;
-        expect(config['dns']['servers'].first['address'], 'fakedns');
+        expect(
+          (config['dns']['servers'] as List).singleWhere(
+            (server) => server['tag'] == 'app-dns-fake',
+          )['address'],
+          'fakedns',
+        );
         expect(config['fakedns'], [
           {'ipPool': '198.19.0.0/16', 'poolSize': 32768},
           {'ipPool': 'fc00:1::/64', 'poolSize': 32768},
         ]);
         expect(XrayJson.fromJson(config).toJson(), config);
-        expect(config.containsKey('inbounds'), false);
+        expect(config['inbounds'].single['protocol'], 'socks');
+        expect(config['inbounds'].single['sniffing']['enabled'], true);
+        expect(config['inbounds'].single['sniffing']['destOverride'], [
+          'http',
+          'tls',
+          'quic',
+          'fakedns',
+        ]);
         return '';
       },
     );
@@ -99,9 +113,12 @@ void main() {
     Future<String> check(String text) async {
       calls++;
       final config = jsonDecode(text);
-      expect(config['dns']['servers'].last['address'], '1.1.1.1');
-      expect(config['dns']['servers'].last['tag'], 'app-dns-direct');
-      expect(config['dns']['servers'].last['skipFallback'], true);
+      final directDns = (config['dns']['servers'] as List).singleWhere(
+        (server) => server['tag'] == 'app-dns-direct',
+      );
+      expect(directDns['address'], '1.1.1.1');
+      expect(directDns['skipFallback'], true);
+      expect(directDns['domains'], isEmpty);
       expect(config['env']['xray.location.asset'], VpnConstants.datDir);
       expect(config['outbounds'], [
         for (var i = 0; i < 3; i++)
@@ -179,8 +196,14 @@ void main() {
       final stored = jsonDecode(utf8.decode(base64Decode(row.data))) as Map;
       expect(stored['outbounds'], [{}]);
       expect(stored['dns'], {
+        'disableCache': false,
+        'serveStale': false,
+        'serveExpiredTTL': 300,
+        'disableFallbackIfMatch': false,
+        'enableParallelQuery': false,
         'servers': [
-          {'tag': 'app-dns-direct', 'address': '9.9.9.9'},
+          {'tag': 'app-dns-proxy', 'address': '8.8.8.8', 'timeoutMs': 4000},
+          {'tag': 'app-dns-direct', 'address': '9.9.9.9', 'timeoutMs': 4000},
         ],
       });
       expect(stored.containsKey('name'), false);

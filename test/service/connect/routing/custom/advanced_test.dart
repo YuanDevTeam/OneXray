@@ -138,14 +138,7 @@ void main() {
   });
 
   test('App-owned and excluded fields fail with their path', () {
-    for (final key in [
-      'env',
-      'log',
-      'policy',
-      'stats',
-      'metrics',
-      'observatory',
-    ]) {
+    for (final key in ['env', 'log', 'policy', 'stats', 'metrics']) {
       expect(
         () =>
             AdvancedRoutingDocument.parse(jsonEncode({...template(), key: {}})),
@@ -189,6 +182,9 @@ void main() {
       );
     }
     for (final patch in [
+      (Map<String, dynamic> j) => j['observatory'] = {
+        'subjectSelector': ['app-entry-0'],
+      },
       (Map<String, dynamic> j) => j['dns']['queryStrategy'] = 'UseIP',
       (Map<String, dynamic> j) =>
           j['dns']['servers'][0]['queryStrategy'] = 'UseIPv6',

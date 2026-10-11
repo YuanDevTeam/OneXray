@@ -327,11 +327,11 @@ void main() {
               ).config;
               final active = enabled && mode != TrafficMode.allVpn;
               final servers = config['dns']['servers'] as List;
-              expect(servers.first['address'], active ? 'fakedns' : '8.8.8.8');
               expect(
-                servers.first['tag'],
-                active ? 'app-dns-fake' : 'app-dns-proxy',
+                servers.any((server) => server['tag'] == 'app-dns-fake'),
+                active,
               );
+              expect(servers.last['tag'], 'app-dns-proxy');
               expect(
                 servers.every(
                   (server) =>
@@ -351,9 +351,12 @@ void main() {
                   {'ipPool': '198.19.0.0/16', 'poolSize': 32768},
                   {'ipPool': 'fc00:1::/64', 'poolSize': 32768},
                 ]);
-                expect(servers[1]['address'], '8.8.8.8');
-                expect(servers.last['skipFallback'], true);
-                expect(servers.last['domains'], isNotEmpty);
+                expect(servers.last['address'], '8.8.8.8');
+                final direct = servers.firstWhere(
+                  (server) => server['tag'] == 'app-dns-direct',
+                );
+                expect(direct['skipFallback'], true);
+                expect(direct['domains'], isNotEmpty);
               }
               expect(
                 config['routing']['domainStrategy'],
@@ -384,21 +387,22 @@ void main() {
     );
   });
 
-  test('explicit FakeDNS address also enables pools and recovery', () {
-    final config = ConnectionCompiler.compile(
-      settings: ConnectionSettings(
-        smart: SmartRoutingSettings(directDnsAddress: 'fakedns'),
-      ),
-      entries: [node(1)],
-      regions: catalog,
-      options: options(),
-    ).config;
-    expect(config['fakedns'], isNotEmpty);
-    expect(
-      config['inbounds'].single['sniffing']['destOverride'],
-      contains('fakedns'),
-    );
-  });
+  test(
+    'FakeDNS uses its dedicated setting instead of a real resolver address',
+    () {
+      expect(
+        () => ConnectionCompiler.compile(
+          settings: ConnectionSettings(
+            smart: SmartRoutingSettings(directDnsAddress: 'fakedns'),
+          ),
+          entries: [node(1)],
+          regions: catalog,
+          options: options(),
+        ),
+        throwsFormatException,
+      );
+    },
+  );
 
   test(
     'Raw FakeDNS preserves explicit sniffing and supplies missing inbounds',
@@ -503,12 +507,13 @@ void main() {
         options: options(ipv6: false, tunDnsIpv4Address: '192.0.2.53'),
       );
       final servers = compiled.config['dns']['servers'] as List;
-      expect(servers.first, {
-        'tag': 'app-dns-proxy',
-        'address': '8.8.8.8',
-        'queryStrategy': 'UseIPv4',
-      });
-      expect(servers.length, mode == TrafficMode.allVpn ? 1 : 2);
+      expect(servers.last['tag'], 'app-dns-proxy');
+      expect(servers.last['address'], '8.8.8.8');
+      expect(servers.last['queryStrategy'], 'UseIPv4');
+      expect(
+        servers.length,
+        mode == TrafficMode.allVpn ? 1 : (mode == TrafficMode.smart ? 3 : 2),
+      );
       if (mode != TrafficMode.allVpn) {
         final direct = servers.singleWhere(
           (server) => server['tag'] == 'app-dns-direct',
@@ -536,7 +541,7 @@ void main() {
             ).config['dns']['servers']
             as List;
     expect(disabled.last['address'], '8.8.8.8');
-    expect(disabled.last['domains'], isEmpty);
+    expect(disabled.last['domains'], isNull);
   });
 
   test('native TUN uses configured DNS in normal and Raw without replacing Raw DNS', () {
@@ -855,7 +860,12 @@ void main() {
         expect(domainRule.containsKey('ip'), false);
         expect(ipRule['ip'], ['geoip:PRIVATE', 'geoip:CN']);
         expect(ipRule.containsKey('domain'), false);
-        expect(config['dns']['servers'].last['domains'], domainRule['domain']);
+        expect(
+          (config['dns']['servers'] as List).singleWhere(
+            (server) => server['tag'] == 'app-dns-direct',
+          )['domains'],
+          domainRule['domain'],
+        );
         expect(plan.nodeTags.values, entries.map((entry) => entry.id));
         expect(entries.first.outbound['tag'], 'Same user tag');
         expect(XrayJson.fromJson(config).toJson(), config);
@@ -1071,8 +1081,8 @@ void main() {
     });
     final servers = plan.config['dns']['servers'] as List;
     expect(servers.map((server) => server['address']), ['8.8.8.8', '8.8.8.8']);
-    expect(servers.last['domains'], ['domain:direct-only.test']);
-    expect(servers.last['skipFallback'], true);
+    expect(servers.first['domains'], ['domain:direct-only.test']);
+    expect(servers.first['skipFallback'], true);
     expect(template.encode(), original);
     _fixture('custom', plan);
   });
@@ -1151,8 +1161,12 @@ void main() {
           ['geoip:PRIVATE', 'geoip:CN'],
         );
         expect(
-          config['dns']['servers'].last['domains'],
-          directDns ? domains : isEmpty,
+          directDns
+              ? (config['dns']['servers'] as List).singleWhere(
+                  (server) => server['tag'] == 'app-dns-direct',
+                )['domains']
+              : config['dns']['servers'].last['domains'],
+          directDns ? domains : isNull,
         );
       }
     }
@@ -1242,7 +1256,7 @@ void main() {
         options: options(),
       );
       expect(plan.config['routing']['domainStrategy'], 'IPIfNonMatch');
-      expect(plan.config['dns']['servers'].last['domains'], isEmpty);
+      expect(plan.config['dns']['servers'].last['domains'], isNull);
       expect(
         (plan.config['routing']['rules'] as List).any(
           (rule) => ![
@@ -1430,6 +1444,7 @@ void main() {
             'address': '8.8.8.8',
             'tag': ConnectionCompiler.dnsProxy,
             'queryStrategy': ipv6 ? 'UseIP' : 'UseIPv4',
+            'timeoutMs': 4000,
           },
         ]);
         final rules = (config['routing']['rules'] as List).cast<Map>();

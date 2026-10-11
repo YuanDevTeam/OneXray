@@ -176,7 +176,9 @@ class CustomRoutingEditorService {
     }
     Object semantic(RoutingProfileState state) => {
       'entries': state.entryCount,
-      'directDnsAddress': state.directDnsAddress.trim(),
+      'dns': state.dns.effectiveJson(fakeDns: state.fakeDns),
+      'sniffing': state.sniffing.effectiveJson(fakeDns: state.fakeDns),
+      'selection': state.selection.effectiveJson(entryCount: state.entryCount),
       'fakeDns': state.fakeDns,
       'fragmentOutbound': state.fragmentOutbound,
       'rules': [

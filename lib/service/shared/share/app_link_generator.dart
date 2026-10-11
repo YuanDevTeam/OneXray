@@ -114,6 +114,19 @@ abstract final class OneXrayAppLinkGenerator {
       final names = <String>{};
       _collectRoutingGeoDataNames(decoded, names);
       _collectDnsGeoDataNames(decoded, names);
+      final inbounds = decoded['inbounds'];
+      if (inbounds is List) {
+        for (final inbound in inbounds.whereType<Map>()) {
+          final sniffing = inbound['sniffing'];
+          if (sniffing is! Map) continue;
+          _collectGeoDataNames(_strings(sniffing['domainsExcluded']), names);
+          _collectGeoDataNames(
+            _strings(sniffing['ipsExcluded']),
+            names,
+            ip: true,
+          );
+        }
+      }
       return names;
     } catch (_) {
       return const <String>{};
@@ -144,9 +157,14 @@ abstract final class OneXrayAppLinkGenerator {
     return OneXrayAppLinkParser.parse(uri) == null ? null : uri;
   }
 
-  static void _collectGeoDataNames(Iterable<String>? rules, Set<String> names) {
+  static void _collectGeoDataNames(
+    Iterable<String>? rules,
+    Set<String> names, {
+    bool ip = false,
+  }) {
     for (final rule in rules ?? const <String>[]) {
-      final match = RegExp(r'^ext:([^:]+\.dat):.+$').firstMatch(rule);
+      final reference = ip && rule.startsWith('!') ? rule.substring(1) : rule;
+      final match = RegExp(r'^ext:([^:]+\.dat):.+$').firstMatch(reference);
       final fileName = match?.group(1);
       if (fileName == null || fileName.length <= 4) {
         continue;
@@ -172,7 +190,7 @@ abstract final class OneXrayAppLinkGenerator {
         continue;
       }
       _collectGeoDataNames(_strings(value['domain']), names);
-      _collectGeoDataNames(_strings(value['ip']), names);
+      _collectGeoDataNames(_strings(value['ip']), names, ip: true);
     }
   }
 
@@ -193,7 +211,9 @@ abstract final class OneXrayAppLinkGenerator {
         continue;
       }
       _collectGeoDataNames(_strings(value['domains']), names);
-      _collectGeoDataNames(_strings(value['expectedIPs']), names);
+      _collectGeoDataNames(_strings(value['expectedIPs']), names, ip: true);
+      _collectGeoDataNames(_strings(value['expectIPs']), names, ip: true);
+      _collectGeoDataNames(_strings(value['unexpectedIPs']), names, ip: true);
     }
   }
 

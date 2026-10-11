@@ -121,12 +121,7 @@ void main() {
     );
     final enabled = base.copyWith(fakeDns: true);
     final document = jsonDecode(enabled.encode()) as Map<String, dynamic>;
-    expect(document['dns'], {
-      'servers': [
-        {'tag': 'app-dns-direct', 'address': '8.8.8.8'},
-        {'tag': 'app-dns-fake', 'address': 'fakedns'},
-      ],
-    });
+    expect(document['dns'], _storedDns(fakeDns: true));
     expect(document.containsKey('fakedns'), false);
     expect(document.containsKey('fakeDns'), false);
     (document['dns'] as Map)['servers'] = (document['dns']['servers'] as List)
@@ -140,7 +135,7 @@ void main() {
     expect(decoded.copyWith(name: 'Edited').fakeDns, true);
     expect(
       decoded.copyWith(fakeDns: false).xrayJson.dns!.servers,
-      hasLength(1),
+      hasLength(2),
     );
     for (final extra in [
       {'tag': 'app-dns-fake', 'address': '9.9.9.9'},
@@ -180,11 +175,7 @@ void main() {
     final state = RoutingProfileDocument.parse(jsonEncode(source)).state;
     expect(state.directDnsAddress, '1.1.1.1');
     final edited = state.copyWith(directDnsAddress: '9.9.9.9');
-    expect(jsonDecode(edited.encode())['dns'], {
-      'servers': [
-        {'tag': 'app-dns-direct', 'address': '9.9.9.9'},
-      ],
-    });
+    expect(jsonDecode(edited.encode())['dns'], _storedDns(direct: '9.9.9.9'));
     expect(
       RoutingProfileDocument.parse(
         edited.encode(),
@@ -198,18 +189,34 @@ void main() {
           .directDnsAddress,
       '8.8.8.8',
     );
+    for (final (tag, addresses) in [
+      ('app-dns-proxy', ['1.1.1.1']),
+      ('app-dns-direct', ['1.1.1.1', '9.9.9.9']),
+    ]) {
+      final decoded = RoutingProfileDocument.parse(
+        jsonEncode({
+          ..._document(),
+          'dns': {
+            'servers': [
+              for (final address in addresses) {'tag': tag, 'address': address},
+            ],
+          },
+        }),
+      ).state;
+      final resolvers = tag == 'app-dns-proxy'
+          ? decoded.dns.effectiveProxyResolvers
+          : decoded.dns.effectiveDirectResolvers;
+      expect(resolvers.map((resolver) => resolver.address), addresses);
+      expect(
+        RoutingProfileDocument.parse(decoded.encode()).state.dns.toJson(),
+        decoded.dns.toJson(),
+      );
+    }
     for (final servers in [
       [],
       ['1.1.1.1'],
       [
         {'address': '1.1.1.1'},
-      ],
-      [
-        {'tag': 'app-dns-proxy', 'address': '1.1.1.1'},
-      ],
-      [
-        for (var i = 0; i < 2; i++)
-          {'tag': 'app-dns-direct', 'address': '1.1.1.1'},
       ],
       [
         {'tag': 'app-dns-direct', 'address': '1.1.1.1', 'domains': []},
@@ -258,12 +265,11 @@ void main() {
     expect(state.xrayJson.routing!.domainStrategy, 'IPIfNonMatch');
     expect(state.rules.map((rule) => rule.toJson()), [first, second, third]);
     expect(jsonDecode(state.encode()), {
-      'dns': {
-        'servers': [
-          {'tag': 'app-dns-direct', 'address': '8.8.8.8'},
-        ],
-      },
+      'dns': _storedDns(),
+      'inbounds': [_storedSniffing()],
+      'observatory': _storedObservatory,
       'routing': {
+        'balancers': _storedBalancers,
         'domainStrategy': 'IPIfNonMatch',
         'rules': [first, second, third],
       },
@@ -279,12 +285,11 @@ void main() {
 
     expect(state.rules.single.domain, ['domain:example.com']);
     expect(XrayJson.fromJson(jsonDecode(state.encode())).toJson(), {
-      'dns': {
-        'servers': [
-          {'tag': 'app-dns-direct', 'address': '8.8.8.8'},
-        ],
-      },
+      'dns': _storedDns(),
+      'inbounds': [_storedSniffing()],
+      'observatory': _storedObservatory,
       'routing': {
+        'balancers': _storedBalancers,
         'domainStrategy': 'IPIfNonMatch',
         'rules': [
           {
@@ -544,3 +549,40 @@ void _rejectAssets(Object? assets) => _reject({
   ..._document(),
   'geodata': {'assets': assets},
 });
+
+Map<String, dynamic> _storedDns({
+  String direct = '8.8.8.8',
+  bool fakeDns = false,
+}) => {
+  'disableCache': false,
+  'serveStale': false,
+  'serveExpiredTTL': 300,
+  'disableFallbackIfMatch': false,
+  'enableParallelQuery': false,
+  'servers': [
+    {'tag': 'app-dns-proxy', 'address': '8.8.8.8', 'timeoutMs': 4000},
+    {'tag': 'app-dns-direct', 'address': direct, 'timeoutMs': 4000},
+    if (fakeDns) {'tag': 'app-dns-fake', 'address': 'fakedns'},
+  ],
+};
+
+Map<String, dynamic> _storedSniffing() => {
+  'tag': 'tunIn',
+  'sniffing': {
+    'enabled': true,
+    'routeOnly': false,
+    'destOverride': ['http', 'tls', 'quic'],
+  },
+};
+
+const _storedObservatory = {
+  'probeURL': 'https://www.google.com/generate_204',
+  'probeInterval': '60s',
+  'enableConcurrency': true,
+};
+const _storedBalancers = [
+  {
+    'tag': 'proxy',
+    'strategy': {'type': 'roundRobin'},
+  },
+];

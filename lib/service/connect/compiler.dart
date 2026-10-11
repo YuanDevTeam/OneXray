@@ -12,6 +12,7 @@ import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/dns.dart';
+import 'package:onexray/service/connect/routing/options.dart';
 import 'package:onexray/service/servers/outbound/map.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
@@ -259,7 +260,10 @@ class ConnectionCompiler {
           nodeTags[tag] = entry.id;
         }
         _applyOutboundPolicy(outbounds, options, raw: false);
-        final template = custom.fillSlots(outbounds);
+        final template = custom.fillSlots(
+          outbounds,
+          includeLanProxy: options.lanProxyEnabled,
+        );
         final inbounds = _objects(template, 'inbounds');
         for (var index = 0; index < inbounds.length; index++) {
           if (inbounds[index]['tag'] == 'tunIn') {
@@ -347,22 +351,35 @@ class ConnectionCompiler {
           dialerProxy: allVpn ? selector.single : 'direct',
         ).toJson(),
       ]);
-      final directDomains =
-          settings.trafficMode == TrafficMode.smart && !settings.smart.directDns
-          ? const <String>[]
-          : RoutingDns.directDomains(rules);
+      final dnsSettings = switch (settings.trafficMode) {
+        TrafficMode.smart => settings.smart.dns,
+        TrafficMode.custom => ordinary!.dns,
+        TrafficMode.allVpn => const RoutingDnsSettings(),
+      };
+      final sniffing = switch (settings.trafficMode) {
+        TrafficMode.smart => settings.smart.sniffing,
+        TrafficMode.custom => ordinary!.sniffing,
+        TrafficMode.allVpn => const RoutingSniffingSettings(),
+      };
+      final selectionSettings = switch (settings.trafficMode) {
+        TrafficMode.smart => settings.smart.selection,
+        TrafficMode.custom => ordinary!.selection,
+        TrafficMode.allVpn => const RoutingSelectionSettings(),
+      };
+      final selection = selectionSettings.compile(selector: selector);
+      final fakeDns = !allVpn && (ordinary?.fakeDns ?? settings.smart.fakeDns);
+      dnsSettings.validate(
+        directEnabled:
+            !allVpn && (ordinary != null || settings.smart.directDns),
+      );
+      selectionSettings.validate();
+      sniffing.validate(fakeDns: fakeDns);
       final dns = RoutingDns.compile(
-        directAddress: switch (settings.trafficMode) {
-          TrafficMode.allVpn => null,
-          TrafficMode.smart => settings.smart.effectiveDirectDnsAddress,
-          TrafficMode.custom => ordinary!.directDnsAddress.trim(),
-        },
-        fakeDns: switch (settings.trafficMode) {
-          TrafficMode.allVpn => false,
-          TrafficMode.smart => settings.smart.fakeDns,
-          TrafficMode.custom => ordinary!.fakeDns,
-        },
-        directDomains: directDomains,
+        settings: dnsSettings,
+        rules: allVpn ? const [] : rules,
+        directEnabled:
+            !allVpn && (ordinary != null || settings.smart.directDns),
+        fakeDns: fakeDns,
         ipv6: options.ipv6,
       );
       final normal = XrayJson(
@@ -371,11 +388,16 @@ class ConnectionCompiler {
           certLocation: VpnConstants.datDir,
         ),
         inbounds: [
-          _runtimeInbound(options, fakeDns: FakeDns.usesServer(dns)),
+          _runtimeInbound(
+            options,
+            fakeDns: FakeDns.usesServer(dns),
+            sniffing: sniffing,
+          ),
           if (options.lanProxyEnabled)
             createLanProxyInbound(
               options.lanProxyPort,
               fakeDns: FakeDns.usesServer(dns),
+              sniffing: sniffing,
             ),
         ],
         log: _runtimeLog(options),
@@ -383,19 +405,12 @@ class ConnectionCompiler {
         metrics: XrayMetrics(listen: '127.0.0.1:${options.metricsPort}'),
         policy: XrayPolicy(system: _runtimeStatsPolicy()),
         outbounds: outbounds,
-        observatory: XrayObservatory(subjectSelector: []),
+        observatory: selection.observatory,
         dns: dns,
         fakedns: FakeDns.poolsFor(dns),
         routing: XrayRouting(
           domainStrategy: allVpn ? 'AsIs' : 'IPIfNonMatch',
-          balancers: [
-            XrayBalancer(
-              tag: 'proxy',
-              selector: selector,
-              strategy: XrayBalancingStrategy(type: 'roundRobin'),
-              fallbackTag: 'direct',
-            ),
-          ],
+          balancers: [selection.balancer],
           rules: [
             XrayRoutingRule(
               ruleTag: 'app-default',
@@ -421,6 +436,15 @@ class ConnectionCompiler {
               balancerTag: 'proxy',
             ),
             ...rules,
+            if (selection.automatic)
+              XrayRoutingRule(
+                ruleTag: 'app-proxy-catchall',
+                inboundTag: [
+                  'tunIn',
+                  if (options.lanProxyEnabled) lanProxyInboundTag,
+                ],
+                balancerTag: 'proxy',
+              ),
           ],
         ),
       );
@@ -470,15 +494,21 @@ class ConnectionCompiler {
   static XrayInbound _runtimeInbound(
     RuntimeOptions options, {
     bool fakeDns = false,
+    RoutingSniffingSettings sniffing = const RoutingSniffingSettings(),
   }) {
     if (options.usesWindowsSystemVpn) {
-      return createSocksInbound('${options.socksPort}', fakeDns: fakeDns);
+      return createSocksInbound(
+        '${options.socksPort}',
+        fakeDns: fakeDns,
+        sniffing: sniffing,
+      );
     }
     final nativeTun =
         options.platform == ConnectionPlatform.linux ||
         options.platform == ConnectionPlatform.windows;
     return createTunInbound(
       fakeDns: fakeDns,
+      sniffing: sniffing,
       gateway: nativeTun
           ? ['198.18.0.1/15', if (options.ipv6) 'fc00::1/64']
           : null,

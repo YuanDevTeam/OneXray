@@ -5,6 +5,9 @@ import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/core/tools/json.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
 import 'package:onexray/service/connect/routing/custom/metadata.dart';
+import 'package:onexray/service/connect/routing/custom/selection_document.dart';
+import 'package:onexray/service/connect/routing/options.dart';
+import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/runtime_outbounds.dart';
 import 'package:onexray/service/shared/xray/fragment.dart';
 
@@ -65,8 +68,22 @@ final class AdvancedRoutingProfile implements RoutingConfiguration {
   Map<String, dynamic> toJson() => JsonTool.copyMap(_json);
   @override
   String encode() => JsonTool.encoder.convert(_json);
+  RoutingSelectionSettings get selection => RoutingSelectionSettings.fromXray(
+    routing: _json['routing'] == null
+        ? null
+        : XrayRouting.fromJson({
+            'balancers': (_json['routing'] as Map)['balancers'],
+          }),
+    observatory: _json['observatory'] == null
+        ? null
+        : XrayObservatory.fromJson(
+            _json['observatory'] as Map<String, dynamic>,
+          ),
+  );
+
   @override
   void validate() {
+    selection.validate();
     if (name.trim().runes.length > 32) {
       throw const FormatException(
         'Custom route name must contain at most 32 characters',
@@ -87,7 +104,10 @@ final class AdvancedRoutingProfile implements RoutingConfiguration {
   )..validate();
 
   /// The same composition is used with real nodes or local validation slots.
-  Map<String, dynamic> fillSlots(List<Map<String, dynamic>> entries) {
+  Map<String, dynamic> fillSlots(
+    List<Map<String, dynamic>> entries, {
+    bool includeLanProxy = false,
+  }) {
     final json = toJson();
     final helpers = (json['outbounds'] as List)
         .skip(entryCount)
@@ -101,16 +121,22 @@ final class AdvancedRoutingProfile implements RoutingConfiguration {
     ];
     final routing =
         json['routing'] as Map<String, dynamic>? ?? <String, dynamic>{};
-    routing['balancers'] = [
-      XrayBalancer(
-        tag: 'proxy',
-        selector: [for (final entry in entries) entry['tag'] as String],
-        strategy: XrayBalancingStrategy(type: 'roundRobin'),
-        fallbackTag: 'direct',
-      ).toJson(),
-    ];
+    final compiled = selection.compile(
+      selector: [for (final entry in entries) entry['tag'] as String],
+    );
+    routing['balancers'] = [compiled.balancer.toJson()];
+    if (compiled.automatic) {
+      routing['rules'] = [
+        ...?routing['rules'] as List?,
+        XrayRoutingRule(
+          ruleTag: 'app-proxy-catchall',
+          inboundTag: ['tunIn', if (includeLanProxy) lanProxyInboundTag],
+          balancerTag: 'proxy',
+        ).toJson(),
+      ];
+    }
     json['routing'] = routing;
-    json['observatory'] = XrayObservatory(subjectSelector: []).toJson();
+    json['observatory'] = compiled.observatory.toJson();
     return json;
   }
 }
@@ -144,6 +170,7 @@ final class AdvancedRoutingDocument {
       'inbounds',
       'dns',
       'routing',
+      'observatory',
       'fakeDns',
       'fakedns',
       if (allowMetadata) ...['name', 'geodata'],
@@ -283,9 +310,14 @@ final class AdvancedRoutingDocument {
         }
       }
     }
+    checkSelectionDocument(json);
     if (json.containsKey('routing')) {
       final routing = _object(json['routing'], const ['routing']);
-      _keys(routing, {'domainStrategy', 'rules'}, const ['routing']);
+      _keys(
+        routing,
+        {'domainStrategy', 'rules', 'balancers'},
+        const ['routing'],
+      );
       if (routing.containsKey('rules')) {
         for (final (index, rule) in _objects(routing['rules'], const [
           'routing',

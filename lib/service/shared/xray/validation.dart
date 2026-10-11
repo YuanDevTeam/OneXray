@@ -25,6 +25,19 @@ abstract final class XrayValidation {
     XrayJson(
       env: _env(),
       log: _log(),
+      inbounds: config.inbounds == null
+          ? null
+          : [
+              for (final inbound in config.inbounds ?? <XrayInbound>[])
+                XrayInbound(
+                  tag: inbound.tag,
+                  protocol: 'socks',
+                  listen: '127.0.0.1',
+                  port: '1080',
+                  settings: {'auth': 'noauth', 'udp': true},
+                  sniffing: inbound.sniffing,
+                ),
+            ],
       outbounds: config.outbounds?.map(_outbound).toList(),
       routing: config.routing,
       dns: config.dns,

@@ -108,8 +108,22 @@ class XrayLog {
 @JsonSerializable(explicitToJson: true, includeIfNull: false)
 class XrayDns {
   List<XrayDnsServer>? servers;
+  bool? disableCache;
+  bool? serveStale;
+  int? serveExpiredTTL;
+  bool? disableFallback;
+  bool? disableFallbackIfMatch;
+  bool? enableParallelQuery;
 
-  XrayDns({this.servers});
+  XrayDns({
+    this.servers,
+    this.disableCache,
+    this.serveStale,
+    this.serveExpiredTTL,
+    this.disableFallback,
+    this.disableFallbackIfMatch,
+    this.enableParallelQuery,
+  });
 
   factory XrayDns.fromJson(Map<String, dynamic> json) =>
       _$XrayDnsFromJson(json);
@@ -137,6 +151,14 @@ class XrayDnsServer {
   bool? skipFallback;
   String? queryStrategy;
   String? tag;
+  List<String>? expectedIPs;
+  List<String>? expectIPs;
+  List<String>? unexpectedIPs;
+  int? timeoutMs;
+  bool? finalQuery;
+  bool? disableCache;
+  bool? serveStale;
+  int? serveExpiredTTL;
 
   XrayDnsServer({
     this.address,
@@ -144,6 +166,14 @@ class XrayDnsServer {
     this.skipFallback,
     this.queryStrategy,
     this.tag,
+    this.expectedIPs,
+    this.expectIPs,
+    this.unexpectedIPs,
+    this.timeoutMs,
+    this.finalQuery,
+    this.disableCache,
+    this.serveStale,
+    this.serveExpiredTTL,
   });
 
   factory XrayDnsServer.fromJson(Map<String, dynamic> json) =>
@@ -295,8 +325,18 @@ class XrayInboundSniffing {
   bool? enabled;
   bool? routeOnly;
   List<String>? destOverride;
+  bool? metadataOnly;
+  List<String>? domainsExcluded;
+  List<String>? ipsExcluded;
 
-  XrayInboundSniffing({this.enabled, this.routeOnly, this.destOverride});
+  XrayInboundSniffing({
+    this.enabled,
+    this.routeOnly,
+    this.destOverride,
+    this.metadataOnly,
+    this.domainsExcluded,
+    this.ipsExcluded,
+  });
 
   factory XrayInboundSniffing.fromJson(Map<String, dynamic> json) =>
       _$XrayInboundSniffingFromJson(json);
@@ -361,8 +401,16 @@ class XrayMetrics {
 @JsonSerializable(explicitToJson: true, includeIfNull: false)
 class XrayObservatory {
   List<String>? subjectSelector;
+  String? probeURL;
+  String? probeInterval;
+  bool? enableConcurrency;
 
-  XrayObservatory({this.subjectSelector});
+  XrayObservatory({
+    this.subjectSelector,
+    this.probeURL,
+    this.probeInterval,
+    this.enableConcurrency,
+  });
 
   factory XrayObservatory.fromJson(Map<String, dynamic> json) =>
       _$XrayObservatoryFromJson(json);

@@ -4,6 +4,7 @@ import 'package:onexray/core/errors/json_diagnostic.dart';
 import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/metadata.dart';
+import 'package:onexray/service/connect/routing/custom/selection_document.dart';
 
 /// External Custom-routing document after import-only metadata is separated.
 final class RoutingProfileDocument {
@@ -34,8 +35,16 @@ final class RoutingProfileDocument {
     _onlyKeys(
       document,
       allowMetadata
-          ? const {'name', 'outbounds', 'routing', 'geodata', 'dns'}
-          : const {'outbounds', 'routing', 'dns'},
+          ? const {
+              'name',
+              'outbounds',
+              'routing',
+              'geodata',
+              'dns',
+              'inbounds',
+              'observatory',
+            }
+          : const {'outbounds', 'routing', 'dns', 'inbounds', 'observatory'},
       const [],
     );
     final embeddedName = document['name'];
@@ -78,7 +87,18 @@ final class RoutingProfileDocument {
 void _checkEditableFields(Map<String, dynamic> document) {
   if (document.containsKey('dns')) {
     final dns = _object(document['dns'], const ['dns']);
-    _onlyKeys(dns, const {'servers'}, const ['dns']);
+    _onlyKeys(
+      dns,
+      const {
+        'servers',
+        'disableCache',
+        'serveStale',
+        'serveExpiredTTL',
+        'enableParallelQuery',
+        'disableFallbackIfMatch',
+      },
+      const ['dns'],
+    );
     final servers = dns['servers'];
     if (servers is! List) {
       throw const JsonDiagnostic(
@@ -88,13 +108,54 @@ void _checkEditableFields(Map<String, dynamic> document) {
     }
     for (var index = 0; index < servers.length; index++) {
       final path = <Object>['dns', 'servers', index];
-      _onlyKeys(_object(servers[index], path), const {'tag', 'address'}, path);
+      _onlyKeys(_object(servers[index], path), const {
+        'tag',
+        'address',
+        'timeoutMs',
+        'expectedIPs',
+        'expectIPs',
+        'unexpectedIPs',
+        'disableCache',
+        'serveStale',
+        'serveExpiredTTL',
+      }, path);
     }
   }
+  if (document.containsKey('inbounds')) {
+    final inbounds = document['inbounds'];
+    if (inbounds is! List || inbounds.length != 1) {
+      throw const JsonDiagnostic(
+        'Only one tunIn sniffing placeholder is supported',
+        path: ['inbounds'],
+      );
+    }
+    final inbound = _object(inbounds.single, const ['inbounds', 0]);
+    _onlyKeys(inbound, const {'tag', 'sniffing'}, const ['inbounds', 0]);
+    if (inbound['tag'] != 'tunIn') {
+      throw const JsonDiagnostic('Use tunIn', path: ['inbounds', 0, 'tag']);
+    }
+    _onlyKeys(
+      _object(inbound['sniffing'], const ['inbounds', 0, 'sniffing']),
+      const {
+        'enabled',
+        'routeOnly',
+        'destOverride',
+        'metadataOnly',
+        'domainsExcluded',
+        'ipsExcluded',
+      },
+      const ['inbounds', 0, 'sniffing'],
+    );
+  }
+  checkSelectionDocument(document);
   final routing = document.containsKey('routing')
       ? _object(document['routing'], const ['routing'])
       : <String, dynamic>{};
-  _onlyKeys(routing, const {'domainStrategy', 'rules'}, const ['routing']);
+  _onlyKeys(
+    routing,
+    const {'domainStrategy', 'rules', 'balancers'},
+    const ['routing'],
+  );
   final rules = routing.containsKey('rules') ? routing['rules'] : <dynamic>[];
   if (rules is! List) {
     throw const JsonDiagnostic(

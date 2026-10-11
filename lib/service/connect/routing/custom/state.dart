@@ -1,6 +1,6 @@
 import 'package:onexray/core/errors/json_diagnostic.dart';
 import 'package:onexray/core/model/xray_json.dart';
-import 'package:onexray/service/connect/routing/dns.dart';
+import 'package:onexray/service/connect/routing/options.dart';
 import 'package:onexray/core/tools/json.dart';
 import 'package:onexray/service/shared/xray/fake_dns.dart';
 import 'package:onexray/service/shared/xray/fragment.dart';
@@ -114,7 +114,10 @@ final class RoutingProfileState implements RoutingConfiguration {
   final String name;
   @override
   final int entryCount;
-  final String directDnsAddress;
+  final RoutingDnsSettings dns;
+  final RoutingSniffingSettings sniffing;
+  final RoutingSelectionSettings selection;
+  String get directDnsAddress => dns.directAddress;
   final bool fakeDns;
   final Map<String, dynamic>? _fragmentOutbound;
   final List<RoutingRuleState> rules;
@@ -123,11 +126,17 @@ final class RoutingProfileState implements RoutingConfiguration {
     this.id,
     required this.name,
     this.entryCount = 1,
-    this.directDnsAddress = RoutingDns.defaultAddress,
+    String? directDnsAddress,
+    RoutingDnsSettings dns = const RoutingDnsSettings(),
+    this.sniffing = const RoutingSniffingSettings(),
+    this.selection = const RoutingSelectionSettings(),
     this.fakeDns = false,
     Map<String, dynamic>? fragmentOutbound,
     Iterable<RoutingRuleState> rules = const [],
-  }) : _fragmentOutbound = fragmentOutbound == null
+  }) : dns = directDnsAddress == null
+           ? dns
+           : dns.withDirectAddress(directDnsAddress),
+       _fragmentOutbound = fragmentOutbound == null
            ? null
            : JsonTool.copyMap(fragmentOutbound),
        rules = List.unmodifiable(rules);
@@ -146,12 +155,9 @@ final class RoutingProfileState implements RoutingConfiguration {
         xrayJson.geodata != null ||
         xrayJson.log != null ||
         xrayJson.fakedns != null ||
-        xrayJson.inbounds != null ||
         xrayJson.policy != null ||
         xrayJson.stats != null ||
-        xrayJson.metrics != null ||
-        xrayJson.observatory != null ||
-        xrayJson.routing?.balancers != null) {
+        xrayJson.metrics != null) {
       throw const FormatException('Unsupported Custom routing field');
     }
     final outbounds = xrayJson.outbounds;
@@ -175,13 +181,26 @@ final class RoutingProfileState implements RoutingConfiguration {
         path: ['outbounds'],
       );
     }
-    final dns = _dnsSettings(xrayJson.dns);
+    final dns = RoutingDnsSettings.fromXrayDns(xrayJson.dns);
+    final sniffing = RoutingSniffingSettings.fromXraySniffing(
+      (xrayJson.inbounds?.isNotEmpty == true
+          ? xrayJson.inbounds!.first.sniffing
+          : null),
+    );
+    final selection = RoutingSelectionSettings.fromXray(
+      routing: xrayJson.routing,
+      observatory: xrayJson.observatory,
+    );
     final state = RoutingProfileState(
       id: id,
       name: name,
       entryCount: entryCount,
-      directDnsAddress: dns.directAddress,
-      fakeDns: dns.fakeDns,
+      dns: dns,
+      sniffing: sniffing,
+      selection: selection,
+      fakeDns:
+          xrayJson.dns?.servers?.any((server) => server.tag == FakeDns.tag) ??
+          false,
       fragmentOutbound: helpers.isEmpty ? null : helpers.single,
       rules: [
         for (final (index, rule)
@@ -199,22 +218,21 @@ final class RoutingProfileState implements RoutingConfiguration {
   XrayJson get xrayJson {
     validate();
     return XrayJson(
-      dns: XrayDns(
-        servers: [
-          XrayDnsServer(
-            tag: RoutingDns.directTag,
-            address: directDnsAddress.trim(),
-          ),
-          if (fakeDns)
-            XrayDnsServer(tag: FakeDns.tag, address: FakeDns.address),
-        ],
-      ),
+      dns: dns.toStoredXrayDns(fakeDns: fakeDns),
+      inbounds: [
+        XrayInbound(
+          tag: 'tunIn',
+          sniffing: sniffing.toXraySniffing(fakeDns: fakeDns, forStorage: true),
+        ),
+      ],
+      observatory: selection.toStoredObservatory(),
       outbounds: [
         for (var index = 0; index < entryCount; index++) <String, dynamic>{},
         if (_fragmentOutbound != null) JsonTool.copyMap(_fragmentOutbound),
       ],
       routing: XrayRouting(
         domainStrategy: 'IPIfNonMatch',
+        balancers: selection.toStoredRouting().balancers,
         rules: rules.isEmpty ? null : [for (final rule in rules) rule.xrayJson],
       ),
     );
@@ -239,6 +257,9 @@ final class RoutingProfileState implements RoutingConfiguration {
     String? name,
     int? entryCount,
     String? directDnsAddress,
+    RoutingDnsSettings? dns,
+    RoutingSniffingSettings? sniffing,
+    RoutingSelectionSettings? selection,
     bool? fakeDns,
     Map<String, dynamic>? fragmentOutbound,
     bool clearFragment = false,
@@ -247,7 +268,10 @@ final class RoutingProfileState implements RoutingConfiguration {
     id: clearId ? null : id ?? this.id,
     name: name ?? this.name,
     entryCount: entryCount ?? this.entryCount,
-    directDnsAddress: directDnsAddress ?? this.directDnsAddress,
+    directDnsAddress: directDnsAddress,
+    dns: dns ?? this.dns,
+    sniffing: sniffing ?? this.sniffing,
+    selection: selection ?? this.selection,
     fakeDns: fakeDns ?? this.fakeDns,
     fragmentOutbound: clearFragment
         ? null
@@ -257,6 +281,9 @@ final class RoutingProfileState implements RoutingConfiguration {
 
   @override
   void validate() {
+    dns.validate();
+    sniffing.validate(fakeDns: fakeDns);
+    selection.validate();
     final trimmedName = name.trim();
     if (trimmedName.isNotEmpty && trimmedName.runes.length > 32) {
       throw const FormatException(
@@ -273,40 +300,6 @@ final class RoutingProfileState implements RoutingConfiguration {
       );
     }
   }
-}
-
-({String directAddress, bool fakeDns}) _dnsSettings(XrayDns? dns) {
-  if (dns == null) {
-    return (directAddress: RoutingDns.defaultAddress, fakeDns: false);
-  }
-  final servers = dns.servers;
-  if (servers == null) {
-    throw const JsonDiagnostic(
-      'Custom routing requires one tagged direct DNS server',
-      path: ['dns', 'servers'],
-    );
-  }
-  final direct = servers
-      .where((server) => server.tag == RoutingDns.directTag)
-      .toList();
-  final fake = servers.where((server) => server.tag == FakeDns.tag).toList();
-  if (direct.length != 1 ||
-      fake.length > 1 ||
-      servers.length != direct.length + fake.length ||
-      servers.any(
-        (server) =>
-            server.address == null ||
-            server.domains != null ||
-            server.skipFallback != null ||
-            server.queryStrategy != null,
-      ) ||
-      (fake.isNotEmpty && !FakeDns.isAddress(fake.single.address))) {
-    throw const JsonDiagnostic(
-      'Custom DNS supports app-dns-direct and an optional app-dns-fake server',
-      path: ['dns', 'servers'],
-    );
-  }
-  return (directAddress: direct.single.address!, fakeDns: fake.isNotEmpty);
 }
 
 Object? _copyValue(Object? value) =>

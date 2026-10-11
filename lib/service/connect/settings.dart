@@ -1,4 +1,4 @@
-import 'package:onexray/service/connect/routing/dns.dart';
+import 'package:onexray/service/connect/routing/options.dart';
 
 enum ConnectionPlatform { ios, macos, android, windows, linux }
 
@@ -50,7 +50,10 @@ class SmartRoutingSettings {
   final bool directApple;
   final bool directWindows;
   final bool directDns;
-  final String directDnsAddress;
+  final RoutingDnsSettings dns;
+  final RoutingSniffingSettings sniffing;
+  final RoutingSelectionSettings selection;
+  String get directDnsAddress => dns.directAddress;
   final bool fakeDns;
   final bool fragment;
   final bool blockAds;
@@ -63,11 +66,17 @@ class SmartRoutingSettings {
     this.directApple = true,
     this.directWindows = true,
     this.directDns = true,
-    this.directDnsAddress = RoutingDns.defaultAddress,
+    String? directDnsAddress,
+    RoutingDnsSettings dns = const RoutingDnsSettings(),
+    this.sniffing = const RoutingSniffingSettings(),
+    this.selection = const RoutingSelectionSettings(),
     this.fakeDns = false,
     this.fragment = false,
     this.blockAds = false,
-  }) : directRegions = List.unmodifiable(directRegions) {
+  }) : dns = directDnsAddress == null
+           ? dns
+           : dns.withDirectAddress(directDnsAddress),
+       directRegions = List.unmodifiable(directRegions) {
     if (entryCount < 1 || entryCount > 3) {
       throw const FormatException('Entry count must be 1–3');
     }
@@ -83,8 +92,16 @@ class SmartRoutingSettings {
         directApple: value['directApple'] as bool? ?? true,
         directWindows: value['directWindows'] as bool? ?? true,
         directDns: value['directDns'] as bool? ?? true,
-        directDnsAddress:
-            value['directDnsAddress'] as String? ?? RoutingDns.defaultAddress,
+        directDnsAddress: value['directDnsAddress'] as String?,
+        dns: RoutingDnsSettings.fromJson(
+          value['dns'] as Map<String, dynamic>? ?? {},
+        ),
+        sniffing: RoutingSniffingSettings.fromJson(
+          value['sniffing'] as Map<String, dynamic>? ?? {},
+        ),
+        selection: RoutingSelectionSettings.fromJson(
+          value['selection'] as Map<String, dynamic>? ?? {},
+        ),
         fakeDns: value['fakeDns'] as bool? ?? false,
         fragment: value['fragment'] as bool? ?? false,
         blockAds: value['blockAds'] as bool? ?? false,
@@ -98,14 +115,22 @@ class SmartRoutingSettings {
     'directApple': directApple,
     'directWindows': directWindows,
     'directDns': directDns,
-    'directDnsAddress': directDnsAddress,
+    'dns': dns.toJson(),
+    'sniffing': sniffing.toJson(),
+    'selection': selection.toJson(),
     'fakeDns': fakeDns,
     'fragment': fragment,
     'blockAds': blockAds,
   };
 
+  void validate() {
+    dns.validate(directEnabled: directDns);
+    sniffing.validate(fakeDns: fakeDns);
+    selection.validate();
+  }
+
   String get effectiveDirectDnsAddress =>
-      directDns ? directDnsAddress.trim() : RoutingDns.defaultAddress;
+      directDns ? directDnsAddress.trim() : RoutingDnsSettings.defaultAddress;
 }
 
 /// Retains the normal selection while Raw is active. The coordinator stores

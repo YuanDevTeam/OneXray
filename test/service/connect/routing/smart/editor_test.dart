@@ -13,6 +13,7 @@ import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/region_catalog.dart';
 import 'package:onexray/service/connect/routing/smart/editor.dart';
+import 'package:onexray/service/connect/routing/options.dart';
 
 RegionCatalog _regions() => RegionCatalog.fromJson(
   {
@@ -89,7 +90,7 @@ void main() {
         );
         final after = SmartRoutingSettings.fromJson({
           ...before.toJson(),
-          'directDnsAddress': '9.9.9.9',
+          'dns': before.dns.withDirectAddress('9.9.9.9').toJson(),
         });
         expect(after.directDnsAddress, '9.9.9.9');
         expect(
@@ -101,6 +102,59 @@ void main() {
           !enabled,
         );
       }
+    },
+  );
+
+  test(
+    'inactive sniffing and probe preferences persist without changing runtime',
+    () {
+      final before = SmartRoutingSettings(
+        sniffing: const RoutingSniffingSettings(enabled: false),
+      );
+      final after = SmartRoutingSettings.fromJson({
+        ...before.toJson(),
+        'sniffing': before.sniffing
+            .copyWith(
+              metadataOnly: true,
+              domainsExcluded: ['domain:internal.test'],
+            )
+            .toJson(),
+        'selection': before.selection
+            .copyWith(
+              probeURL: 'https://example.com/probe',
+              probeInterval: '30s',
+              enableConcurrency: false,
+            )
+            .toJson(),
+      });
+      expect(
+        SmartRoutingEditorService.sameRuntime(
+          ConnectionSettings(smart: before),
+          after,
+          _regions(),
+        ),
+        true,
+      );
+      expect(after.sniffing.metadataOnly, true);
+      expect(after.selection.probeInterval, '30s');
+      final automaticBefore = SmartRoutingSettings(
+        entryCount: 2,
+        selection: const RoutingSelectionSettings(type: 'leastPing'),
+      );
+      final automaticAfter = SmartRoutingSettings.fromJson({
+        ...automaticBefore.toJson(),
+        'selection': automaticBefore.selection
+            .copyWith(probeInterval: '1m')
+            .toJson(),
+      });
+      expect(
+        SmartRoutingEditorService.sameRuntime(
+          ConnectionSettings(smart: automaticBefore),
+          automaticAfter,
+          _regions(),
+        ),
+        true,
+      );
     },
   );
 
@@ -129,12 +183,23 @@ void main() {
         testXray: (text) async {
           validations++;
           final config = jsonDecode(text);
-          expect(config['dns']['servers'].first['address'], 'fakedns');
+          expect(
+            (config['dns']['servers'] as List).where(
+              (server) => server['address'] == 'fakedns',
+            ),
+            isNotEmpty,
+          );
           expect(config['fakedns'], [
             {'ipPool': '198.19.0.0/16', 'poolSize': 32768},
             {'ipPool': 'fc00:1::/64', 'poolSize': 32768},
           ]);
-          expect(config.containsKey('inbounds'), false);
+          expect(config['inbounds'].single['protocol'], 'socks');
+          expect(config['inbounds'].single['sniffing']['destOverride'], [
+            'http',
+            'tls',
+            'quic',
+            'fakedns',
+          ]);
           return '';
         },
       );
@@ -223,9 +288,11 @@ void main() {
         testXray: (text) async {
           calls++;
           final json = jsonDecode(text);
-          expect(json['dns']['servers'].last['tag'], 'app-dns-direct');
-          expect(json['dns']['servers'].last['address'], '1.1.1.1');
-          expect(json.containsKey('inbounds'), false);
+          final direct = (json['dns']['servers'] as List).singleWhere(
+            (server) => server['tag'] == 'app-dns-direct',
+          );
+          expect(direct['address'], '1.1.1.1');
+          expect(json['inbounds'].single['protocol'], 'socks');
           return coreError;
         },
       );
@@ -248,6 +315,66 @@ void main() {
       expect(calls, 2);
     },
   );
+
+  test('Smart saving validates multi-chain strategy and managed sniffing placeholders', () async {
+    final coordinator = await _initialize(
+      ConnectionCoordinator(
+        database: db,
+        inspect: (_, {observedStatus}) async =>
+            const HostConnection(VpnStatus.disconnected),
+      ),
+    );
+    final original = await coordinator.configuration;
+    var calls = 0;
+    final service = SmartRoutingEditorService(
+      database: db,
+      coordinator: coordinator,
+      loadRegions: () async => _regions(),
+      testXray: (text) async {
+        calls++;
+        final json = jsonDecode(text);
+        expect(
+          json['routing']['balancers'].single['strategy']['type'],
+          'leastPing',
+        );
+        expect(
+          json['routing']['balancers'].single['fallbackTag'],
+          'app-entry-0',
+        );
+        expect(json['observatory']['subjectSelector'], [
+          'app-entry-0',
+          'app-entry-1',
+        ]);
+        expect(json['observatory']['probeInterval'], '30s');
+        expect(json['inbounds'].single['protocol'], 'socks');
+        expect(json['inbounds'].single['sniffing']['ipsExcluded'], [
+          '192.168.0.0/16',
+        ]);
+        return '';
+      },
+    );
+    final smart = SmartRoutingSettings(
+      entryCount: 2,
+      selection: const RoutingSelectionSettings(
+        type: 'leastPing',
+        probeInterval: '30s',
+      ),
+      sniffing: const RoutingSniffingSettings(ipsExcluded: ['192.168.0.0/16']),
+    );
+    expect(
+      await service.save(
+        original: original,
+        smart: smart,
+        confirmReconnect: () async => throw StateError('No active VPN'),
+      ),
+      true,
+    );
+    expect(calls, 1);
+    expect(
+      (await coordinator.configuration).connection.smart.selection.toJson(),
+      smart.selection.toJson(),
+    );
+  });
 
   test('unselected Smart saves without activation or servers; stale settings are rejected', () async {
     final original = ConnectionConfiguration(
