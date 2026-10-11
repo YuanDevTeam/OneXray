@@ -11,6 +11,7 @@ import 'package:onexray/service/advanced/xray/geodata/model.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/connect/routing/custom/document.dart';
 import 'package:onexray/service/shared/share/configuration_transfer.dart';
 
 /// Only connection assets cross this boundary. Runtime choices, device policy,
@@ -192,14 +193,22 @@ void validateBackupAssets(BackupDocument document) {
         'Custom routing names must be unique and contain 1–32 characters',
       );
     }
-    ConfigurationTransferService.routingDocumentFromJson(
-      decodeBackupConfiguration(row.data),
-      row.advanced
-          ? ConfigurationKind.customAdvanced
-          : ConfigurationKind.custom,
-      name: row.name,
-      allowMetadata: false,
-    );
+    final json = decodeBackupConfiguration(row.data);
+    if (row.advanced) {
+      ConfigurationTransferService.routingDocumentFromJson(
+        json,
+        ConfigurationKind.customAdvanced,
+        name: row.name,
+        allowMetadata: false,
+      );
+    } else {
+      RoutingProfileDocument.fromJson(
+        json,
+        name: row.name,
+        allowMetadata: false,
+        ignoreRemovedDnsFields: true,
+      );
+    }
   }
   SmartRoutingSettings.fromJson(document.smartRouting.toJson()).validate();
   final files = <String>{};

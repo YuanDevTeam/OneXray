@@ -109,20 +109,14 @@ class XrayLog {
 class XrayDns {
   List<XrayDnsServer>? servers;
   bool? disableCache;
-  bool? serveStale;
-  int? serveExpiredTTL;
   bool? disableFallback;
   bool? disableFallbackIfMatch;
-  bool? enableParallelQuery;
 
   XrayDns({
     this.servers,
     this.disableCache,
-    this.serveStale,
-    this.serveExpiredTTL,
     this.disableFallback,
     this.disableFallbackIfMatch,
-    this.enableParallelQuery,
   });
 
   factory XrayDns.fromJson(Map<String, dynamic> json) =>
@@ -151,14 +145,9 @@ class XrayDnsServer {
   bool? skipFallback;
   String? queryStrategy;
   String? tag;
-  List<String>? expectedIPs;
-  List<String>? expectIPs;
-  List<String>? unexpectedIPs;
   int? timeoutMs;
   bool? finalQuery;
   bool? disableCache;
-  bool? serveStale;
-  int? serveExpiredTTL;
 
   XrayDnsServer({
     this.address,
@@ -166,14 +155,9 @@ class XrayDnsServer {
     this.skipFallback,
     this.queryStrategy,
     this.tag,
-    this.expectedIPs,
-    this.expectIPs,
-    this.unexpectedIPs,
     this.timeoutMs,
     this.finalQuery,
     this.disableCache,
-    this.serveStale,
-    this.serveExpiredTTL,
   });
 
   factory XrayDnsServer.fromJson(Map<String, dynamic> json) =>

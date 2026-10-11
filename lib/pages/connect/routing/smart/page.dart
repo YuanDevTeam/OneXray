@@ -248,7 +248,6 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
           value: smart.dns,
           enabled: !state.busy,
           directEnabled: smart.directDns,
-          fakeDns: smart.fakeDns,
           onChanged: (value) => controller.update('dns', value.toJson()),
         ),
         RoutingSniffingSettingsForm(

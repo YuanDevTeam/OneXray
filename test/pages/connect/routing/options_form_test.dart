@@ -30,15 +30,24 @@ Finder _switch(String title) => find.descendant(
 
 void main() {
   testWidgets(
-    'DNS fallback editing keeps separate exits and finite cache options',
+    'DNS fallback editing saves separate exits, timeout and cache overrides',
     (tester) async {
       var value = const RoutingDnsSettings();
+      Map<String, dynamic>? saved;
       await tester.pumpWidget(
         _app(
           StatefulBuilder(
-            builder: (context, setState) => RoutingDnsSettingsForm(
-              value: value,
-              onChanged: (updated) => setState(() => value = updated),
+            builder: (context, setState) => Column(
+              children: [
+                RoutingDnsSettingsForm(
+                  value: value,
+                  onChanged: (updated) => setState(() => value = updated),
+                ),
+                TextButton(
+                  onPressed: () => saved = value.toJson(),
+                  child: const Text('Save DNS'),
+                ),
+              ],
             ),
           ),
         ),
@@ -53,188 +62,107 @@ void main() {
       await tester.pumpAndSettle();
       expect(value.effectiveProxyResolvers, hasLength(2));
       expect(value.effectiveDirectResolvers, hasLength(1));
+      final fallback = find.byKey(const ValueKey('dns-proxy-1'));
       final addedAddress = find
-          .descendant(
-            of: find.byKey(const ValueKey('dns-proxy-1')),
-            matching: find.byType(TextField),
-          )
+          .descendant(of: fallback, matching: find.byType(TextField))
           .first;
       await tester.enterText(addedAddress, 'https://dns.example/dns-query');
       await tester.pumpAndSettle();
-      expect(
-        value.effectiveProxyResolvers[1].address,
-        'https://dns.example/dns-query',
+      final options = find.descendant(
+        of: fallback,
+        matching: find.text(l.routingDnsResolverOptions),
       );
-      expect(value.directAddress, '8.8.8.8');
-      await tester.ensureVisible(find.text(l.routingDnsAdvanced));
-      await tester.tap(find.text(l.routingDnsAdvanced));
+      await tester.ensureVisible(options);
+      await tester.tap(options);
       await tester.pumpAndSettle();
-      expect(
-        tester.widget<ShadSwitch>(_switch(l.routingDnsParallel)).enabled,
-        false,
+      final timeout = find.descendant(
+        of: fallback,
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is TextField &&
+              widget.decoration?.labelText == l.routingDnsTimeout,
+        ),
       );
+      await tester.ensureVisible(timeout);
+      await tester.enterText(timeout, '2500');
+      await tester.pumpAndSettle();
+      final inherit = find.descendant(
+        of: fallback,
+        matching: find.text(l.routingOptionInherit),
+      );
+      await tester.ensureVisible(inherit);
+      await tester.tap(inherit);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l.routingOptionOff).last);
+      await tester.pumpAndSettle();
+      expect(value.effectiveProxyResolvers[1].disableCache, true);
+      expect(value.disableCache, false);
       await tester.ensureVisible(_switch(l.routingDnsSameExitOnly));
       await tester.tap(_switch(l.routingDnsSameExitOnly));
       await tester.pumpAndSettle();
-      expect(value.sameExitOnly, true);
-      expect(
-        tester.widget<ShadSwitch>(_switch(l.routingDnsParallel)).enabled,
-        true,
-      );
-      await tester.ensureVisible(_switch(l.routingDnsServeStale));
-      await tester.tap(_switch(l.routingDnsServeStale));
+      await tester.ensureVisible(_switch(l.routingDnsCache));
+      await tester.tap(_switch(l.routingDnsCache));
       await tester.pumpAndSettle();
-      expect(value.serveStale, true);
-      expect(value.serveExpiredTTL, 300);
+      expect(value.sameExitOnly, true);
+      expect(value.disableCache, true);
+      expect(value.directAddress, '8.8.8.8');
+      expect(value.effectiveDirectResolvers.first.disableCache, isNull);
+      final save = find.widgetWithText(TextButton, 'Save DNS');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      final restored = RoutingDnsSettings.fromJson(saved!);
+      expect(
+        restored.effectiveProxyResolvers[1].address,
+        'https://dns.example/dns-query',
+      );
+      expect(restored.effectiveProxyResolvers[1].timeoutMs, 2500);
+      expect(restored.effectiveProxyResolvers[1].disableCache, true);
+      expect(restored.sameExitOnly, true);
+      expect(restored.disableCache, true);
+      expect(restored.directAddress, '8.8.8.8');
+      for (final removed in [
+        'Expected IPs',
+        'Unexpected IPs',
+        'Use expired cached answers',
+        'Expired cache lifetime (seconds)',
+        'Query fallback DNS concurrently',
+      ]) {
+        expect(find.text(removed, skipOffstage: false), findsNothing);
+      }
+      expect(
+        find.byType(RawAutocomplete<String>, skipOffstage: false),
+        findsNothing,
+      );
       expect(tester.takeException(), isNull);
     },
   );
 
-  testWidgets('FakeDNS keeps sniffing enabled and disables concurrent DNS', (
-    tester,
-  ) async {
+  testWidgets('FakeDNS keeps sniffing enabled', (tester) async {
     var sniffing = const RoutingSniffingSettings();
-    var dns = const RoutingDnsSettings(
-      sameExitOnly: true,
-      proxyResolvers: [
-        RoutingDnsResolver(address: '8.8.8.8'),
-        RoutingDnsResolver(address: '1.1.1.1'),
-      ],
-    );
     await tester.pumpWidget(
       _app(
         StatefulBuilder(
-          builder: (context, setState) => Column(
-            children: [
-              RoutingSniffingSettingsForm(
-                value: sniffing,
-                fakeDns: true,
-                onChanged: (value) => setState(() => sniffing = value),
-              ),
-              RoutingDnsSettingsForm(
-                value: dns,
-                fakeDns: true,
-                onChanged: (value) => setState(() => dns = value),
-              ),
-            ],
+          builder: (context, setState) => RoutingSniffingSettingsForm(
+            value: sniffing,
+            fakeDns: true,
+            onChanged: (value) => setState(() => sniffing = value),
           ),
         ),
       ),
     );
     await tester.pumpAndSettle();
     final l = AppLocalizations.of(
-      tester.element(find.byType(RoutingDnsSettingsForm)),
+      tester.element(find.byType(RoutingSniffingSettingsForm)),
     )!;
     expect(
       tester.widget<ShadSwitch>(_switch(l.routingSniffingEnabled)).enabled,
       false,
     );
     expect(find.text(l.routingSniffingFakeDnsHint), findsOneWidget);
-    await tester.ensureVisible(find.text(l.routingDnsAdvanced));
-    await tester.tap(find.text(l.routingDnsAdvanced));
-    await tester.pumpAndSettle();
-    expect(
-      tester.widget<ShadSwitch>(_switch(l.routingDnsParallel)).enabled,
-      false,
-    );
     expect(sniffing.enabled, true);
-    expect(dns.directAddress, '8.8.8.8');
     expect(tester.takeException(), isNull);
   });
-
-  testWidgets('disabled DNS concurrency retains its saved preference', (
-    tester,
-  ) async {
-    var value = const RoutingDnsSettings(
-      sameExitOnly: true,
-      enableParallelQuery: true,
-      proxyResolvers: [
-        RoutingDnsResolver(address: '8.8.8.8'),
-        RoutingDnsResolver(address: '1.1.1.1'),
-      ],
-    );
-    await tester.pumpWidget(
-      _app(
-        StatefulBuilder(
-          builder: (context, setState) => RoutingDnsSettingsForm(
-            value: value,
-            onChanged: (updated) => setState(() => value = updated),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final l = AppLocalizations.of(
-      tester.element(find.byType(RoutingDnsSettingsForm)),
-    )!;
-    await tester.ensureVisible(_switch(l.routingDnsSameExitOnly));
-    await tester.tap(_switch(l.routingDnsSameExitOnly));
-    await tester.pumpAndSettle();
-    expect(value.sameExitOnly, false);
-    expect(value.enableParallelQuery, true);
-    expect(value.effectiveJson()['enableParallelQuery'], false);
-    await tester.ensureVisible(find.text(l.routingDnsAdvanced));
-    await tester.tap(find.text(l.routingDnsAdvanced));
-    await tester.pumpAndSettle();
-    expect(
-      tester.widget<ShadSwitch>(_switch(l.routingDnsParallel)).enabled,
-      false,
-    );
-    expect(
-      tester.widget<ShadSwitch>(_switch(l.routingDnsParallel)).value,
-      true,
-    );
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets(
-    'DNS geodata completion keeps fallback marker separate from IP rules',
-    (tester) async {
-      await tester.pumpWidget(
-        _app(
-          RoutingDnsSettingsForm(
-            value: const RoutingDnsSettings(),
-            onChanged: (_) {},
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(RoutingDnsSettingsForm)),
-      )!;
-      await tester.tap(find.text(l.routingDnsResolverOptions).first);
-      await tester.pumpAndSettle();
-      for (final label in [
-        l.routingDnsExpectedIps,
-        l.routingDnsUnexpectedIps,
-      ]) {
-        final field = find
-            .byWidgetPredicate(
-              (widget) =>
-                  widget is TextField && widget.decoration?.labelText == label,
-            )
-            .first;
-        final autocomplete = tester.widget<RawAutocomplete<String>>(
-          find.ancestor(
-            of: field,
-            matching: find.byType(RawAutocomplete<String>),
-          ),
-        );
-        // Completing the next rule keeps the fallback marker on its own line.
-        expect(
-          await autocomplete.optionsBuilder(
-            const TextEditingValue(
-              text: '*\n',
-              selection: TextSelection.collapsed(offset: 2),
-            ),
-          ),
-          isEmpty,
-        );
-        expect(autocomplete.displayStringForOption('geoip:CN'), '*\ngeoip:CN');
-      }
-      expect(tester.takeException(), isNull);
-    },
-  );
 
   testWidgets('sniffing completion generates plain geodata exclusions', (
     tester,
@@ -352,82 +280,48 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'invalid DNS numeric input is rejected instead of becoming defaults',
-    (tester) async {
-      var value = const RoutingDnsSettings();
-      await tester.pumpWidget(
-        _app(
-          StatefulBuilder(
-            builder: (context, setState) => RoutingDnsSettingsForm(
-              value: value,
-              onChanged: (updated) => setState(() => value = updated),
-            ),
+  testWidgets('invalid DNS timeout is rejected instead of becoming a default', (
+    tester,
+  ) async {
+    var value = const RoutingDnsSettings();
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) => RoutingDnsSettingsForm(
+            value: value,
+            onChanged: (updated) => setState(() => value = updated),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(RoutingDnsSettingsForm)),
-      )!;
-      await tester.tap(find.text(l.routingDnsResolverOptions).first);
-      await tester.pumpAndSettle();
-      final timeout = find
-          .byWidgetPredicate(
-            (widget) =>
-                widget is TextField &&
-                widget.decoration?.labelText == l.routingDnsTimeout,
-          )
-          .first;
-      await tester.ensureVisible(timeout);
-      await tester.enterText(timeout, 'abc');
-      await tester.pumpAndSettle();
-      expect(value.effectiveProxyResolvers.first.timeoutMs, -1);
-      expect(value.validate, throwsFormatException);
-      await tester.enterText(timeout, '1000');
-      await tester.pumpAndSettle();
-      expect(value.effectiveProxyResolvers.first.timeoutMs, 1000);
-      expect(value.validate, returnsNormally);
-      final ttl = find
-          .byWidgetPredicate(
-            (widget) =>
-                widget is TextField &&
-                widget.decoration?.labelText == l.routingDnsStaleTtl,
-          )
-          .first;
-      await tester.ensureVisible(ttl);
-      await tester.enterText(ttl, '1.5');
-      await tester.pumpAndSettle();
-      expect(value.effectiveProxyResolvers.first.serveExpiredTTL, -1);
-      expect(value.validate, throwsFormatException);
-      await tester.enterText(ttl, '');
-      await tester.pumpAndSettle();
-      expect(value.effectiveProxyResolvers.first.serveExpiredTTL, isNull);
-      expect(value.validate, returnsNormally);
-      await tester.ensureVisible(find.text(l.routingDnsAdvanced));
-      await tester.tap(find.text(l.routingDnsAdvanced));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(_switch(l.routingDnsServeStale));
-      await tester.tap(_switch(l.routingDnsServeStale));
-      await tester.pumpAndSettle();
-      final rootTtl = find
-          .byWidgetPredicate(
-            (widget) =>
-                widget is TextField &&
-                widget.decoration?.labelText == l.routingDnsStaleTtl,
-          )
-          .last;
-      await tester.ensureVisible(rootTtl);
-      await tester.enterText(rootTtl, 'invalid');
-      await tester.pumpAndSettle();
-      expect(value.serveExpiredTTL, -1);
-      expect(value.validate, throwsFormatException);
-      await tester.enterText(rootTtl, '300');
-      await tester.pumpAndSettle();
-      expect(value.validate, returnsNormally);
-      expect(tester.takeException(), isNull);
-    },
-  );
+      ),
+    );
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(RoutingDnsSettingsForm)),
+    )!;
+    await tester.tap(find.text(l.routingDnsResolverOptions).first);
+    await tester.pumpAndSettle();
+    final timeout = find
+        .byWidgetPredicate(
+          (widget) =>
+              widget is TextField &&
+              widget.decoration?.labelText == l.routingDnsTimeout,
+        )
+        .first;
+    await tester.ensureVisible(timeout);
+    await tester.enterText(timeout, 'abc');
+    await tester.pumpAndSettle();
+    expect(value.effectiveProxyResolvers.first.timeoutMs, -1);
+    expect(value.validate, throwsFormatException);
+    await tester.enterText(timeout, '1.5');
+    await tester.pumpAndSettle();
+    expect(value.effectiveProxyResolvers.first.timeoutMs, -1);
+    expect(value.validate, throwsFormatException);
+    await tester.enterText(timeout, '1000');
+    await tester.pumpAndSettle();
+    expect(value.effectiveProxyResolvers.first.timeoutMs, 1000);
+    expect(value.validate, returnsNormally);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'import replaces a focused resolver field without applying stale input',

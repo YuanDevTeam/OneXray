@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/core/pigeon/constants.dart';
+import 'package:onexray/service/connect/routing/custom/advanced.dart';
+import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/shared/xray/validation.dart';
 
 void main() {
@@ -216,4 +218,47 @@ void main() {
     }
     expect(jsonDecode(XrayValidation.nodes([false]))['outbounds'], [false]);
   });
+
+  test(
+    'advanced and Raw validation preserve full DNS maps after DTO reduction',
+    () {
+      final dns = <String, dynamic>{
+        'serveStale': true,
+        'serveExpiredTTL': 300,
+        'enableParallelQuery': true,
+        'servers': [
+          {
+            'address': 'tcp://8.8.8.8',
+            'expectedIPs': ['geoip:CN'],
+            'unexpectedIPs': ['geoip:PRIVATE'],
+            'serveStale': false,
+            'serveExpiredTTL': 60,
+          },
+          {
+            'address': 'tcp://1.1.1.1',
+            'expectIPs': ['!geoip:PRIVATE'],
+          },
+        ],
+      };
+      final raw = <String, dynamic>{
+        'dns': dns,
+        'outbounds': [
+          {'protocol': 'freedom'},
+        ],
+      };
+      final before = jsonEncode(raw);
+      expect(jsonDecode(XrayValidation.raw(raw))['dns'], dns);
+      final advanced = AdvancedRoutingDocument.fromJson({
+        'name': 'Advanced DNS',
+        'outbounds': [<String, dynamic>{}],
+        'dns': dns,
+      }).state;
+      final projection = jsonDecode(
+        CustomRoutingService.validationJson(advanced),
+      );
+      expect(projection['dns'], dns);
+      expect(advanced.toJson()['dns'], dns);
+      expect(jsonEncode(raw), before);
+    },
+  );
 }

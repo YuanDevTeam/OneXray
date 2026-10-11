@@ -97,7 +97,6 @@ void main() {
     () {
       const settings = RoutingDnsSettings(
         sameExitOnly: true,
-        enableParallelQuery: true,
         proxyResolvers: [
           RoutingDnsResolver(address: '8.8.8.8'),
           RoutingDnsResolver(address: '1.1.1.1'),
@@ -118,7 +117,6 @@ void main() {
         ],
       );
       expect(dns.disableFallbackIfMatch, true);
-      expect(dns.enableParallelQuery, true);
       expect(dns.servers!.map((server) => server.tag), [
         RoutingDns.directTag,
         RoutingDns.directTag,
@@ -141,45 +139,6 @@ void main() {
       );
     },
   );
-
-  test('parallel DNS cannot query cross-exit fallback or race FakeDNS', () {
-    const settings = RoutingDnsSettings(
-      enableParallelQuery: true,
-      proxyResolvers: [
-        RoutingDnsResolver(address: '8.8.8.8'),
-        RoutingDnsResolver(address: '1.1.1.1'),
-      ],
-    );
-    final direct = XrayRoutingRule(
-      domain: ['geosite:cn'],
-      outboundTag: 'direct',
-    );
-    expect(
-      RoutingDns.compile(
-        settings: settings,
-        rules: [direct],
-      ).enableParallelQuery,
-      false,
-    );
-    expect(
-      RoutingDns.compile(
-        settings: settings.copyWith(sameExitOnly: true),
-        fakeDns: true,
-        rules: [direct],
-      ).enableParallelQuery,
-      false,
-    );
-    expect(settings.enableParallelQuery, true);
-    expect(
-      RoutingDns.compile(
-        settings: const RoutingDnsSettings(
-          sameExitOnly: true,
-          enableParallelQuery: true,
-        ),
-      ).enableParallelQuery,
-      false,
-    );
-  });
 
   test(
     'FakeDNS proxy policy leaves a real resolver before the final boundary',
@@ -225,16 +184,13 @@ void main() {
     expect(dns.servers!.single.domains, isNull);
   });
 
-  test('ordinary DNS exchange preserves options and canonicalizes expected IP alias', () {
+  test('ordinary DNS exchange preserves timeout and cache overrides', () {
     final legacy = XrayDns(
       servers: [
         XrayDnsServer(
           tag: RoutingDns.directTag,
           address: '223.5.5.5',
-          expectIPs: ['geoip:cn'],
           disableCache: false,
-          serveStale: false,
-          serveExpiredTTL: 0,
           timeoutMs: 0,
         ),
       ],
@@ -246,13 +202,7 @@ void main() {
     final direct = stored.servers!.singleWhere(
       (server) => server.tag == RoutingDns.directTag,
     );
-      expect(direct.expectedIPs, ['geoip:cn']);
-      expect(RoutingDnsResolver.fromXrayDnsServer(XrayDnsServer(address: '8.8.8.8',
-        expectedIPs: [], expectIPs: ['geoip:cn'])).expectedIPs, ['geoip:cn']);
-    expect(direct.expectIPs, isNull);
     expect(direct.disableCache, false);
-    expect(direct.serveStale, false);
-    expect(direct.serveExpiredTTL, 0);
     expect(direct.timeoutMs, 0);
     expect(
       stored.servers!.every(
@@ -267,6 +217,71 @@ void main() {
     expect(
       RoutingDnsSettings.fromJson(settings.toJson()).toJson(),
       settings.toJson(),
+    );
+  });
+
+  test('old DNS preferences ignore retired options on read and write', () {
+    final settings = RoutingDnsSettings.fromJson({
+      'disableCache': true,
+      'sameExitOnly': true,
+      'serveStale': true,
+      'serveExpiredTTL': 0,
+      'enableParallelQuery': true,
+      'proxyResolvers': [
+        {
+          'address': '1.1.1.1',
+          'timeoutMs': 1500,
+          'disableCache': false,
+          'expectedIPs': ['geoip:US'],
+          'expectIPs': ['geoip:JP'],
+          'unexpectedIPs': ['geoip:CN'],
+          'serveStale': true,
+          'serveExpiredTTL': 0,
+        },
+        {'address': '9.9.9.9'},
+      ],
+      'directResolvers': [
+        {'address': '223.5.5.5'},
+      ],
+    });
+    settings.validate();
+    expect(settings.toJson(), {
+      'disableCache': true,
+      'sameExitOnly': true,
+      'proxyResolvers': [
+        {'address': '1.1.1.1', 'timeoutMs': 1500, 'disableCache': false},
+        {'address': '9.9.9.9', 'timeoutMs': 4000},
+      ],
+      'directResolvers': [
+        {'address': '223.5.5.5', 'timeoutMs': 4000},
+      ],
+    });
+    final compiled = RoutingDns.compile(
+      settings: settings,
+      rules: [
+        XrayRoutingRule(domain: ['geosite:cn'], outboundTag: 'direct'),
+      ],
+    ).toJson();
+    expect(
+      compiled.keys,
+      containsAll(['disableCache', 'disableFallbackIfMatch']),
+    );
+    expect(compiled.keys, isNot(contains('serveStale')));
+    expect(compiled.keys, isNot(contains('serveExpiredTTL')));
+    expect(compiled.keys, isNot(contains('enableParallelQuery')));
+    expect(
+      (compiled['servers'] as List).whereType<Map>().every(
+        (server) => !server.keys.any(
+          const {
+            'expectedIPs',
+            'expectIPs',
+            'unexpectedIPs',
+            'serveStale',
+            'serveExpiredTTL',
+          }.contains,
+        ),
+      ),
+      true,
     );
   });
 
@@ -320,49 +335,27 @@ void main() {
     }
   });
 
-  test(
-    'stale cache inheritance keeps finite expiry and explicit disabled values',
-    () {
-      expect(
-        () => const RoutingDnsSettings(serveStale: true).validate(),
-        returnsNormally,
-      );
-      expect(
-        () => const RoutingDnsSettings(
-          serveStale: true,
-          serveExpiredTTL: 0,
-        ).validate(),
-        throwsFormatException,
-      );
-      expect(
-        () => const RoutingDnsSettings(
-          serveStale: true,
-          proxyResolvers: [
-            RoutingDnsResolver(address: '8.8.8.8', serveExpiredTTL: 0),
-          ],
-        ).validate(),
-        throwsFormatException,
-      );
-      expect(
-        () => const RoutingDnsSettings(
-          serveStale: true,
-          proxyResolvers: [
-            RoutingDnsResolver(
-              address: '8.8.8.8',
-              serveStale: false,
-              serveExpiredTTL: 0,
-            ),
-          ],
-        ).validate(),
-        returnsNormally,
-      );
-      final inherited = const RoutingDnsResolver(
-        address: '8.8.8.8',
-        disableCache: false,
-      ).copyWith(clearDisableCache: true);
-      expect(inherited.toJson().containsKey('disableCache'), false);
-    },
-  );
+  test('cache inheritance retains explicit false and inherited values', () {
+    const inherited = RoutingDnsResolver(address: '8.8.8.8');
+    expect(inherited.toJson().containsKey('disableCache'), false);
+    expect(
+      inherited.effectiveJson(rootDisableCache: true)['disableCache'],
+      true,
+    );
+    final enabled = inherited.copyWith(disableCache: false);
+    expect(enabled.toJson()['disableCache'], false);
+    expect(
+      enabled.effectiveJson(rootDisableCache: true)['disableCache'],
+      false,
+    );
+    expect(
+      enabled
+          .copyWith(clearDisableCache: true)
+          .toJson()
+          .containsKey('disableCache'),
+      false,
+    );
+  });
 
   test(
     'sniffing preserves editable options and retains managed FakeDNS recovery',
@@ -443,10 +436,22 @@ void main() {
   );
 
   test('probe URL normalization matches the effective runtime policy', () {
-    const settings = RoutingSelectionSettings(type: 'leastPing', probeURL: ' https://example.com/probe ');
+    const settings = RoutingSelectionSettings(
+      type: 'leastPing',
+      probeURL: ' https://example.com/probe ',
+    );
     settings.validate();
-    expect(settings.compile(selector: ['app-entry-0', 'app-entry-1']).observatory.probeURL, 'https://example.com/probe');
-    expect(settings.toStoredObservatory().probeURL, 'https://example.com/probe');
+    expect(
+      settings
+          .compile(selector: ['app-entry-0', 'app-entry-1'])
+          .observatory
+          .probeURL,
+      'https://example.com/probe',
+    );
+    expect(
+      settings.toStoredObservatory().probeURL,
+      'https://example.com/probe',
+    );
   });
 
   test('least-ping probe parameters validate before constructing Core', () {

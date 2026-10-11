@@ -12,80 +12,39 @@ import 'package:onexray/service/shared/xray/fake_dns.dart';
 final class RoutingDnsResolver {
   final String address;
   final int timeoutMs;
-  final List<String> _expectedIPs;
-  final List<String> _unexpectedIPs;
   final bool? disableCache;
-  final bool? serveStale;
-  final int? serveExpiredTTL;
 
   const RoutingDnsResolver({
     required this.address,
     this.timeoutMs = 4000,
-    List<String> expectedIPs = const [],
-    List<String> unexpectedIPs = const [],
     this.disableCache,
-    this.serveStale,
-    this.serveExpiredTTL,
-  }) : _expectedIPs = expectedIPs,
-       _unexpectedIPs = unexpectedIPs;
-
-  List<String> get expectedIPs => List.unmodifiable(_expectedIPs);
-  List<String> get unexpectedIPs => List.unmodifiable(_unexpectedIPs);
+  });
 
   factory RoutingDnsResolver.fromJson(Map<String, dynamic> json) =>
       RoutingDnsResolver(
         address: json['address'] as String,
         timeoutMs: (json['timeoutMs'] as num?)?.toInt() ?? 4000,
-        expectedIPs: _strings(json['expectedIPs']),
-        unexpectedIPs: _strings(json['unexpectedIPs']),
         disableCache: json['disableCache'] as bool?,
-        serveStale: json['serveStale'] as bool?,
-        serveExpiredTTL: (json['serveExpiredTTL'] as num?)?.toInt(),
       );
 
   factory RoutingDnsResolver.fromXrayDnsServer(XrayDnsServer server) =>
       RoutingDnsResolver(
         address: server.address ?? '',
         timeoutMs: server.timeoutMs ?? 4000,
-        expectedIPs: List.unmodifiable(
-          server.expectedIPs?.isNotEmpty == true
-              ? server.expectedIPs!
-              : server.expectIPs ?? server.expectedIPs ?? const [],
-        ),
-        unexpectedIPs: List.unmodifiable(server.unexpectedIPs ?? const []),
         disableCache: server.disableCache,
-        serveStale: server.serveStale,
-        serveExpiredTTL: server.serveExpiredTTL,
       );
 
   Map<String, dynamic> toJson() => {
     'address': address.trim(),
     'timeoutMs': timeoutMs,
-    if (expectedIPs.isNotEmpty) 'expectedIPs': expectedIPs,
-    if (unexpectedIPs.isNotEmpty) 'unexpectedIPs': unexpectedIPs,
     if (disableCache != null) 'disableCache': disableCache,
-    if (serveStale != null) 'serveStale': serveStale,
-    if (serveExpiredTTL != null) 'serveExpiredTTL': serveExpiredTTL,
   };
 
-  Map<String, dynamic> effectiveJson({
-    bool rootDisableCache = false,
-    bool rootServeStale = false,
-    int rootServeExpiredTTL = 300,
-  }) {
-    final cacheDisabled = disableCache ?? rootDisableCache;
-    final stale = serveStale ?? rootServeStale;
-    return {
-      'address': address.trim(),
-      'timeoutMs': timeoutMs == 0 ? 4000 : timeoutMs,
-      'expectedIPs': expectedIPs,
-      'unexpectedIPs': unexpectedIPs,
-      'disableCache': cacheDisabled,
-      if (!cacheDisabled) 'serveStale': stale,
-      if (!cacheDisabled && stale)
-        'serveExpiredTTL': serveExpiredTTL ?? rootServeExpiredTTL,
-    };
-  }
+  Map<String, dynamic> effectiveJson({bool rootDisableCache = false}) => {
+    'address': address.trim(),
+    'timeoutMs': timeoutMs == 0 ? 4000 : timeoutMs,
+    'disableCache': disableCache ?? rootDisableCache,
+  };
 
   XrayDnsServer toXrayDnsServer({
     required String tag,
@@ -101,41 +60,21 @@ final class RoutingDnsResolver {
     finalQuery: finalQuery,
     queryStrategy: queryStrategy,
     timeoutMs: timeoutMs,
-    expectedIPs: expectedIPs.isEmpty ? null : expectedIPs,
-    unexpectedIPs: unexpectedIPs.isEmpty ? null : unexpectedIPs,
     disableCache: disableCache,
-    serveStale: serveStale,
-    serveExpiredTTL: serveExpiredTTL,
   );
 
   RoutingDnsResolver copyWith({
     String? address,
     int? timeoutMs,
-    List<String>? expectedIPs,
-    List<String>? unexpectedIPs,
     bool? disableCache,
     bool clearDisableCache = false,
-    bool? serveStale,
-    bool clearServeStale = false,
-    int? serveExpiredTTL,
-    bool clearServeExpiredTTL = false,
   }) => RoutingDnsResolver(
     address: address ?? this.address,
     timeoutMs: timeoutMs ?? this.timeoutMs,
-    expectedIPs: List.unmodifiable(expectedIPs ?? this.expectedIPs),
-    unexpectedIPs: List.unmodifiable(unexpectedIPs ?? this.unexpectedIPs),
     disableCache: clearDisableCache ? null : disableCache ?? this.disableCache,
-    serveStale: clearServeStale ? null : serveStale ?? this.serveStale,
-    serveExpiredTTL: clearServeExpiredTTL
-        ? null
-        : serveExpiredTTL ?? this.serveExpiredTTL,
   );
 
-  void validate({
-    bool rootDisableCache = false,
-    bool rootServeStale = false,
-    int rootServeExpiredTTL = 300,
-  }) {
+  void validate() {
     if (address.trim().isEmpty || timeoutMs < 0) {
       throw const FormatException('DNS address and timeout are invalid');
     }
@@ -155,15 +94,6 @@ final class RoutingDnsResolver {
         'Ordinary DNS resolvers must use routed remote addresses',
       );
     }
-    final ttl = serveExpiredTTL ?? rootServeExpiredTTL;
-    if (ttl < 0 || ttl > 0xffffffff) {
-      throw const FormatException('DNS stale cache lifetime is invalid');
-    }
-    if (!(disableCache ?? rootDisableCache) &&
-        (serveStale ?? rootServeStale) &&
-        ttl == 0) {
-      throw const FormatException('DNS stale cache requires a finite lifetime');
-    }
   }
 }
 
@@ -177,18 +107,12 @@ final class RoutingDnsSettings {
   final List<RoutingDnsResolver> _proxyResolvers;
   final List<RoutingDnsResolver> _directResolvers;
   final bool disableCache;
-  final bool serveStale;
-  final int serveExpiredTTL;
-  final bool enableParallelQuery;
   final bool sameExitOnly;
 
   const RoutingDnsSettings({
     List<RoutingDnsResolver> proxyResolvers = defaultResolvers,
     List<RoutingDnsResolver> directResolvers = defaultResolvers,
     this.disableCache = false,
-    this.serveStale = false,
-    this.serveExpiredTTL = 300,
-    this.enableParallelQuery = false,
     this.sameExitOnly = false,
   }) : _proxyResolvers = proxyResolvers,
        _directResolvers = directResolvers;
@@ -208,9 +132,6 @@ final class RoutingDnsSettings {
         proxyResolvers: _resolvers(json['proxyResolvers']),
         directResolvers: _resolvers(json['directResolvers']),
         disableCache: json['disableCache'] as bool? ?? false,
-        serveStale: json['serveStale'] as bool? ?? false,
-        serveExpiredTTL: (json['serveExpiredTTL'] as num?)?.toInt() ?? 300,
-        enableParallelQuery: json['enableParallelQuery'] as bool? ?? false,
         sameExitOnly: json['sameExitOnly'] as bool? ?? false,
       );
 
@@ -255,12 +176,7 @@ final class RoutingDnsSettings {
       if (server.tag == FakeDns.tag) {
         if (!FakeDns.isAddress(server.address) ||
             server.timeoutMs != null ||
-            server.expectedIPs != null ||
-            server.expectIPs != null ||
-            server.unexpectedIPs != null ||
-            server.disableCache != null ||
-            server.serveStale != null ||
-            server.serveExpiredTTL != null) {
+            server.disableCache != null) {
           throw JsonDiagnostic(
             'Custom FakeDNS marker must contain only tag and address',
             path: path,
@@ -281,9 +197,6 @@ final class RoutingDnsSettings {
       proxyResolvers: role(proxyTag),
       directResolvers: role(directTag),
       disableCache: dns?.disableCache ?? false,
-      serveStale: dns?.serveStale ?? false,
-      serveExpiredTTL: dns?.serveExpiredTTL ?? 300,
-      enableParallelQuery: dns?.enableParallelQuery ?? false,
       sameExitOnly: dns?.disableFallbackIfMatch ?? false,
     );
   }
@@ -296,19 +209,13 @@ final class RoutingDnsSettings {
       for (final resolver in effectiveDirectResolvers) resolver.toJson(),
     ],
     'disableCache': disableCache,
-    'serveStale': serveStale,
-    'serveExpiredTTL': serveExpiredTTL,
-    'enableParallelQuery': enableParallelQuery,
     'sameExitOnly': sameExitOnly,
   };
 
   /// Standard DNS exchange fields only; no derived domains or platform query.
   XrayDns toStoredXrayDns({bool fakeDns = false}) => XrayDns(
     disableCache: disableCache,
-    serveStale: serveStale,
-    serveExpiredTTL: serveExpiredTTL,
     disableFallbackIfMatch: sameExitOnly,
-    enableParallelQuery: enableParallelQuery,
     servers: [
       for (final resolver in effectiveProxyResolvers)
         resolver.toXrayDnsServer(tag: proxyTag),
@@ -329,65 +236,33 @@ final class RoutingDnsSettings {
     List<RoutingDnsResolver>? proxyResolvers,
     List<RoutingDnsResolver>? directResolvers,
     bool? disableCache,
-    bool? serveStale,
-    int? serveExpiredTTL,
-    bool? enableParallelQuery,
     bool? sameExitOnly,
   }) => RoutingDnsSettings(
     proxyResolvers: List.unmodifiable(proxyResolvers ?? this.proxyResolvers),
     directResolvers: List.unmodifiable(directResolvers ?? this.directResolvers),
     disableCache: disableCache ?? this.disableCache,
-    serveStale: serveStale ?? this.serveStale,
-    serveExpiredTTL: serveExpiredTTL ?? this.serveExpiredTTL,
-    enableParallelQuery: enableParallelQuery ?? this.enableParallelQuery,
     sameExitOnly: sameExitOnly ?? this.sameExitOnly,
   );
 
-  Map<String, dynamic> effectiveJson({
-    bool directEnabled = true,
-    bool fakeDns = false,
-  }) => {
+  Map<String, dynamic> effectiveJson({bool directEnabled = true}) => {
     'proxyResolvers': [
       for (final resolver in effectiveProxyResolvers)
-        resolver.effectiveJson(
-          rootDisableCache: disableCache,
-          rootServeStale: serveStale,
-          rootServeExpiredTTL: serveExpiredTTL,
-        ),
+        resolver.effectiveJson(rootDisableCache: disableCache),
     ],
     if (directEnabled)
       'directResolvers': [
         for (final resolver in effectiveDirectResolvers)
-          resolver.effectiveJson(
-            rootDisableCache: disableCache,
-            rootServeStale: serveStale,
-            rootServeExpiredTTL: serveExpiredTTL,
-          ),
+          resolver.effectiveJson(rootDisableCache: disableCache),
       ],
     'sameExitOnly': sameExitOnly,
-    'enableParallelQuery':
-        enableParallelQuery &&
-        sameExitOnly &&
-        !fakeDns &&
-        (effectiveProxyResolvers.length > 1 ||
-            (directEnabled && effectiveDirectResolvers.length > 1)),
   };
 
   void validate({bool directEnabled = true}) {
-    if (serveExpiredTTL < 0 ||
-        serveExpiredTTL > 0xffffffff ||
-        (!disableCache && serveStale && serveExpiredTTL == 0)) {
-      throw const FormatException('DNS stale cache requires a finite lifetime');
-    }
     for (final resolver in [
       ...effectiveProxyResolvers,
       if (directEnabled) ...effectiveDirectResolvers,
     ]) {
-      resolver.validate(
-        rootDisableCache: disableCache,
-        rootServeStale: serveStale,
-        rootServeExpiredTTL: serveExpiredTTL,
-      );
+      resolver.validate();
     }
   }
 }

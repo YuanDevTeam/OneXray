@@ -16,7 +16,6 @@ class RoutingDnsSettingsForm extends StatelessWidget {
   final ValueChanged<RoutingDnsSettings> onChanged;
   final bool enabled;
   final bool directEnabled;
-  final bool fakeDns;
 
   const RoutingDnsSettingsForm({
     super.key,
@@ -24,7 +23,6 @@ class RoutingDnsSettingsForm extends StatelessWidget {
     required this.onChanged,
     this.enabled = true,
     this.directEnabled = true,
-    this.fakeDns = false,
   });
 
   void _updateResolver(bool direct, int index, RoutingDnsResolver resolver) {
@@ -67,12 +65,6 @@ class RoutingDnsSettingsForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final concurrencyAllowed =
-        enabled &&
-        value.sameExitOnly &&
-        !fakeDns &&
-        (value.effectiveProxyResolvers.length > 1 ||
-            (directEnabled && value.effectiveDirectResolvers.length > 1));
     return RoutingCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -92,56 +84,14 @@ class RoutingDnsSettingsForm extends StatelessWidget {
             onChanged: (selected) =>
                 onChanged(value.copyWith(sameExitOnly: selected)),
           ),
-          _RoutingDetails(
-            title: l.routingDnsAdvanced,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _OptionSwitch(
-                  icon: LucideIcons.database,
-                  title: l.routingDnsCache,
-                  value: !value.disableCache,
-                  enabled: enabled,
-                  onChanged: (selected) =>
-                      onChanged(value.copyWith(disableCache: !selected)),
-                ),
-                _OptionSwitch(
-                  icon: LucideIcons.history,
-                  title: l.routingDnsServeStale,
-                  description: l.routingDnsServeStaleHint,
-                  value: value.serveStale,
-                  enabled: enabled && !value.disableCache,
-                  onChanged: (selected) =>
-                      onChanged(value.copyWith(serveStale: selected)),
-                ),
-                if (value.serveStale)
-                  _FieldPadding(
-                    child: _OptionTextField(
-                      label: l.routingDnsStaleTtl,
-                      value: '${value.serveExpiredTTL}',
-                      enabled: enabled && !value.disableCache,
-                      keyboardType: TextInputType.number,
-                      onChanged: (text) => onChanged(
-                        value.copyWith(
-                          serveExpiredTTL: int.tryParse(text) ?? -1,
-                        ),
-                      ),
-                    ),
-                  ),
-                _OptionSwitch(
-                  icon: LucideIcons.gitFork,
-                  title: l.routingDnsParallel,
-                  description: l.routingDnsParallelHint,
-                  value: value.enableParallelQuery,
-                  enabled: concurrencyAllowed,
-                  onChanged: (selected) =>
-                      onChanged(value.copyWith(enableParallelQuery: selected)),
-                  divider: false,
-                ),
-                if (!concurrencyAllowed)
-                  _HelpPadding(text: l.routingDnsParallelUnavailable),
-              ],
-            ),
+          _OptionSwitch(
+            icon: LucideIcons.database,
+            title: l.routingDnsCache,
+            value: !value.disableCache,
+            enabled: enabled,
+            onChanged: (selected) =>
+                onChanged(value.copyWith(disableCache: !selected)),
+            divider: false,
           ),
         ],
       ),
@@ -246,25 +196,6 @@ class _ResolverForm extends StatelessWidget {
                   value.copyWith(timeoutMs: int.tryParse(text) ?? -1),
                 ),
               ),
-              _OptionTextField(
-                label: l.routingDnsExpectedIps,
-                geodataDomain: false,
-                value: value.expectedIPs.join('\n'),
-                multiline: true,
-                enabled: enabled,
-                onChanged: (text) =>
-                    onChanged(value.copyWith(expectedIPs: _lines(text))),
-              ),
-              _OptionTextField(
-                label: l.routingDnsUnexpectedIps,
-                geodataDomain: false,
-                value: value.unexpectedIPs.join('\n'),
-                multiline: true,
-                enabled: enabled,
-                onChanged: (text) =>
-                    onChanged(value.copyWith(unexpectedIPs: _lines(text))),
-              ),
-              _HelpPadding(text: l.routingDnsIpFilterHint),
               _NullableChoice(
                 label: l.routingDnsCache,
                 value: value.disableCache,
@@ -275,32 +206,6 @@ class _ResolverForm extends StatelessWidget {
                   selected == null
                       ? value.copyWith(clearDisableCache: true)
                       : value.copyWith(disableCache: selected),
-                ),
-              ),
-              _NullableChoice(
-                label: l.routingDnsServeStale,
-                value: value.serveStale,
-                trueLabel: l.routingOptionOn,
-                falseLabel: l.routingOptionOff,
-                enabled: enabled,
-                onChanged: (selected) => onChanged(
-                  selected == null
-                      ? value.copyWith(clearServeStale: true)
-                      : value.copyWith(serveStale: selected),
-                ),
-              ),
-              _OptionTextField(
-                label: l.routingDnsStaleTtl,
-                hint: l.routingOptionInherit,
-                value: value.serveExpiredTTL?.toString() ?? '',
-                keyboardType: TextInputType.number,
-                enabled: enabled,
-                onChanged: (text) => onChanged(
-                  text.trim().isEmpty
-                      ? value.copyWith(clearServeExpiredTTL: true)
-                      : value.copyWith(
-                          serveExpiredTTL: int.tryParse(text) ?? -1,
-                        ),
                 ),
               ),
             ],
@@ -637,16 +542,6 @@ class _NullableChoice extends StatelessWidget {
   );
 }
 
-class _FieldPadding extends StatelessWidget {
-  final Widget child;
-  const _FieldPadding({required this.child});
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 16),
-    child: child,
-  );
-}
-
 class _HelpPadding extends StatelessWidget {
   final String text;
   const _HelpPadding({required this.text});
@@ -665,7 +560,6 @@ class _HelpPadding extends StatelessWidget {
 class _OptionTextField extends StatefulWidget {
   final String label;
   final String value;
-  final String? hint;
   final bool enabled;
   final bool multiline;
   final bool? geodataDomain;
@@ -674,7 +568,6 @@ class _OptionTextField extends StatefulWidget {
   const _OptionTextField({
     required this.label,
     required this.value,
-    this.hint,
     required this.enabled,
     required this.onChanged,
     this.multiline = false,
@@ -705,9 +598,7 @@ class _OptionTextFieldState extends State<_OptionTextField> {
 
   void _changed(String text) {
     _pendingEcho = widget.keyboardType == TextInputType.number
-        ? (text.trim().isEmpty && widget.hint != null
-              ? ''
-              : '${int.tryParse(text) ?? -1}')
+        ? '${int.tryParse(text) ?? -1}'
         : widget.multiline
         ? _lines(text).join('\n')
         : text;
@@ -783,7 +674,7 @@ class _OptionTextFieldState extends State<_OptionTextField> {
         widget.keyboardType ??
         (widget.multiline ? TextInputType.multiline : TextInputType.text),
     style: AppTypography.settingsInput,
-    decoration: InputDecoration(labelText: widget.label, hintText: widget.hint),
+    decoration: InputDecoration(labelText: widget.label),
     onChanged: _changed,
     onSubmitted: submit == null ? null : (_) => submit(),
   );

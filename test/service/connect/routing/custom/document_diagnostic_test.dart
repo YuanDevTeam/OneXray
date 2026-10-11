@@ -96,6 +96,56 @@ void main() {
   });
 
   test(
+    'ordinary imports reject retired DNS fields at their original paths',
+    () {
+      for (final field in [
+        'serveStale',
+        'serveExpiredTTL',
+        'enableParallelQuery',
+      ]) {
+        expect(
+          () => RoutingProfileDocument.fromJson({
+            'outbounds': [{}],
+            'dns': {
+              field: false,
+              'servers': [
+                {'tag': 'app-dns-proxy', 'address': '1.1.1.1'},
+              ],
+            },
+          }),
+          throwsA(_diagnostic(['dns', field], 'Unsupported field: dns.$field')),
+        );
+      }
+      for (final field in [
+        'expectedIPs',
+        'expectIPs',
+        'unexpectedIPs',
+        'serveStale',
+        'serveExpiredTTL',
+      ]) {
+        expect(
+          () => RoutingProfileDocument.fromJson({
+            'outbounds': [{}],
+            'dns': {
+              'servers': [
+                {'tag': 'app-dns-proxy', 'address': '1.1.1.1', field: null},
+              ],
+            },
+          }),
+          throwsA(
+            _diagnostic([
+              'dns',
+              'servers',
+              0,
+              field,
+            ], 'Unsupported field: dns.servers[0].$field'),
+          ),
+        );
+      }
+    },
+  );
+
+  test(
     'advanced App checks identify precise members without changing messages',
     () {
       for (final (patch, path, message)

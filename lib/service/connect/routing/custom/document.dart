@@ -18,11 +18,13 @@ final class RoutingProfileDocument {
     int? id,
     String? name,
     bool allowMetadata = true,
+    bool ignoreRemovedDnsFields = false,
   }) => RoutingProfileDocument.fromJson(
     jsonDecode(text),
     id: id,
     name: name,
     allowMetadata: allowMetadata,
+    ignoreRemovedDnsFields: ignoreRemovedDnsFields,
   );
 
   factory RoutingProfileDocument.fromJson(
@@ -30,6 +32,7 @@ final class RoutingProfileDocument {
     int? id,
     String? name,
     bool allowMetadata = true,
+    bool ignoreRemovedDnsFields = false,
   }) {
     final document = Map<String, dynamic>.of(_object(value, const []));
     _onlyKeys(
@@ -61,6 +64,7 @@ final class RoutingProfileDocument {
         ? routingAssets(document.remove('geodata'))
         : <Map<String, String>>[];
     document.remove('name');
+    if (ignoreRemovedDnsFields) _removeRetiredDnsFields(document);
     _checkEditableFields(document);
     try {
       final xrayJson = XrayJson.fromJson(document);
@@ -82,6 +86,33 @@ final class RoutingProfileDocument {
   }
 }
 
+// Only stored App data and backups use this compatibility boundary. External
+// ordinary imports still reject fields the current form cannot represent.
+void _removeRetiredDnsFields(Map<String, dynamic> document) {
+  final value = document['dns'];
+  if (value is! Map<String, dynamic>) return;
+  final dns = Map<String, dynamic>.of(value)
+    ..remove('serveStale')
+    ..remove('serveExpiredTTL')
+    ..remove('enableParallelQuery');
+  final servers = dns['servers'];
+  if (servers is List) {
+    dns['servers'] = [
+      for (final server in servers)
+        if (server is Map<String, dynamic>)
+          Map<String, dynamic>.of(server)
+            ..remove('expectedIPs')
+            ..remove('expectIPs')
+            ..remove('unexpectedIPs')
+            ..remove('serveStale')
+            ..remove('serveExpiredTTL')
+        else
+          server,
+    ];
+  }
+  document['dns'] = dns;
+}
+
 // Do not silently discard fields the ordinary editor cannot represent.
 // Field values and rule semantics are validated by libXray when saving.
 void _checkEditableFields(Map<String, dynamic> document) {
@@ -89,14 +120,7 @@ void _checkEditableFields(Map<String, dynamic> document) {
     final dns = _object(document['dns'], const ['dns']);
     _onlyKeys(
       dns,
-      const {
-        'servers',
-        'disableCache',
-        'serveStale',
-        'serveExpiredTTL',
-        'enableParallelQuery',
-        'disableFallbackIfMatch',
-      },
+      const {'servers', 'disableCache', 'disableFallbackIfMatch'},
       const ['dns'],
     );
     final servers = dns['servers'];
@@ -112,12 +136,7 @@ void _checkEditableFields(Map<String, dynamic> document) {
         'tag',
         'address',
         'timeoutMs',
-        'expectedIPs',
-        'expectIPs',
-        'unexpectedIPs',
         'disableCache',
-        'serveStale',
-        'serveExpiredTTL',
       }, path);
     }
   }

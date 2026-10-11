@@ -42,23 +42,20 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 
 ### DNS
 
-智能和常规自定义分别保存代理/直连主 resolver、同出口有序备用列表、超时、IP 应答过滤与缓存覆盖。
+智能和常规自定义分别保存代理/直连主 resolver、同出口有序备用列表、超时与缓存覆盖。
 旧设置缺新增字段时两组主地址均为 `8.8.8.8`，单 resolver 超时为 4000ms，缓存开启，
-过期缓存和并发关闭。智能直连 DNS 关闭保留已填值，运行不派生直连 DNS 匹配。
+相同出口备用默认关闭。智能直连 DNS 关闭保留已填值，运行不派生直连 DNS 匹配。
 使用固定 `app-dns-proxy` / `app-dns-direct` tag 区分出口，DNS 规则来自同一份有序路由规则。
 只投影无 IP/端口/网络/协议/系统/入站等附加条件的 proxy/direct 域名规则，因为查询不掌握后续连接条件。
 代理例外先于宽泛直连分类；代理策略块末尾的真实 resolver 使用 `finalQuery`，不回退到直连 DNS。
 直连默认允许失败后尝试代理备用；“备用 DNS 使用相同出口”开启时只尝试本策略 resolver，
 不会在失败后切换其他出口。直连 resolver 不充当未匹配域名的通用备用。
 
-`expectedIPs/unexpectedIPs` 使用 IP、CIDR、geoip/ext 规则，缺省不筛选。严格过滤不合格应答会让该
-resolver 失败，按配置尝试备用。在期望 IP 中单独一行填写 `*`，表示优先使用匹配应答，
-并允许其它应答回退，例如 `expectedIPs: ["geoip:CN", "*"]`；`*geoip:CN` 不是有效规则。
-资源引用沿用 Geodata 依赖扫描与分享附件，缺文件通过既有准备/保存流程报错。
-root 缓存默认启用；每个 resolver 的 nullable 缓存设置表示继承 root，显式 false/0 仍按字段语义保留。
-开启过期缓存时使用有限期限，默认 300 秒，普通设置不接受启用 stale 且有效期限无限的组合。
-并发只在同出口备用、FakeDNS 关闭且有对应备用 resolver 时有效；运行编译再次确认这些条件。
-并发发送当前策略组的请求，应答仍受策略组顺序控制，不把跨出口“最快返回”当作选路。
+root 缓存默认启用；每个 resolver 的 nullable `disableCache` 表示继承 root，显式 false 保留。
+普通设置不开放 `expectedIPs/unexpectedIPs`、`serveStale/serveExpiredTTL` 或 `enableParallelQuery`。
+这些 Core 原生字段及 JSON 编辑提示保留，高级/Raw DNS Map 可配置，不受普通表单覆盖。
+已保存的普通数据库配置在内部读取时剔除旧字段；外部普通导入仍明确拒绝这些超出边界的字段，
+避免静默丢失用户配置。Geodata 资源引用仍沿用依赖扫描与分享附件。
 
 全部使用 VPN 只生成代理 DNS，非 A/AAAA 的 `dnsOut` 转发也走代理，不产生第二个直连服务器。
 普通模式的查询地址族仍由 App IPv6 设置管理，不额外生成根级 hosts/queryStrategy。
@@ -125,8 +122,8 @@ direct/block 只在校验/运行时生成，规则的动作引用保留。名称
 普通模型不开放 process、来源 IP/端口、HTTP attrs 或额外入站等高级匹配。
 不支持的结构拒绝导入，不静默丢字段；更多能力使用高级模板或 Raw。
 
-DNS 使用标准 servers，固定 proxy/direct tag 保存主 resolver 与有序备用、超时、过滤、缓存覆盖，
-root 保存全局缓存、同出口备用与并发偏好；`app-dns-fake` 表示 FakeDNS。运行池、domains、派生
+DNS 使用标准 servers，固定 proxy/direct tag 保存主 resolver 与有序备用、超时、缓存覆盖，
+root 保存全局缓存和同出口备用；`app-dns-fake` 表示 FakeDNS。运行池、domains、派生
 finalQuery 和平台 queryStrategy 编译时产生，不另存第二套规则。旧单直连地址读入主直连 resolver。
 嗅探通过唯一 `inbounds:[{tag:"tunIn",sniffing:{...}}]` 占位保存，普通文档不开放实际监听或平台 settings。
 选路通过唯一 tag 为 proxy 的 strategy.type，以及 observatory 的 probeURL/probeInterval/enableConcurrency 保存；

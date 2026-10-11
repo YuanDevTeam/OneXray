@@ -13,6 +13,7 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/options.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
+import 'package:onexray/service/connect/routing/custom/state_db.dart';
 import 'package:onexray/service/settings/backup/assets.dart';
 
 void main() {
@@ -33,7 +34,13 @@ void main() {
     );
     final assets = BackupAssets(db, geodata);
     final raw = base64Encode(
-      utf8.encode('{\n "outbounds":[], "unknown":true\n}'),
+      utf8.encode(
+        '{\n "outbounds":[], "unknown":true, "dns":'
+        '{"serveStale":true,"serveExpiredTTL":60,"enableParallelQuery":true,'
+        '"servers":[{"address":"1.1.1.1","expectedIPs":["1.1.1.0/24"],'
+        '"expectIPs":["9.9.9.0/24"],"unexpectedIPs":["192.0.2.0/24"],'
+        '"serveStale":true,"serveExpiredTTL":60}]}\n}',
+      ),
     );
     final fragmentOutbound = <String, dynamic>{
       'tag': 'fragment',
@@ -49,15 +56,21 @@ void main() {
     final advanced =
         jsonDecode(AdvancedRoutingProfile.defaultText) as Map<String, dynamic>;
     (advanced['outbounds'] as List).add(fragmentOutbound);
+    final advancedDns = advanced['dns'] as Map<String, dynamic>;
+    advancedDns.addAll(_retiredDnsRoot);
+    (advancedDns['servers'] as List).single.addAll(_retiredDnsResolver);
+    final ordinary = RoutingProfileState(
+      name: '普通路由',
+      fragmentOutbound: fragmentOutbound,
+    );
+    final legacyOrdinary = ordinary.toJson();
+    final ordinaryDns = legacyOrdinary['dns'] as Map<String, dynamic>;
+    ordinaryDns.addAll(_retiredDnsRoot);
+    for (final server in (ordinaryDns['servers'] as List)) {
+      server.addAll(_retiredDnsResolver);
+    }
     final routeData = [
-      base64Encode(
-        utf8.encode(
-          RoutingProfileState(
-            name: '普通路由',
-            fragmentOutbound: fragmentOutbound,
-          ).encode(),
-        ),
-      ),
+      base64Encode(utf8.encode(jsonEncode(legacyOrdinary))),
       base64Encode(utf8.encode(jsonEncode(advanced))),
     ];
     for (var i = 0; i < routeData.length; i++) {
@@ -153,11 +166,14 @@ void main() {
           entryCount: 2,
           dns: const RoutingDnsSettings(
             proxyResolvers: [
-              RoutingDnsResolver(address: '1.1.1.1', expectedIPs: ['geoip:US']),
+              RoutingDnsResolver(
+                address: '1.1.1.1',
+                timeoutMs: 1500,
+                disableCache: true,
+              ),
               RoutingDnsResolver(address: '9.9.9.9'),
             ],
             sameExitOnly: true,
-            enableParallelQuery: true,
           ),
           sniffing: const RoutingSniffingSettings(
             metadataOnly: true,
@@ -171,13 +187,22 @@ void main() {
       ),
       policy: PlatformPolicy.fromJson({'ipv6Enabled': false}),
     );
-    await db.connectionConfigDao.commit(configurationJson: original.encode());
+    final legacySettings = original.toJson();
+    final legacySmartDns = legacySettings['connection']['smart']['dns'] as Map;
+    legacySmartDns.addAll(_retiredDnsRoot);
+    (legacySmartDns['proxyResolvers'] as List).first.addAll(
+      _retiredDnsResolver,
+    );
+    await db.connectionConfigDao.commit(
+      configurationJson: jsonEncode(legacySettings),
+    );
     final document = await assets.capture();
     validateBackupAssets(document);
     expect(document.coreConfigs.length, 5);
     expect(document.coreConfigs.last.data, outbound);
     expect(document.routingProfiles.map((row) => row.data), routeData);
     expect(document.smartRouting.fragment, true);
+    expect(document.smartRouting.dns, original.connection.smart.dns.toJson());
     expect(jsonEncode(document.toJson()), isNot(contains('finalExitId')));
     expect(document.subscriptions.single.toJson(), {
       'name': 'Source',
@@ -188,7 +213,15 @@ void main() {
       'hwid': 'keep',
     });
     expect(document.geoData.single.name, 'blocked');
-    final decoded = decodeBackup(encodeBackup(document));
+    final legacySnapshot =
+        jsonDecode(utf8.decode(encodeBackup(document))) as Map<String, dynamic>;
+    final backupDns = legacySnapshot['smartRouting']['dns'] as Map;
+    backupDns.addAll(_retiredDnsRoot);
+    (backupDns['proxyResolvers'] as List).first.addAll(_retiredDnsResolver);
+    final decoded = decodeBackup(
+      Uint8List.fromList(utf8.encode(jsonEncode(legacySnapshot))),
+    );
+    validateBackupAssets(decoded);
     final preview = await geodata.previewRestore(backupSources(decoded));
     await assets.restore(decoded, preview);
     final restored = await db.coreConfigDao.allRawRowsWithData;
@@ -236,8 +269,32 @@ void main() {
     final routes = await db.routingProfileDao.allRows;
     expect(routes.map((row) => row.data), routeData);
     expect(routes.map((row) => row.advanced), [false, true]);
+    expect(
+      RoutingProfileStateDb.read(routes.first).toJson(),
+      ordinary.toJson(),
+    );
+    expect(
+      RoutingProfileStateDb.readConfiguration(routes.last).toJson(),
+      advanced,
+    );
     expect(routes.every((row) => row.id > 2), true);
     expect((await db.geoDataDao.allRows).single.installed, false);
-    expect((await assets.capture()).geoData.single.name, 'blocked');
+    final recaptured = await assets.capture();
+    expect(recaptured.geoData.single.name, 'blocked');
+    expect(recaptured.smartRouting.dns, original.connection.smart.dns.toJson());
+    expect(recaptured.routingProfiles.map((row) => row.data), routeData);
   });
 }
+
+const _retiredDnsRoot = {
+  'serveStale': true,
+  'serveExpiredTTL': 60,
+  'enableParallelQuery': true,
+};
+const _retiredDnsResolver = {
+  'expectedIPs': ['1.1.1.0/24'],
+  'expectIPs': ['9.9.9.0/24'],
+  'unexpectedIPs': ['192.0.2.0/24'],
+  'serveStale': true,
+  'serveExpiredTTL': 60,
+};

@@ -111,21 +111,15 @@ XrayDns _$XrayDnsFromJson(Map<String, dynamic> json) => XrayDns(
       ?.map((e) => XrayDnsServer.fromJson(e as Map<String, dynamic>))
       .toList(),
   disableCache: json['disableCache'] as bool?,
-  serveStale: json['serveStale'] as bool?,
-  serveExpiredTTL: (json['serveExpiredTTL'] as num?)?.toInt(),
   disableFallback: json['disableFallback'] as bool?,
   disableFallbackIfMatch: json['disableFallbackIfMatch'] as bool?,
-  enableParallelQuery: json['enableParallelQuery'] as bool?,
 );
 
 Map<String, dynamic> _$XrayDnsToJson(XrayDns instance) => <String, dynamic>{
   'servers': ?instance.servers?.map((e) => e.toJson()).toList(),
   'disableCache': ?instance.disableCache,
-  'serveStale': ?instance.serveStale,
-  'serveExpiredTTL': ?instance.serveExpiredTTL,
   'disableFallback': ?instance.disableFallback,
   'disableFallbackIfMatch': ?instance.disableFallbackIfMatch,
-  'enableParallelQuery': ?instance.enableParallelQuery,
 };
 
 XrayFakeDns _$XrayFakeDnsFromJson(Map<String, dynamic> json) => XrayFakeDns(
@@ -148,20 +142,9 @@ XrayDnsServer _$XrayDnsServerFromJson(Map<String, dynamic> json) =>
       skipFallback: json['skipFallback'] as bool?,
       queryStrategy: json['queryStrategy'] as String?,
       tag: json['tag'] as String?,
-      expectedIPs: (json['expectedIPs'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
-      expectIPs: (json['expectIPs'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
-      unexpectedIPs: (json['unexpectedIPs'] as List<dynamic>?)
-          ?.map((e) => e as String)
-          .toList(),
       timeoutMs: (json['timeoutMs'] as num?)?.toInt(),
       finalQuery: json['finalQuery'] as bool?,
       disableCache: json['disableCache'] as bool?,
-      serveStale: json['serveStale'] as bool?,
-      serveExpiredTTL: (json['serveExpiredTTL'] as num?)?.toInt(),
     );
 
 Map<String, dynamic> _$XrayDnsServerToJson(XrayDnsServer instance) =>
@@ -171,14 +154,9 @@ Map<String, dynamic> _$XrayDnsServerToJson(XrayDnsServer instance) =>
       'skipFallback': ?instance.skipFallback,
       'queryStrategy': ?instance.queryStrategy,
       'tag': ?instance.tag,
-      'expectedIPs': ?instance.expectedIPs,
-      'expectIPs': ?instance.expectIPs,
-      'unexpectedIPs': ?instance.unexpectedIPs,
       'timeoutMs': ?instance.timeoutMs,
       'finalQuery': ?instance.finalQuery,
       'disableCache': ?instance.disableCache,
-      'serveStale': ?instance.serveStale,
-      'serveExpiredTTL': ?instance.serveExpiredTTL,
     };
 
 XrayRouting _$XrayRoutingFromJson(Map<String, dynamic> json) => XrayRouting(

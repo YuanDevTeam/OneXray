@@ -197,10 +197,7 @@ void main() {
       expect(stored['outbounds'], [{}]);
       expect(stored['dns'], {
         'disableCache': false,
-        'serveStale': false,
-        'serveExpiredTTL': 300,
         'disableFallbackIfMatch': false,
-        'enableParallelQuery': false,
         'servers': [
           {'tag': 'app-dns-proxy', 'address': '8.8.8.8', 'timeoutMs': 4000},
           {'tag': 'app-dns-direct', 'address': '9.9.9.9', 'timeoutMs': 4000},

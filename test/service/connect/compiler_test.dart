@@ -1343,6 +1343,68 @@ void main() {
     expect(semantic('one'), isNot(semantic('two')));
   });
 
+  test(
+    'advanced and Raw retain DNS features retired from ordinary routing',
+    () {
+      final dns = <String, dynamic>{
+        'serveStale': true,
+        'serveExpiredTTL': 300,
+        'enableParallelQuery': true,
+        'servers': [
+          {
+            'address': 'tcp://8.8.8.8',
+            'expectedIPs': ['geoip:CN'],
+            'unexpectedIPs': ['geoip:PRIVATE'],
+            'serveStale': false,
+            'serveExpiredTTL': 60,
+          },
+          {
+            'address': 'tcp://1.1.1.1',
+            'expectIPs': ['!geoip:PRIVATE'],
+          },
+        ],
+      };
+      final raw = <String, dynamic>{
+        'outbounds': [node(1).outbound],
+        'dns': dns,
+      };
+      final advanced = AdvancedRoutingDocument.fromJson({
+        'name': 'Advanced DNS',
+        'outbounds': [<String, dynamic>{}],
+        'dns': dns,
+      }).state;
+      final rawBefore = jsonEncode(raw);
+      final advancedBefore = advanced.encode();
+      for (final ipv6 in [false, true]) {
+        for (final isRaw in [false, true]) {
+          final config = ConnectionCompiler.compile(
+            settings: ConnectionSettings(
+              expert: isRaw,
+              trafficMode: TrafficMode.custom,
+            ),
+            entries: isRaw ? [] : [node(1)],
+            raw: isRaw ? raw : null,
+            custom: isRaw ? null : advanced,
+            regions: catalog,
+            options: options(ipv6: ipv6),
+          ).config;
+          final strategy = ipv6 ? 'UseIP' : 'UseIPv4';
+          expect(config['dns'], {
+            ...dns,
+            'queryStrategy': strategy,
+            'servers': [
+              for (final server in dns['servers'] as List)
+                {...server as Map<String, dynamic>, 'queryStrategy': strategy},
+            ],
+          });
+        }
+      }
+      expect(jsonEncode(raw), rawBefore);
+      expect(advanced.encode(), advancedBefore);
+      expect(advanced.toJson()['dns'], dns);
+    },
+  );
+
   test('Raw keeps the default outbound and routing untouched', () {
     final plan = ConnectionCompiler.compile(
       settings: ConnectionSettings(expert: true),

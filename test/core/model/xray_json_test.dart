@@ -96,6 +96,41 @@ void main() {
     expect(XrayJson.fromJson(source).toJson(), source);
   });
 
+  test('ordinary DNS DTO omits retired optional Core fields', () {
+    final dns = XrayDns.fromJson({
+      'disableCache': true,
+      'disableFallbackIfMatch': true,
+      'serveStale': true,
+      'serveExpiredTTL': 60,
+      'enableParallelQuery': true,
+      'servers': [
+        {
+          'tag': 'app-dns-proxy',
+          'address': '1.1.1.1',
+          'timeoutMs': 1500,
+          'disableCache': false,
+          'expectedIPs': ['geoip:US'],
+          'expectIPs': ['geoip:JP'],
+          'unexpectedIPs': ['geoip:CN'],
+          'serveStale': true,
+          'serveExpiredTTL': 60,
+        },
+      ],
+    });
+    expect(dns.toJson(), {
+      'disableCache': true,
+      'disableFallbackIfMatch': true,
+      'servers': [
+        {
+          'tag': 'app-dns-proxy',
+          'address': '1.1.1.1',
+          'timeoutMs': 1500,
+          'disableCache': false,
+        },
+      ],
+    });
+  });
+
   test('preserves complete proxy outbound maps', () {
     final outbound = <String, dynamic>{
       'tag': 'proxy',

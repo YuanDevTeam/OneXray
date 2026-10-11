@@ -117,7 +117,11 @@ void main() {
       entryCount: 2,
       dns: const RoutingDnsSettings(
         proxyResolvers: [
-          RoutingDnsResolver(address: '1.1.1.1', expectedIPs: ['geoip:US']),
+          RoutingDnsResolver(
+            address: '1.1.1.1',
+            timeoutMs: 1500,
+            disableCache: true,
+          ),
         ],
         sameExitOnly: true,
       ),

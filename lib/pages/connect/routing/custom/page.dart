@@ -269,7 +269,6 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                                                       value: state.dns,
                                                       enabled:
                                                           !state.editingBlocked,
-                                                      fakeDns: state.fakeDns,
                                                       onChanged:
                                                           controller.setDns,
                                                     ),

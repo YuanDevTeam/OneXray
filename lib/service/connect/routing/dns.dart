@@ -53,14 +53,6 @@ abstract final class RoutingDns {
           ),
     ];
     final hasDirectBlock = blocks.any((block) => block.direct);
-    // finalQuery truncates Core's ordered candidate list before any later
-    // strategy can participate, including parallel queries.
-    final parallel =
-        options.enableParallelQuery &&
-        options.sameExitOnly &&
-        !fakeDns &&
-        (options.effectiveProxyResolvers.length > 1 ||
-            (hasDirectBlock && options.effectiveDirectResolvers.length > 1));
     XrayDnsServer fakeServer({List<String>? domains, bool? skipFallback}) =>
         XrayDnsServer(
           address: FakeDns.address,
@@ -95,10 +87,7 @@ abstract final class RoutingDns {
 
     return XrayDns(
       disableCache: options.disableCache,
-      serveStale: options.serveStale,
-      serveExpiredTTL: options.serveExpiredTTL,
       disableFallbackIfMatch: options.sameExitOnly,
-      enableParallelQuery: parallel,
       servers: [
         for (final block in blocks) ...[
           if (fakeDns && !block.direct)

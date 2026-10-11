@@ -387,8 +387,14 @@ void main() {
         {'tag': 'app-dns-direct', 'address': '1.1.1.1', 'timeoutMs': 4000},
         {'tag': 'app-dns-fake', 'address': 'fakedns'},
       ]);
-      expect(storedDns['enableParallelQuery'], false);
-      expect(storedDns['serveStale'], false);
+      expect(storedDns['disableCache'], false);
+      for (final removed in [
+        'enableParallelQuery',
+        'serveStale',
+        'serveExpiredTTL',
+      ]) {
+        expect(storedDns, isNot(contains(removed)));
+      }
       controller.reorder(1, 0);
       expect(controller.state.rules.map((rule) => rule.ruleTag), [
         'B',

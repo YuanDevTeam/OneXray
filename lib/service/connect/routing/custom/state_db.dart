@@ -41,6 +41,7 @@ extension RoutingProfileStateDb on RoutingConfiguration {
       id: id,
       name: name,
       allowMetadata: false,
+      ignoreRemovedDnsFields: true,
     ).state;
   }
 

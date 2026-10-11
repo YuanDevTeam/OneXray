@@ -176,10 +176,7 @@ class SmartRoutingEditorService {
   }
 
   static Object _validationOptions(SmartRoutingSettings value) => {
-    'dns': value.dns.effectiveJson(
-      directEnabled: value.directDns,
-      fakeDns: value.fakeDns,
-    ),
+    'dns': value.dns.effectiveJson(directEnabled: value.directDns),
     'sniffing': value.sniffing.effectiveJson(fakeDns: value.fakeDns),
     'selection': value.selection.effectiveJson(),
   };
@@ -204,10 +201,7 @@ class SmartRoutingEditorService {
                   if (rule.outboundTag == 'direct') ...?rule.domain,
               ]
             : <String>[],
-        'dns': value.dns.effectiveJson(
-          directEnabled: value.directDns,
-          fakeDns: value.fakeDns,
-        ),
+        'dns': value.dns.effectiveJson(directEnabled: value.directDns),
         'sniffing': value.sniffing.effectiveJson(fakeDns: value.fakeDns),
         'selection': value.selection.effectiveJson(
           entryCount: original.selection.kind == SelectionKind.server
