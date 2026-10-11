@@ -489,7 +489,7 @@ class RoutingSelectionSettingsForm extends StatelessWidget {
 }
 
 List<String> _lines(String value) => value
-    .split(RegExp(r'[\n,]'))
+    .split('\n')
     .map((text) => text.trim())
     .where((text) => text.isNotEmpty)
     .toList();
@@ -735,26 +735,19 @@ class _OptionTextFieldState extends State<_OptionTextField> {
     super.dispose();
   }
 
-  ({int start, int end, String query, bool preferred}) _currentRule(
-    TextEditingValue value,
-  ) {
+  ({int start, int end, String query}) _currentRule(TextEditingValue value) {
     final text = value.text;
     final cursor = value.selection.isValid
         ? value.selection.extentOffset
         : text.length;
     final before = text.substring(0, cursor);
-    final boundary = RegExp(r'[\n,]');
+    final boundary = RegExp(r'\n');
     final preceding = boundary.allMatches(before).lastOrNull;
     final following = boundary.firstMatch(text.substring(cursor));
     final start = preceding == null ? 0 : preceding.end;
     final end = following == null ? text.length : cursor + following.start;
     final query = text.substring(start, cursor).trim();
-    return (
-      start: start,
-      end: end,
-      query: query.startsWith('*') ? query.substring(1) : query,
-      preferred: query.startsWith('*'),
-    );
+    return (start: start, end: end, query: query);
   }
 
   Future<Iterable<String>> _suggestions(TextEditingValue value) async {
@@ -773,11 +766,7 @@ class _OptionTextFieldState extends State<_OptionTextField> {
   String _replacement(String option) {
     final value = _autocompleteValue;
     final rule = _currentRule(value);
-    return value.text.replaceRange(
-      rule.start,
-      rule.end,
-      '${rule.preferred ? '*' : ''}$option',
-    );
+    return value.text.replaceRange(rule.start, rule.end, option);
   }
 
   Widget _field({VoidCallback? submit}) => TextField(

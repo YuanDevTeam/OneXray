@@ -152,7 +152,7 @@
   "routingDnsTimeout": "Resolver timeout (ms)",
   "routingDnsExpectedIps": "Expected IPs",
   "routingDnsUnexpectedIps": "Unexpected IPs",
-  "routingDnsIpFilterHint": "One IP, CIDR or geoip/ext reference per line. Empty means no filter. Prefix an expected IP with * to prefer it instead of rejecting other answers; strict filters should have a fallback resolver.",
+  "routingDnsIpFilterHint": "One IP, CIDR or geoip/ext reference per line. Empty means no filter. Add * on a separate line in Expected IPs to prefer matching answers while allowing other answers as fallback. Do not prefix a rule with *. Strict filters fail mismatching replies, so configure a fallback resolver.",
   "routingDnsSameExitOnly": "Keep fallback DNS on the same exit",
   "routingDnsSameExitOnlyHint": "When enabled, direct DNS failures only try direct fallbacks. When disabled, they may try proxy DNS. Proxy exceptions never fall back to direct DNS.",
   "routingDnsAdvanced": "DNS advanced settings",

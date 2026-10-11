@@ -129,7 +129,7 @@
   "routingDnsTimeout": "解析超时（毫秒）",
   "routingDnsExpectedIps": "期望 IP",
   "routingDnsUnexpectedIps": "排除 IP",
-  "routingDnsIpFilterHint": "每行填写一个 IP、CIDR 或 geoip/ext 引用，留空则不筛选。期望 IP 加 * 前缀表示优先使用，而非严格拒绝其他应答；严格筛选建议配备用解析服务器。",
+  "routingDnsIpFilterHint": "每行填写一个 IP、CIDR 或 geoip/ext 引用，留空则不筛选。在期望 IP 中单独一行填写 *，表示优先使用匹配应答，并允许其他应答回退。不要将 * 拼在规则前。严格筛选会使不匹配的应答失败，建议配置备用解析服务器。",
   "routingDnsSameExitOnly": "备用 DNS 使用相同出口",
   "routingDnsSameExitOnlyHint": "开启后，直连 DNS 失败只尝试直连备用；关闭时允许尝试代理 DNS。代理例外始终不回退到直连 DNS。",
   "routingDnsAdvanced": "DNS 高级设置",

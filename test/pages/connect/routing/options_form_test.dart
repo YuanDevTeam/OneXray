@@ -188,6 +188,171 @@ void main() {
   });
 
   testWidgets(
+    'DNS geodata completion keeps fallback marker separate from IP rules',
+    (tester) async {
+      await tester.pumpWidget(
+        _app(
+          RoutingDnsSettingsForm(
+            value: const RoutingDnsSettings(),
+            onChanged: (_) {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(RoutingDnsSettingsForm)),
+      )!;
+      await tester.tap(find.text(l.routingDnsResolverOptions).first);
+      await tester.pumpAndSettle();
+      for (final label in [
+        l.routingDnsExpectedIps,
+        l.routingDnsUnexpectedIps,
+      ]) {
+        final field = find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is TextField && widget.decoration?.labelText == label,
+            )
+            .first;
+        final autocomplete = tester.widget<RawAutocomplete<String>>(
+          find.ancestor(
+            of: field,
+            matching: find.byType(RawAutocomplete<String>),
+          ),
+        );
+        // Completing the next rule keeps the fallback marker on its own line.
+        expect(
+          await autocomplete.optionsBuilder(
+            const TextEditingValue(
+              text: '*\n',
+              selection: TextSelection.collapsed(offset: 2),
+            ),
+          ),
+          isEmpty,
+        );
+        expect(autocomplete.displayStringForOption('geoip:CN'), '*\ngeoip:CN');
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('sniffing completion generates plain geodata exclusions', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        RoutingSniffingSettingsForm(
+          value: const RoutingSniffingSettings(),
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(RoutingSniffingSettingsForm)),
+    )!;
+    for (final entry in {
+      l.routingSniffingDomainsExcluded: 'geosite:CN',
+      l.routingSniffingIpsExcluded: 'geoip:CN',
+    }.entries) {
+      final field = find.byWidgetPredicate(
+        (widget) =>
+            widget is TextField && widget.decoration?.labelText == entry.key,
+      );
+      final autocomplete = tester.widget<RawAutocomplete<String>>(
+        find.ancestor(
+          of: field,
+          matching: find.byType(RawAutocomplete<String>),
+        ),
+      );
+      expect(
+        await autocomplete.optionsBuilder(
+          const TextEditingValue(
+            text: '',
+            selection: TextSelection.collapsed(offset: 0),
+          ),
+        ),
+        isEmpty,
+      );
+      expect(autocomplete.displayStringForOption(entry.value), entry.value);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('sniffing form saves comma-containing regex as one exclusion', (
+    tester,
+  ) async {
+    const regex = r'regexp:^api[0-9]{1,3}\.example\.com$';
+    const other = 'full:other.example.com';
+    var value = const RoutingSniffingSettings();
+    Map<String, dynamic>? saved;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) => Column(
+            children: [
+              RoutingSniffingSettingsForm(
+                value: value,
+                onChanged: (updated) => setState(() => value = updated),
+              ),
+              TextButton(
+                onPressed: () => saved = value.toJson(),
+                child: const Text('Save exclusions'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(RoutingSniffingSettingsForm)),
+    )!;
+    final field = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextField &&
+          widget.decoration?.labelText == l.routingSniffingDomainsExcluded,
+    );
+    await tester.ensureVisible(field);
+    await tester.enterText(field, '$regex\n$other\n');
+    await tester.pumpAndSettle();
+    expect(value.domainsExcluded, [regex, other]);
+    expect(
+      tester.widget<TextField>(field).controller!.text,
+      '$regex\n$other\n',
+    );
+    final save = find.widgetWithText(TextButton, 'Save exclusions');
+    await tester.ensureVisible(save);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(saved!['domainsExcluded'], [regex, other]);
+    expect(RoutingSniffingSettings.fromJson(saved!).domainsExcluded, [
+      regex,
+      other,
+    ]);
+
+    // Selecting a completion at the start replaces the whole current line,
+    // rather than treating the comma inside the regex quantifier as a boundary.
+    final autocomplete = tester.widget<RawAutocomplete<String>>(
+      find.ancestor(of: field, matching: find.byType(RawAutocomplete<String>)),
+    );
+    expect(
+      await autocomplete.optionsBuilder(
+        const TextEditingValue(
+          text: '$regex\n$other',
+          selection: TextSelection.collapsed(offset: 0),
+        ),
+      ),
+      isEmpty,
+    );
+    expect(
+      autocomplete.displayStringForOption('geosite:CN'),
+      'geosite:CN\n$other',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
     'invalid DNS numeric input is rejected instead of becoming defaults',
     (tester) async {
       var value = const RoutingDnsSettings();

@@ -52,7 +52,8 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 不会在失败后切换其他出口。直连 resolver 不充当未匹配域名的通用备用。
 
 `expectedIPs/unexpectedIPs` 使用 IP、CIDR、geoip/ext 规则，缺省不筛选。严格过滤不合格应答会让该
-resolver 失败，按配置尝试备用；expected IP 的 `*` 前缀表示优先而非严格拒绝其它应答。
+resolver 失败，按配置尝试备用。在期望 IP 中单独一行填写 `*`，表示优先使用匹配应答，
+并允许其它应答回退，例如 `expectedIPs: ["geoip:CN", "*"]`；`*geoip:CN` 不是有效规则。
 资源引用沿用 Geodata 依赖扫描与分享附件，缺文件通过既有准备/保存流程报错。
 root 缓存默认启用；每个 resolver 的 nullable 缓存设置表示继承 root，显式 false/0 仍按字段语义保留。
 开启过期缓存时使用有限期限，默认 300 秒，普通设置不接受启用 stale 且有效期限无限的组合。
