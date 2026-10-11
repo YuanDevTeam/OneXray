@@ -107,7 +107,15 @@ class JsonEditing {
         return _outboundFields;
       }
       if (custom) {
-        return const ['name', 'outbounds', 'routing', 'dns', 'geodata'];
+        return const [
+          'name',
+          'outbounds',
+          'inbounds',
+          'routing',
+          'dns',
+          'observatory',
+          'geodata',
+        ];
       }
       if (advanced) {
         return const [
@@ -117,6 +125,7 @@ class JsonEditing {
           'dns',
           'routing',
           'fakeDns',
+          'observatory',
           'geodata',
         ];
       }
@@ -136,6 +145,19 @@ class JsonEditing {
         'transport',
       ];
     }
+    if (custom && path.firstOrNull == 'outbounds') return const [];
+    if (custom &&
+        path.firstOrNull == 'inbounds' &&
+        !_matches(path, ['inbounds', '*']) &&
+        !_matches(path, ['inbounds', '*', 'sniffing'])) {
+      return const [];
+    }
+    if (advanced &&
+        path.contains('streamSettings') &&
+        !_matches(path, ['outbounds', '*', 'streamSettings']) &&
+        !_matches(path, ['outbounds', '*', 'streamSettings', 'sockopt'])) {
+      return const [];
+    }
     if (_matches(path, ['outbounds', '*'])) {
       if (custom) return const [];
       if (advanced) {
@@ -144,7 +166,7 @@ class JsonEditing {
       return _outboundFields;
     }
     if (_matches(path, ['inbounds', '*'])) {
-      if (custom) return const [];
+      if (custom) return const ['tag', 'sniffing'];
       if (advanced && shape.value([...path, 'tag']) == 'tunIn') {
         return const ['tag', 'sniffing'];
       }
@@ -162,7 +184,8 @@ class JsonEditing {
       return [
         'domainStrategy',
         'rules',
-        if (!custom && !advanced) ...['balancers', 'domainMatcher'],
+        'balancers',
+        if (!custom && !advanced) 'domainMatcher',
       ];
     }
     if (_matches(path, ['routing', 'rules', '*'])) {
@@ -187,39 +210,62 @@ class JsonEditing {
         ],
       ];
     }
-    if (_matches(path, ['routing', 'balancers', '*']) &&
-        kind == JsonEditorKind.raw) {
-      return const ['tag', 'selector', 'strategy', 'fallbackTag'];
+    if (_matches(path, ['routing', 'balancers', '*'])) {
+      if (custom || advanced) {
+        return _managedProxyBalancer(path, shape)
+            ? const ['tag', 'strategy']
+            : const ['tag'];
+      }
+      if (kind == JsonEditorKind.raw) {
+        return const ['tag', 'selector', 'strategy', 'fallbackTag'];
+      }
     }
-    if (_matches(path, ['routing', 'balancers', '*', 'strategy']) &&
-        kind == JsonEditorKind.raw) {
-      return const ['type', 'settings'];
+    if (_matches(path, ['routing', 'balancers', '*', 'strategy'])) {
+      if (custom || advanced) {
+        return _managedProxyBalancer(path.sublist(0, 3), shape)
+            ? const ['type']
+            : const [];
+      }
+      if (kind == JsonEditorKind.raw) return const ['type', 'settings'];
+    }
+    if (_matches(path, ['observatory'])) {
+      return [
+        'probeURL',
+        'probeInterval',
+        'enableConcurrency',
+        if (!custom && !advanced) 'subjectSelector',
+      ];
     }
     if (_matches(path, ['dns'])) {
-      if (custom) return const ['servers'];
       return [
         'servers',
-        'hosts',
-        'tag',
         'disableCache',
-        'disableFallback',
+        'serveStale',
+        'serveExpiredTTL',
+        'enableParallelQuery',
         'disableFallbackIfMatch',
-        if (!advanced) 'queryStrategy',
+        if (!custom) ...['hosts', 'tag', 'disableFallback', 'clientIp'],
+        if (!custom && !advanced) ...['queryStrategy', 'useSystemHosts'],
       ];
     }
     if (_matches(path, ['dns', 'servers', '*'])) {
-      if (custom) return const ['tag', 'address'];
       return [
         'address',
-        'port',
-        'domains',
-        'expectIPs',
-        'skipFallback',
-        'clientIP',
         'tag',
-        'finalQuery',
         'timeoutMs',
-        if (!advanced) 'queryStrategy',
+        'expectedIPs',
+        'unexpectedIPs',
+        'disableCache',
+        'serveStale',
+        'serveExpiredTTL',
+        if (!custom) ...[
+          'port',
+          'domains',
+          'skipFallback',
+          'clientIp',
+          'finalQuery',
+        ],
+        if (!custom && !advanced) 'queryStrategy',
       ];
     }
     if (_matches(path, ['fakeDns']) ||
@@ -236,7 +282,7 @@ class JsonEditing {
     }
 
     final tail = path.last;
-    if (tail == 'streamSettings') {
+    if (_streamSettingsPath(path, kind)) {
       return advanced
           ? const ['sockopt']
           : const [
@@ -248,6 +294,7 @@ class JsonEditing {
               'grpcSettings',
               'xhttpSettings',
               'httpupgradeSettings',
+              'hysteriaSettings',
               'masqueSettings',
               'xdriveSettings',
               'finalmask',
@@ -255,8 +302,31 @@ class JsonEditing {
             ];
     }
     if (!custom && !advanced) {
-      if (tail == 'masqueSettings') {
-        return const ['host', 'path', 'user', 'pass', 'headers'];
+      if (tail == 'masqueSettings' &&
+          _streamSettingsPath(path.sublist(0, path.length - 1), kind)) {
+        return const ['host', 'path', 'user', 'pass', 'headers', 'warp'];
+      }
+      if (_endsWith(path, ['masqueSettings', 'warp']) &&
+          _streamSettingsPath(path.sublist(0, path.length - 2), kind)) {
+        return const ['privateKey', 'publicKey', 'address'];
+      }
+      if (tail == 'hysteriaSettings' &&
+          _streamSettingsPath(path.sublist(0, path.length - 1), kind)) {
+        return const ['version', 'auth', 'udpIdleTimeout', 'masquerade'];
+      }
+      if (_endsWith(path, ['hysteriaSettings', 'masquerade']) &&
+          _streamSettingsPath(path.sublist(0, path.length - 2), kind)) {
+        return const [
+          'type',
+          'dir',
+          'url',
+          'rewriteHost',
+          'xForwarded',
+          'insecure',
+          'content',
+          'headers',
+          'statusCode',
+        ];
       }
       if (tail == 'xdriveSettings') {
         return const [
@@ -288,15 +358,11 @@ class JsonEditing {
       }
       if (_endsWith(path, ['domains', '*']) &&
           _udpMaskType(path.sublist(0, path.length - 2), shape) == 'xdns') {
-        return const ['name', 'lenLimit', 'labelLimit', 'types', 'edns0'];
+        return const ['names', 'lenLimit', 'labelLimit', 'types', 'edns0'];
       }
       if (_endsWith(path, ['resolvers', '*']) &&
           _udpMaskType(path.sublist(0, path.length - 2), shape) == 'xdns') {
-        return const ['type', 'settings'];
-      }
-      if (_endsWith(path, ['resolvers', '*', 'settings']) &&
-          _udpMaskType(path.sublist(0, path.length - 3), shape) == 'xdns') {
-        return const ['addr'];
+        return const ['addrs'];
       }
       if (_endsWith(path, ['noise', '*']) &&
           _udpMaskType(path.sublist(0, path.length - 2), shape) == 'noise') {
@@ -320,13 +386,18 @@ class JsonEditing {
               'interface',
             ];
     }
-    if (tail == 'tlsSettings') {
+    if (tail == 'tlsSettings' &&
+        !custom &&
+        !advanced &&
+        _streamSettingsPath(path.sublist(0, path.length - 1), kind)) {
       return const [
         'serverName',
-        'allowInsecure',
         'alpn',
         'fingerprint',
         'certificates',
+        'useSystemCA',
+        'pinnedPeerCertSha256',
+        'verifyPeerCertByName',
       ];
     }
     if (tail == 'realitySettings') {
@@ -346,7 +417,7 @@ class JsonEditing {
       return const ['serviceName', 'multiMode', 'authority'];
     }
     if (tail == 'xhttpSettings') return const ['path', 'host', 'mode', 'extra'];
-    if (tail == 'sniffing') {
+    if (_matches(path, ['inbounds', '*', 'sniffing'])) {
       return const [
         'enabled',
         'routeOnly',
@@ -389,6 +460,10 @@ class JsonEditing {
             'address',
             'mtu',
           ],
+          'hysteria' when kind == JsonEditorKind.raw => const [
+            'version',
+            'users',
+          ],
           'tunnel' => const ['rewriteAddress', 'rewritePort', 'allowedNetwork'],
           _ => const [],
         };
@@ -423,6 +498,11 @@ class JsonEditing {
           'address',
           'port',
           'remoteDNS',
+        ],
+        'hysteria' when !custom && !advanced => const [
+          'version',
+          'address',
+          'port',
         ],
         'loopback' => const ['inboundTag'],
         _ => const [],
@@ -465,6 +545,16 @@ class JsonEditing {
         kind == JsonEditorKind.advancedRouting;
     final rule = _matches(parent, ['routing', 'rules', '*']);
     final dnsRule = _isDnsRule(parent, shape);
+    if (field == 'tag' && managed) {
+      if (_matches(parent, ['routing', 'balancers', '*'])) {
+        return const ['proxy'];
+      }
+      if (kind == JsonEditorKind.customRouting &&
+          _matches(parent, ['inbounds', '*'])) {
+        return const ['tunIn'];
+      }
+    }
+    if (field == 'fallbackTag' && managed) return const [];
     if (field == 'outboundTag' ||
         field == 'dialerProxy' ||
         field == 'fallbackTag') {
@@ -490,6 +580,11 @@ class JsonEditing {
     if (field == 'protocol') {
       if (rule) return const ['http', 'tls', 'quic', 'bittorrent'];
       if (_matches(parent, ['inbounds', '*'])) {
+        if (kind == JsonEditorKind.customRouting ||
+            kind == JsonEditorKind.advancedRouting &&
+                shape.value([...parent, 'tag']) == 'tunIn') {
+          return const [];
+        }
         return kind == JsonEditorKind.advancedRouting
             ? const ['socks', 'http', 'tunnel']
             : const [
@@ -500,6 +595,7 @@ class JsonEditing {
                 'vmess',
                 'trojan',
                 'shadowsocks',
+                'hysteria',
                 'masque',
                 'tun',
               ];
@@ -520,6 +616,7 @@ class JsonEditing {
                 'blackhole',
                 'dns',
                 'wireguard',
+                'hysteria',
                 'masque',
                 'loopback',
               ];
@@ -530,7 +627,7 @@ class JsonEditing {
     if (geodataType == 'ip') return ips;
     if (field == 'network') {
       if (rule) return const ['tcp', 'udp', 'tcp,udp'];
-      if (parent.lastOrNull == 'streamSettings') {
+      if (_streamSettingsPath(parent, kind) && !managed) {
         return [
           'raw',
           'tcp',
@@ -539,7 +636,9 @@ class JsonEditing {
           'xhttp',
           'httpupgrade',
           'kcp',
-          if (!managed) ...['masque', 'xdrive'],
+          'hysteria',
+          'masque',
+          'xdrive',
         ];
       }
     }
@@ -551,15 +650,14 @@ class JsonEditing {
         if (_endsWith(parent, ['streamSettings', 'finalmask', 'udp', '*'])) {
           return const ['noise', 'xdns', 'udphop'];
         }
-        if (_endsWith(parent, ['resolvers', '*']) &&
-            _udpMaskType(parent.sublist(0, parent.length - 2), shape) ==
-                'xdns') {
-          return const ['tcp', 'udp'];
-        }
         if (_endsWith(parent, ['noise', '*']) &&
             _udpMaskType(parent.sublist(0, parent.length - 2), shape) ==
                 'noise') {
           return const ['array', 'str', 'hex', 'base64', 'exp'];
+        }
+        if (_endsWith(parent, ['hysteriaSettings', 'masquerade']) &&
+            _streamSettingsPath(parent.sublist(0, parent.length - 2), kind)) {
+          return const ['file', 'proxy', 'string'];
         }
       }
     }
@@ -608,6 +706,11 @@ class JsonEditing {
     }
     if (field == 'type' &&
         _matches(parent, ['routing', 'balancers', '*', 'strategy'])) {
+      if (managed) {
+        return _managedProxyBalancer(parent.sublist(0, 3), shape)
+            ? const ['roundRobin', 'leastPing']
+            : const [];
+      }
       return const ['random', 'roundRobin', 'leastPing', 'leastLoad'];
     }
     if (field == 'loglevel' && _matches(parent, ['log'])) {
@@ -657,6 +760,16 @@ bool _matches(List<Object> path, List<Object> pattern) =>
 bool _endsWith(List<Object> path, List<Object> suffix) =>
     path.length >= suffix.length &&
     _matches(path.sublist(path.length - suffix.length), suffix);
+bool _streamSettingsPath(List<Object> path, JsonEditorKind kind) =>
+    kind == JsonEditorKind.outbound && _matches(path, ['streamSettings']) ||
+    _matches(path, ['outbounds', '*', 'streamSettings']) ||
+    kind == JsonEditorKind.raw &&
+        _matches(path, ['inbounds', '*', 'streamSettings']);
+bool _managedProxyBalancer(List<Object> path, _Shape shape) {
+  final tag = shape.value([...path, 'tag']);
+  return tag == null || tag == 'proxy';
+}
+
 bool _isDnsRule(List<Object> path, _Shape shape) =>
     _endsWith(path, ['settings', 'rules', '*']) &&
     shape.value([...path.sublist(0, path.length - 3), 'protocol']) == 'dns';
@@ -684,14 +797,19 @@ String? _geodataType(List<Object> path, _Shape shape) {
   final rule = _matches(parent, ['routing', 'rules', '*']);
   if (field == 'domain' && (rule || _isDnsRule(parent, shape)) ||
       field == 'domains' && _matches(parent, ['dns', 'servers', '*']) ||
-      field == 'domainsExcluded' && parent.lastOrNull == 'sniffing') {
+      field == 'domainsExcluded' &&
+          _matches(parent, ['inbounds', '*', 'sniffing'])) {
     return 'domain';
   }
   if (field == 'ip' && rule ||
       field == 'localIP' && rule ||
       field == 'sourceIP' && rule ||
-      field == 'expectIPs' && _matches(parent, ['dns', 'servers', '*']) ||
-      field == 'ipsExcluded' && parent.lastOrNull == 'sniffing') {
+      (field == 'expectIPs' ||
+              field == 'expectedIPs' ||
+              field == 'unexpectedIPs') &&
+          _matches(parent, ['dns', 'servers', '*']) ||
+      field == 'ipsExcluded' &&
+          _matches(parent, ['inbounds', '*', 'sniffing'])) {
     return 'ip';
   }
   return null;
@@ -708,6 +826,9 @@ List<String> _accountFields(
     final protocol = shape.value([...path.sublist(0, 2), 'protocol']);
     if (protocol == 'masque' && kind == JsonEditorKind.raw) {
       return const ['pass', 'level', 'email'];
+    }
+    if (protocol == 'hysteria' && kind == JsonEditorKind.raw) {
+      return const ['auth', 'level', 'email'];
     }
     return protocol == 'socks' || protocol == 'http'
         ? const ['user', 'pass']

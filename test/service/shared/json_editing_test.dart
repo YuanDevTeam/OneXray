@@ -180,23 +180,33 @@ void main() {
     },
   );
 
-  test('XDNS completes object domains and typed resolvers in UDP masks', () {
+  test('XDNS completes names and addrs in UDP masks without old fields', () {
     String source(String settings) =>
         '{"outbounds":[{"streamSettings":{"finalmask":{"udp":[{"type":"XDNS","settings":{$settings}}]}}}]}';
     expect(labels(source('"ex|"'), JsonEditorKind.raw), ['extraPoll']);
-    expect(labels(source('"domains":[{"na|"}]'), JsonEditorKind.raw), ['name']);
+    expect(labels(source('"domains":[{"na|"}]'), JsonEditorKind.raw), [
+      'names',
+    ]);
     expect(labels(source('"domains":[{"len|"}]'), JsonEditorKind.raw), [
       'lenLimit',
     ]);
-    expect(labels(source('"resolvers":[{"type":"u|"}]'), JsonEditorKind.raw), [
-      'udp',
+    expect(labels(source('"resolvers":[{"ad|"}]'), JsonEditorKind.raw), [
+      'addrs',
     ]);
+    expect(
+      labels(source('"resolvers":[{"ty|"}]'), JsonEditorKind.raw),
+      isEmpty,
+    );
+    expect(
+      labels(source('"resolvers":[{"type":"u|"}]'), JsonEditorKind.raw),
+      isEmpty,
+    );
     expect(
       labels(
         source('"resolvers":[{"type":"tcp","settings":{"ad|"}}]'),
         JsonEditorKind.raw,
       ),
-      ['addr'],
+      isEmpty,
     );
     expect(
       labels('{"future":{"domains":[{"na|"}]}}', JsonEditorKind.raw),
@@ -251,6 +261,258 @@ void main() {
     );
   });
 
+  test('TLS and MASQUE WARP keys follow the stream owner and editor mode', () {
+    for (final kind in [JsonEditorKind.outbound, JsonEditorKind.raw]) {
+      String source(String stream) => kind == JsonEditorKind.outbound
+          ? '{"streamSettings":{$stream}}'
+          : '{"outbounds":[{"streamSettings":{$stream}}]}';
+      expect(labels(source('"tlsSettings":{"use|"}'), kind), ['useSystemCA']);
+      expect(labels(source('"tlsSettings":{"pin|"}'), kind), [
+        'pinnedPeerCertSha256',
+      ]);
+      expect(labels(source('"tlsSettings":{"ver|"}'), kind), [
+        'verifyPeerCertByName',
+      ]);
+      expect(labels(source('"tlsSettings":{"allow|"}'), kind), isEmpty);
+      expect(labels(source('"masqueSettings":{"wa|"}'), kind), ['warp']);
+      expect(labels(source('"masqueSettings":{"warp":{"|"}}'), kind), [
+        'privateKey',
+        'publicKey',
+        'address',
+      ]);
+    }
+    for (final body in [
+      '"tlsSettings":{"use|"}',
+      '"masqueSettings":{"wa|"}',
+      '"masqueSettings":{"warp":{"pri|"}}',
+      '"hysteriaSettings":{"ver|"}',
+    ]) {
+      expect(labels('{"future":{$body}}', JsonEditorKind.raw), isEmpty);
+      expect(
+        labels(
+          '{"outbounds":[{}, {"streamSettings":{$body}}]}',
+          JsonEditorKind.advancedRouting,
+        ),
+        isEmpty,
+      );
+    }
+    const original =
+        '{"streamSettings":{"tlsSettings":{"allowInsecure":true}}}';
+    expect(JsonDocument(original).syntaxError, isNull);
+  });
+
+  test('Hysteria protocol transport and settings complete in node and Raw', () {
+    for (final kind in [JsonEditorKind.outbound, JsonEditorKind.raw]) {
+      String source(String body) => kind == JsonEditorKind.outbound
+          ? '{$body}'
+          : '{"outbounds":[{$body}]}';
+      expect(labels(source('"protocol":"hy|"'), kind), ['hysteria']);
+      expect(labels(source('"streamSettings":{"network":"hy|"}'), kind), [
+        'hysteria',
+      ]);
+      expect(labels(source('"streamSettings":{"hy|"}'), kind), [
+        'hysteriaSettings',
+      ]);
+      expect(labels(source('"protocol":"hysteria","settings":{"|"}'), kind), [
+        'version',
+        'address',
+        'port',
+      ]);
+      expect(
+        labels(source('"streamSettings":{"hysteriaSettings":{"|"}}'), kind),
+        ['version', 'auth', 'udpIdleTimeout', 'masquerade'],
+      );
+      expect(
+        labels(
+          source(
+            '"streamSettings":{"hysteriaSettings":{"masquerade":{"type":"p|"}}}',
+          ),
+          kind,
+        ),
+        ['proxy'],
+      );
+    }
+    expect(labels('{"inbounds":[{"protocol":"hy|"}]}', JsonEditorKind.raw), [
+      'hysteria',
+    ]);
+    expect(
+      labels(
+        '{"inbounds":[{"protocol":"hysteria","settings":{"|"}}]}',
+        JsonEditorKind.raw,
+      ),
+      ['version', 'users'],
+    );
+    expect(
+      labels(
+        '{"inbounds":[{"protocol":"hysteria","settings":{"users":[{"|"}]}}]}',
+        JsonEditorKind.raw,
+      ),
+      ['auth', 'level', 'email'],
+    );
+    expect(
+      labels(
+        '{"outbounds":[{}, {"protocol":"hy|"}]}',
+        JsonEditorKind.advancedRouting,
+      ),
+      isEmpty,
+    );
+  });
+
+  test(
+    'DNS cache and answer filters follow the normal and advanced contracts',
+    () {
+      for (final kind in [
+        JsonEditorKind.customRouting,
+        JsonEditorKind.advancedRouting,
+        JsonEditorKind.raw,
+      ]) {
+        expect(labels('{"dns":{"serve|"}}', kind), [
+          'servers',
+          'serveStale',
+          'serveExpiredTTL',
+        ]);
+        expect(labels('{"dns":{"enable|"}}', kind), ['enableParallelQuery']);
+        expect(labels('{"dns":{"servers":[{"time|"}]}}', kind), ['timeoutMs']);
+        expect(labels('{"dns":{"servers":[{"ex|"}]}}', kind), ['expectedIPs']);
+        expect(labels('{"dns":{"servers":[{"un|"}]}}', kind), [
+          'unexpectedIPs',
+        ]);
+        expect(labels('{"dns":{"servers":[{"serve|"}]}}', kind), [
+          'serveStale',
+          'serveExpiredTTL',
+        ]);
+        for (final field in ['expectedIPs', 'expectIPs', 'unexpectedIPs']) {
+          expect(
+            completions(
+              '{"dns":{"servers":[{"$field":["cn|"]}]}}',
+              kind,
+              domains: ['geosite:CN'],
+              ips: ['geoip:CN'],
+            ).map((value) => value.label),
+            ['geoip:CN'],
+          );
+        }
+        expect(labels('{"dns":{"scr|"}}', kind), isEmpty);
+        expect(labels('{"dns":{"servers":[{"id|"}]}}', kind), isEmpty);
+      }
+      for (final prefix in ['dom', 'fin', 'qu', 'skip', 'host']) {
+        expect(
+          labels(
+            '{"dns":{"servers":[{"$prefix|"}]}}',
+            JsonEditorKind.customRouting,
+          ),
+          isEmpty,
+        );
+      }
+      expect(
+        labels('{"dns":{"qu|"}}', JsonEditorKind.advancedRouting),
+        isEmpty,
+      );
+      expect(
+        labels('{"dns":{"servers":[{"qu|"}]}}', JsonEditorKind.advancedRouting),
+        isEmpty,
+      );
+      expect(
+        completions(
+          '{"future":{"expectedIPs":["cn|"]}}',
+          JsonEditorKind.raw,
+          ips: ['geoip:CN'],
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  test('managed selectors and observation subjects remain generated by App', () {
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(labels('{"ob|"}', kind), ['observatory']);
+      expect(labels('{"routing":{"ba|"}}', kind), ['balancers']);
+      expect(labels('{"routing":{"balancers":[{"tag":"p|"}]}}', kind), [
+        'proxy',
+      ]);
+      expect(
+        labels('{"routing":{"balancers":[{"tag":"proxy","str|"}]}}', kind),
+        ['strategy'],
+      );
+      expect(
+        labels(
+          '{"routing":{"balancers":[{"tag":"proxy","strategy":{"type":"|"}}]}}',
+          kind,
+        ),
+        ['roundRobin', 'leastPing'],
+      );
+      expect(labels('{"observatory":{"|"}}', kind), [
+        'probeURL',
+        'probeInterval',
+        'enableConcurrency',
+      ]);
+      for (final prefix in ['sel', 'fall']) {
+        expect(
+          labels(
+            '{"routing":{"balancers":[{"tag":"proxy","$prefix|"}]}}',
+            kind,
+          ),
+          isEmpty,
+        );
+      }
+      expect(
+        labels(
+          '{"routing":{"balancers":[{"tag":"proxy","strategy":{"se|"}}]}}',
+          kind,
+        ),
+        isEmpty,
+      );
+      expect(labels('{"observatory":{"sub|"}}', kind), isEmpty);
+      expect(
+        labels(
+          '{"routing":{"balancers":[{"tag":"other","strategy":{"type":"|"}}]}}',
+          kind,
+        ),
+        isEmpty,
+      );
+    }
+    expect(labels('{"in|"}', JsonEditorKind.customRouting), ['inbounds']);
+    expect(labels('{"inbounds":[{"|"}]}', JsonEditorKind.customRouting), [
+      'tag',
+      'sniffing',
+    ]);
+    expect(
+      labels('{"inbounds":[{"tag":"t|"}]}', JsonEditorKind.customRouting),
+      ['tunIn'],
+    );
+    expect(
+      labels('{"inbounds":[{"pro|"}]}', JsonEditorKind.customRouting),
+      isEmpty,
+    );
+    expect(
+      labels(
+        '{"inbounds":[{"tag":"tunIn","sniffing":{"meta|"}}]}',
+        JsonEditorKind.customRouting,
+      ),
+      ['metadataOnly'],
+    );
+    expect(
+      labels(
+        '{"outbounds":[{"streamSettings":{"tlsSettings":{"use|"}}}]}',
+        JsonEditorKind.customRouting,
+      ),
+      isEmpty,
+    );
+    expect(
+      labels(
+        '{"routing":{"balancers":[{"strategy":{"type":"least|"}}]}}',
+        JsonEditorKind.raw,
+      ),
+      ['leastPing', 'leastLoad'],
+    );
+    expect(labels('{"observatory":{"sub|"}}', JsonEditorKind.raw), [
+      'subjectSelector',
+    ]);
+  });
+
   test('offers only token-end replacements, including unfinished strings', () {
     const source = '{"中文😀":true,\r\n"protocol":"vl|';
     final suggestion = completions(source, JsonEditorKind.outbound).single;
@@ -296,10 +558,9 @@ void main() {
     () {
       expect(labels('{"lo|"}', JsonEditorKind.advancedRouting), isEmpty);
       expect(labels('{"lo|"}', JsonEditorKind.raw), ['log']);
-      expect(
-        labels('{"routing":{"ba|"}}', JsonEditorKind.advancedRouting),
-        isEmpty,
-      );
+      expect(labels('{"routing":{"ba|"}}', JsonEditorKind.advancedRouting), [
+        'balancers',
+      ]);
       expect(
         labels('{"routing":{"rules":[{"in|"}]}}', JsonEditorKind.customRouting),
         isEmpty,
