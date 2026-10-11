@@ -121,12 +121,7 @@ void main() {
       'disableCache': true,
       'disableFallbackIfMatch': true,
       'servers': [
-        {
-          'tag': 'app-dns-proxy',
-          'address': '1.1.1.1',
-          'timeoutMs': 1500,
-          'disableCache': false,
-        },
+        {'tag': 'app-dns-proxy', 'address': '1.1.1.1'},
       ],
     });
   });

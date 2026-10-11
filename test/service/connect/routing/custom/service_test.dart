@@ -199,8 +199,8 @@ void main() {
         'disableCache': false,
         'disableFallbackIfMatch': false,
         'servers': [
-          {'tag': 'app-dns-proxy', 'address': '8.8.8.8', 'timeoutMs': 4000},
-          {'tag': 'app-dns-direct', 'address': '9.9.9.9', 'timeoutMs': 4000},
+          {'tag': 'app-dns-proxy', 'address': '8.8.8.8'},
+          {'tag': 'app-dns-direct', 'address': '9.9.9.9'},
         ],
       });
       expect(stored.containsKey('name'), false);

@@ -29,10 +29,11 @@ UTF-8 JSON 的 `format=onexray-backup`、`version=1`、`createdAt` 为 Unix 毫�
 - 常规/高级路由保留类型、名称及原文，共用名称唯一和三份上限；
   包含 [Fragment 辅助出站及其参数](xray-configuration.md#fragment)。
   Smart 显式保存连接设置（含 Fragment 开关、可选 dns/sniffing/selection maps），排除最终出口选择。
-  新增设置沿用协议 v1；旧备份缺这些 maps 时恢复旧默认：8.8.8.8/4000ms、缓存开启、相同出口备用关闭，
+  新增设置沿用协议 v1；旧备份缺这些 maps 时恢复旧默认：8.8.8.8、全局缓存开启、相同出口备用关闭，
   嗅探开启/routeOnly=false/metadataOnly=false/无排除，选路轮询；缺省 Fragment 为关闭。
   旧 directDnsAddress 回填主直连 resolver，新捕获只写 dns 规范字段，不维护两份可变地址。
-  Smart 的旧 DNS map 忽略应答过滤、过期缓存和并发字段，后续写出仅包含普通设置支持的字段。
+  Smart 的旧 DNS map 忽略单 resolver 超时/缓存覆盖、应答过滤、过期缓存和并发字段，
+  后续写出仅包含地址列表、全局缓存和同出口备用设置；其余 resolver 参数沿用 Core 默认值。
   常规路由将新参数保存在原 Base64 配置数据，高级/Raw 原文保留；不保存运行观测、探测结果或运行 tag。
   旧常规备份的恢复校验与数据库内部读取兼容剔除废弃 DNS 字段，恢复仍保留 Base64 原文，
   下次编辑保存才写新规范；该兼容入口不放宽外部普通 JSON/分享导入的严格字段边界。

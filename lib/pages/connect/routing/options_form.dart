@@ -158,59 +158,23 @@ class _ResolverForm extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 8,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: DnsTextField(
-                label: primary ? l.routingDnsPrimary : l.routingDnsFallback,
-                value: value.address,
-                enabled: enabled,
-                onChanged: (text) => onChanged(value.copyWith(address: text)),
-              ),
-            ),
-            if (onRemove != null)
-              IconButton(
-                tooltip: l.prototypeDelete,
-                onPressed: enabled ? onRemove : null,
-                icon: const Icon(LucideIcons.trash2, size: 18),
-              ),
-          ],
-        ),
-        _RoutingDetails(
-          title: l.routingDnsResolverOptions,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: 12,
-            children: [
-              _OptionTextField(
-                label: l.routingDnsTimeout,
-                value: '${value.timeoutMs}',
-                keyboardType: TextInputType.number,
-                enabled: enabled,
-                onChanged: (text) => onChanged(
-                  value.copyWith(timeoutMs: int.tryParse(text) ?? -1),
-                ),
-              ),
-              _NullableChoice(
-                label: l.routingDnsCache,
-                value: value.disableCache,
-                trueLabel: l.routingOptionOff,
-                falseLabel: l.routingOptionOn,
-                enabled: enabled,
-                onChanged: (selected) => onChanged(
-                  selected == null
-                      ? value.copyWith(clearDisableCache: true)
-                      : value.copyWith(disableCache: selected),
-                ),
-              ),
-            ],
+        Expanded(
+          child: DnsTextField(
+            label: primary ? l.routingDnsPrimary : l.routingDnsFallback,
+            value: value.address,
+            enabled: enabled,
+            onChanged: (text) => onChanged(value.copyWith(address: text)),
           ),
         ),
+        if (onRemove != null)
+          IconButton(
+            tooltip: l.prototypeDelete,
+            onPressed: enabled ? onRemove : null,
+            icon: const Icon(LucideIcons.trash2, size: 18),
+          ),
       ],
     );
   }
@@ -512,36 +476,6 @@ class _OptionPicker extends StatelessWidget {
   );
 }
 
-class _NullableChoice extends StatelessWidget {
-  final String label;
-  final bool? value;
-  final String trueLabel;
-  final String falseLabel;
-  final bool enabled;
-  final ValueChanged<bool?> onChanged;
-  const _NullableChoice({
-    required this.label,
-    required this.value,
-    required this.trueLabel,
-    required this.falseLabel,
-    required this.enabled,
-    required this.onChanged,
-  });
-  @override
-  Widget build(BuildContext context) => _OptionPicker(
-    label: label,
-    value: value?.toString() ?? 'inherit',
-    labels: {
-      'inherit': AppLocalizations.of(context)!.routingOptionInherit,
-      'true': trueLabel,
-      'false': falseLabel,
-    },
-    enabled: enabled,
-    onChanged: (selected) =>
-        onChanged(selected == 'inherit' ? null : selected == 'true'),
-  );
-}
-
 class _HelpPadding extends StatelessWidget {
   final String text;
   const _HelpPadding({required this.text});
@@ -563,7 +497,6 @@ class _OptionTextField extends StatefulWidget {
   final bool enabled;
   final bool multiline;
   final bool? geodataDomain;
-  final TextInputType? keyboardType;
   final ValueChanged<String> onChanged;
   const _OptionTextField({
     required this.label,
@@ -571,7 +504,6 @@ class _OptionTextField extends StatefulWidget {
     required this.enabled,
     required this.onChanged,
     this.multiline = false,
-    this.keyboardType,
     this.geodataDomain,
   });
   @override
@@ -597,11 +529,7 @@ class _OptionTextFieldState extends State<_OptionTextField> {
   }
 
   void _changed(String text) {
-    _pendingEcho = widget.keyboardType == TextInputType.number
-        ? '${int.tryParse(text) ?? -1}'
-        : widget.multiline
-        ? _lines(text).join('\n')
-        : text;
+    _pendingEcho = widget.multiline ? _lines(text).join('\n') : text;
     widget.onChanged(text);
   }
 
@@ -670,9 +598,9 @@ class _OptionTextFieldState extends State<_OptionTextField> {
     enableSuggestions: false,
     minLines: widget.multiline ? 2 : 1,
     maxLines: widget.multiline ? 5 : 1,
-    keyboardType:
-        widget.keyboardType ??
-        (widget.multiline ? TextInputType.multiline : TextInputType.text),
+    keyboardType: widget.multiline
+        ? TextInputType.multiline
+        : TextInputType.text,
     style: AppTypography.settingsInput,
     decoration: InputDecoration(labelText: widget.label),
     onChanged: _changed,

@@ -142,9 +142,7 @@ XrayDnsServer _$XrayDnsServerFromJson(Map<String, dynamic> json) =>
       skipFallback: json['skipFallback'] as bool?,
       queryStrategy: json['queryStrategy'] as String?,
       tag: json['tag'] as String?,
-      timeoutMs: (json['timeoutMs'] as num?)?.toInt(),
       finalQuery: json['finalQuery'] as bool?,
-      disableCache: json['disableCache'] as bool?,
     );
 
 Map<String, dynamic> _$XrayDnsServerToJson(XrayDnsServer instance) =>
@@ -154,9 +152,7 @@ Map<String, dynamic> _$XrayDnsServerToJson(XrayDnsServer instance) =>
       'skipFallback': ?instance.skipFallback,
       'queryStrategy': ?instance.queryStrategy,
       'tag': ?instance.tag,
-      'timeoutMs': ?instance.timeoutMs,
       'finalQuery': ?instance.finalQuery,
-      'disableCache': ?instance.disableCache,
     };
 
 XrayRouting _$XrayRoutingFromJson(Map<String, dynamic> json) => XrayRouting(

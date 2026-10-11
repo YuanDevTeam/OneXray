@@ -116,13 +116,7 @@ void main() {
       name: 'test',
       entryCount: 2,
       dns: const RoutingDnsSettings(
-        proxyResolvers: [
-          RoutingDnsResolver(
-            address: '1.1.1.1',
-            timeoutMs: 1500,
-            disableCache: true,
-          ),
-        ],
+        proxyResolvers: [RoutingDnsResolver(address: '1.1.1.1')],
         sameExitOnly: true,
       ),
       sniffing: const RoutingSniffingSettings(metadataOnly: true),

@@ -106,6 +106,8 @@ void _removeRetiredDnsFields(Map<String, dynamic> document) {
             ..remove('unexpectedIPs')
             ..remove('serveStale')
             ..remove('serveExpiredTTL')
+            ..remove('timeoutMs')
+            ..remove('disableCache')
         else
           server,
     ];
@@ -132,12 +134,7 @@ void _checkEditableFields(Map<String, dynamic> document) {
     }
     for (var index = 0; index < servers.length; index++) {
       final path = <Object>['dns', 'servers', index];
-      _onlyKeys(_object(servers[index], path), const {
-        'tag',
-        'address',
-        'timeoutMs',
-        'disableCache',
-      }, path);
+      _onlyKeys(_object(servers[index], path), const {'tag', 'address'}, path);
     }
   }
   if (document.containsKey('inbounds')) {

@@ -8,43 +8,19 @@ import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/service/shared/ping/state.dart';
 import 'package:onexray/service/shared/xray/fake_dns.dart';
 
-/// Editable DNS resolver options. Null cache values inherit the DNS root.
+/// Editable address of one DNS resolver.
 final class RoutingDnsResolver {
   final String address;
-  final int timeoutMs;
-  final bool? disableCache;
 
-  const RoutingDnsResolver({
-    required this.address,
-    this.timeoutMs = 4000,
-    this.disableCache,
-  });
+  const RoutingDnsResolver({required this.address});
 
   factory RoutingDnsResolver.fromJson(Map<String, dynamic> json) =>
-      RoutingDnsResolver(
-        address: json['address'] as String,
-        timeoutMs: (json['timeoutMs'] as num?)?.toInt() ?? 4000,
-        disableCache: json['disableCache'] as bool?,
-      );
+      RoutingDnsResolver(address: json['address'] as String);
 
   factory RoutingDnsResolver.fromXrayDnsServer(XrayDnsServer server) =>
-      RoutingDnsResolver(
-        address: server.address ?? '',
-        timeoutMs: server.timeoutMs ?? 4000,
-        disableCache: server.disableCache,
-      );
+      RoutingDnsResolver(address: server.address ?? '');
 
-  Map<String, dynamic> toJson() => {
-    'address': address.trim(),
-    'timeoutMs': timeoutMs,
-    if (disableCache != null) 'disableCache': disableCache,
-  };
-
-  Map<String, dynamic> effectiveJson({bool rootDisableCache = false}) => {
-    'address': address.trim(),
-    'timeoutMs': timeoutMs == 0 ? 4000 : timeoutMs,
-    'disableCache': disableCache ?? rootDisableCache,
-  };
+  Map<String, dynamic> toJson() => {'address': address.trim()};
 
   XrayDnsServer toXrayDnsServer({
     required String tag,
@@ -59,24 +35,14 @@ final class RoutingDnsResolver {
     skipFallback: skipFallback,
     finalQuery: finalQuery,
     queryStrategy: queryStrategy,
-    timeoutMs: timeoutMs,
-    disableCache: disableCache,
   );
 
-  RoutingDnsResolver copyWith({
-    String? address,
-    int? timeoutMs,
-    bool? disableCache,
-    bool clearDisableCache = false,
-  }) => RoutingDnsResolver(
-    address: address ?? this.address,
-    timeoutMs: timeoutMs ?? this.timeoutMs,
-    disableCache: clearDisableCache ? null : disableCache ?? this.disableCache,
-  );
+  RoutingDnsResolver copyWith({String? address}) =>
+      RoutingDnsResolver(address: address ?? this.address);
 
   void validate() {
-    if (address.trim().isEmpty || timeoutMs < 0) {
-      throw const FormatException('DNS address and timeout are invalid');
+    if (address.trim().isEmpty) {
+      throw const FormatException('DNS address is invalid');
     }
     final value = address.trim().toLowerCase();
     final uri = Uri.tryParse(value);
@@ -174,9 +140,7 @@ final class RoutingDnsSettings {
         );
       }
       if (server.tag == FakeDns.tag) {
-        if (!FakeDns.isAddress(server.address) ||
-            server.timeoutMs != null ||
-            server.disableCache != null) {
+        if (!FakeDns.isAddress(server.address)) {
           throw JsonDiagnostic(
             'Custom FakeDNS marker must contain only tag and address',
             path: path,
@@ -246,14 +210,13 @@ final class RoutingDnsSettings {
 
   Map<String, dynamic> effectiveJson({bool directEnabled = true}) => {
     'proxyResolvers': [
-      for (final resolver in effectiveProxyResolvers)
-        resolver.effectiveJson(rootDisableCache: disableCache),
+      for (final resolver in effectiveProxyResolvers) resolver.toJson(),
     ],
     if (directEnabled)
       'directResolvers': [
-        for (final resolver in effectiveDirectResolvers)
-          resolver.effectiveJson(rootDisableCache: disableCache),
+        for (final resolver in effectiveDirectResolvers) resolver.toJson(),
       ],
+    'disableCache': disableCache,
     'sameExitOnly': sameExitOnly,
   };
 

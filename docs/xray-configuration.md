@@ -42,8 +42,8 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 
 ### DNS
 
-智能和常规自定义分别保存代理/直连主 resolver、同出口有序备用列表、超时与缓存覆盖。
-旧设置缺新增字段时两组主地址均为 `8.8.8.8`，单 resolver 超时为 4000ms，缓存开启，
+智能和常规自定义分别保存代理/直连主 resolver 地址及同出口有序备用列表。
+旧设置缺新增字段时两组主地址均为 `8.8.8.8`，全局缓存开启，
 相同出口备用默认关闭。智能直连 DNS 关闭保留已填值，运行不派生直连 DNS 匹配。
 使用固定 `app-dns-proxy` / `app-dns-direct` tag 区分出口，DNS 规则来自同一份有序路由规则。
 只投影无 IP/端口/网络/协议/系统/入站等附加条件的 proxy/direct 域名规则，因为查询不掌握后续连接条件。
@@ -51,8 +51,9 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 直连默认允许失败后尝试代理备用；“备用 DNS 使用相同出口”开启时只尝试本策略 resolver，
 不会在失败后切换其他出口。直连 resolver 不充当未匹配域名的通用备用。
 
-root 缓存默认启用；每个 resolver 的 nullable `disableCache` 表示继承 root，显式 false 保留。
-普通设置不开放 `expectedIPs/unexpectedIPs`、`serveStale/serveExpiredTTL` 或 `enableParallelQuery`。
+普通设置保留 root `disableCache` 全局开关，resolver 只保存地址，其余参数沿用 Core 默认值。
+普通设置不开放 resolver `timeoutMs/disableCache`、`expectedIPs/unexpectedIPs`、
+`serveStale/serveExpiredTTL` 或 `enableParallelQuery`。
 这些 Core 原生字段及 JSON 编辑提示保留，高级/Raw DNS Map 可配置，不受普通表单覆盖。
 已保存的普通数据库配置在内部读取时剔除旧字段；外部普通导入仍明确拒绝这些超出边界的字段，
 避免静默丢失用户配置。Geodata 资源引用仍沿用依赖扫描与分享附件。
@@ -122,7 +123,7 @@ direct/block 只在校验/运行时生成，规则的动作引用保留。名称
 普通模型不开放 process、来源 IP/端口、HTTP attrs 或额外入站等高级匹配。
 不支持的结构拒绝导入，不静默丢字段；更多能力使用高级模板或 Raw。
 
-DNS 使用标准 servers，固定 proxy/direct tag 保存主 resolver 与有序备用、超时、缓存覆盖，
+DNS 使用标准 servers，固定 proxy/direct tag 保存主 resolver 与有序备用地址，
 root 保存全局缓存和同出口备用；`app-dns-fake` 表示 FakeDNS。运行池、domains、派生
 finalQuery 和平台 queryStrategy 编译时产生，不另存第二套规则。旧单直连地址读入主直连 resolver。
 嗅探通过唯一 `inbounds:[{tag:"tunIn",sniffing:{...}}]` 占位保存，普通文档不开放实际监听或平台 settings。

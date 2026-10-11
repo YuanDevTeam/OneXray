@@ -27,6 +27,8 @@ void main() {
           in (dns['servers'] as List).cast<Map<String, dynamic>>()) {
         if (server['tag'] == 'app-dns-fake') continue;
         server.addAll({
+          'timeoutMs': 4000,
+          'disableCache': false,
           'expectedIPs': ['geoip:US'],
           'expectIPs': ['geoip:JP'],
           'unexpectedIPs': ['geoip:CN'],
@@ -621,8 +623,8 @@ Map<String, dynamic> _storedDns({
   'disableCache': false,
   'disableFallbackIfMatch': false,
   'servers': [
-    {'tag': 'app-dns-proxy', 'address': '8.8.8.8', 'timeoutMs': 4000},
-    {'tag': 'app-dns-direct', 'address': direct, 'timeoutMs': 4000},
+    {'tag': 'app-dns-proxy', 'address': '8.8.8.8'},
+    {'tag': 'app-dns-direct', 'address': direct},
     if (fakeDns) {'tag': 'app-dns-fake', 'address': 'fakedns'},
   ],
 };

@@ -1353,6 +1353,8 @@ void main() {
         'servers': [
           {
             'address': 'tcp://8.8.8.8',
+            'timeoutMs': 1200,
+            'disableCache': true,
             'expectedIPs': ['geoip:CN'],
             'unexpectedIPs': ['geoip:PRIVATE'],
             'serveStale': false,
@@ -1360,6 +1362,8 @@ void main() {
           },
           {
             'address': 'tcp://1.1.1.1',
+            'timeoutMs': 4000,
+            'disableCache': false,
             'expectIPs': ['!geoip:PRIVATE'],
           },
         ],
@@ -1506,7 +1510,6 @@ void main() {
             'address': '8.8.8.8',
             'tag': ConnectionCompiler.dnsProxy,
             'queryStrategy': ipv6 ? 'UseIP' : 'UseIPv4',
-            'timeoutMs': 4000,
           },
         ]);
         final rules = (config['routing']['rules'] as List).cast<Map>();

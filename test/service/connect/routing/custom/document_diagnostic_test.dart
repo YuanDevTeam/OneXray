@@ -122,6 +122,8 @@ void main() {
         'unexpectedIPs',
         'serveStale',
         'serveExpiredTTL',
+        'timeoutMs',
+        'disableCache',
       ]) {
         expect(
           () => RoutingProfileDocument.fromJson({

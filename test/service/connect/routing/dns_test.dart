@@ -184,42 +184,6 @@ void main() {
     expect(dns.servers!.single.domains, isNull);
   });
 
-  test('ordinary DNS exchange preserves timeout and cache overrides', () {
-    final legacy = XrayDns(
-      servers: [
-        XrayDnsServer(
-          tag: RoutingDns.directTag,
-          address: '223.5.5.5',
-          disableCache: false,
-          timeoutMs: 0,
-        ),
-      ],
-    );
-    final settings = RoutingDnsSettings.fromXrayDns(legacy);
-    expect(settings.effectiveProxyResolvers.first.address, '8.8.8.8');
-    expect(settings.directAddress, '223.5.5.5');
-    final stored = settings.toStoredXrayDns(fakeDns: true);
-    final direct = stored.servers!.singleWhere(
-      (server) => server.tag == RoutingDns.directTag,
-    );
-    expect(direct.disableCache, false);
-    expect(direct.timeoutMs, 0);
-    expect(
-      stored.servers!.every(
-        (server) =>
-            server.domains == null &&
-            server.finalQuery == null &&
-            server.queryStrategy == null,
-      ),
-      true,
-    );
-    expect(RoutingDnsSettings.fromXrayDns(stored).toJson(), settings.toJson());
-    expect(
-      RoutingDnsSettings.fromJson(settings.toJson()).toJson(),
-      settings.toJson(),
-    );
-  });
-
   test('old DNS preferences ignore retired options on read and write', () {
     final settings = RoutingDnsSettings.fromJson({
       'disableCache': true,
@@ -249,13 +213,18 @@ void main() {
       'disableCache': true,
       'sameExitOnly': true,
       'proxyResolvers': [
-        {'address': '1.1.1.1', 'timeoutMs': 1500, 'disableCache': false},
-        {'address': '9.9.9.9', 'timeoutMs': 4000},
+        {'address': '1.1.1.1'},
+        {'address': '9.9.9.9'},
       ],
       'directResolvers': [
-        {'address': '223.5.5.5', 'timeoutMs': 4000},
+        {'address': '223.5.5.5'},
       ],
     });
+    expect(settings.effectiveJson()['disableCache'], true);
+    expect(
+      settings.copyWith(disableCache: false).effectiveJson()['disableCache'],
+      false,
+    );
     final compiled = RoutingDns.compile(
       settings: settings,
       rules: [
@@ -278,6 +247,8 @@ void main() {
             'unexpectedIPs',
             'serveStale',
             'serveExpiredTTL',
+            'timeoutMs',
+            'disableCache',
           }.contains,
         ),
       ),
@@ -333,28 +304,6 @@ void main() {
         reason: address,
       );
     }
-  });
-
-  test('cache inheritance retains explicit false and inherited values', () {
-    const inherited = RoutingDnsResolver(address: '8.8.8.8');
-    expect(inherited.toJson().containsKey('disableCache'), false);
-    expect(
-      inherited.effectiveJson(rootDisableCache: true)['disableCache'],
-      true,
-    );
-    final enabled = inherited.copyWith(disableCache: false);
-    expect(enabled.toJson()['disableCache'], false);
-    expect(
-      enabled.effectiveJson(rootDisableCache: true)['disableCache'],
-      false,
-    );
-    expect(
-      enabled
-          .copyWith(clearDisableCache: true)
-          .toJson()
-          .containsKey('disableCache'),
-      false,
-    );
   });
 
   test(

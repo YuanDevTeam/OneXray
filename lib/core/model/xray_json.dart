@@ -145,9 +145,7 @@ class XrayDnsServer {
   bool? skipFallback;
   String? queryStrategy;
   String? tag;
-  int? timeoutMs;
   bool? finalQuery;
-  bool? disableCache;
 
   XrayDnsServer({
     this.address,
@@ -155,9 +153,7 @@ class XrayDnsServer {
     this.skipFallback,
     this.queryStrategy,
     this.tag,
-    this.timeoutMs,
     this.finalQuery,
-    this.disableCache,
   });
 
   factory XrayDnsServer.fromJson(Map<String, dynamic> json) =>

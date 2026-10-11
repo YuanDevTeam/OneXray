@@ -166,11 +166,7 @@ void main() {
           entryCount: 2,
           dns: const RoutingDnsSettings(
             proxyResolvers: [
-              RoutingDnsResolver(
-                address: '1.1.1.1',
-                timeoutMs: 1500,
-                disableCache: true,
-              ),
+              RoutingDnsResolver(address: '1.1.1.1'),
               RoutingDnsResolver(address: '9.9.9.9'),
             ],
             sameExitOnly: true,
@@ -292,6 +288,8 @@ const _retiredDnsRoot = {
   'enableParallelQuery': true,
 };
 const _retiredDnsResolver = {
+  'timeoutMs': 4000,
+  'disableCache': false,
   'expectedIPs': ['1.1.1.0/24'],
   'expectIPs': ['9.9.9.0/24'],
   'unexpectedIPs': ['192.0.2.0/24'],
