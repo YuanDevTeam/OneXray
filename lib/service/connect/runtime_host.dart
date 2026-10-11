@@ -194,6 +194,14 @@ class ConnectionRuntimeHost {
       uplink: uplink,
       downlink: downlink,
       sampledAtMs: DateTime.now().millisecondsSinceEpoch,
+      observations: List.unmodifiable([
+        for (final path in runtime.observationPaths)
+          RuntimePathObservation.fromMetrics(
+            path: path,
+            report: metrics.observatory?[path.tag],
+            startedAtSeconds: runtime.startedAt.millisecondsSinceEpoch ~/ 1000,
+          ),
+      ]),
     );
   }
 

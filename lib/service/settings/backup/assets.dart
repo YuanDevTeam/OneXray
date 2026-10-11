@@ -67,7 +67,9 @@ class BackupAssets {
         directApple: settings.directApple,
         directWindows: settings.directWindows,
         directDns: settings.directDns,
-        directDnsAddress: settings.directDnsAddress,
+        dns: settings.dns.toJson(),
+        sniffing: settings.sniffing.toJson(),
+        selection: settings.selection.toJson(),
         fakeDns: settings.fakeDns,
         fragment: settings.fragment,
         blockAds: settings.blockAds,
@@ -199,7 +201,7 @@ void validateBackupAssets(BackupDocument document) {
       allowMetadata: false,
     );
   }
-  SmartRoutingSettings.fromJson(document.smartRouting.toJson());
+  SmartRoutingSettings.fromJson(document.smartRouting.toJson()).validate();
   final files = <String>{};
   for (final row in document.geoData) {
     final name = GeoDataInput.referenceFileName('${row.name}.dat');

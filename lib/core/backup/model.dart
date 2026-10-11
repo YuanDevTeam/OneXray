@@ -2,7 +2,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'model.g.dart';
 
-@JsonSerializable(explicitToJson: true, disallowUnrecognizedKeys: true)
+@JsonSerializable(explicitToJson: true)
 class BackupDocument {
   final String format;
   final int version;
@@ -29,7 +29,7 @@ class BackupDocument {
   Map<String, dynamic> toJson() => _$BackupDocumentToJson(this);
 }
 
-@JsonSerializable(disallowUnrecognizedKeys: true)
+@JsonSerializable()
 class BackupCoreConfig {
   final String name;
   final String type;
@@ -42,7 +42,7 @@ class BackupCoreConfig {
   Map<String, dynamic> toJson() => _$BackupCoreConfigToJson(this);
 }
 
-@JsonSerializable(disallowUnrecognizedKeys: true)
+@JsonSerializable()
 class BackupSubscription {
   final String name;
   final String url;
@@ -64,7 +64,7 @@ class BackupSubscription {
   Map<String, dynamic> toJson() => _$BackupSubscriptionToJson(this);
 }
 
-@JsonSerializable(disallowUnrecognizedKeys: true)
+@JsonSerializable()
 class BackupRoutingProfile {
   final String name;
   final bool advanced;
@@ -76,7 +76,7 @@ class BackupRoutingProfile {
   Map<String, dynamic> toJson() => _$BackupRoutingProfileToJson(this);
 }
 
-@JsonSerializable(disallowUnrecognizedKeys: true)
+@JsonSerializable()
 class BackupGeoData {
   final String name;
   final String type;
@@ -88,7 +88,7 @@ class BackupGeoData {
   Map<String, dynamic> toJson() => _$BackupGeoDataToJson(this);
 }
 
-@JsonSerializable(disallowUnrecognizedKeys: true)
+@JsonSerializable()
 class BackupSmartRouting {
   final int entryCount;
   final List<String> directRegions;
@@ -96,7 +96,14 @@ class BackupSmartRouting {
   final bool directApple;
   final bool directWindows;
   final bool directDns;
-  final String directDnsAddress;
+  @JsonKey(includeIfNull: false)
+  final String? directDnsAddress;
+  @JsonKey(includeIfNull: false)
+  final Map<String, dynamic>? dns;
+  @JsonKey(includeIfNull: false)
+  final Map<String, dynamic>? sniffing;
+  @JsonKey(includeIfNull: false)
+  final Map<String, dynamic>? selection;
   final bool fakeDns;
   final bool fragment;
   final bool blockAds;
@@ -108,7 +115,10 @@ class BackupSmartRouting {
     required this.directApple,
     required this.directWindows,
     required this.directDns,
-    required this.directDnsAddress,
+    this.directDnsAddress,
+    this.dns,
+    this.sniffing,
+    this.selection,
     required this.fakeDns,
     this.fragment = false,
     required this.blockAds,

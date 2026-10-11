@@ -22,12 +22,18 @@ Apple/Windows 使用替换写入；Android 固定 URI 覆盖、不先删旧文�
 UTF-8 JSON 的 `format=onexray-backup`、`version=1`、`createdAt` 为 Unix 毫秒；
 `coreConfigs/subscriptions/routingProfiles/smartRouting/geoData` 为必要分区，缺失列表不同于空列表。
 字段唯一来源是 [备份模型](../lib/core/backup/model.dart)，旧 ZIP v3/v4 不导入、不转换。
+根对象及各分区忽略未知字段，重新导出时只输出当前支持的字段；格式、版本、必要字段和已知字段类型仍需有效。
 
 - 保存本地（subId=0）outbound 与全部 Raw，包括超过新增三份上限的旧 Raw；
   保存订阅来源、原 Age 密钥对及关闭发送时仍存在的 HWID，排除订阅节点缓存、本地修改、更新时间与套餐缓存。
 - 常规/高级路由保留类型、名称及原文，共用名称唯一和三份上限；
   包含 [Fragment 辅助出站及其参数](xray-configuration.md#fragment)。
-  Smart 显式保存连接设置（含 Fragment 开关）但排除最终出口选择，旧 v1 备份缺省 Fragment 为关闭。
+  Smart 显式保存连接设置（含 Fragment 开关、可选 dns/sniffing/selection maps），排除最终出口选择。
+  新增设置沿用协议 v1；旧备份缺这些 maps 时恢复旧默认：8.8.8.8/4000ms、缓存开启且 stale/并发关闭，
+  嗅探开启/routeOnly=false/metadataOnly=false/无排除，选路轮询；缺省 Fragment 为关闭。
+  旧 directDnsAddress 回填主直连 resolver，新捕获只写 dns 规范字段，不维护两份可变地址。
+  常规路由将新参数保存在原 Base64 配置数据，高级/Raw 原文保留；不保存运行观测、探测结果或运行 tag。
+  未知字段容忍不将额外设备选择变成连接参数，旧版本严格解析客户端不保证读取扩展 v1。
   最终出口若是本地节点，仍作为普通节点保存。
 - 自定义 Geodata 只保存名称/类型/HTTPS URL，包含待下载声明，省略默认组；不保存任何资源文件。
 - `data` 保留数据库 Base64 原字符串，不通过分享格式或普通模型裁剪 Raw/高级内容。

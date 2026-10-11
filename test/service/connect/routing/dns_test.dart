@@ -442,6 +442,13 @@ void main() {
     },
   );
 
+  test('probe URL normalization matches the effective runtime policy', () {
+    const settings = RoutingSelectionSettings(type: 'leastPing', probeURL: ' https://example.com/probe ');
+    settings.validate();
+    expect(settings.compile(selector: ['app-entry-0', 'app-entry-1']).observatory.probeURL, 'https://example.com/probe');
+    expect(settings.toStoredObservatory().probeURL, 'https://example.com/probe');
+  });
+
   test('least-ping probe parameters validate before constructing Core', () {
     for (final interval in ['10s', '30s', '1m', '1h2m3s', '0.5m', '+60s']) {
       expect(

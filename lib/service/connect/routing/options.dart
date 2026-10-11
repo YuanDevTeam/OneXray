@@ -547,7 +547,7 @@ final class RoutingSelectionSettings {
 
   Map<String, dynamic> toJson() => {
     'type': type,
-    'probeURL': probeURL,
+    'probeURL': probeURL.trim(),
     'probeInterval': probeInterval,
     'enableConcurrency': enableConcurrency,
   };
@@ -572,7 +572,7 @@ final class RoutingSelectionSettings {
   );
 
   XrayObservatory toStoredObservatory() => XrayObservatory(
-    probeURL: probeURL,
+    probeURL: probeURL.trim(),
     probeInterval: probeInterval,
     enableConcurrency: enableConcurrency,
   );

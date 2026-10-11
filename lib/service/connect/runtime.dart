@@ -4,6 +4,7 @@ import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/connect/compiler.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/connect/traffic.dart';
 
 /// One database value for all settings which can change a running connection.
 class ConnectionConfiguration {
@@ -66,6 +67,14 @@ class ConnectionRuntime {
   final RuntimeNode? finalExit;
   final String? notice;
   final DateTime startedAt;
+  late final List<RuntimeObservationPath> observationPaths =
+      configuration.connection.expert
+      ? const []
+      : RuntimeObservationPath.fromConfiguration(
+          xrayJson: xrayJson,
+          entryNames: [for (final entry in entries) entry.name],
+          finalExitName: finalExit?.name,
+        );
 
   ConnectionRuntime._({
     required this.configuration,

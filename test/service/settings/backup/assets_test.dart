@@ -10,6 +10,7 @@ import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/connect/routing/options.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/settings/backup/assets.dart';
@@ -146,7 +147,27 @@ void main() {
       connection: ConnectionSettings(
         expert: true,
         rawId: 1,
-        smart: SmartRoutingSettings(finalExitId: 2, fragment: true),
+        smart: SmartRoutingSettings(
+          finalExitId: 2,
+          fragment: true,
+          entryCount: 2,
+          dns: const RoutingDnsSettings(
+            proxyResolvers: [
+              RoutingDnsResolver(address: '1.1.1.1', expectedIPs: ['geoip:US']),
+              RoutingDnsResolver(address: '9.9.9.9'),
+            ],
+            sameExitOnly: true,
+            enableParallelQuery: true,
+          ),
+          sniffing: const RoutingSniffingSettings(
+            metadataOnly: true,
+            domainsExcluded: ['domain:example.com'],
+          ),
+          selection: const RoutingSelectionSettings(
+            type: 'leastPing',
+            probeInterval: '30s',
+          ),
+        ),
       ),
       policy: PlatformPolicy.fromJson({'ipv6Enabled': false}),
     );
@@ -189,6 +210,19 @@ void main() {
     expect(connection.connection.expert, false);
     expect(connection.connection.smart.finalExitId, null);
     expect(connection.connection.smart.fragment, true);
+    expect(
+      connection.connection.smart.dns.toJson(),
+      original.connection.smart.dns.toJson(),
+    );
+    expect(
+      connection.connection.smart.sniffing.toJson(),
+      original.connection.smart.sniffing.toJson(),
+    );
+    expect(
+      connection.connection.smart.selection.toJson(),
+      original.connection.smart.selection.toJson(),
+    );
+    expect(document.smartRouting.directDnsAddress, isNull);
     expect(connection.policy.toJson(), original.policy.toJson());
     final subscription = (await db.subscriptionDao.allRows).single;
     expect(subscription.hwid, 'keep');

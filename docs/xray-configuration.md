@@ -23,8 +23,10 @@ App 保留自身名称、资产数量/交换格式、文件链接安全、事务
 已运行节点不因后台测速或订阅更新热替换；节点命名与排序见 [服务器及分享](subscriptions-and-sharing.md)。
 
 代理规则固定使用 `balancerTag: proxy`，单节点同样使用 balancer。selector 填完整运行 tag，
-策略为 round-robin，`fallbackTag: direct`。未命中保持 Xray 默认行为：走第一个 outbound，
-不增加 loopback 或无条件 catch-all。
+默认轮询使用 `roundRobin`、`fallbackTag: direct`，未命中走第一个 outbound。
+可选最低延迟使用 `leastPing`；只有本次连接至少两条代理链时才启动观察，并在用户规则末尾为托管
+`tunIn` 和已启用的 `app-lan-proxy` 添加代理兜底。其 fallback 为第一条完整代理链，无结果或全失败
+仍尝试代理，由实际请求报告错误，不自动直连；单节点保留偏好但不额外探测。不增加 loopback。
 无最终出口时接入节点按顺序位于最顶部；智能路由有最终出口时，每条接入各生成出口副本，
 副本的 `dialerProxy` 指向对应接入，出口副本按顺序置顶，接入节点随后。
 balancer 选择这些完整链路，接入选择排除最终出口；自定义路由不绑定具体节点或最终出口。
@@ -40,24 +42,60 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 
 ### DNS
 
-代理 DNS 固定 `8.8.8.8`，直连 DNS 可在每份智能/常规路由中独立配置，使用固定 tag 区分。
-直连服务器只匹配从纯 direct 域名规则提取的 domains，不作通用 fallback；带 IP/端口/网络/协议/系统/入站等
-附加条件的规则不贡献域名，因为 DNS 不知道后续连接条件。
-智能直连 DNS 关闭时保留地址，运行使用默认地址且不匹配直连域名。
+智能和常规自定义分别保存代理/直连主 resolver、同出口有序备用列表、超时、IP 应答过滤与缓存覆盖。
+旧设置缺新增字段时两组主地址均为 `8.8.8.8`，单 resolver 超时为 4000ms，缓存开启，
+过期缓存和并发关闭。智能直连 DNS 关闭保留已填值，运行不派生直连 DNS 匹配。
+使用固定 `app-dns-proxy` / `app-dns-direct` tag 区分出口，DNS 规则来自同一份有序路由规则。
+只投影无 IP/端口/网络/协议/系统/入站等附加条件的 proxy/direct 域名规则，因为查询不掌握后续连接条件。
+代理例外先于宽泛直连分类；代理策略块末尾的真实 resolver 使用 `finalQuery`，不回退到直连 DNS。
+直连默认允许失败后尝试代理备用；“备用 DNS 使用相同出口”开启时只尝试本策略 resolver，
+不会在失败后切换其他出口。直连 resolver 不充当未匹配域名的通用备用。
+
+`expectedIPs/unexpectedIPs` 使用 IP、CIDR、geoip/ext 规则，缺省不筛选。严格过滤不合格应答会让该
+resolver 失败，按配置尝试备用；expected IP 的 `*` 前缀表示优先而非严格拒绝其它应答。
+资源引用沿用 Geodata 依赖扫描与分享附件，缺文件通过既有准备/保存流程报错。
+root 缓存默认启用；每个 resolver 的 nullable 缓存设置表示继承 root，显式 false/0 仍按字段语义保留。
+开启过期缓存时使用有限期限，默认 300 秒，普通设置不接受启用 stale 且有效期限无限的组合。
+并发只在同出口备用、FakeDNS 关闭且有对应备用 resolver 时有效；运行编译再次确认这些条件。
+并发发送当前策略组的请求，应答仍受策略组顺序控制，不把跨出口“最快返回”当作选路。
+
 全部使用 VPN 只生成代理 DNS，非 A/AAAA 的 `dnsOut` 转发也走代理，不产生第二个直连服务器。
-普通模式仅设置各服务器查询策略，不额外生成根级 hosts/queryStrategy。
+普通模式的查询地址族仍由 App IPv6 设置管理，不额外生成根级 hosts/queryStrategy。
+高级模板和 Raw 不应用这些普通 DNS 设置；模板 DNS 保持其原有管理边界。
 
 ### FakeDNS
 
 智能与各常规自定义分别保存 FakeDNS 开关，全部使用 VPN 不受影响。
-开启后添加 `app-dns-fake`，直连域名仍使用真实直连 DNS，其余经 dnsOut 的 A/AAAA 可返回虚拟地址；
-`IPIfNonMatch` 的真实解析跳过 FakeDNS。连接仍按完整规则，不保证拦截应用自带 DoH/DoT。
+开启后添加 `app-dns-fake`，直连域名仍使用真实直连 DNS，其余经 dnsOut 的 A/AAAA 可返回虚拟地址。
+代理域名块按 FakeDNS、真实代理 resolver 排列，只在最后一个真实 resolver 截断，
+`IPIfNonMatch` 的真实解析跳过 FakeDNS 后仍有真实 resolver。连接仍按完整规则，不保证拦截应用自带 DoH/DoT。
 普通池为 `198.19.0.0/16`、`fc00:1::/64`，各 32768，始终成对生成，IPv6 返回由 DNS 查询策略决定。
 托管入站默认 HTTP/TLS/QUIC 嗅探增加 `fakedns` 以还原域名。
 
 高级/Raw 的池和 DNS 保留用户配置，根级 `fakeDns`/`fakedns` 两种写法均识别。
 Raw 只给新建 tunIn 添加默认还原，已有 sniffing 不自动修改；高级模板省略 sniffing 时使用默认值，显式填写整对象保留。
 池映射随 Core 销毁，重启后的缓存虚拟地址可能无法还原；App 不清系统 DNS 缓存或改用户排除路由。
+
+### 嗅探
+
+智能/常规自定义共用 `RoutingSniffingSettings`，用于托管 TUN、MSIX 私有 SOCKS 与普通 LAN SOCKS。
+默认 enabled=true、routeOnly=false，识别 HTTP/TLS/QUIC；metadataOnly=false、域名/IP 排除为空。
+页面开放启用、仅用于路由、排除域名/IP；metadataOnly 位于更多项，开启后不读取 HTTP/TLS/QUIC 内容。
+停用时保留填写值。FakeDNS 要求嗅探开启；其域名或地址池被排除可能阻止目标恢复，不保证任意排除组合可用。
+高级模板显式 sniffing 完整保留，省略沿用默认；Raw 的原对象不由普通设置覆盖。
+
+### 运行自动选路
+
+轮询/最低延迟属于每份智能/常规配置，独立于连接前节点选择和手动测速。运行仅观察本次已选代理链，
+无最终出口观察 `app-entry-i`，有最终出口观察 `app-exit-i`，覆盖出口、接入和 Fragment 的完整链路。
+selector 与 subjectSelector 来自实际完整运行 tag，不把辅助出站混入。代理 DNS 使用相同 proxy balancer；
+直连 DNS 仍走 direct。新连接按观察结果选择，既有 TCP/UDP 会话不迁移，不把全列表节点动态加入 Core。
+
+默认探测 URL 为 `https://www.google.com/generate_204`，间隔 60s，并发探测开启。
+普通页面提供 30/60/300 秒，导入/高级参数接受至少 10 秒的有限 Go duration；URL 必须为合法 HTTP(S)。
+停止/重连后的旧观测不混入新运行。连接页复用 metrics 展示链路未知、可用、失败、延迟和最近探测时间；
+无报告或 metrics 暂不可读显示未知，不判定 VPN 已断开，不写入手动测速或地区缓存。
+Alive 只表示探测 URL 的 HTTP 可达性，不表示 Netflix 解锁、AI 服务可用、带宽或已有连接实际出口。
 
 ### Fragment
 
@@ -86,13 +124,18 @@ direct/block 只在校验/运行时生成，规则的动作引用保留。名称
 普通模型不开放 process、来源 IP/端口、HTTP attrs 或额外入站等高级匹配。
 不支持的结构拒绝导入，不静默丢字段；更多能力使用高级模板或 Raw。
 
-DNS 使用标准 servers，固定 `app-dns-direct` 保存直连地址，存在 `app-dns-fake` 表示 FakeDNS。
-运行池、domains、fallback 和 queryStrategy 编译时产生，不保存/导出。
-缺省沿用默认；不支持的 DNS 结构拒绝，不依赖数组位置标记服务器。
+DNS 使用标准 servers，固定 proxy/direct tag 保存主 resolver 与有序备用、超时、过滤、缓存覆盖，
+root 保存全局缓存、同出口备用与并发偏好；`app-dns-fake` 表示 FakeDNS。运行池、domains、派生
+finalQuery 和平台 queryStrategy 编译时产生，不另存第二套规则。旧单直连地址读入主直连 resolver。
+嗅探通过唯一 `inbounds:[{tag:"tunIn",sniffing:{...}}]` 占位保存，普通文档不开放实际监听或平台 settings。
+选路通过唯一 tag 为 proxy 的 strategy.type，以及 observatory 的 probeURL/probeInterval/enableConcurrency 保存；
+运行 selector/fallback/subjectSelector 由 App 生成，导出不包含它们。
+缺省沿用旧默认；不支持的结构仍明确拒绝，不依赖数组位置标记 DNS 角色。
 `geodata.assets` 仅为交换依赖元数据，导入后从存储 JSON 删除，省略默认文件，详见 [数据管理](data-management.md)。
 
 规则子页只改草稿，不重复验证内核字段。保存/导入用 freedom 占位替换空槽，补齐相同 proxy balancer、
-Observatory、direct/block、DNS 和资产路径，再由 libXray 构造验证；不选真实节点、不启动 VPN。
+Observatory、direct/block、DNS 和资产路径，再由 libXray 构造验证；嗅探保留在安全 SOCKS 投影中，
+移除真实 TUN/平台依赖，不选真实节点、不启动 VPN。
 依赖发布和失败回滚复用导入事务，实际节点组合由运行 Core 处理。
 
 ## 高级自定义路由
@@ -100,11 +143,15 @@ Observatory、direct/block、DNS 和资产路径，再由 libXray 构造验证�
 高级模板保留 Map，类型存于 `RoutingProfile.advanced`，不嵌入 JSON；共享名称、数量和保存流程。
 outbounds 以 1–3 个连续空槽开始，后续只开放 freedom/blackhole/dns 辅助出站。
 运行以真实节点替换槽并置顶，随后用户辅助出站，最后 App direct/block；固定节点选择替换整个槽区。
-App 添加固定 proxy balancer、完整 selector、direct 回退与 Observatory。
+App 添加 proxy balancer、完整 selector 与运行观测范围。模板有限开放 strategy.type 的
+roundRobin/leastPing，以及 observatory 的探测 URL/interval/concurrency；selector/fallback/subjectSelector
+仍由 App 生成，不能定义任意额外 balancer。轮询 direct 回退，最低延迟回退首条完整代理链。
 模板不能定义 direct/block/proxy 或引用内部 app-entry/app-exit tag，dialerProxy 不支持 balancer。
 
-模板完整管理 DNS、routing.domainStrategy、rules 顺序与 ruleTag；不隐式补 DNS server、53/853 或兜底规则。
-App 管理日志、metrics、统计、policy、env、balancers、observatory、出口网卡和 DNS 查询策略。
+模板完整管理 DNS、routing.domainStrategy、rules 顺序与 ruleTag，不隐式补 DNS server、53/853 规则。
+轮询不追加兜底；最低延迟只在用户规则之后为托管 tunIn 和启用的 app-lan-proxy 增加代理兜底。
+额外高级入站由模板显式使用 balancerTag:proxy，不自动纳入兜底。
+App 管理日志、metrics、统计、policy、env、运行 balancer/observatory 范围、出口网卡和 DNS 查询策略。
 额外入站开放 socks/http/tunnel；tunIn 只开放 tag/sniffing，平台部分由 App 生成。
 额外规则开放 inboundTag/localIP/localPort，不开放 process、source/sourceIP/sourcePort、attrs 或 user。
 辅助出站 streamSettings 仅开放 sockopt.dialerProxy。其他当前字段边界由模板解析器维护，不推广到完整 Raw。
@@ -214,6 +261,9 @@ libXray 原始原因完整可复制，不猜字段，不把投影行号当原文
 补全按类型/位置过滤常用字段、枚举、tag 和安装的 Geodata，不作白名单、不猜凭据。
 保留引用与撤销历史，组字/非折叠选区不补全；候选支持点击与键盘，内容 LTR、文案跟随语言。
 文件/剪贴板错误完整展示，仅原 JSON 语法错误提供原文位置，不把链接/下载失败伪装成编辑位置。
+提示与 Core v26.10.10 的 XDNS names/addrs、MASQUE WARP、TLS useSystemCA 和 DNS/嗅探结构保持一致。
+高级模板只提示其可保存的策略/探测字段，不提示运行 selector/fallback/subjectSelector；Raw 保留完整模块提示。
+Lua 不纳入本轮提示、普通模型或资源管理。
 
 ## 运行协调与统计
 

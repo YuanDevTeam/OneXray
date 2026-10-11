@@ -9,6 +9,7 @@ import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/connect/runtime_observatory.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/failure.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -1099,6 +1100,7 @@ class TrafficReadout extends StatelessWidget {
           formatTraffic(traffic?.uplink ?? 0, connection: true),
           divider: false,
         ),
+        RuntimeObservatoryReadout(view: view, desktop: desktop),
       ],
     );
   }
