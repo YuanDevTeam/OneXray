@@ -635,13 +635,41 @@ class ServerGroupView extends StatelessWidget {
                   horizontal: 18,
                   vertical: 28,
                 ),
-                child: Text(
-                  l.prototypeNoServersYet,
-                  textAlign: TextAlign.center,
-                  style: AppTypography.rowValue.copyWith(
-                    color: palette.mutedForeground,
-                  ),
-                ),
+                child: group.source != null && group.rows.isEmpty
+                    ? Column(
+                        children: [
+                          Text(
+                            controller.providerGroup(group)
+                                ? l.subscriptionModeProviderManaged
+                                : l.subscriptionModeAppManaged,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.rowTitle,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            l.subscriptionModeNoCacheTitle,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.rowValue.copyWith(
+                              color: palette.mutedForeground,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            l.subscriptionModeNeedsRefresh,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.serverDetail.copyWith(
+                              color: palette.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        l.prototypeNoServersYet,
+                        textAlign: TextAlign.center,
+                        style: AppTypography.rowValue.copyWith(
+                          color: palette.mutedForeground,
+                        ),
+                      ),
               );
             }
             final rowIndex = index - headerCount;
