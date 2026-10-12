@@ -3,9 +3,11 @@ import 'dart:convert';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
+import 'package:onexray/pages/advanced/xray/config/params.dart';
 import 'package:onexray/pages/shared/connection_action.dart';
 import 'package:onexray/pages/servers/catalog.dart';
 import 'package:onexray/service/servers/catalog.dart';
@@ -17,6 +19,7 @@ import 'package:onexray/pages/shared/share/params.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/servers/menus.dart';
+import 'package:onexray/pages/servers/raw_copy_dialog.dart';
 import 'package:onexray/pages/servers/sources.dart';
 import 'package:onexray/pages/servers/subscription/params.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -284,7 +287,19 @@ class ServersController extends PageCubit<ServersPageState>
     return connection.requiredEntries(customEntryCount: customCount);
   }
 
+  bool providerSource(SubscriptionData source) =>
+      source.mode == SubscriptionMode.providerManaged.name;
+
+  bool providerGroup(ServerGroup group) =>
+      group.source != null && providerSource(group.source!);
+
+  bool providerRow(CoreConfigData row) =>
+      catalog.display(row).type == CoreConfigType.Remnawave.name;
+
+  bool canTest(CoreConfigData row) => catalog.outboundEligible(row);
+
   bool canUse(ServerGroup group) {
+    if (providerGroup(group)) return false;
     final count = entryCount(group.selection);
     final finalExit = configuration.connection.trafficMode == TrafficMode.smart
         ? configuration.connection.smart.finalExitId
@@ -313,6 +328,14 @@ class ServersController extends PageCubit<ServersPageState>
       if (runtime == null || runtime.configuration.connection.expert) {
         return (names: [], first: null);
       }
+      if (runtime.profile != null) {
+        return (
+          names: [runtime.profile!.name],
+          first: servers
+              .where((row) => row.id == runtime.profile!.id)
+              .firstOrNull,
+        );
+      }
       final entries = runtime.entries;
       return (
         names: entries.map((entry) => entry.name).toList(),
@@ -322,10 +345,19 @@ class ServersController extends PageCubit<ServersPageState>
       );
     }
     final selection = settings.selection;
+    if (selection.kind == SelectionKind.server) {
+      final profile = servers
+          .where((row) => row.id == selection.id && providerRow(row))
+          .firstOrNull;
+      if (profile != null && catalog.selectable(profile)) {
+        return (names: [serverName(profile)], first: profile);
+      }
+    }
     final count = entryCount(selection);
     final rows =
         servers.where((row) {
           if (row.id == settings.finalExitId ||
+              !catalog.outboundEligible(row) ||
               !ServerAssetService.healthy(row) ||
               !catalog.selectable(row)) {
             return false;
@@ -396,7 +428,7 @@ class ServersController extends PageCubit<ServersPageState>
     final first = _displaySelection.first;
     final id = selection.kind == SelectionKind.source
         ? selection.id
-        : first?.subId;
+        : first?.subId ?? connectionView.runtime?.profile?.sourceId;
     return id == null ? null : 'subscription:$id';
   }
 
@@ -404,6 +436,7 @@ class ServersController extends PageCubit<ServersPageState>
       catalog.selectable(row) && !exitConflict(row);
 
   bool exitConflict(CoreConfigData row) =>
+      catalog.outboundEligible(row) &&
       configuration.connection.trafficMode == TrafficMode.smart &&
       configuration.connection.smart.finalExitId == row.id;
 
@@ -420,10 +453,15 @@ class ServersController extends PageCubit<ServersPageState>
           for (final entry
               in connectionView.runtime?.entries ?? const <RuntimeNode>[])
             entry.id,
+          if (connectionView.runtime?.profile != null)
+            connectionView.runtime!.profile!.id,
         }
       : {};
 
   String summary(AppLocalizations l, ServerGroup group) {
+    if (providerGroup(group)) {
+      return l.providerConfigurationCount(group.rows.length);
+    }
     var available = 0;
     int? fastest;
     for (final row in group.rows) {
@@ -474,12 +512,32 @@ class ServersController extends PageCubit<ServersPageState>
 
   Future<void> choose(BuildContext context, ServerSelection selection) async {
     if (busy) return;
+    if (selection.kind == SelectionKind.source &&
+        sources.any(
+          (source) => source.id == selection.id && providerSource(source),
+        )) {
+      ContextAlert.showToast(
+        context,
+        AppLocalizations.of(context)!.providerChooseConfigurationHint,
+      );
+      return;
+    }
     selecting = selection;
     try {
+      final current = await coordinator.configuration;
+      if (!context.mounted || !isPageActive) return;
+      if (!current.connection.expert &&
+          jsonEncode(current.connection.selection.toJson()) ==
+              jsonEncode(selection.toJson())) {
+        await run(context, () => assets.validateSelection(selection));
+        return;
+      }
       final saved = await applyConnectionChange(
         context,
         coordinator,
         {'selection': selection.toJson(), 'expert': false},
+        validateAssets: () => assets.validateSelection(selection),
+        writeAssets: () => assets.validateSelection(selection),
         label: (next) =>
             selectionName(AppLocalizations.of(context)!, next.selection),
       );
@@ -508,7 +566,7 @@ class ServersController extends PageCubit<ServersPageState>
     Iterable<CoreConfigData> rows, {
     String? groupId,
   }) async {
-    final ids = rows.map((row) => row.id).toSet();
+    final ids = rows.where(canTest).map((row) => row.id).toSet();
     if (ids.isEmpty) return;
     final confirmed = await _confirmManualTest(context);
     if (!confirmed || !context.mounted || !_testPageVisible(context)) {
@@ -595,17 +653,46 @@ class ServersController extends PageCubit<ServersPageState>
     final l = AppLocalizations.of(context)!;
     switch (action) {
       case ServerAction.edit:
-        await context.pushScoped(
-          AppPageDestination.serverEditor,
-          extra: row.id,
-        );
+        if (providerRow(row)) {
+          await perform(context, () async {
+            final draft = await assets.loadComplete(row.id);
+            if (!context.mounted || !isPageActive) return;
+            await context.pushScoped(
+              AppPageDestination.configFileViewer,
+              extra: ConfigFileViewerParams(
+                draft.original.name,
+                '',
+                text: draft.text,
+              ),
+            );
+          }, ids: {row.id});
+        } else {
+          await context.pushScoped(
+            AppPageDestination.serverEditor,
+            extra: row.id,
+          );
+        }
       case ServerAction.test:
         await test(context, [row]);
       case ServerAction.copy:
         await perform(context, () async {
-          await assets.copyLocal(row, l.prototypeLocalCopy);
+          if (providerRow(row)) {
+            final name = await showAppDialog<String>(
+              context,
+              (_) => ProviderRawCopyNameDialog(initialName: serverName(row)),
+            );
+            if (name == null || !context.mounted || !isPageActive) return;
+            await assets.copyAsRaw(row.id, name: name);
+          } else {
+            await assets.copyLocal(row, l.prototypeLocalCopy);
+          }
           if (context.mounted) {
-            ContextAlert.showToast(context, l.prototypeLocalCopySaved);
+            ContextAlert.showToast(
+              context,
+              providerRow(row)
+                  ? l.providerRawCopySaved
+                  : l.prototypeLocalCopySaved,
+            );
           }
         }, ids: {row.id});
       case ServerAction.share:
@@ -660,6 +747,7 @@ class ServersController extends PageCubit<ServersPageState>
           }
         }, sourceId: source.id);
       case SourceAction.test:
+        if (providerSource(source)) return;
         await test(
           context,
           servers.where((row) => row.subId == source.id),
@@ -737,6 +825,7 @@ class ServersController extends PageCubit<ServersPageState>
       context,
       name: source.name,
       count: sourceCount(source.id),
+      provider: providerSource(source),
     );
     if (action != null && context.mounted && isPageActive) {
       await sourceAction(context, source, action);

@@ -2,12 +2,14 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/pigeon/model.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/servers/import/controller.dart';
 import 'package:onexray/pages/servers/subscription/form_view.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 void main() {
@@ -28,51 +30,63 @@ void main() {
 
   tearDown(() => controller.close());
 
-  Widget form({AgeKeyType? generatingKey, bool obscure = true}) =>
-      BlocProvider.value(
-        value: controller,
-        child: BlocBuilder<ServerImportController, ServerImportPageState>(
-          builder: (context, state) => SubscriptionFormView(
-            supportText: AppLocalizations.of(context)!
-                .prototypeSubscriptionDescription,
-            nameLabel: 'Name',
-            nameHint: 'Example Service',
-            nameController: name,
-            urlLabel: 'URL',
-            urlController: url,
-            urlHint: 'https://provider.example/subscription',
-            urlHelper: 'HTTPS only',
-            hwidTitle: AppLocalizations.of(context)!.subscriptionHwidTitle,
-            hwidDescription: AppLocalizations.of(context)!
-                .subscriptionHwidDescription,
-            hwidEnabled: state.hwidEnabled,
-            onHwidChanged: controller.setHwidEnabled,
-            encryptionTitle: 'Encryption',
-            ageProviderSupportTitle: 'Provider support required',
-            ageProviderSupportDescription: 'Enter Age keys only when your provider supports encrypted subscriptions.',
-            ageSecretKeyLabel: 'Age Secret Key',
-            ageSecretKeyHint: 'AGE-SECRET-KEY-1...',
-            ageSecretKeyController: secret,
-            agePublicKeyLabel: 'Age Public Key',
-            agePublicKeyHint: 'age1...',
-            agePublicKeyController: public,
-            obscureAgeSecretKey: obscure,
-            revealAgeSecretKeyLabel: 'Reveal',
-            hideAgeSecretKeyLabel: 'Hide',
-            generateAgeKeyLabel: 'Generate',
-            generateAgeX25519KeyLabel: 'X25519',
-            generateAgeHybridKeyLabel: 'Hybrid (ML-KEM-768 + X25519)',
-            clearAgeKeyLabel: 'Clear',
-            onToggleAgeSecretKeyVisibility: () => revealed++,
-            onGenerateAgeKey: generated.add,
-            onClearAgeKey: controller.clearKeys,
-            generatingAgeKeyType: generatingKey,
-            hasAgeKeys: state.hasAgeKeys,
-            ageExpanded: state.ageExpanded,
-            onToggleAgeExpanded: controller.toggleAgeExpanded,
-          ),
-        ),
-      );
+  Widget form({
+    AgeKeyType? generatingKey,
+    bool obscure = true,
+    bool automaticAllowed = true,
+  }) => BlocProvider.value(
+    value: controller,
+    child: BlocBuilder<ServerImportController, ServerImportPageState>(
+      builder: (context, state) => SubscriptionFormView(
+        supportText: AppLocalizations.of(context)!
+            .prototypeSubscriptionDescription,
+        nameLabel: 'Name',
+        nameHint: 'Example Service',
+        nameController: name,
+        urlLabel: 'URL',
+        urlController: url,
+        urlHint: 'https://provider.example/subscription',
+        urlHelper: 'HTTPS only',
+        panel: state.panel,
+        mode: state.mode,
+        automaticModeAllowed: automaticAllowed,
+        onPanelChanged: generatingKey == null && !state.busy
+            ? controller.setPanel
+            : null,
+        onModeChanged: generatingKey == null && !state.busy
+            ? controller.setMode
+            : null,
+        hwidTitle: AppLocalizations.of(context)!.subscriptionHwidTitle,
+        hwidDescription: AppLocalizations.of(context)!
+            .subscriptionHwidDescription,
+        hwidEnabled: state.hwidEnabled,
+        onHwidChanged: controller.setHwidEnabled,
+        encryptionTitle: 'Encryption',
+        ageProviderSupportTitle: 'Provider support required',
+        ageProviderSupportDescription: 'Enter Age keys only when your provider supports encrypted subscriptions.',
+        ageSecretKeyLabel: 'Age Secret Key',
+        ageSecretKeyHint: 'AGE-SECRET-KEY-1...',
+        ageSecretKeyController: secret,
+        agePublicKeyLabel: 'Age Public Key',
+        agePublicKeyHint: 'age1...',
+        agePublicKeyController: public,
+        obscureAgeSecretKey: obscure,
+        revealAgeSecretKeyLabel: 'Reveal',
+        hideAgeSecretKeyLabel: 'Hide',
+        generateAgeKeyLabel: 'Generate',
+        generateAgeX25519KeyLabel: 'X25519',
+        generateAgeHybridKeyLabel: 'Hybrid (ML-KEM-768 + X25519)',
+        clearAgeKeyLabel: 'Clear',
+        onToggleAgeSecretKeyVisibility: () => revealed++,
+        onGenerateAgeKey: generated.add,
+        onClearAgeKey: controller.clearKeys,
+        generatingAgeKeyType: generatingKey,
+        hasAgeKeys: state.hasAgeKeys,
+        ageExpanded: state.ageExpanded,
+        onToggleAgeExpanded: controller.toggleAgeExpanded,
+      ),
+    ),
+  );
 
   Widget app(Widget child, {Locale locale = const Locale('en')}) => MaterialApp(
     theme: AppTheme.light,
@@ -111,7 +125,9 @@ void main() {
       ),
       findsOneWidget,
     );
+    await tester.ensureVisible(find.text('X25519'));
     await tester.tap(find.text('X25519'));
+    await tester.ensureVisible(find.text('Hybrid (ML-KEM-768 + X25519)'));
     await tester.tap(find.text('Hybrid (ML-KEM-768 + X25519)'));
     expect(generated, [AgeKeyType.x25519, AgeKeyType.hybrid]);
     await tester.tap(find.byTooltip('Reveal'));
@@ -280,4 +296,68 @@ void main() {
       },
     );
   }
+  testWidgets('panel and new source mode selectors preserve automatic input', (
+    tester,
+  ) async {
+    await tester.pumpWidget(app(form()));
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(SubscriptionFormView)),
+    )!;
+    expect(controller.state.panel, SubscriptionPanel.generic);
+    expect(controller.state.mode, isNull);
+    final panel = find.byKey(const ValueKey('subscription-panel'));
+    final mode = find.byKey(const ValueKey('subscription-mode'));
+    await tester.ensureVisible(panel);
+    await tester.tap(panel);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remnawave'));
+    await tester.pumpAndSettle();
+    expect(controller.state.panel, SubscriptionPanel.remnawave);
+    expect(controller.state.mode, isNull);
+    await tester.ensureVisible(mode);
+    await tester.tap(mode);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l.subscriptionModeProviderManaged));
+    await tester.pumpAndSettle();
+    expect(controller.state.mode, SubscriptionMode.providerManaged);
+    await tester.tap(mode);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l.subscriptionModeAutomatic));
+    await tester.pumpAndSettle();
+    expect(controller.state.mode, isNull);
+    expect(controller.state.panel, SubscriptionPanel.remnawave);
+    controller.emit(controller.state.copyWith(busy: true));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<SettingSelect<SubscriptionPanel>>(panel).onChanged,
+      isNull,
+    );
+    controller.setMode(SubscriptionMode.appManaged);
+    controller.setPanel(SubscriptionPanel.generic);
+    expect(controller.state.mode, isNull);
+    expect(controller.state.panel, SubscriptionPanel.remnawave);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('stored source mode dropdown offers only explicit modes', (
+    tester,
+  ) async {
+    controller.setMode(SubscriptionMode.providerManaged);
+    await tester.pumpWidget(app(form(automaticAllowed: false)));
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(SubscriptionFormView)),
+    )!;
+    final mode = find.byKey(const ValueKey('subscription-mode'));
+    await tester.ensureVisible(mode);
+    await tester.tap(mode);
+    await tester.pumpAndSettle();
+    expect(find.text(l.subscriptionModeAutomatic), findsNothing);
+    expect(find.text(l.subscriptionModeAppManaged), findsOneWidget);
+    await tester.tap(find.text(l.subscriptionModeAppManaged));
+    await tester.pumpAndSettle();
+    expect(controller.state.mode, SubscriptionMode.appManaged);
+    expect(tester.takeException(), isNull);
+  });
 }

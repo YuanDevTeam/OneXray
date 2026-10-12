@@ -5,6 +5,10 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
+import 'package:onexray/core/pigeon/model.dart';
+import 'package:onexray/service/connect/compiler.dart';
+import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/l10n/localizations/app_localizations_en.dart';
 import 'package:onexray/service/connect/runtime.dart';
@@ -114,6 +118,137 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
+  });
+
+  test('provider sources expose individual configurations and keep App traffic inactive', () async {
+    final sourceId = await db.subscriptionDao.insertRow(
+      SubscriptionCompanion.insert(
+        name: 'Provider source',
+        url: 'https://example.com/provider',
+        timestamp: DateTime(2026),
+        mode: Value(SubscriptionMode.providerManaged.name),
+      ),
+    );
+    final id = await db.coreConfigDao.insertAssetRow(
+      _node('Provider profile', source: sourceId).copyWith(
+        type: Value(CoreConfigType.Remnawave.name),
+        delay: Value(PingDelayConstants.unknown),
+        data: Value(
+          base64Encode(
+            utf8.encode('{"outbounds":[{"tag":"first","protocol":"freedom"}]}'),
+          ),
+        ),
+      ),
+    );
+    final row = (await db.coreConfigDao.searchRow(id))!;
+    final data = TrayMenuData()
+      ..configuration = ConnectionSettings(
+        selection: ServerSelection.server(id),
+      )
+      ..catalog = ServerCatalog(
+        servers: await db.coreConfigDao.allActiveServerRows(),
+        sources: await db.subscriptionDao.allRows,
+      );
+    final items = data.selectionItems(l, busy: false);
+    expect(
+      _descendants(items).where((item) => item.key == 'source:$sourceId'),
+      isEmpty,
+    );
+    expect(_item(items, 'server:$id').checked, isTrue);
+    expect(_item(items, 'server:$id').disabled, isFalse);
+    expect(_item(items, 'traffic:smart').disabled, isTrue);
+    expect(_item(items, 'traffic:allVpn').disabled, isTrue);
+    final profile = ResolvedProfile.fromRow(row);
+    final runtime = _providerRuntime(profile);
+    await db.subscriptionDao.updateRow(
+      (await db.subscriptionDao.searchRow(sourceId))!
+          .copyWith(mode: SubscriptionMode.appManaged.name),
+    );
+    data.catalog = ServerCatalog(
+      servers: await db.coreConfigDao.allActiveServerRows(),
+      sources: await db.subscriptionDao.allRows,
+    );
+    final hidden = data.selectionItems(
+      l,
+      busy: false,
+      runningProfile: runtime.profile,
+    );
+    expect(
+      _descendants(hidden)
+          .any((item) => item.label.contains('Provider profile')),
+      isTrue,
+    );
+    expect(_item(hidden, 'traffic:allVpn').disabled, isTrue);
+  });
+
+  test('tray revalidates provider mode and never applies stale source or traffic actions', () async {
+    final sourceId = await db.subscriptionDao.insertRow(
+      SubscriptionCompanion.insert(
+        name: 'Provider source',
+        url: 'https://example.com/provider',
+        timestamp: DateTime(2026),
+        mode: Value(SubscriptionMode.providerManaged.name),
+      ),
+    );
+    final id = await db.coreConfigDao.insertAssetRow(
+      _node('Provider profile', source: sourceId).copyWith(
+        type: Value(CoreConfigType.Remnawave.name),
+        delay: Value(PingDelayConstants.unknown),
+        data: Value(
+          base64Encode(
+            utf8.encode('{"outbounds":[{"tag":"first","protocol":"freedom"}]}'),
+          ),
+        ),
+      ),
+    );
+    final row = (await db.coreConfigDao.searchRow(id))!;
+    final configuration = ConnectionConfiguration(
+      connection: ConnectionSettings(selection: ServerSelection.server(id)),
+    );
+    await db.connectionConfigDao.commit(
+      configurationJson: configuration.encode(),
+    );
+    final coordinator = ConnectionCoordinator(database: db);
+    addTearDown(coordinator.dispose);
+    coordinator.state.value = ConnectionView(
+      phase: ConnectionPhase.connected,
+      runtime: _providerRuntime(ResolvedProfile.fromRow(row)),
+    );
+    final changes = <Map<String, dynamic>>[];
+    final notices = <String>[];
+    Future<void> Function()? recheck;
+    final tray =
+        TrayService.forTesting(
+            database: db,
+            coordinator: coordinator,
+            connect: () async => fail('A selection must not directly connect'),
+            notify: (message) async => notices.add(message),
+            showMainWindow: () async =>
+                fail('Selection must not require a window'),
+          )
+          ..onConfigurationChange = (values, label, validate) async {
+            await validate();
+            recheck = validate;
+            changes.add(values);
+          };
+    await tray.onMenuAction(TrayMenuEntry(key: 'server:$id'));
+    expect(changes.single['selection'], {'kind': 'server', 'id': id});
+    await tray.onMenuAction(TrayMenuEntry(key: 'source:$sourceId'));
+    await tray.onMenuAction(TrayMenuEntry(key: 'traffic:allVpn'));
+    await tray.onMenuAction(TrayMenuEntry(key: 'custom:100'));
+    expect(changes, hasLength(1));
+    expect(notices, isNotEmpty);
+    await db.subscriptionDao.updateRow(
+      (await db.subscriptionDao.searchRow(sourceId))!
+          .copyWith(mode: SubscriptionMode.appManaged.name),
+    );
+    await expectLater(recheck!(), throwsA(isA<AppFailure>()));
+    await tray.onMenuAction(TrayMenuEntry(key: 'traffic:smart'));
+    expect(
+      changes,
+      hasLength(1),
+      reason: 'The actual provider runtime remains active after a mode change.',
+    );
   });
 
   for (final count in [0, 10, 12]) {
@@ -397,4 +532,35 @@ void main() {
     await tray.onMenuAction(TrayMenuEntry(key: 'region:JP', disabled: true));
     expect(choices, hasLength(2));
   });
+}
+
+ConnectionRuntime _providerRuntime(ResolvedProfile profile) {
+  final configuration = ConnectionConfiguration(
+    connection: ConnectionSettings(
+      selection: ServerSelection.server(profile.id),
+    ),
+  );
+  const json = '{}';
+  return ConnectionRuntime.create(
+    configuration: configuration,
+    compiled: CompiledConnection(
+      xrayJson: json,
+      entries: const [],
+      finalExit: null,
+      nodeTags: const {},
+      profile: profile,
+    ),
+    platform: ConnectionPlatform.android,
+    request: StartVpnRequest(
+      configuration.policy.toTun(ConnectionPlatform.android),
+      null,
+      '18003',
+      jsonEncode(
+        LibXrayInvokeRequest(
+          method: LibXrayMethod.runXray,
+          payload: RunXrayRequest(json).toJson(),
+        ).toJson(),
+      ),
+    ),
+  );
 }

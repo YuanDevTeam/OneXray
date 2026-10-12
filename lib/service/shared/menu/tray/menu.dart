@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
@@ -56,8 +57,23 @@ class TrayMenuData {
     };
   });
 
-  List<TrayMenuEntry> selectionItems(AppLocalizations l, {required bool busy}) {
+  List<TrayMenuEntry> selectionItems(
+    AppLocalizations l, {
+    required bool busy,
+    RuntimeProfile? runningProfile,
+  }) {
     final selected = configuration.selection;
+    final provider =
+        runningProfile != null ||
+        (!configuration.expert &&
+            selected.kind == SelectionKind.server &&
+            catalog.servers.any(
+              (row) =>
+                  row.id == selected.id &&
+                  row.type == CoreConfigType.Remnawave.name &&
+                  catalog.selectable(row),
+            ));
+    final trafficEnabled = !configuration.expert && !provider;
     TrayMenuEntry choice(
       String key,
       String label,
@@ -90,6 +106,11 @@ class TrayMenuData {
     };
     return [
       group(l.prototypeServers, [
+        if (runningProfile != null)
+          TrayMenuEntry(
+            label: '${l.providerConfigurationTitle} · ${runningProfile.name}',
+            disabled: true,
+          ),
         choice(
           'automatic',
           l.prototypeAutomaticSelection,
@@ -97,14 +118,32 @@ class TrayMenuData {
         ),
         group(l.prototypeBySubscription, [
           for (final source in sources.entries)
-            choice(
-              'source:${source.key}',
-              source.value,
-              isSelected(ServerSelection.source(source.key)),
-            ),
+            if (catalog.sourcesById[source.key]?.mode ==
+                SubscriptionMode.providerManaged.name)
+              group(source.value, [
+                for (final row
+                    in catalog.servers
+                        .where((row) => row.subId == source.key)
+                        .take(_maxDataItems))
+                  choice(
+                    'server:${row.id}',
+                    catalog.display(row).name,
+                    isSelected(ServerSelection.server(row.id)),
+                    enabled: catalog.selectable(row),
+                  ),
+              ])
+            else
+              choice(
+                'source:${source.key}',
+                source.value,
+                isSelected(ServerSelection.source(source.key)),
+              ),
         ]),
         group(l.prototypeServers, [
-          for (final row in catalog.servers.take(_maxDataItems))
+          for (final row
+              in catalog.servers
+                  .where((row) => row.type == CoreConfigType.outbound.name)
+                  .take(_maxDataItems))
             choice(
               'server:${row.id}',
               catalog.display(row).name,
@@ -121,27 +160,36 @@ class TrayMenuData {
             configuration.expert && configuration.rawId == row.id,
           ),
       ]),
-      group(l.prototypeChooseTrafficMethod, [
-        choice(
-          'traffic:smart',
-          l.prototypeSmartRoutingRecommended,
-          configuration.trafficMode == TrafficMode.smart,
-        ),
-        choice(
-          'traffic:allVpn',
-          l.prototypeAllViaVpn,
-          configuration.trafficMode == TrafficMode.allVpn,
-        ),
-        group(l.prototypeCustomRouting, [
-          for (final route in routes.take(_maxDataItems))
-            choice(
-              'custom:${route.id}',
-              route.name,
-              configuration.trafficMode == TrafficMode.custom &&
-                  configuration.customId == route.id,
-            ),
-        ]),
-      ], enabled: !configuration.expert),
+      group(
+        provider
+            ? l.providerConfigurationTitle
+            : l.prototypeChooseTrafficMethod,
+        [
+          choice(
+            'traffic:smart',
+            l.prototypeSmartRoutingRecommended,
+            configuration.trafficMode == TrafficMode.smart,
+            enabled: trafficEnabled,
+          ),
+          choice(
+            'traffic:allVpn',
+            l.prototypeAllViaVpn,
+            configuration.trafficMode == TrafficMode.allVpn,
+            enabled: trafficEnabled,
+          ),
+          group(l.prototypeCustomRouting, [
+            for (final route in routes.take(_maxDataItems))
+              choice(
+                'custom:${route.id}',
+                route.name,
+                configuration.trafficMode == TrafficMode.custom &&
+                    configuration.customId == route.id,
+                enabled: trafficEnabled,
+              ),
+          ], enabled: trafficEnabled),
+        ],
+        enabled: trafficEnabled,
+      ),
     ];
   }
 

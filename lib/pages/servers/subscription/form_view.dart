@@ -1,11 +1,15 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/pigeon/model.dart';
+import 'package:onexray/core/db/database/enum.dart';
+import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+
+enum _ModeChoice { automatic, appManaged, providerManaged }
 
 class SubscriptionFormView extends StatelessWidget {
   const SubscriptionFormView({
@@ -18,6 +22,11 @@ class SubscriptionFormView extends StatelessWidget {
     required this.urlController,
     this.urlHint,
     this.urlHelper,
+    required this.panel,
+    required this.mode,
+    required this.onPanelChanged,
+    required this.onModeChanged,
+    this.automaticModeAllowed = true,
     required this.hwidTitle,
     required this.hwidDescription,
     required this.hwidEnabled,
@@ -57,6 +66,11 @@ class SubscriptionFormView extends StatelessWidget {
   final TextEditingController urlController;
   final String? urlHint;
   final String? urlHelper;
+  final SubscriptionPanel panel;
+  final SubscriptionMode? mode;
+  final ValueChanged<SubscriptionPanel>? onPanelChanged;
+  final ValueChanged<SubscriptionMode?>? onModeChanged;
+  final bool automaticModeAllowed;
   final String hwidTitle;
   final String hwidDescription;
   final bool hwidEnabled;
@@ -104,10 +118,115 @@ class SubscriptionFormView extends StatelessWidget {
         child: _notice(context, supportText),
       ),
       const SizedBox(height: 14),
+      _configurationCard(context),
+      const SizedBox(height: 14),
       _hwidCard(context),
       const SizedBox(height: 14),
       _encryptionCard(context),
     ],
+  );
+
+  Widget _configurationCard(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final palette = ColorManager.palette(context);
+    final choice = switch (mode) {
+      null => _ModeChoice.automatic,
+      SubscriptionMode.appManaged => _ModeChoice.appManaged,
+      SubscriptionMode.providerManaged => _ModeChoice.providerManaged,
+    };
+    return Container(
+      decoration: BoxDecoration(
+        color: palette.card,
+        border: Border.all(color: palette.border),
+        borderRadius: BorderRadius.circular(AppRadii.card),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _configurationRow(
+            context,
+            title: l.subscriptionPanelTitle,
+            trailing: SettingSelect<SubscriptionPanel>(
+              key: const ValueKey('subscription-panel'),
+              value: panel,
+              entries: {
+                SubscriptionPanel.generic: l.subscriptionPanelGeneric,
+                SubscriptionPanel.remnawave: 'Remnawave',
+              },
+              onChanged: onPanelChanged == null
+                  ? null
+                  : (value) {
+                      if (value != null) onPanelChanged!(value);
+                    },
+            ),
+          ),
+          Divider(height: 1, color: palette.border),
+          _configurationRow(
+            context,
+            title: l.subscriptionModeTitle,
+            trailing: SettingSelect<_ModeChoice>(
+              key: const ValueKey('subscription-mode'),
+              value: choice,
+              entries: {
+                if (automaticModeAllowed || mode == null)
+                  _ModeChoice.automatic: l.subscriptionModeAutomatic,
+                _ModeChoice.appManaged: l.subscriptionModeAppManaged,
+                _ModeChoice.providerManaged: l.subscriptionModeProviderManaged,
+              },
+              onChanged: onModeChanged == null
+                  ? null
+                  : (value) {
+                      if (value == null) return;
+                      onModeChanged!(switch (value) {
+                        _ModeChoice.automatic => null,
+                        _ModeChoice.appManaged => SubscriptionMode.appManaged,
+                        _ModeChoice.providerManaged =>
+                          SubscriptionMode.providerManaged,
+                      });
+                    },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(13, 0, 13, 13),
+            child: Text(
+              l.subscriptionModeDescription,
+              style: AppTypography.subscriptionInfo.copyWith(
+                color: palette.mutedForeground,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _configurationRow(
+    BuildContext context, {
+    required String title,
+    required Widget trailing,
+  }) => LayoutBuilder(
+    builder: (context, constraints) => constraints.maxWidth < 400
+        ? Padding(
+            padding: const EdgeInsets.all(13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(title, style: AppTypography.subscriptionAgeTitle),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: trailing,
+                ),
+              ],
+            ),
+          )
+        : SettingRow(
+            title: title,
+            titleMaxLines: 3,
+            titleStyle: AppTypography.subscriptionAgeTitle,
+            contentPadding: const EdgeInsets.all(13),
+            trailing: trailing,
+          ),
   );
 
   Widget _hwidCard(BuildContext context) {

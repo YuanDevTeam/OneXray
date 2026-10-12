@@ -10,18 +10,20 @@ Future<ServerAction?> showServerActionsMenu(
   BuildContext context, {
   required String name,
   required String source,
+  bool provider = false,
 }) => showAppDialog<ServerAction>(
   context,
-  (_) => ServerActionsMenu(name: name, source: source),
+  (_) => ServerActionsMenu(name: name, source: source, provider: provider),
 );
 
 Future<SourceAction?> showSourceActionsMenu(
   BuildContext context, {
   required String name,
   required int count,
+  bool provider = false,
 }) => showAppDialog<SourceAction>(
   context,
-  (_) => SourceActionsMenu(name: name, count: count),
+  (_) => SourceActionsMenu(name: name, count: count, provider: provider),
 );
 
 /// Selects an action only; the caller keeps the controller's existing workflow.
@@ -30,10 +32,12 @@ class ServerActionsMenu extends StatelessWidget {
     super.key,
     required this.name,
     required this.source,
+    this.provider = false,
   });
 
   final String name;
   final String source;
+  final bool provider;
 
   @override
   Widget build(BuildContext context) {
@@ -46,30 +50,35 @@ class ServerActionsMenu extends StatelessWidget {
           _menuRow(
             context,
             ServerAction.edit,
-            LucideIcons.pencil,
-            l.prototypeEditServer,
-            hint: l.prototypeEditServerHint,
+            provider ? LucideIcons.fileJson : LucideIcons.pencil,
+            provider ? l.providerViewConfiguration : l.prototypeEditServer,
+            hint: provider
+                ? l.providerViewConfigurationHint
+                : l.prototypeEditServerHint,
           ),
-          _menuRow(
-            context,
-            ServerAction.test,
-            LucideIcons.refreshCw,
-            l.prototypeTestAgain,
-            hint: l.prototypeRetestHint,
-          ),
+          if (!provider)
+            _menuRow(
+              context,
+              ServerAction.test,
+              LucideIcons.refreshCw,
+              l.prototypeTestAgain,
+              hint: l.prototypeRetestHint,
+            ),
           _menuRow(
             context,
             ServerAction.copy,
             LucideIcons.copy,
-            l.prototypeSaveAsLocalServer,
-            hint: l.prototypeLocalCopyHint,
+            provider ? l.providerCopyAsRaw : l.prototypeSaveAsLocalServer,
+            hint: provider ? l.providerCopyAsRawHint : l.prototypeLocalCopyHint,
           ),
           _menuRow(
             context,
             ServerAction.share,
             LucideIcons.share2,
-            l.prototypeShareServer,
-            hint: l.prototypeShareServerHint,
+            provider ? l.prototypeShare : l.prototypeShareServer,
+            hint: provider
+                ? l.prototypeRawJsonShareWarning
+                : l.prototypeShareServerHint,
           ),
           _menuRow(
             context,
@@ -85,17 +94,25 @@ class ServerActionsMenu extends StatelessWidget {
 }
 
 class SourceActionsMenu extends StatelessWidget {
-  const SourceActionsMenu({super.key, required this.name, required this.count});
+  const SourceActionsMenu({
+    super.key,
+    required this.name,
+    required this.count,
+    this.provider = false,
+  });
 
   final String name;
   final int count;
+  final bool provider;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return AppDialog(
       title: name,
-      subtitle: l.prototypeServerCount(count),
+      subtitle: provider
+          ? l.providerConfigurationCount(count)
+          : l.prototypeServerCount(count),
       body: Column(
         children: [
           _menuRow(
@@ -105,13 +122,14 @@ class SourceActionsMenu extends StatelessWidget {
             l.prototypeCheckForUpdates,
             hint: l.prototypeSourceUpdateHint,
           ),
-          _menuRow(
-            context,
-            SourceAction.test,
-            LucideIcons.refreshCw,
-            l.prototypeTestServers,
-            hint: l.prototypeRetestHint,
-          ),
+          if (!provider)
+            _menuRow(
+              context,
+              SourceAction.test,
+              LucideIcons.refreshCw,
+              l.prototypeTestServers,
+              hint: l.prototypeRetestHint,
+            ),
           _menuRow(
             context,
             SourceAction.edit,

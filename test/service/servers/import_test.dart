@@ -9,6 +9,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/network/client.dart';
 import 'package:onexray/core/pigeon/constants.dart';
 import 'package:onexray/service/servers/import.dart';
@@ -145,6 +146,44 @@ void main() {
       expect(results[1].result.error, same(writeError));
       expect(results[2].result.success, isTrue);
       expect(results[2].result.subId, 3);
+    },
+  );
+
+  test(
+    'subscription AppLink policy survives detection and the import boundary',
+    () async {
+      final received = <OneXraySubscriptionLink>[];
+      final service = ServerImportService(
+        subscribe: (link) async {
+          received.add(link);
+          return const SubscriptionInsertResult(
+            status: SubscriptionUpdateResult.success,
+            subId: 1,
+            count: 2,
+          );
+        },
+      );
+      final input = Uri(
+        scheme: 'onexray',
+        host: 'onexray.com',
+        path: '/sub/add',
+        queryParameters: {
+          'url': 'https://example.com/sub',
+          'panel': 'remnawave',
+          'mode': 'providerManaged',
+        },
+        fragment: 'Provider',
+      ).toString();
+      final detection = service.detect(input);
+      expect(detection.localText, isEmpty);
+      final results = await service.importSubscriptions(
+        detection.subscriptions,
+      );
+      expect(results.single.result.success, isTrue);
+      expect(received.single.panel, SubscriptionPanel.remnawave);
+      expect(received.single.mode, SubscriptionMode.providerManaged);
+      expect(received.single.name, 'Provider');
+      expect(received.single.url, 'https://example.com/sub');
     },
   );
 

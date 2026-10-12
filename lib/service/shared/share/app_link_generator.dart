@@ -9,6 +9,7 @@ import 'package:onexray/service/shared/share/app_link_parser.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/servers/outbound/map.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
+import 'package:onexray/service/shared/xray/remnawave.dart';
 
 enum _SubscriptionAgeMode { none, x25519, hybrid, invalid }
 
@@ -32,6 +33,7 @@ abstract final class OneXrayAppLinkGenerator {
     final type = switch (CoreConfigType.fromString(config.type)) {
       CoreConfigType.outbound => OneXrayConfigLinkType.outbound,
       CoreConfigType.raw => OneXrayConfigLinkType.raw,
+      CoreConfigType.Remnawave => OneXrayConfigLinkType.raw,
       _ => null,
     };
     var data = config.data?.trim();
@@ -42,6 +44,17 @@ abstract final class OneXrayAppLinkGenerator {
       try {
         data = base64Encode(
           utf8.encode(encodeSingleOutbound(readOutboundFromDbData(config))),
+        );
+      } catch (_) {
+        return null;
+      }
+    } else if (config.type == CoreConfigType.Remnawave.name) {
+      try {
+        final decoded =
+            jsonDecode(utf8.decode(base64Decode(data))) as Map<String, dynamic>;
+        final adapted = RemnawaveAdapter.adapt(decoded);
+        data = base64Encode(
+          utf8.encode(jsonEncode({...adapted, 'name': config.name})),
         );
       } catch (_) {
         return null;
@@ -76,7 +89,12 @@ abstract final class OneXrayAppLinkGenerator {
         scheme: OneXrayAppLinkParser.scheme,
         host: OneXrayAppLinkParser.host,
         path: OneXrayAppLinkParser.subscriptionPath,
-        queryParameters: {'url': url, 'age': ?ageType},
+        queryParameters: {
+          'url': url,
+          'age': ?ageType,
+          'panel': subscription.panel,
+          'mode': subscription.mode,
+        },
         fragment: subscription.name,
       ),
     );

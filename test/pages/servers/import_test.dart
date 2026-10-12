@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
@@ -620,6 +621,10 @@ void main() {
         saved = input;
         return saveCompletion.future;
       },
+      modeAvailability: (_) async => const SubscriptionModeAvailability(
+        count: 1,
+        selectedCompatible: true,
+      ),
     );
     addTearDown(controller.close);
     await tester.pumpWidget(
@@ -820,6 +825,142 @@ void main() {
       },
     );
   }
+  testWidgets(
+    'new subscription submits automatic or explicitly selected mode',
+    (tester) async {
+      for (final mode in [null, SubscriptionMode.providerManaged]) {
+        SubscriptionInput? submitted;
+        final controller = ServerImportController(
+          loadSubscription: (_) async => null,
+          insertSubscription: (input) async {
+            submitted = input;
+            return const SubscriptionInsertResult(
+              status: SubscriptionUpdateResult.success,
+              subId: 8,
+              count: 3,
+            );
+          },
+        );
+        controller.name.text = 'Provider';
+        controller.url.text = 'https://example.test/subscription';
+        controller.setPanel(SubscriptionPanel.remnawave);
+        controller.setMode(mode);
+        await tester.pumpWidget(
+          _app(
+            Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showAppDialog<ServerImportResult>(
+                  context,
+                  (_) => ServerImportFormPage(
+                    controller: controller,
+                    action: ServerImportAction.subscription,
+                  ),
+                ),
+                child: const Text('Add source'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Add source'));
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerImportFormPage)),
+        )!;
+        await _tapVisible(tester, find.text(l.prototypeAddSubscription).last);
+        await tester.pumpAndSettle();
+        expect(submitted!.panel, SubscriptionPanel.remnawave);
+        expect(submitted!.mode, mode);
+        expect(find.byType(ServerImportFormPage), findsNothing);
+        expect(tester.takeException(), isNull);
+        await controller.close();
+      }
+    },
+  );
+
+  testWidgets(
+    'mode edit saves locally and reports refresh plus incompatible selection',
+    (tester) async {
+      SubscriptionInput? submitted;
+      var downloads = 0;
+      var availabilityReads = 0;
+      final controller = ServerImportController(
+        subscriptionId: 7,
+        loadSubscription: (_) async => SubscriptionData(
+          id: 7,
+          name: 'Provider',
+          url: 'https://example.test/subscription',
+          panel: 'generic',
+          mode: 'appManaged',
+          hwidEnabled: false,
+          timestamp: DateTime(2026),
+        ),
+        saveSubscriptionInput: (_, input) async {
+          submitted = input;
+          return SubscriptionUpdateResult.success;
+        },
+        insertSubscription: (_) async {
+          downloads++;
+          throw StateError('Editing must not import or download');
+        },
+        modeAvailability: (_) async {
+          availabilityReads++;
+          return const SubscriptionModeAvailability(
+            count: 0,
+            selectedCompatible: false,
+          );
+        },
+      );
+      addTearDown(controller.close);
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                await controller.loadSubscription(context);
+                if (!context.mounted) return;
+                await showAppDialog<int>(
+                  context,
+                  (_) => ServerImportFormPage(
+                    controller: controller,
+                    action: ServerImportAction.subscription,
+                  ),
+                );
+              },
+              child: const Text('Edit source'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Edit source'));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerImportFormPage)),
+      )!;
+      expect(controller.state.mode, SubscriptionMode.appManaged);
+      final selector = find.byKey(const ValueKey('subscription-mode'));
+      await tester.ensureVisible(selector);
+      await tester.tap(selector);
+      await tester.pumpAndSettle();
+      expect(find.text(l.subscriptionModeAutomatic), findsNothing);
+      await tester.tap(find.text(l.subscriptionModeProviderManaged));
+      await tester.pumpAndSettle();
+      await _tapVisible(tester, find.text(l.prototypeSave));
+      await tester.pumpAndSettle();
+      expect(submitted!.mode, SubscriptionMode.providerManaged);
+      expect(downloads, 0);
+      expect(availabilityReads, 1);
+      expect(find.byType(ServerImportFormPage), findsNothing);
+      expect(
+        find.textContaining(l.subscriptionModeNeedsRefresh),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(l.subscriptionModeNeedsReselection),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 String _rawLink() => Uri(

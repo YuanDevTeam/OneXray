@@ -1,4 +1,5 @@
 import 'package:onexray/core/model/geo_data_type.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/model.dart';
 
 enum OneXrayConfigLinkType {
@@ -34,10 +35,14 @@ final class OneXraySubscriptionLink extends OneXrayAppLink {
     required super.name,
     required this.url,
     this.ageKeyType,
+    this.panel = SubscriptionPanel.generic,
+    this.mode,
   });
 
   final String url;
   final AgeKeyType? ageKeyType;
+  final SubscriptionPanel panel;
+  final SubscriptionMode? mode;
 }
 
 final class OneXrayGeoDataLink extends OneXrayAppLink {

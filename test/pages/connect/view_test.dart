@@ -34,6 +34,10 @@ void main() {
     bool hasServers = true,
     bool expert = false,
     String? runningPath,
+    bool methodEnabled = true,
+    VoidCallback? onMethod,
+    String method = 'Smart Routing',
+    String? methodDetail,
     List<CoreConfigData> raws = const [],
     VoidCallback? onAddServers,
     VoidCallback? onExpert,
@@ -45,12 +49,14 @@ void main() {
     activeRawId: null,
     location: 'Automatic selection',
     runningPath: runningPath,
-    method: 'Smart Routing',
+    method: method,
+    methodDetail: methodDetail,
+    methodEnabled: methodEnabled,
     onConnection: () {},
     onAddServers: onAddServers ?? () {},
     onExpert: (_) => onExpert?.call(),
     onServer: () {},
-    onMethod: () {},
+    onMethod: onMethod ?? () {},
     onWhy: () {},
     onRawAdd: () {},
     onRawSelect: (_) {},
@@ -76,6 +82,44 @@ void main() {
       ),
     ),
     home: Scaffold(body: child),
+  );
+
+  testWidgets(
+    'provider traffic method is a read-only explanation on mobile and desktop',
+    (tester) async {
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var choices = 0;
+      for (final width in [390.0, 1160.0]) {
+        await tester.binding.setSurfaceSize(Size(width, 1000));
+        await tester.pumpWidget(
+          app(
+            screen(
+              method: 'Provider configuration',
+              methodDetail: 'App routing preferences are kept.',
+              methodEnabled: false,
+              onMethod: () => choices++,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final title = find.text('Provider configuration');
+        final choice = find
+            .ancestor(of: title, matching: find.byType(InkWell))
+            .first;
+        expect(tester.widget<InkWell>(choice).onTap, isNull);
+        expect(
+          find.descendant(
+            of: choice,
+            matching: find.byIcon(LucideIcons.chevronRightDir),
+          ),
+          findsNothing,
+        );
+        await tester.tap(title);
+        expect(choices, 0);
+        expect(find.text('App routing preferences are kept.'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    },
   );
 
   testWidgets(

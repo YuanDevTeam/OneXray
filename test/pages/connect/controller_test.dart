@@ -11,6 +11,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
@@ -30,6 +31,118 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 void main() {
+  testWidgets(
+    'provider selection and runtime snapshot use provider explanations without traffic changes',
+    (tester) async {
+      final coordinator = _Coordinator();
+      final db = coordinator.db;
+      final sourceId = await db.subscriptionDao.insertRow(
+        SubscriptionCompanion.insert(
+          name: 'Provider source',
+          url: 'https://example.com/sub',
+          timestamp: DateTime(2026, 10, 12),
+          mode: Value(SubscriptionMode.providerManaged.name),
+        ),
+      );
+      final id = await db.coreConfigDao.insertAssetRow(
+        CoreConfigCompanion.insert(
+          name: 'Provider profile',
+          type: CoreConfigType.Remnawave.name,
+          tags: '',
+          delay: PingDelayConstants.unknown,
+          subId: sourceId,
+          data: Value(
+            base64Encode(
+              utf8.encode(
+                '{"outbounds":[{"tag":"first","protocol":"freedom"}]}',
+              ),
+            ),
+          ),
+        ),
+      );
+      final row = (await db.coreConfigDao.searchRow(id))!;
+      final settings = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          selection: ServerSelection.server(id),
+          smart: SmartRoutingSettings(entryCount: 3, finalExitId: 900),
+        ),
+      );
+      coordinator.saved = settings;
+      coordinator.state.value = const ConnectionView();
+      final controller =
+          ConnectController(database: db, coordinator: coordinator)
+            ..configuration = settings
+            ..servers = [row]
+            ..sources = await db.subscriptionDao.allRows;
+      addTearDown(controller.close);
+      addTearDown(coordinator.dispose);
+      addTearDown(db.close);
+      bool? changed;
+      await tester.pumpWidget(
+        _testApp(
+          Builder(
+            builder: (context) => Scaffold(
+              body: Column(
+                children: [
+                  TextButton(
+                    onPressed: () => controller.chooseTrafficMethod(context),
+                    child: const Text('methods'),
+                  ),
+                  TextButton(
+                    onPressed: () => controller.showWhy(context),
+                    child: const Text('why'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      changed = await controller.change(context, {
+                        'trafficMode': 'allVpn',
+                      });
+                    },
+                    child: const Text('change-method'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+      expect(controller.providerConfiguration, isTrue);
+      expect(controller.selectionTitle(l), row.name);
+      expect(controller.homeMethodTitle(l), l.providerConfigurationTitle);
+      expect(controller.methodDescription(l), l.providerRoutingNotice);
+      expect(controller.selectionHealth(l), isNull);
+      expect(controller.runningRoute, isNull);
+      await tester.tap(find.text('methods'));
+      await tester.pumpAndSettle();
+      expect(find.text(l.prototypeChooseTrafficMethod), findsNothing);
+      await tester.tap(find.text('change-method'));
+      await tester.pumpAndSettle();
+      expect(changed, isFalse);
+      expect(coordinator.applyCount, 0);
+      expect(controller.configuration.connection.smart.entryCount, 3);
+      final runtime = _runtime(profile: ResolvedProfile.fromRow(row));
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.connected,
+        runtime: runtime,
+      );
+      await db.subscriptionDao.updateRow(
+        (await db.subscriptionDao.searchRow(sourceId))!
+            .copyWith(mode: SubscriptionMode.appManaged.name),
+      );
+      controller.sources = await db.subscriptionDao.allRows;
+      controller.servers = [];
+      expect(controller.selectionTitle(l), 'Provider profile');
+      expect(controller.providerConfiguration, isTrue);
+      expect(controller.runningRoute, isNull);
+      await tester.tap(find.text('why'));
+      await tester.pumpAndSettle();
+      expect(find.text(l.providerRoutingNotice), findsOneWidget);
+      expect(find.text(l.prototypeNoAvailableEntries), findsNothing);
+      expect(find.textContaining('3 entry nodes'), findsNothing);
+    },
+  );
+
   test('updated failure counts rebuild the connection status', () {
     final before = ConnectPageState(
       connectionView: const ConnectionView(
@@ -721,6 +834,7 @@ class _Coordinator extends ConnectionCoordinator {
   }
   final bool fail;
   final Completer<void>? actionGate;
+  int applyCount = 0;
   int connectCount = 0;
   int disconnectCount = 0;
   int cancelCount = 0;
@@ -767,6 +881,7 @@ class _Coordinator extends ConnectionCoordinator {
     ConfigurationImportDraft? imported,
     PrepareConnection? prepare,
   }) async {
+    applyCount++;
     if (fail) {
       state.value = const ConnectionView(
         phase: ConnectionPhase.connected,
@@ -827,9 +942,14 @@ Widget _testApp(Widget home) => MaterialApp(
   home: home,
 );
 
-ConnectionRuntime _runtime({bool expert = false}) {
+ConnectionRuntime _runtime({bool expert = false, ResolvedProfile? profile}) {
   final configuration = ConnectionConfiguration(
-    connection: ConnectionSettings(expert: expert),
+    connection: ConnectionSettings(
+      expert: expert,
+      selection: profile == null
+          ? const ServerSelection.automatic()
+          : ServerSelection.server(profile.id),
+    ),
   );
   ResolvedServer server(int id, String name) => ResolvedServer(
     id: id,
@@ -844,8 +964,11 @@ ConnectionRuntime _runtime({bool expert = false}) {
     configuration: configuration,
     compiled: CompiledConnection(
       xrayJson: '{}',
-      entries: [server(1, 'Singapore 03'), server(2, 'Japan 02')],
-      finalExit: server(3, 'United States 01'),
+      entries: profile == null
+          ? [server(1, 'Singapore 03'), server(2, 'Japan 02')]
+          : const [],
+      finalExit: profile == null ? server(3, 'United States 01') : null,
+      profile: profile,
       nodeTags: {},
     ),
     platform: ConnectionPlatform.android,

@@ -119,6 +119,17 @@ final class SubscriptionRefreshResult {
       !superseded && status == SubscriptionUpdateResult.success && count > 0;
 }
 
+/// Warnings after a local mode edit; an unavailable cache never undoes it.
+final class SubscriptionModeAvailability {
+  const SubscriptionModeAvailability({
+    required this.count,
+    required this.selectedCompatible,
+  });
+  final int count;
+  final bool selectedCompatible;
+  bool get hasActiveCache => count > 0;
+}
+
 enum SubscriptionUpdateResult {
   success,
   nameRequired,

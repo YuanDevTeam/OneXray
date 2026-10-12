@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -232,4 +233,82 @@ void main() {
     expect(results.last!.id, isNull);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'provider profiles stay outside the picker and explicit IDs cannot be selected',
+    (tester) async {
+      late CoreConfigData profile;
+      await tester.runAsync(() async {
+        final sourceId = await db.subscriptionDao.insertRow(
+          SubscriptionCompanion.insert(
+            name: 'Provider',
+            url: 'https://example.test/provider',
+            mode: const Value('providerManaged'),
+            timestamp: DateTime(2026),
+          ),
+        );
+        final profileId = await db.coreConfigDao.insertAssetRow(
+          CoreConfigCompanion.insert(
+            name: 'Complete profile',
+            type: 'Remnawave',
+            tags: '',
+            subId: sourceId,
+            delay: PingDelayConstants.unknown,
+            data: Value(
+              base64Encode(
+                utf8.encode('{"outbounds":[{"protocol":"freedom"}]}'),
+              ),
+            ),
+          ),
+        );
+        if (!controller.state.catalog.servers.any(
+          (row) => row.id == profileId,
+        )) {
+          await controller.stream
+              .firstWhere(
+                (state) =>
+                    state.catalog.servers.any((row) => row.id == profileId),
+              )
+              .timeout(const Duration(seconds: 5));
+        }
+        profile = (await db.coreConfigDao.searchRow(profileId))!;
+      });
+      final profileId = profile.id;
+      expect(controller.catalog.selectable(profile), isTrue);
+      expect(controller.canSelect(profile), isFalse);
+      controller.selectDraft(profile);
+      expect(controller.selectedId, 2);
+      expect(
+        controller
+            .selectionGroups(l)
+            .expand((group) => group.rows)
+            .map((row) => row.id),
+        isNot(contains(profileId)),
+      );
+      await open(tester, <ServerExitChoice?>[]);
+      expect(find.text('Complete profile'), findsNothing);
+      expect(find.text('Provider'), findsNothing);
+      final explicit = ServerExitPickerController(
+        ServerExitPickerParams(selectedId: profileId),
+        database: db,
+        coordinator: coordinator,
+      );
+      addTearDown(explicit.close);
+      await tester.runAsync(() async {
+        await explicit.initialize();
+        if (!explicit.state.catalog.servers.any((row) => row.id == profileId)) {
+          await explicit.stream
+              .firstWhere(
+                (state) =>
+                    state.catalog.servers.any((row) => row.id == profileId),
+              )
+              .timeout(const Duration(seconds: 5));
+        }
+      });
+      expect(explicit.canFinish, isFalse);
+      explicit.selectDraft(null);
+      expect(explicit.canFinish, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

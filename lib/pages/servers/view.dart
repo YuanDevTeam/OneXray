@@ -36,6 +36,17 @@ class ServerBrowser extends StatelessWidget {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     if (controller.servers.isEmpty) {
+      if (controller.sources.isNotEmpty) {
+        return PageEmptyState(
+          title: l.subscriptionModeNoCacheTitle,
+          description: l.subscriptionModeNeedsRefresh,
+          primaryLabel: l.prototypeUpdatesAndSources,
+          onPrimary: () => controller.openSources(context),
+          secondaryLabel: l.prototypeAddServer,
+          onSecondary: () => controller.addServers(context),
+          scrollController: scroll,
+        );
+      }
       return PageEmptyState(
         title: l.prototypeNoServersYet,
         description: l.prototypeAddProviderSubscriptionHint,
@@ -672,6 +683,15 @@ class ServerGroupView extends StatelessWidget {
               color: palette.mutedForeground,
             ),
           ),
+          if (controller.providerGroup(group)) ...[
+            const SizedBox(height: 4),
+            Text(
+              l.providerChooseConfigurationHint,
+              style: AppTypography.serverDetail.copyWith(
+                color: palette.mutedForeground,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -705,52 +725,54 @@ class ServerGroupView extends StatelessWidget {
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        OutlinedButton(
-          onPressed: testing
-              ? cancelling
-                    ? null
-                    : () => controller.cancelTest(group.id)
-              : group.rows.isEmpty || group.rows.any(controller.serverBusy)
-              ? null
-              : () => controller.test(context, group.rows, groupId: group.id),
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size(
-              0,
-              mobile
-                  ? AppLayout.mobileButtonMinHeight
-                  : AppLayout.buttonMinHeight,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 15),
-            foregroundColor: palette.foreground,
-            backgroundColor: palette.card,
-            side: BorderSide(color: palette.borderStrong),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadii.control),
-            ),
-            textStyle: AppTypography.serverGroupAction,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            visualDensity: VisualDensity.standard,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppActivityBuilder(
-                builder: (context, activity) => activity.pinging
-                    ? const ButtonProgressIndicator()
-                    : const Icon(LucideIcons.refreshCw, size: 16),
+        if (!controller.providerGroup(group))
+          OutlinedButton(
+            onPressed: testing
+                ? cancelling
+                      ? null
+                      : () => controller.cancelTest(group.id)
+                : group.rows.isEmpty || group.rows.any(controller.serverBusy)
+                ? null
+                : () => controller.test(context, group.rows, groupId: group.id),
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size(
+                0,
+                mobile
+                    ? AppLayout.mobileButtonMinHeight
+                    : AppLayout.buttonMinHeight,
               ),
-              const SizedBox(width: 8),
-              Text(
-                testing
-                    ? cancelling
-                          ? l.prototypePleaseWait
-                          : l.prototypeCancel
-                    : l.prototypeTestServers,
+              padding: const EdgeInsets.symmetric(horizontal: 15),
+              foregroundColor: palette.foreground,
+              backgroundColor: palette.card,
+              side: BorderSide(color: palette.borderStrong),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.control),
               ),
-            ],
+              textStyle: AppTypography.serverGroupAction,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.standard,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppActivityBuilder(
+                  builder: (context, activity) => activity.pinging
+                      ? const ButtonProgressIndicator()
+                      : const Icon(LucideIcons.refreshCw, size: 16),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  testing
+                      ? cancelling
+                            ? l.prototypePleaseWait
+                            : l.prototypeCancel
+                      : l.prototypeTestServers,
+                ),
+              ],
+            ),
           ),
-        ),
-        ServerUseButton(controller: controller, group: group),
+        if (!controller.providerGroup(group))
+          ServerUseButton(controller: controller, group: group),
         if (group.source != null)
           SizedBox(
             width: 36,
@@ -775,6 +797,29 @@ class ServerUseButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    if (controller.providerGroup(group)) {
+      final VoidCallback? browse = group.visibleRows.isEmpty
+          ? null
+          : () => controller.browse(
+              context,
+              group,
+              mobile:
+                  MediaQuery.sizeOf(context).width <=
+                  AppLayout.mobileBreakpoint,
+            );
+      if (inline) {
+        return IconButton(
+          tooltip: l.providerChooseConfiguration,
+          onPressed: browse,
+          icon: const Icon(LucideIcons.list, size: 18),
+        );
+      }
+      return OutlinedButton.icon(
+        onPressed: browse,
+        icon: const Icon(LucideIcons.list, size: 16),
+        label: Text(l.providerChooseConfiguration),
+      );
+    }
     final count = controller.entryCount(group.selection);
     final enabled = controller.canUse(group);
     final selected = controller.selected(group.selection);
@@ -904,7 +949,7 @@ class ServerNodeRow extends StatelessWidget {
               enabled: controller.canChoose(row),
               protocol: controller.protocol(row),
             ),
-            if (failure != null)
+            if (failure != null && row.type == 'outbound')
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
                 child: SelectableText(
@@ -1059,28 +1104,34 @@ class ServerNodeRow extends StatelessWidget {
                                             ),
                                           ),
                                         ],
-                                        const SizedBox(height: 3),
-                                        Text.rich(
-                                          TextSpan(
-                                            text: '$rowDetail · ',
-                                            children: [
-                                              TextSpan(
-                                                text: controller.health(l, row),
-                                                style: TextStyle(
-                                                  color:
-                                                      ColorManager.nodeLatency(
-                                                        context,
-                                                        row.delay,
-                                                      ),
+                                        if (!controller.providerRow(row)) ...[
+                                          const SizedBox(height: 3),
+                                          Text.rich(
+                                            TextSpan(
+                                              text: '$rowDetail · ',
+                                              children: [
+                                                TextSpan(
+                                                  text: controller.health(
+                                                    l,
+                                                    row,
+                                                  ),
+                                                  style: TextStyle(
+                                                    color:
+                                                        ColorManager.nodeLatency(
+                                                          context,
+                                                          row.delay,
+                                                        ),
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
+                                            style: AppTypography.metadata
+                                                .copyWith(
+                                                  color:
+                                                      palette.mutedForeground,
+                                                ),
                                           ),
-                                          style: AppTypography.metadata
-                                              .copyWith(
-                                                color: palette.mutedForeground,
-                                              ),
-                                        ),
+                                        ],
                                         if (conflict) ...[
                                           const SizedBox(height: 3),
                                           Text(
@@ -1165,6 +1216,7 @@ class ServerMenu extends StatelessWidget {
       context,
       name: controller.serverName(row),
       source: controller.sourceName(l, row),
+      provider: controller.providerRow(row),
     );
     if (context.mounted && action != null) {
       await controller.serverAction(context, row, action);
@@ -1206,6 +1258,7 @@ class SourceMenu extends StatelessWidget {
       context,
       name: source.name,
       count: controller.sourceCount(source.id),
+      provider: controller.providerSource(source),
     );
     if (context.mounted && action != null) {
       await controller.sourceAction(context, source, action);

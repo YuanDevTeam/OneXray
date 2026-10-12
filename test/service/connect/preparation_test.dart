@@ -273,6 +273,60 @@ void main() {
       );
     });
 
+    test(
+      'manual source selection does not require a subscription row',
+      () async {
+        final id = await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: 'Manual proxy',
+            type: CoreConfigType.outbound.name,
+            tags: '',
+            subId: 0,
+            delay: 30,
+            data: Value(
+              base64Encode(
+                utf8.encode(
+                  jsonEncode({
+                    'outbounds': [
+                      {
+                        'tag': 'Manual proxy',
+                        'protocol': 'socks',
+                        'settings': {
+                          'servers': [
+                            {'address': '127.0.0.1', 'port': 1080},
+                          ],
+                        },
+                      },
+                    ],
+                  }),
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(await db.subscriptionDao.searchRow(0), isNull);
+        final runtime =
+            await ConnectionPreparation(
+              db: db,
+              getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+              requireDependencies: (_) async {},
+            ).prepare(
+              ConnectionConfiguration(
+                connection: ConnectionSettings(
+                  selection: const ServerSelection.source(0),
+                  trafficMode: TrafficMode.allVpn,
+                ),
+              ),
+            );
+        expect(runtime.entries.single.id, id);
+        expect(runtime.profile, isNull);
+        expect(
+          runtime.configuration.connection.selection,
+          const ServerSelection.source(0),
+        );
+      },
+    );
+
     for (final change in ['mode', 'row']) {
       test(
         'rejects a provider $change change while dependencies are checked',

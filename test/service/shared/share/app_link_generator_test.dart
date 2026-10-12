@@ -77,6 +77,79 @@ void main() {
     });
 
     test(
+      'complete provider share is a named Raw graph with tunnel adaptation',
+      () {
+        final source = <String, dynamic>{
+          'remarks': 'Provider remarks',
+          'inbounds': [
+            {'tag': 'provider-socks', 'protocol': 'socks', 'port': 1080},
+          ],
+          'outbounds': [
+            {
+              'tag': 'proxy-a',
+              'protocol': 'socks',
+              'streamSettings': {
+                'sockopt': {'dialerProxy': 'proxy-b'},
+              },
+            },
+            {'tag': 'proxy-b', 'protocol': 'socks'},
+          ],
+          'dns': {
+            'servers': [
+              {
+                'address': '1.1.1.1',
+                'expectedIPs': ['geoip:US'],
+              },
+            ],
+          },
+          'routing': {
+            'domainStrategy': 'IPIfNonMatch',
+            'balancers': [
+              {
+                'tag': 'provider',
+                'selector': ['proxy-'],
+              },
+            ],
+            'rules': [
+              {
+                'inboundTag': ['provider-socks'],
+                'domain': ['domain:example.com'],
+                'balancerTag': 'provider',
+              },
+            ],
+          },
+          'observatory': {
+            'subjectSelector': ['proxy-'],
+            'probeInterval': '30s',
+          },
+        };
+        final original = jsonEncode(source);
+        final row = _config(
+          type: 'Remnawave',
+          data: base64Encode(utf8.encode(original)),
+        ).copyWith(subId: 7, name: 'Shared provider');
+        final uri = OneXrayAppLinkGenerator.config(row)!;
+        final link = OneXrayAppLinkParser.parse(uri)! as OneXrayConfigLink;
+        final shared = jsonDecode(link.xrayJson) as Map;
+        expect(link.type, OneXrayConfigLinkType.raw);
+        expect(link.name, 'Shared provider');
+        expect(shared['name'], 'Shared provider');
+        expect(shared['remarks'], source['remarks']);
+        expect((shared['inbounds'] as List).first['tag'], 'tunIn');
+        expect((shared['inbounds'] as List).first['protocol'], 'tun');
+        expect((shared['outbounds'] as List).take(2), source['outbounds']);
+        expect(shared['dns'], source['dns']);
+        expect(shared['observatory'], source['observatory']);
+        expect(shared['routing']['balancers'], source['routing']['balancers']);
+        expect((shared['routing']['rules'] as List).last['inboundTag'], [
+          'provider-socks',
+          'tunIn',
+        ]);
+        expect(utf8.decode(base64Decode(row.data!)), original);
+      },
+    );
+
+    test(
       'preserved legacy outbound data cannot generate an invalid share link',
       () {
         final legacy = _config(
@@ -233,10 +306,35 @@ void main() {
       final uri = OneXrayAppLinkGenerator.subscription(
         _subscription().copyWith(hwidEnabled: true, hwid: const Value(hwid)),
       )!;
-      expect(uri.queryParameters, {'url': 'https://example.com/sub'});
+      expect(uri.queryParameters, {
+        'url': 'https://example.com/sub',
+        'panel': 'generic',
+        'mode': 'appManaged',
+      });
       expect(uri.toString(), isNot(contains(hwid)));
       expect(OneXrayAppLinkParser.parse(uri), isA<OneXraySubscriptionLink>());
     });
+    test(
+      'subscription panel and persisted mode round-trip without credentials',
+      () {
+        for (final panel in SubscriptionPanel.values) {
+          for (final mode in SubscriptionMode.values) {
+            final row = _subscription().copyWith(
+              panel: panel.name,
+              mode: mode.name,
+              hwidEnabled: true,
+              hwid: const Value('private-hwid'),
+            );
+            final uri = OneXrayAppLinkGenerator.subscription(row)!;
+            final link =
+                OneXrayAppLinkParser.parse(uri)! as OneXraySubscriptionLink;
+            expect(link.panel, panel);
+            expect(link.mode, mode);
+            expect(uri.toString(), isNot(contains('private-hwid')));
+          }
+        }
+      },
+    );
     test('normalizes a plain subscription URL', () {
       final uri = OneXrayAppLinkGenerator.subscription(
         _subscription(url: 'https://example.com/sub#provider-fragment'),

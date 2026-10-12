@@ -60,7 +60,7 @@ class ServerSourcesDialog extends StatelessWidget {
                     name: source.name,
                     package: SubscriptionUserInfo.fromSubscription(source),
                     detail:
-                        '${l.prototypeServerCount(controller.sourceCount(source.id))} · '
+                        '${controller.providerSource(source) ? l.providerConfigurationCount(controller.sourceCount(source.id)) : l.prototypeServerCount(controller.sourceCount(source.id))} · '
                         '${checkedAt(source)}',
                     status:
                         controller.sourceErrors[source.id] ??

@@ -26,8 +26,10 @@ mixin ServerLabels {
       switch (selection.kind) {
         SelectionKind.automatic => l10n.prototypeAutomaticSelection,
         SelectionKind.source =>
-          catalog.sourcesById[selection.id]?.name ??
-              l10n.prototypeTemporarilyUnavailable,
+          selection.id == 0
+              ? l10n.prototypeManualAdditions
+              : catalog.sourcesById[selection.id]?.name ??
+                    l10n.prototypeTemporarilyUnavailable,
         SelectionKind.server =>
           catalog.servers
                   .where((row) => row.id == selection.id)

@@ -106,7 +106,8 @@ class ConnectionPreparation {
         onResolved?.call({profile.id});
       }
     } else if (!settings.expert &&
-        settings.selection.kind == SelectionKind.source) {
+        settings.selection.kind == SelectionKind.source &&
+        settings.selection.id! > 0) {
       final source = await db.subscriptionDao.searchRow(settings.selection.id!);
       if (source == null || source.mode != SubscriptionMode.appManaged.name) {
         throw const FormatException(
@@ -162,6 +163,7 @@ class ConnectionPreparation {
           );
         }
         if (settings.selection.kind == SelectionKind.source &&
+            settings.selection.id! > 0 &&
             (await db.subscriptionDao.searchRow(settings.selection.id!))
                     ?.mode !=
                 SubscriptionMode.appManaged.name) {

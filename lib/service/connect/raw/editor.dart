@@ -37,7 +37,7 @@ class RawEditorDraft {
 class RawEditorService {
   final AppDatabase db;
   final ConnectionCoordinator coordinator;
-  final Future<void> Function(String)? _validate;
+  final Future<void> Function(String)? validate;
   final Future<ConnectionRuntime> Function(
     ConnectionConfiguration,
     Future<void>,
@@ -48,7 +48,7 @@ class RawEditorService {
   RawEditorService({
     AppDatabase? database,
     ConnectionCoordinator? coordinator,
-    this._validate,
+    this.validate,
     this.prepare,
   }) : db = database ?? AppDatabase(),
        coordinator = coordinator ?? ConnectionCoordinator.instance;
@@ -230,7 +230,7 @@ class RawEditorService {
   }
 
   Future<void> _validateParsed(ParsedRawConfiguration parsed) async {
-    if (_validate != null) return _validate(parsed.text);
+    if (validate != null) return validate!(parsed.text);
     await XrayRawValidator.validateParsed(parsed);
   }
 

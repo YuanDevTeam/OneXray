@@ -22,6 +22,7 @@ import 'package:onexray/service/servers/subscription/reader.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/servers/subscription/user_info.dart';
 import 'package:onexray/service/servers/subscription/validator.dart';
+import 'package:onexray/service/servers/catalog.dart';
 import 'package:uuid/uuid.dart';
 
 final class SubscriptionLoadResult {
@@ -309,6 +310,40 @@ class SubscriptionService {
     } finally {
       _finishUpdate(id, generation);
     }
+  }
+
+  Future<SubscriptionModeAvailability> modeAvailability(int id) async {
+    final source = await _database.subscriptionDao.searchRow(id);
+    if (source == null) {
+      throw const FormatException('Subscription no longer exists');
+    }
+    final rows = (await _database.coreConfigDao.allActiveServerRows())
+        .where((row) => row.subId == id && ServerDisplay.fromRow(row).readable)
+        .toList();
+    final value = jsonDecode(
+      (await _database.connectionConfigDao.read()).configurationJson,
+    ) as Map<String, dynamic>;
+    final settings = ConnectionSettings.fromJson(
+      value['connection'] as Map<String, dynamic>? ?? {},
+    );
+    var selectedCompatible = true;
+    if (settings.selection.kind == SelectionKind.server) {
+      final selected = await _database.coreConfigDao.searchRow(
+        settings.selection.id!,
+      );
+      if (selected == null) {
+        selectedCompatible = false;
+      } else if (selected.subId == id) {
+        selectedCompatible = rows.any((row) => row.id == selected.id);
+      }
+    } else if (settings.selection.kind == SelectionKind.source &&
+        settings.selection.id == id) {
+      selectedCompatible = source.mode == SubscriptionMode.appManaged.name;
+    }
+    return SubscriptionModeAvailability(
+      count: rows.length,
+      selectedCompatible: selectedCompatible,
+    );
   }
 
   /// The connection layer must confirm deletion and resolve affected running or

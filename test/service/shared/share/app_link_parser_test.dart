@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/model/geo_data_type.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/shared/share/app_link_model.dart';
 import 'package:onexray/service/shared/share/app_link_parser.dart';
@@ -69,6 +70,8 @@ void main() {
       expect(link.url, 'https://example.com/subscription');
       expect(link.name, 'Provider');
       expect(link.ageKeyType, isNull);
+      expect(link.panel, SubscriptionPanel.generic);
+      expect(link.mode, isNull);
     });
 
     test('parses X25519 and hybrid age modes', () {
@@ -99,6 +102,44 @@ void main() {
       expect(OneXrayAppLinkParser.parse(unknownAge), isNull);
       expect(OneXrayAppLinkParser.parse(insecure), isNull);
     });
+
+    test(
+      'parses explicit panel and mode and rejects ambiguous policy parameters',
+      () {
+        final result =
+            OneXrayAppLinkParser.parse(
+                  _subscriptionUri(
+                    url: 'https://example.com/sub',
+                    panel: 'remnawave',
+                    mode: 'providerManaged',
+                  ),
+                )!
+                as OneXraySubscriptionLink;
+        expect(result.panel, SubscriptionPanel.remnawave);
+        expect(result.mode, SubscriptionMode.providerManaged);
+        final base = Uri(
+          scheme: 'onexray',
+          host: 'onexray.com',
+          path: '/sub/add',
+          queryParameters: {'url': 'https://example.com/sub'},
+        ).toString();
+        for (final query in [
+          'panel=future',
+          'mode=future',
+          'panel=',
+          'mode=',
+          'panel=generic&panel=remnawave',
+          'mode=appManaged&mode=providerManaged',
+          'age=x25519&age=hybrid',
+        ]) {
+          expect(
+            OneXrayAppLinkParser.parse(Uri.parse('$base&$query')),
+            isNull,
+            reason: query,
+          );
+        }
+      },
+    );
   });
 
   group('GeoData links', () {
@@ -158,12 +199,18 @@ Uri _configUri({
   );
 }
 
-Uri _subscriptionUri({required String url, String? age, String name = ''}) {
+Uri _subscriptionUri({
+  required String url,
+  String? age,
+  String name = '',
+  String? panel,
+  String? mode,
+}) {
   return Uri(
     scheme: 'onexray',
     host: 'onexray.com',
     path: '/sub/add',
-    queryParameters: {'url': url, 'age': ?age},
+    queryParameters: {'url': url, 'age': ?age, 'panel': ?panel, 'mode': ?mode},
     fragment: name,
   );
 }

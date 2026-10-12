@@ -76,6 +76,9 @@ class ServerExitPickerController extends PageCubit<ServerExitPickerState>
   @override
   ServerCatalog get catalog => state.catalog;
   @override
+  List<CoreConfigData> get servers =>
+      catalog.servers.where(catalog.outboundEligible).toList();
+  @override
   String get query => state.query;
   int? get selectedId => state.selectedId;
   bool get ready => state.ready;
@@ -104,7 +107,9 @@ class ServerExitPickerController extends PageCubit<ServerExitPickerState>
   List<ServerGroup> selectionGroups(AppLocalizations l) =>
       groups(l).where((group) => group.visibleRows.isNotEmpty).toList();
   bool canSelect(CoreConfigData row) =>
-      catalog.selectable(row) && !params.excludedIds.contains(row.id);
+      catalog.outboundEligible(row) &&
+      catalog.selectable(row) &&
+      !params.excludedIds.contains(row.id);
   void selectDraft(CoreConfigData? row) {
     if (busy || !ready || (row != null && !canSelect(row))) return;
     emit(state.copyWith(selectedId: row?.id));

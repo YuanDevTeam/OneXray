@@ -15,6 +15,8 @@ import 'package:onexray/service/servers/subscription/failure.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/l10n/localizations/app_localizations_en.dart';
 import 'package:onexray/core/errors/failure.dart';
+import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/settings.dart';
 
 void main() {
   late AppDatabase database;
@@ -958,6 +960,82 @@ void main() {
       expect(await database.subscriptionDao.searchRow(source.id), source);
       expect(await database.coreConfigDao.searchRow(id), saved);
     }
+  });
+
+  test('local mode switches preserve both caches and report refresh or reselect warnings', () async {
+    final source = (await _source(database)).copyWith(
+      uploadBytes: const Value(100),
+      downloadBytes: const Value(200),
+      totalBytes: const Value(500),
+      userInfoUpdatedAt: Value(DateTime(2026)),
+    );
+    await database.subscriptionDao.updateRow(source);
+    final ordinaryId = await database.coreConfigDao.insertRow(
+      _node('Derived', subId: source.id),
+    );
+    final providerId = await database.coreConfigDao.insertRow(
+      _provider('Complete', subId: source.id),
+    );
+    final caches = await database.select(database.coreConfig).get();
+    final configuration = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        selection: ServerSelection.server(ordinaryId),
+      ),
+    );
+    await database.connectionConfigDao.commit(
+      configurationJson: configuration.encode(),
+    );
+    final pings = <int>[];
+    final service = _service(
+      database,
+      (_) async => throw StateError('Mode edits must not download'),
+      pings: pings,
+    );
+    Future<void> save(SubscriptionMode mode) async {
+      expect(
+        await service.saveSubscriptionInput(
+          source.id,
+          SubscriptionInput(
+            name: source.name,
+            url: source.url,
+            ageSecretKey: source.ageSecretKey,
+            agePublicKey: source.agePublicKey,
+            panel: SubscriptionPanel.generic,
+            mode: mode,
+          ),
+        ),
+        SubscriptionUpdateResult.success,
+      );
+      expect(
+        (await database.connectionConfigDao.read()).configurationJson,
+        configuration.encode(),
+      );
+      final saved = (await database.subscriptionDao.searchRow(source.id))!;
+      expect(saved, source.copyWith(mode: mode.name));
+      expect(pings, isEmpty);
+    }
+
+    await save(SubscriptionMode.providerManaged);
+    var availability = await service.modeAvailability(source.id);
+    expect(availability.count, 1);
+    expect(availability.hasActiveCache, isTrue);
+    expect(availability.selectedCompatible, isFalse);
+    expect(await database.select(database.coreConfig).get(), caches);
+    await save(SubscriptionMode.appManaged);
+    availability = await service.modeAvailability(source.id);
+    expect(availability.count, 1);
+    expect(availability.hasActiveCache, isTrue);
+    expect(availability.selectedCompatible, isTrue);
+    expect(await database.select(database.coreConfig).get(), caches);
+
+    final provider = (await database.coreConfigDao.searchRow(providerId))!;
+    await database.coreConfigDao.deleteRow(provider);
+    await save(SubscriptionMode.providerManaged);
+    availability = await service.modeAvailability(source.id);
+    expect(availability.count, 0);
+    expect(availability.hasActiveCache, isFalse);
+    expect(availability.selectedCompatible, isFalse);
+    expect(await database.coreConfigDao.searchRow(ordinaryId), isNotNull);
   });
 }
 
