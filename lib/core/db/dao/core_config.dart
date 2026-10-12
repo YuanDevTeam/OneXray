@@ -13,6 +13,52 @@ class CoreConfigDao extends DatabaseAccessor<AppDatabase>
     with _$CoreConfigDaoMixin {
   CoreConfigDao(super.db);
 
+  Expression<bool> _sourceMode(
+    SubscriptionMode mode, {
+    bool allowUnowned = false,
+  }) {
+    final sources = attachedDatabase.subscription;
+    final matching = selectOnly(sources)
+      ..addColumns([sources.id])
+      ..where(sources.mode.equals(mode.name));
+    final matches = coreConfig.subId.isInQuery(matching);
+    if (!allowUnowned) return matches;
+    final owned = selectOnly(sources)..addColumns([sources.id]);
+    // Manual nodes and retained legacy nodes without a source stay usable.
+    return coreConfig.subId.equals(0) |
+        coreConfig.subId.isInQuery(owned).not() |
+        matches;
+  }
+
+  Expression<bool> get _activeOutbound =>
+      coreConfig.type.equals(CoreConfigType.outbound.name) &
+      _sourceMode(SubscriptionMode.appManaged, allowUnowned: true);
+
+  Expression<bool> get _activeServer =>
+      _activeOutbound |
+      (coreConfig.type.equals(CoreConfigType.Remnawave.name) &
+          _sourceMode(SubscriptionMode.providerManaged));
+
+  Stream<List<CoreConfigData>> watchServers() =>
+      (select(coreConfig)
+            ..where((_) => _activeServer)
+            ..orderBy([(row) => OrderingTerm.asc(row.id)]))
+          .watch();
+
+  Future<List<CoreConfigData>> allActiveServerRows() =>
+      (select(coreConfig)
+            ..where((_) => _activeServer)
+            ..orderBy([(row) => OrderingTerm.asc(row.id)]))
+          .get();
+
+  Future<CoreConfigData?> searchActiveServerRow(int id) => (select(
+    coreConfig,
+  )..where((row) => row.id.equals(id) & _activeServer)).getSingleOrNull();
+
+  Future<CoreConfigData?> searchActiveOutboundRow(int id) => (select(
+    coreConfig,
+  )..where((row) => row.id.equals(id) & _activeOutbound)).getSingleOrNull();
+
   Future<List<CoreConfigData>> get allRawRowsWithData =>
       (select(coreConfig)
             ..where((table) => table.type.equals(CoreConfigType.raw.name))
@@ -27,17 +73,14 @@ class CoreConfigDao extends DatabaseAccessor<AppDatabase>
 
   Stream<List<CoreConfigData>> watchOutbounds() =>
       (select(coreConfig)
-            ..where((row) => row.type.equals(CoreConfigType.outbound.name))
+            ..where((_) => _activeOutbound)
             ..orderBy([(row) => OrderingTerm.asc(row.delay)]))
           .watch();
 
   Stream<bool> watchHasOutbounds() =>
       (selectOnly(coreConfig)
             ..addColumns([coreConfig.id])
-            ..where(
-              coreConfig.type.equals(CoreConfigType.outbound.name) &
-                  coreConfig.data.isNotNull(),
-            )
+            ..where(_activeOutbound & coreConfig.data.isNotNull())
             ..orderBy([OrderingTerm.asc(coreConfig.delay)])
             ..limit(1))
           .watch()
@@ -48,7 +91,7 @@ class CoreConfigDao extends DatabaseAccessor<AppDatabase>
       (selectOnly(coreConfig)
             ..addColumns([coreConfig.id])
             ..where(
-              coreConfig.type.equals(CoreConfigType.outbound.name) &
+              _activeOutbound &
                   coreConfig.data.isNotNull() &
                   coreConfig.delay.equals(PingDelayConstants.unknown),
             ))
@@ -59,7 +102,7 @@ class CoreConfigDao extends DatabaseAccessor<AppDatabase>
     int subId,
   ) async =>
       (select(coreConfig)
-            ..where((tbl) => tbl.type.equals(CoreConfigType.outbound.name))
+            ..where((_) => _activeOutbound)
             ..where((tbl) => tbl.subId.equals(subId))
             ..orderBy([(tbl) => OrderingTerm.asc(tbl.delay)]))
           .get();

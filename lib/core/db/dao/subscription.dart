@@ -56,7 +56,12 @@ class SubscriptionDao extends DatabaseAccessor<AppDatabase>
     if (result > 0) {
       await (delete(coreConfig)
             ..where((table) => table.subId.equals(id))
-            ..where((table) => table.type.equals(CoreConfigType.outbound.name)))
+            ..where(
+              (table) => table.type.isIn([
+                CoreConfigType.outbound.name,
+                CoreConfigType.Remnawave.name,
+              ]),
+            ))
           .go();
     }
     return result;
@@ -65,7 +70,12 @@ class SubscriptionDao extends DatabaseAccessor<AppDatabase>
   Future<int> deleteConfigs(int subId, {required Set<int> protectedIds}) async {
     final query = delete(coreConfig)
       ..where((table) => table.subId.equals(subId))
-      ..where((table) => table.type.equals(CoreConfigType.outbound.name))
+      ..where(
+        (table) => table.type.isIn([
+          CoreConfigType.outbound.name,
+          CoreConfigType.Remnawave.name,
+        ]),
+      )
       ..where((table) => table.favorite.equals(false));
     if (protectedIds.isNotEmpty) {
       query.where((table) => table.id.isNotIn(protectedIds));

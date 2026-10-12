@@ -308,6 +308,66 @@ void main() {
     expect(next.connection.expert, true);
     expect(next.connection.rawId, 99);
   });
+
+  test('complete profile favorites and deletion keep cache ownership and use the coordinator', () async {
+    final sourceId = await db.subscriptionDao.insertRow(
+      SubscriptionCompanion.insert(
+        name: 'Provider',
+        url: 'https://example.com/full',
+        timestamp: DateTime(2026),
+        mode: const Value('providerManaged'),
+      ),
+    );
+    final profileId = await db.coreConfigDao.insertRow(
+      CoreConfigCompanion.insert(
+        name: 'Full',
+        type: 'Remnawave',
+        tags: '',
+        data: Value(
+          base64Encode(
+            utf8.encode(
+              '{"remarks":"Full","outbounds":[{"protocol":"freedom"}]}',
+            ),
+          ),
+        ),
+        delay: PingDelayConstants.unknown,
+        subId: sourceId,
+      ),
+    );
+    final derived = await server(subId: sourceId);
+    final configuration = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        selection: ServerSelection.server(profileId),
+      ),
+    );
+    await db.connectionConfigDao.commit(
+      configurationJson: configuration.encode(),
+    );
+    final coordinator = await initialize(
+      ConnectionCoordinator(
+        database: db,
+        inspect: (_, {observedStatus}) async =>
+            const HostConnection(VpnStatus.disconnected),
+        start: (_) async => throw StateError('No implicit start'),
+        stop: () async => throw StateError('No implicit stop'),
+      ),
+    );
+    final service = ServerAssetService(database: db, coordinator: coordinator);
+    final original = (await db.coreConfigDao.searchRow(profileId))!;
+    await service.favorite(profileId, true);
+    expect((await db.coreConfigDao.searchRow(profileId))!.data, original.data);
+    expect((await db.coreConfigDao.searchRow(profileId))!.favorite, isTrue);
+    final preview = await service.previewRemoval(ids: {profileId});
+    expect(
+      preview.configuration.connection.selection.kind,
+      SelectionKind.automatic,
+    );
+    expect(preview.affectsRuntime, isFalse);
+    await service.remove(preview);
+    expect(await db.coreConfigDao.searchRow(profileId), isNull);
+    expect(await db.coreConfigDao.searchRow(derived.id), derived);
+    expect(await db.subscriptionDao.searchRow(sourceId), isNotNull);
+  });
 }
 
 ConnectionRuntime _runtime(

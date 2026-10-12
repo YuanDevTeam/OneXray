@@ -174,6 +174,7 @@ Map<String, dynamic> _$LibXrayInvokeRequestToJson(
 const _$LibXrayMethodEnumMap = {
   LibXrayMethod.getFreePorts: 'getFreePorts',
   LibXrayMethod.convertShareLinksToXrayJson: 'convertShareLinksToXrayJson',
+  LibXrayMethod.decodeSubscriptionText: 'decodeSubscriptionText',
   LibXrayMethod.convertXrayJsonToShareLinks: 'convertXrayJsonToShareLinks',
   LibXrayMethod.generateAgeKeyPair: 'generateAgeKeyPair',
   LibXrayMethod.countGeoData: 'countGeoData',
@@ -211,6 +212,27 @@ ConvertShareLinksToXrayJsonRequest _$ConvertShareLinksToXrayJsonRequestFromJson(
 Map<String, dynamic> _$ConvertShareLinksToXrayJsonRequestToJson(
   ConvertShareLinksToXrayJsonRequest instance,
 ) => <String, dynamic>{'text': ?instance.text, 'age': ?instance.age?.toJson()};
+
+DecodeSubscriptionTextRequest _$DecodeSubscriptionTextRequestFromJson(
+  Map<String, dynamic> json,
+) => DecodeSubscriptionTextRequest(
+  json['text'] as String,
+  age: json['age'] == null
+      ? null
+      : AgeDecryptConfig.fromJson(json['age'] as Map<String, dynamic>),
+);
+
+Map<String, dynamic> _$DecodeSubscriptionTextRequestToJson(
+  DecodeSubscriptionTextRequest instance,
+) => <String, dynamic>{'text': instance.text, 'age': ?instance.age?.toJson()};
+
+DecodeSubscriptionTextResponse _$DecodeSubscriptionTextResponseFromJson(
+  Map<String, dynamic> json,
+) => DecodeSubscriptionTextResponse(json['text'] as String);
+
+Map<String, dynamic> _$DecodeSubscriptionTextResponseToJson(
+  DecodeSubscriptionTextResponse instance,
+) => <String, dynamic>{'text': instance.text};
 
 AgeDecryptConfig _$AgeDecryptConfigFromJson(Map<String, dynamic> json) =>
     AgeDecryptConfig(json['secretKey'] as String?);

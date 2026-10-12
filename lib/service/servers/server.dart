@@ -6,6 +6,7 @@ import 'package:collection/collection.dart';
 import 'package:drift/drift.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/service/connect/compiler.dart';
 import 'package:onexray/service/connect/coordinator.dart';
@@ -71,9 +72,14 @@ class ServerAssetService {
 
   Stream<List<CoreConfigData>> watch() => db.coreConfigDao.watchOutbounds();
 
-  Future<List<CoreConfigData>> rows() => (db.select(
-    db.coreConfig,
-  )..where((row) => row.type.equals('outbound'))).get();
+  Future<List<CoreConfigData>> rows() =>
+      (db.select(db.coreConfig)..where(
+            (row) => row.type.isIn([
+              CoreConfigType.outbound.name,
+              CoreConfigType.Remnawave.name,
+            ]),
+          ))
+          .get();
 
   static bool measured(CoreConfigData row) =>
       row.delay != PingDelayConstants.unknown;
@@ -190,8 +196,14 @@ class ServerAssetService {
   }
 
   Future<void> favorite(int id, bool value) async {
-    await (db.update(db.coreConfig)
-          ..where((row) => row.id.equals(id) & row.type.equals('outbound')))
+    await (db.update(db.coreConfig)..where(
+          (row) =>
+              row.id.equals(id) &
+              row.type.isIn([
+                CoreConfigType.outbound.name,
+                CoreConfigType.Remnawave.name,
+              ]),
+        ))
         .write(CoreConfigCompanion(favorite: Value(value)));
   }
 
@@ -224,6 +236,10 @@ class ServerAssetService {
               .map((row) => row.id)
               .toSet();
     final remaining = all.where((row) => !removed.contains(row.id)).toList();
+    final activeOrdinaryIds = (await db.coreConfigDao.allActiveServerRows())
+        .where((row) => row.type == CoreConfigType.outbound.name)
+        .map((row) => row.id)
+        .toSet();
     final selection = current.connection.selection;
     final invalidSelection = switch (selection.kind) {
       SelectionKind.automatic => false,
@@ -257,7 +273,10 @@ class ServerAssetService {
       disconnect:
           active &&
           !remaining.any(
-            (row) => selectable(row) && row.id != next.connection.finalExitId,
+            (row) =>
+                activeOrdinaryIds.contains(row.id) &&
+                selectable(row) &&
+                row.id != next.connection.finalExitId,
           ),
     );
   }
@@ -308,7 +327,12 @@ class ServerAssetService {
           );
         } else {
           await (db.delete(db.coreConfig)..where(
-                (row) => row.id.isIn(preview.ids) & row.type.equals('outbound'),
+                (row) =>
+                    row.id.isIn(preview.ids) &
+                    row.type.isIn([
+                      CoreConfigType.outbound.name,
+                      CoreConfigType.Remnawave.name,
+                    ]),
               ))
               .go();
         }

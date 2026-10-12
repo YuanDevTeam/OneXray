@@ -196,6 +196,8 @@ enum LibXrayMethod {
   getFreePorts,
   @JsonValue("convertShareLinksToXrayJson")
   convertShareLinksToXrayJson,
+  @JsonValue("decodeSubscriptionText")
+  decodeSubscriptionText,
   @JsonValue("convertXrayJsonToShareLinks")
   convertXrayJsonToShareLinks,
   @JsonValue("generateAgeKeyPair")
@@ -254,6 +256,31 @@ class ConvertShareLinksToXrayJsonRequest {
 
   Map<String, dynamic> toJson() =>
       _$ConvertShareLinksToXrayJsonRequestToJson(this);
+}
+
+@JsonSerializable(explicitToJson: true, includeIfNull: false)
+class DecodeSubscriptionTextRequest {
+  final String text;
+  final AgeDecryptConfig? age;
+
+  const DecodeSubscriptionTextRequest(this.text, {this.age});
+
+  factory DecodeSubscriptionTextRequest.fromJson(Map<String, dynamic> json) =>
+      _$DecodeSubscriptionTextRequestFromJson(json);
+
+  Map<String, dynamic> toJson() => _$DecodeSubscriptionTextRequestToJson(this);
+}
+
+@JsonSerializable()
+class DecodeSubscriptionTextResponse {
+  final String text;
+
+  const DecodeSubscriptionTextResponse(this.text);
+
+  factory DecodeSubscriptionTextResponse.fromJson(Map<String, dynamic> json) =>
+      _$DecodeSubscriptionTextResponseFromJson(json);
+
+  Map<String, dynamic> toJson() => _$DecodeSubscriptionTextResponseToJson(this);
 }
 
 @JsonSerializable(explicitToJson: true, includeIfNull: false)

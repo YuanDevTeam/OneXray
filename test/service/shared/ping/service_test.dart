@@ -116,6 +116,102 @@ void main() {
     );
   });
 
+  test('explicit forced probes exclude provider source caches and complete profiles', () async {
+    final appSource = await db.subscriptionDao.insertRow(
+      SubscriptionCompanion.insert(
+        name: 'App',
+        url: 'https://example.com/app',
+        timestamp: DateTime(2026),
+      ),
+    );
+    final providerSource = await db.subscriptionDao.insertRow(
+      SubscriptionCompanion.insert(
+        name: 'Provider',
+        url: 'https://example.com/provider',
+        timestamp: DateTime(2026),
+        mode: const Value('providerManaged'),
+      ),
+    );
+    final local = await db.coreConfigDao.insertRow(_node('Local'));
+    final app = await db.coreConfigDao.insertRow(
+      _node('App', subId: appSource),
+    );
+    final derived = await db.coreConfigDao.insertRow(
+      _node('Hidden', subId: providerSource),
+    );
+    final profile = await db.coreConfigDao.insertRow(
+      _node(
+        'Full',
+        subId: providerSource,
+      ).copyWith(type: const Value('Remnawave')),
+    );
+    final measured = <String>[];
+    final service = PingService.forTesting(
+      database: db,
+      runBatch: (sources, _) async {
+        measured.addAll(
+          sources.map(
+            (source) =>
+                jsonDecode(source.xrayJson)['outbounds'][0]['tag'] as String,
+          ),
+        );
+        return _successes(sources.length);
+      },
+    );
+    await service.pingConfigIds([local, app, derived, profile], force: true);
+    expect(measured, ['Local', 'App']);
+    expect(
+      (await db.coreConfigDao.searchRow(derived))!.delay,
+      PingDelayConstants.unknown,
+    );
+    expect(
+      (await db.coreConfigDao.searchRow(profile))!.delay,
+      PingDelayConstants.unknown,
+    );
+  });
+
+  test('switching source mode lets the active batch finish and skips later batches', () async {
+    final sourceId = await db.subscriptionDao.insertRow(
+      SubscriptionCompanion.insert(
+        name: 'App',
+        url: 'https://example.com/app',
+        timestamp: DateTime(2026),
+      ),
+    );
+    final ids = <int>[];
+    for (var index = 0; index < 6; index++) {
+      ids.add(
+        await db.coreConfigDao.insertRow(_node('Node $index', subId: sourceId)),
+      );
+    }
+    final started = Completer<void>();
+    final result = Completer<List<PingBatchResult>>();
+    var calls = 0;
+    final service = PingService.forTesting(
+      database: db,
+      runBatch: (sources, _) async {
+        calls++;
+        expect(sources, hasLength(5));
+        started.complete();
+        return result.future;
+      },
+    );
+    final probing = service.pingConfigIds(ids, force: true);
+    await started.future;
+    final source = (await db.subscriptionDao.searchRow(sourceId))!;
+    await db.subscriptionDao.updateRow(
+      source.copyWith(mode: 'providerManaged'),
+    );
+    result.complete(_successes(5));
+    await probing;
+    expect(calls, 1);
+    expect((await db.coreConfigDao.searchRow(ids.first))!.delay, 20);
+    expect(
+      (await db.coreConfigDao.searchRow(ids.last))!.delay,
+      PingDelayConstants.unknown,
+    );
+  });
+
   test('imported-node and subscription queues always run', () async {
     final local = await db.coreConfigDao.insertRow(_node('Local'));
     final remote = await db.coreConfigDao.insertRow(_node('Remote', subId: 9));

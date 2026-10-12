@@ -219,9 +219,9 @@ void main() {
       expect(changed.expireTimestamp, original.expireTimestamp);
       expect(changed.userInfoUpdatedAt, original.userInfoUpdatedAt);
       expect(
-        await database.coreConfigDao.allOutboundRowsWithDataBySubId(
-          original.id,
-        ),
+        await (database.select(
+          database.coreConfig,
+        )..where((row) => row.subId.equals(original.id))).get(),
         nodes,
       );
 

@@ -216,6 +216,30 @@ class AppHostApi {
     return outbounds.cast<Map<String, dynamic>>();
   }
 
+  Future<String> decodeSubscriptionText(
+    String text, {
+    String? ageSecretKey,
+  }) async {
+    final key = ageSecretKey?.trim();
+    final response = await _invoke(
+      LibXrayInvokeRequest(
+        method: LibXrayMethod.decodeSubscriptionText,
+        payload: DecodeSubscriptionTextRequest(
+          text,
+          age: key == null || key.isEmpty ? null : AgeDecryptConfig(key),
+        ).toJson(),
+      ),
+    );
+    final data = response.data;
+    if (!response.success || data == null) {
+      throw LibXrayInvokeException(response.error);
+    }
+    if (data['text'] is! String) {
+      throw const FormatException('Invalid decoded subscription text');
+    }
+    return DecodeSubscriptionTextResponse.fromJson(data).text;
+  }
+
   Future<GenerateAgeKeyPairResponse> generateAgeKeyPair({
     AgeKeyType keyType = AgeKeyType.x25519,
   }) async {

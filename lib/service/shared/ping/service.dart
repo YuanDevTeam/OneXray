@@ -99,7 +99,7 @@ class PingService {
       final db = _database;
       final rows = <CoreConfigData>[];
       for (final id in targetIds) {
-        final row = await db.coreConfigDao.searchRow(id);
+        final row = await db.coreConfigDao.searchActiveOutboundRow(id);
         if (row != null &&
             _isPingableConfig(row) &&
             (force || isUnmeasured(row))) {
@@ -193,12 +193,19 @@ class PingService {
       final batchRows = <CoreConfigData>[];
       final sources = <PingBatchSource>[];
       for (final row in rowSlice) {
+        final current = await db.coreConfigDao.searchActiveOutboundRow(row.id);
+        if (current == null ||
+            current.data != row.data ||
+            current.subId != row.subId) {
+          continue;
+        }
         final source = _makePingSource(row);
         if (source != null) {
           batchRows.add(row);
           sources.add(source);
         }
       }
+      if (sources.isEmpty) continue;
       final results = await (_batchOverride ?? PingBatchRunner.run)(
         sources,
         pingState,

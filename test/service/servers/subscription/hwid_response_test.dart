@@ -165,6 +165,16 @@ void main() {
       messenger.setMockDecodedMessageHandler(channel, (request) async {
         final json = jsonDecode((request as List).single as String) as Map;
         expect(json['payload'], {'text': 'valid subscription'});
+        if (json['method'] == 'decodeSubscriptionText') {
+          return [
+            jsonEncode({
+              'success': true,
+              'error': '',
+              'data': {'text': json['payload']['text']},
+            }),
+          ];
+        }
+        expect(json['method'], 'convertShareLinksToXrayJson');
         parsed++;
         return [
           jsonEncode({

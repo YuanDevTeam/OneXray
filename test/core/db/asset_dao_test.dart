@@ -76,6 +76,182 @@ void main() {
     expect(exists.current, isFalse);
   });
 
+  test('subscription mode switches server and outbound streams without rewriting caches', () async {
+    final dao = database.coreConfigDao;
+    final sourceId = await database.subscriptionDao.insertRow(
+      _subscription('switching'),
+    );
+    final outboundId = await dao.insertRow(
+      _config('outbound', subId: sourceId),
+    );
+    final completeId = await dao.insertRow(
+      _config('Remnawave', subId: sourceId).copyWith(
+        data: const Value('eyJvdXRib3VuZHMiOlt7fV0sInJvdXRpbmciOnt9fQ=='),
+      ),
+    );
+    final rawId = await dao.insertRow(_config('raw'));
+    final stored = {
+      for (final row in await database.select(database.coreConfig).get())
+        row.id: row.toJson(),
+    };
+    final servers = StreamIterator(dao.watchServers());
+    final outbounds = StreamIterator(dao.watchOutbounds());
+    final exists = StreamIterator(dao.watchHasOutbounds());
+    addTearDown(servers.cancel);
+    addTearDown(outbounds.cancel);
+    addTearDown(exists.cancel);
+    expect(await servers.moveNext(), isTrue);
+    expect(servers.current.map((row) => row.id), [outboundId]);
+    expect(await outbounds.moveNext(), isTrue);
+    expect(outbounds.current.map((row) => row.id), [outboundId]);
+    expect(await exists.moveNext(), isTrue);
+    expect(exists.current, isTrue);
+
+    final source = (await database.subscriptionDao.searchRow(sourceId))!;
+    expect(
+      await database.subscriptionDao.updateRow(
+        source.copyWith(mode: 'providerManaged'),
+      ),
+      isTrue,
+    );
+    expect(
+      await servers.moveNext().timeout(const Duration(seconds: 5)),
+      isTrue,
+    );
+    expect(servers.current.map((row) => row.id), [completeId]);
+    expect(
+      await outbounds.moveNext().timeout(const Duration(seconds: 5)),
+      isTrue,
+    );
+    expect(outbounds.current, isEmpty);
+    expect(await exists.moveNext().timeout(const Duration(seconds: 5)), isTrue);
+    expect(exists.current, isFalse);
+    expect((await dao.allActiveServerRows()).map((row) => row.id), [
+      completeId,
+    ]);
+    expect(await dao.allOutboundRowsWithDataBySubId(sourceId), isEmpty);
+
+    expect(await database.subscriptionDao.updateRow(source), isTrue);
+    expect(
+      await servers.moveNext().timeout(const Duration(seconds: 5)),
+      isTrue,
+    );
+    expect(servers.current.map((row) => row.id), [outboundId]);
+    expect(
+      await outbounds.moveNext().timeout(const Duration(seconds: 5)),
+      isTrue,
+    );
+    expect(outbounds.current.map((row) => row.id), [outboundId]);
+    expect(await exists.moveNext().timeout(const Duration(seconds: 5)), isTrue);
+    expect(exists.current, isTrue);
+    expect((await dao.allRawRowsWithData).single.id, rawId);
+    expect({
+      for (final row in await database.select(database.coreConfig).get())
+        row.id: row.toJson(),
+    }, stored);
+  });
+
+  test('active lookups keep manual and orphan nodes but require a provider source for complete rows', () async {
+    final dao = database.coreConfigDao;
+    final appSource = await database.subscriptionDao.insertRow(
+      _subscription('app'),
+    );
+    final providerSource = await database.subscriptionDao.insertRow(
+      _subscription('provider', mode: 'providerManaged'),
+    );
+    final appNode = await dao.insertRow(_config('outbound', subId: appSource));
+    final hiddenComplete = await dao.insertRow(
+      _config('Remnawave', subId: appSource),
+    );
+    final providerComplete = await dao.insertRow(
+      _config('Remnawave', subId: providerSource),
+    );
+    final hiddenNode = await dao.insertRow(
+      _config('outbound', subId: providerSource),
+    );
+    final manual = await dao.insertRow(_config('outbound'));
+    final orphanNode = await dao.insertRow(_config('outbound', subId: 999));
+    // Internal restore can contain orphan/legacy rows. Visibility does not
+    // grant those complete configurations a missing provider identity.
+    final orphanComplete = await dao.insertRow(
+      _config('Remnawave', subId: 999),
+    );
+    final manualComplete = await dao.insertRow(_config('Remnawave'));
+    final raw = await dao.insertRow(_config('raw', subId: providerSource));
+
+    expect(
+      (await dao.allActiveServerRows()).map((row) => row.id),
+      unorderedEquals([appNode, providerComplete, manual, orphanNode]),
+    );
+    for (final id in [appNode, providerComplete, manual, orphanNode]) {
+      expect((await dao.searchActiveServerRow(id))!.id, id);
+    }
+    for (final id in [
+      hiddenComplete,
+      hiddenNode,
+      orphanComplete,
+      manualComplete,
+      raw,
+      9999,
+    ]) {
+      expect(await dao.searchActiveServerRow(id), isNull);
+    }
+    for (final id in [appNode, manual, orphanNode]) {
+      expect((await dao.searchActiveOutboundRow(id))!.id, id);
+    }
+    for (final id in [providerComplete, hiddenNode, hiddenComplete, raw]) {
+      expect(await dao.searchActiveOutboundRow(id), isNull);
+    }
+    expect((await dao.searchRow(hiddenNode))!.id, hiddenNode);
+    expect((await dao.searchRow(hiddenComplete))!.id, hiddenComplete);
+  });
+
+  test(
+    'unmeasured candidates include only active ordinary rows with data',
+    () async {
+      final dao = database.coreConfigDao;
+      final appSource = await database.subscriptionDao.insertRow(
+        _subscription('measure-app'),
+      );
+      final providerSource = await database.subscriptionDao.insertRow(
+        _subscription('measure-provider', mode: 'providerManaged'),
+      );
+      final appNode = await dao.insertRow(
+        _config('outbound', subId: appSource),
+      );
+      final measured = await dao.insertRow(
+        _config('outbound', subId: appSource).copyWith(delay: const Value(0)),
+      );
+      await dao.insertRow(_config('outbound', subId: providerSource));
+      await dao.insertRow(_config('Remnawave', subId: providerSource));
+      await dao.insertRow(_config('raw'));
+      await dao.insertRow(
+        _config('outbound').copyWith(data: const Value(null)),
+      );
+      final manual = await dao.insertRow(_config('outbound'));
+      final orphan = await dao.insertRow(_config('outbound', subId: 999));
+      expect(
+        await dao.unmeasuredOutboundIds,
+        unorderedEquals([appNode, manual, orphan]),
+      );
+      expect(await dao.allOutboundRowsWithDataBySubId(providerSource), isEmpty);
+      expect(
+        (await dao.allOutboundRowsWithDataBySubId(appSource))
+            .map((row) => row.id),
+        unorderedEquals([appNode, measured]),
+      );
+      final source = (await database.subscriptionDao.searchRow(appSource))!;
+      await database.subscriptionDao.updateRow(
+        source.copyWith(mode: 'providerManaged'),
+      );
+      expect(
+        await dao.unmeasuredOutboundIds,
+        unorderedEquals([manual, orphan]),
+      );
+      expect(await dao.allOutboundRowsWithDataBySubId(appSource), isEmpty);
+    },
+  );
+
   test(
     'Raw additions enforce 0/2/3 limits atomically across mixed batches',
     () async {
@@ -205,3 +381,14 @@ RoutingProfileCompanion _routingProfile(String name) =>
       name: name,
       data: 'eyJvdXRib3VuZHMiOlt7fV19',
     );
+
+SubscriptionCompanion _subscription(
+  String name, {
+  String mode = 'appManaged',
+}) => SubscriptionCompanion.insert(
+  name: name,
+  url: 'https://example.test/$name',
+  panel: const Value('generic'),
+  mode: Value(mode),
+  timestamp: DateTime(2026, 10, 12),
+);
