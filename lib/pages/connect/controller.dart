@@ -130,8 +130,24 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   ServerCatalog get catalog => state.catalog;
 
   ConnectionConfiguration get configuration => state.configuration;
-  set configuration(ConnectionConfiguration value) =>
-      emit(state.copyWith(configuration: value));
+  set configuration(ConnectionConfiguration value) {
+    final previous = state.configuration.connection;
+    final next = value.connection;
+    final targetChanged =
+        previous.expert != next.expert ||
+        previous.rawId != next.rawId ||
+        previous.selection.kind != next.selection.kind ||
+        previous.selection.id != next.selection.id;
+    // Raw browsing is local until a target is selected. Other pages can replace
+    // that target, while unrelated settings must leave the browsing draft open.
+    emit(
+      state.copyWith(
+        configuration: value,
+        expertView: targetChanged ? next.expert : state.expertView,
+      ),
+    );
+  }
+
   ConnectionView get connectionView => state.connectionView;
   List<CoreConfigData> get servers => state.servers;
   set servers(List<CoreConfigData> value) =>
