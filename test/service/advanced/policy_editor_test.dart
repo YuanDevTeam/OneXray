@@ -1,9 +1,12 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/constants.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
@@ -273,6 +276,123 @@ void main() {
         );
         expect((await coordinator.configuration).policy.lanProxyPort, 11026);
         expect(stops, 0);
+        expect(
+          host.status,
+          connected ? VpnStatus.connected : VpnStatus.disconnected,
+        );
+      },
+    );
+  }
+
+  for (final connected in [false, true]) {
+    test(
+      'provider ${connected ? 'runtime' : 'selection'} stores LAN preferences without checking inactive Custom listeners',
+      () async {
+        final sourceId = await db.subscriptionDao.insertRow(
+          SubscriptionCompanion.insert(
+            name: 'Provider',
+            url: 'https://example.test/provider',
+            mode: Value(SubscriptionMode.providerManaged.name),
+            timestamp: DateTime(2026, 10, 12),
+          ),
+        );
+        const providerText = '{"outbounds":[{"protocol":"freedom"}]}';
+        final profileId = await db.coreConfigDao.insertAssetRow(
+          CoreConfigCompanion.insert(
+            name: 'Provider profile',
+            type: CoreConfigType.Remnawave.name,
+            tags: '',
+            subId: sourceId,
+            delay: PingDelayConstants.unknown,
+            data: Value(base64Encode(utf8.encode(providerText))),
+          ),
+        );
+        final profile = (await db.coreConfigDao.searchRow(profileId))!;
+        final template = base64Encode(
+          utf8.encode(
+            jsonEncode({
+              'inbounds': [
+                {'tag': 'custom-listener', 'protocol': 'socks', 'port': 11024},
+              ],
+              'outbounds': [
+                {'protocol': 'freedom'},
+              ],
+            }),
+          ),
+        );
+        final customId = await db.routingProfileDao.insertRow(
+          RoutingProfileCompanion.insert(
+            name: 'Inactive advanced route',
+            advanced: const Value(true),
+            data: template,
+          ),
+        );
+        final configuration = ConnectionConfiguration(
+          connection: ConnectionSettings(
+            selection: ServerSelection.server(profileId),
+            trafficMode: TrafficMode.custom,
+            customId: customId,
+            smart: SmartRoutingSettings(blockAds: true, entryCount: 3),
+          ),
+        );
+        await db.connectionConfigDao.commit(
+          configurationJson: configuration.encode(),
+        );
+        final active = connected
+            ? _runtime(configuration, profile: ResolvedProfile.fromRow(profile))
+            : null;
+        if (connected) {
+          host = HostConnection(VpnStatus.connected, runtime: active);
+          await coordinator.refresh();
+          // A mode change may hide the old profile, while its complete session
+          // continues to own the runtime graph and keeps App routes inactive.
+          final source = (await db.subscriptionDao.searchRow(sourceId))!;
+          await db.subscriptionDao.updateRow(
+            source.copyWith(mode: SubscriptionMode.appManaged.name),
+          );
+          expect(
+            await db.coreConfigDao.searchActiveServerRow(profileId),
+            isNull,
+          );
+        }
+        var apiChecks = 0;
+        var confirmations = 0;
+        final service = PolicyEditorService(
+          coordinator: coordinator,
+          platform: ConnectionPlatform.android,
+          reservedApiPort: () async {
+            apiChecks++;
+            return 11024;
+          },
+        );
+        final draft = await service.load();
+        draft.policy['lanProxy'] = {'enabled': true, 'port': 11024};
+        expect(
+          await service.save(
+            draft: draft,
+            confirm: (_) async {
+              confirmations++;
+              return false;
+            },
+          ),
+          isTrue,
+        );
+        final saved = await coordinator.configuration;
+        expect(saved.policy.lanProxyEnabled, isTrue);
+        expect(saved.policy.lanProxyPort, 11024);
+        expect(saved.connection.toJson(), configuration.connection.toJson());
+        expect(
+          (await db.routingProfileDao.searchRow(customId))!.data,
+          template,
+        );
+        expect(
+          (await db.coreConfigDao.searchRow(profileId))!.data,
+          profile.data,
+        );
+        expect(apiChecks, 0);
+        expect(confirmations, 0);
+        expect(stops, 0);
+        expect(host.runtime, same(active));
         expect(
           host.status,
           connected ? VpnStatus.connected : VpnStatus.disconnected,
@@ -803,7 +923,10 @@ void main() {
   );
 }
 
-ConnectionRuntime _runtime(ConnectionConfiguration configuration) {
+ConnectionRuntime _runtime(
+  ConnectionConfiguration configuration, {
+  ResolvedProfile? profile,
+}) {
   const text = '{"outbounds":[{"protocol":"freedom"}]}';
   return ConnectionRuntime.create(
     configuration: configuration,
@@ -812,6 +935,7 @@ ConnectionRuntime _runtime(ConnectionConfiguration configuration) {
       entries: [],
       finalExit: null,
       nodeTags: {},
+      profile: profile,
     ),
     platform: ConnectionPlatform.android,
     request: StartVpnRequest(

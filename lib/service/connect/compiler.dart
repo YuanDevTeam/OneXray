@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
 import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/core/pigeon/constants.dart';
@@ -19,6 +20,43 @@ import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/runtime_outbounds.dart';
 import 'package:onexray/service/shared/xray/fake_dns.dart';
 import 'package:onexray/service/shared/xray/fragment.dart';
+import 'package:onexray/service/shared/xray/remnawave.dart';
+
+/// A complete provider graph selected as one subscription asset.
+class ResolvedProfile {
+  final int id;
+  final int sourceId;
+  final String name;
+  final Map<String, dynamic> _config;
+
+  ResolvedProfile({
+    required this.id,
+    required this.sourceId,
+    required this.name,
+    required Map<String, dynamic> config,
+  }) : _config = JsonTool.copyMap(config) {
+    if (id <= 0 || sourceId <= 0 || name.trim().isEmpty) {
+      throw const FormatException('Invalid provider profile');
+    }
+  }
+
+  factory ResolvedProfile.fromRow(CoreConfigData row) {
+    if (row.type != CoreConfigType.Remnawave.name || row.data == null) {
+      throw const FormatException('Provider configuration is unavailable');
+    }
+    return ResolvedProfile(
+      id: row.id,
+      sourceId: row.subId,
+      name: row.name,
+      config: ConnectionCompiler.parseRawJson(
+        utf8.decode(base64Decode(row.data!)),
+      ),
+    );
+  }
+
+  String get type => CoreConfigType.Remnawave.name;
+  Map<String, dynamic> get config => JsonTool.copyMap(_config);
+}
 
 class ResolvedServer {
   final int id;
@@ -118,12 +156,14 @@ class CompiledConnection {
   final List<ResolvedServer> entries;
   final ResolvedServer? finalExit;
   final Map<String, int> nodeTags;
+  final ResolvedProfile? profile;
 
   CompiledConnection({
     required this.xrayJson,
     required Iterable<ResolvedServer> entries,
     required this.finalExit,
     required Map<String, int> nodeTags,
+    this.profile,
   }) : entries = List.unmodifiable(entries),
        nodeTags = Map.unmodifiable(nodeTags);
 
@@ -219,13 +259,27 @@ class ConnectionCompiler {
     required List<ResolvedServer> entries,
     ResolvedServer? finalExit,
     Map<String, dynamic>? raw,
+    ResolvedProfile? profile,
     RoutingConfiguration? custom,
     required RegionCatalog regions,
     required RuntimeOptions options,
   }) {
     final nodeTags = <String, int>{};
     late final Map<String, dynamic> config;
-    if (settings.expert) {
+    if (profile != null) {
+      if (settings.expert ||
+          settings.selection.kind != SelectionKind.server ||
+          settings.selection.id != profile.id ||
+          entries.isNotEmpty ||
+          finalExit != null ||
+          raw != null ||
+          custom != null) {
+        throw const FormatException(
+          'Provider configuration requires one fixed profile',
+        );
+      }
+      config = _rawRuntimeMap(RemnawaveAdapter.adapt(profile.config), options);
+    } else if (settings.expert) {
       if (raw == null || entries.isNotEmpty || finalExit != null) {
         throw const FormatException(
           'Raw configuration is required without normal nodes',
@@ -455,6 +509,7 @@ class ConnectionCompiler {
       entries: entries,
       finalExit: finalExit,
       nodeTags: nodeTags,
+      profile: profile,
     );
   }
 

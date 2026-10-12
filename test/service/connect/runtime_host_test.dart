@@ -39,6 +39,152 @@ void main() {
   });
 
   test(
+    'complete profile identity survives start metadata and protects its row',
+    () async {
+      const xrayJson = '{"outbounds":[{"protocol":"freedom"}]}';
+      final runtime = _runtime(
+        profile: _profile(xrayJson),
+        entries: const [],
+        xrayJson: xrayJson,
+      );
+      final metadata = jsonDecode(runtime.request.metadataJson!);
+      expect(metadata['version'], 1);
+      expect(metadata['profile'], {
+        'id': 99,
+        'sourceId': 7,
+        'name': 'Provider profile',
+        'type': 'Remnawave',
+      });
+      expect(runtime.entries, isEmpty);
+      expect(runtime.nodeIds, {99});
+      final parsed = ConnectionRuntime.fromRequest(runtime.request);
+      expect(parsed.profile!.id, 99);
+      expect(parsed.profile!.sourceId, 7);
+      expect(parsed.profile!.name, 'Provider profile');
+      expect(parsed.profile!.type, 'Remnawave');
+      expect(parsed.nodeIds, {99});
+      expect(parsed.xrayJson, xrayJson);
+      expect(parsed.identity, runtime.identity);
+
+      await File(p.join(directory.path, 'start.json'))
+          .writeAsString(jsonEncode(runtime.request.toJson()));
+      final restored = await ConnectionRuntimeHost(runDirectory: directory.path)
+          .readRuntime();
+      expect(restored!.profile!.id, 99);
+      expect(restored.profile!.sourceId, 7);
+      expect(restored.profile!.name, 'Provider profile');
+      expect(restored.profile!.type, 'Remnawave');
+      expect(restored.nodeIds, {99});
+    },
+  );
+
+  test('legacy metadata without a profile remains an ordinary runtime', () {
+    final request = _runtime().request;
+    final metadata = jsonDecode(request.metadataJson!) as Map<String, dynamic>;
+    metadata.remove('profile');
+    request.metadataJson = jsonEncode(metadata);
+    final restored = ConnectionRuntime.fromRequest(request);
+    expect(restored.profile, isNull);
+    expect(restored.entries.single.name, 'Server');
+    expect(restored.nodeIds, {1});
+  });
+
+  test('invalid optional profiles reject the runtime descriptor', () async {
+    const valid = <String, dynamic>{
+      'id': 99,
+      'sourceId': 7,
+      'name': 'Provider profile',
+      'type': 'Remnawave',
+    };
+    for (final invalid in <Object>[
+      'profile',
+      [],
+      {},
+      {...valid, 'id': 0},
+      {...valid, 'id': '99'},
+      {...valid, 'sourceId': 0},
+      {...valid, 'sourceId': '7'},
+      {...valid, 'name': ''},
+      {...valid, 'name': 99},
+      {...valid, 'type': 'raw'},
+      {...valid, 'type': 'remnawave'},
+      {...valid}..remove('type'),
+    ]) {
+      final request = _runtime().request;
+      final metadata =
+          jsonDecode(request.metadataJson!) as Map<String, dynamic>;
+      metadata['profile'] = invalid;
+      request.metadataJson = jsonEncode(metadata);
+      expect(
+        () => ConnectionRuntime.fromRequest(request),
+        throwsFormatException,
+        reason: 'Invalid profile: $invalid',
+      );
+      await File(p.join(directory.path, 'start.json'))
+          .writeAsString(jsonEncode(request.toJson()));
+      expect(
+        await ConnectionRuntimeHost(runDirectory: directory.path).readRuntime(),
+        isNull,
+        reason: 'Invalid profile: $invalid',
+      );
+    }
+  });
+
+  test(
+    'provider observation tags never become App automatic path observations',
+    () async {
+      final xrayJson = jsonEncode({
+        'outbounds': [
+          {'protocol': 'freedom', 'tag': 'app-entry-0'},
+          {'protocol': 'freedom', 'tag': 'app-entry-1'},
+        ],
+        'routing': {
+          'balancers': [
+            {
+              'tag': 'proxy',
+              'selector': ['app-entry-0', 'app-entry-1'],
+              'strategy': {'type': 'leastPing'},
+            },
+          ],
+        },
+        'observatory': {
+          'subjectSelector': ['app-entry-0', 'app-entry-1'],
+        },
+      });
+      final entries = [
+        for (var id = 1; id <= 2; id++)
+          ResolvedServer(
+            id: id,
+            sourceId: 7,
+            outbound: {'protocol': 'freedom', 'tag': 'Entry $id'},
+          ),
+      ];
+      final ordinary = _runtime(entries: entries, xrayJson: xrayJson);
+      expect(ordinary.observationPaths, hasLength(2));
+      // Retained ordinary entry metadata must not turn a provider's otherwise
+      // identical tag/strategy choices into App-managed observation paths.
+      final provider = _runtime(
+        profile: _profile(xrayJson),
+        entries: entries,
+        xrayJson: xrayJson,
+      );
+      expect(provider.nodeIds, {1, 2, 99});
+      expect(provider.observationPaths, isEmpty);
+      final restored = ConnectionRuntime.fromRequest(provider.request);
+      expect(restored.nodeIds, {1, 2, 99});
+      expect(restored.observationPaths, isEmpty);
+      final host = ConnectionRuntimeHost(
+        readMetrics: (_) async => _metrics(3, 5),
+      );
+      expect((await host.query(ordinary)).observations, hasLength(2));
+      final traffic = await host.query(restored);
+      expect(traffic.observations, isEmpty);
+      expect(traffic.uplink, 3);
+      expect(traffic.downlink, 5);
+    },
+  );
+
+  test(
     'native start and stop failures retain their original messages',
     () async {
       final host = ConnectionRuntimeHost(
@@ -282,19 +428,23 @@ void main() {
   );
 }
 
-ConnectionRuntime _runtime() {
+ConnectionRuntime _runtime({
+  ResolvedProfile? profile,
+  List<ResolvedServer>? entries,
+  String xrayJson = '{"outbounds":[]}',
+}) {
   final configuration = ConnectionConfiguration();
   final server = ResolvedServer(
     id: 1,
     sourceId: 7,
     outbound: {'protocol': 'freedom', 'tag': 'Server'},
   );
-  const xrayJson = '{"outbounds":[]}';
   final compiled = CompiledConnection(
     xrayJson: xrayJson,
-    entries: [server],
+    entries: entries ?? [server],
     finalExit: null,
     nodeTags: const {},
+    profile: profile,
   );
   final invoke = LibXrayInvokeRequest(
     method: LibXrayMethod.runXray,
@@ -307,6 +457,13 @@ ConnectionRuntime _runtime() {
     request: StartVpnRequest(null, null, '18003', jsonEncode(invoke.toJson())),
   );
 }
+
+ResolvedProfile _profile(String xrayJson) => ResolvedProfile(
+  id: 99,
+  sourceId: 7,
+  name: 'Provider profile',
+  config: jsonDecode(xrayJson) as Map<String, dynamic>,
+);
 
 XrayMetricsVars _metrics(int up, int down) => XrayMetricsVars(
   XrayMetricsStats(XrayMetricsInboundStats(XrayTrafficCounter(up, down))),

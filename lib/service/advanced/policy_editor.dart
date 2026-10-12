@@ -9,6 +9,7 @@ import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/connect/provider_mode.dart';
 
 /// Subpages carry the same original configuration and their own JSON draft.
 /// Invalid intermediate text stays here, never in the database or runtime.
@@ -146,6 +147,13 @@ class PolicyEditorService {
     PlatformPolicy policy,
   ) async {
     if (draft.original.connection.expert || !policy.lanProxyEnabled) return;
+    if (await usesProviderConfiguration(
+      coordinator.db,
+      draft.original.connection,
+      runtime: coordinator.state.value.runtime,
+    )) {
+      return;
+    }
     if (policy.lanProxyPort == await _reservedApiPort()) {
       throw const FormatException(
         'Proxy port conflicts with the local HTTP API',

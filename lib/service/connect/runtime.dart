@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:onexray/core/pigeon/model.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/service/connect/compiler.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/settings.dart';
@@ -55,6 +56,56 @@ class RuntimeNode {
   Map<String, dynamic> toJson() => {'id': id, 'name': name};
 }
 
+class RuntimeProfile {
+  final int id;
+  final int sourceId;
+  final String name;
+  final String type;
+
+  const RuntimeProfile({
+    required this.id,
+    required this.sourceId,
+    required this.name,
+    required this.type,
+  });
+
+  factory RuntimeProfile.fromProfile(ResolvedProfile profile) => RuntimeProfile(
+    id: profile.id,
+    sourceId: profile.sourceId,
+    name: profile.name,
+    type: profile.type,
+  );
+
+  factory RuntimeProfile.fromJson(Map<String, dynamic> json) {
+    final id = json['id'];
+    final sourceId = json['sourceId'];
+    final name = json['name'];
+    final type = json['type'];
+    if (id is! int ||
+        id <= 0 ||
+        sourceId is! int ||
+        sourceId <= 0 ||
+        name is! String ||
+        name.trim().isEmpty ||
+        type != CoreConfigType.Remnawave.name) {
+      throw const FormatException('Invalid runtime profile');
+    }
+    return RuntimeProfile(
+      id: id,
+      sourceId: sourceId,
+      name: name,
+      type: type as String,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'sourceId': sourceId,
+    'name': name,
+    'type': type,
+  };
+}
+
 /// The prepared or active runtime input. It is never stored separately.
 /// start.json retains only the small metadata required to restore the UI and
 /// protect active nodes; the Xray JSON remains solely in coreInvokeText.
@@ -65,10 +116,11 @@ class ConnectionRuntime {
   final String xrayJson;
   final List<RuntimeNode> entries;
   final RuntimeNode? finalExit;
+  final RuntimeProfile? profile;
   final String? notice;
   final DateTime startedAt;
   late final List<RuntimeObservationPath> observationPaths =
-      configuration.connection.expert
+      configuration.connection.expert || profile != null
       ? const []
       : RuntimeObservationPath.fromConfiguration(
           xrayJson: xrayJson,
@@ -83,6 +135,7 @@ class ConnectionRuntime {
     required this.xrayJson,
     required this.entries,
     required this.finalExit,
+    this.profile,
     required this.startedAt,
     this.notice,
   });
@@ -102,6 +155,9 @@ class ConnectionRuntime {
     final finalExit = compiled.finalExit == null
         ? null
         : RuntimeNode.fromServer(compiled.finalExit!);
+    final profile = compiled.profile == null
+        ? null
+        : RuntimeProfile.fromProfile(compiled.profile!);
     final metadataJson = jsonEncode({
       'version': 1,
       'startedAt': startedAt.microsecondsSinceEpoch,
@@ -109,6 +165,7 @@ class ConnectionRuntime {
       'configuration': configuration.toJson(),
       'entries': [for (final entry in entries) entry.toJson()],
       'finalExit': finalExit?.toJson(),
+      if (profile != null) 'profile': profile.toJson(),
     });
     final storedRequest = StartVpnRequest(
       request.tun,
@@ -125,6 +182,7 @@ class ConnectionRuntime {
       xrayJson: compiled.xrayJson,
       entries: List.unmodifiable(entries),
       finalExit: finalExit,
+      profile: profile,
       notice: notice,
       startedAt: startedAt,
     );
@@ -149,7 +207,9 @@ class ConnectionRuntime {
           (entry) => entry is! Map<String, dynamic>,
         ) ||
         (metadata['finalExit'] != null &&
-            metadata['finalExit'] is! Map<String, dynamic>)) {
+            metadata['finalExit'] is! Map<String, dynamic>) ||
+        (metadata['profile'] != null &&
+            metadata['profile'] is! Map<String, dynamic>)) {
       throw const FormatException('Invalid runtime metadata');
     }
     final run = LibXrayRunConfig.fromInvokeText(invokeText).request;
@@ -176,6 +236,11 @@ class ConnectionRuntime {
       finalExit: metadata['finalExit'] == null
           ? null
           : RuntimeNode.fromJson(metadata['finalExit'] as Map<String, dynamic>),
+      profile: metadata['profile'] == null
+          ? null
+          : RuntimeProfile.fromJson(
+              metadata['profile'] as Map<String, dynamic>,
+            ),
     );
   }
 
@@ -184,5 +249,6 @@ class ConnectionRuntime {
   Set<int> get nodeIds => {
     for (final entry in entries) entry.id,
     if (finalExit != null) finalExit!.id,
+    if (profile != null) profile!.id,
   };
 }

@@ -3,6 +3,7 @@ import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/asset_edit.dart';
 import 'package:onexray/service/connect/preparation.dart';
+import 'package:onexray/service/connect/provider_mode.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/shared/share/configuration_transfer.dart';
@@ -68,9 +69,16 @@ class CustomRoutingEditorService {
     final configuration = await coordinator.readForEditing();
     final connection = configuration.connection;
     final selected = original != null && _selects(connection, original.id);
-    final running = coordinator.state.value.runtime?.configuration.connection;
+    final runtime = coordinator.state.value.runtime;
+    final providerActive = await usesProviderConfiguration(
+      db,
+      connection,
+      runtime: runtime,
+    );
+    final running = runtime?.configuration.connection;
     if (original != null &&
         running != null &&
+        runtime?.profile == null &&
         !running.expert &&
         _selects(running, original.id) &&
         (!selected || connection.expert)) {
@@ -78,6 +86,7 @@ class CustomRoutingEditorService {
     }
     final affectsRuntime =
         selected &&
+        !providerActive &&
         !connection.expert &&
         !sameRouting(CustomRoutingService.readConfiguration(original), state);
     int? savedId = original?.id;
@@ -113,14 +122,21 @@ class CustomRoutingEditorService {
     final configuration = await coordinator.readForEditing();
     final connection = configuration.connection;
     final selected = _selects(connection, original.id);
-    final running = coordinator.state.value.runtime?.configuration.connection;
+    final runtime = coordinator.state.value.runtime;
+    final providerActive = await usesProviderConfiguration(
+      db,
+      connection,
+      runtime: runtime,
+    );
+    final running = runtime?.configuration.connection;
     if (running != null &&
+        runtime?.profile == null &&
         !running.expert &&
         _selects(running, original.id) &&
         (!selected || connection.expert)) {
       throw const CustomRoutingEditorException('changed');
     }
-    final affectsRuntime = selected && !connection.expert;
+    final affectsRuntime = selected && !connection.expert && !providerActive;
     final reconnect =
         affectsRuntime &&
         coordinator.state.value.phase == ConnectionPhase.connected;

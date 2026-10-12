@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/constants.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
@@ -1427,6 +1430,125 @@ void main() {
   });
 
   test(
+    'a provider profile stays protected before preparation completes',
+    () async {
+      final profiles = await _providerRows(db);
+      final selected = profiles.$1;
+      final pending = _providerRuntime(selected);
+      final preparing = Completer<void>();
+      final finish = Completer<void>();
+      var starts = 0;
+      late ConnectionCoordinator coordinator;
+      coordinator = await _initialize(
+        ConnectionCoordinator(
+          database: db,
+          readRuntime: () async => null,
+          inspect: (_, {observedStatus}) async =>
+              const HostConnection(VpnStatus.disconnected),
+          prepare: (_, _) async {
+            coordinator.reportResolvedNodes({selected.id});
+            preparing.complete();
+            await finish.future;
+            throw const FormatException('Provider preparation was cancelled');
+          },
+          start: (_) async {
+            starts++;
+            throw StateError('A failed preparation must not start');
+          },
+        ),
+      );
+      final connecting = coordinator.apply(
+        pending.configuration,
+        connect: true,
+      );
+      final rejected = expectLater(connecting, throwsFormatException);
+      await preparing.future;
+      try {
+        expect(coordinator.state.value.phase, ConnectionPhase.preparing);
+        final references = await coordinator.readReferences();
+        expect(references.runningIds, {selected.id});
+        await db.subscriptionDao.deleteConfigs(
+          selected.subId,
+          protectedIds: references.protectedIds,
+        );
+        expect(await db.coreConfigDao.searchRow(selected.id), selected);
+        expect(await db.coreConfigDao.searchRow(profiles.$2.id), isNull);
+      } finally {
+        finish.complete();
+        await rejected;
+      }
+      expect(starts, 0);
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(coordinator.state.value.error, isA<FormatException>());
+      expect((await coordinator.readReferences()).runningIds, isEmpty);
+      expect(
+        (await coordinator.configuration).connection.selection.kind,
+        SelectionKind.automatic,
+      );
+    },
+  );
+
+  test('pending and restored provider runtimes protect the original subscription row', () async {
+    final profiles = await _providerRows(db);
+    final selected = profiles.$1;
+    final pending = _providerRuntime(selected);
+    final starting = Completer<void>();
+    final finish = Completer<void>();
+    var status = VpnStatus.disconnected;
+    ConnectionRuntime? stored;
+    final host = ConnectionRuntimeHost(readStatus: () async => status);
+    final coordinator = await _initialize(
+      ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => stored,
+        inspect: host.inspect,
+        prepare: (_, _) async => pending,
+        start: (runtime) async {
+          status = VpnStatus.connected;
+          starting.complete();
+          await finish.future;
+          stored = ConnectionRuntime.fromRequest(runtime.request);
+          return HostConnection(status, runtime: stored);
+        },
+      ),
+    );
+    final connecting = coordinator.apply(pending.configuration, connect: true);
+    await starting.future;
+    try {
+      expect(coordinator.state.value.runtime, isNull);
+      final references = await coordinator.readReferences();
+      expect(references.runningIds, {selected.id});
+      await db.transaction(() async {
+        await db.subscriptionDao.deleteConfigs(
+          selected.subId,
+          protectedIds: references.protectedIds,
+        );
+        await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: selected.name,
+            type: selected.type,
+            tags: selected.tags,
+            delay: selected.delay,
+            subId: selected.subId,
+            data: Value(selected.data),
+          ),
+        );
+      });
+      expect(await db.coreConfigDao.searchRow(selected.id), selected);
+      expect(await db.coreConfigDao.searchRow(profiles.$2.id), isNull);
+      expect(await db.coreConfigDao.allActiveServerRows(), hasLength(2));
+    } finally {
+      finish.complete();
+      await connecting;
+    }
+    expect(coordinator.state.value.phase, ConnectionPhase.connected);
+    expect(coordinator.state.value.runtime?.entries, isEmpty);
+    expect(coordinator.state.value.runtime?.profile?.id, selected.id);
+    expect((await coordinator.readReferences()).runningIds, {selected.id});
+    expect(await db.coreConfigDao.searchRow(selected.id), selected);
+  });
+
+  test(
     'an unpersisted pending runtime protects nodes while native start waits',
     () async {
       final pending = _runtime('pending', entryIds: const [2, 3], exitId: 4);
@@ -1625,5 +1747,71 @@ ConnectionRuntime _runtime(
     compiled: compiled,
     platform: ConnectionPlatform.android,
     request: StartVpnRequest(null, null, '18003', jsonEncode(invoke.toJson())),
+  );
+}
+
+Future<(CoreConfigData, CoreConfigData)> _providerRows(AppDatabase db) async {
+  final sourceId = await db.subscriptionDao.insertRow(
+    SubscriptionCompanion.insert(
+      name: 'Provider',
+      url: 'https://example.com/provider',
+      timestamp: DateTime(2026, 10, 12),
+      mode: Value(SubscriptionMode.providerManaged.name),
+    ),
+  );
+  Future<CoreConfigData> insert(String name) async {
+    final id = await db.coreConfigDao.insertRow(
+      CoreConfigCompanion.insert(
+        name: name,
+        type: CoreConfigType.Remnawave.name,
+        tags: '',
+        delay: PingDelayConstants.unknown,
+        subId: sourceId,
+        data: Value(
+          base64Encode(
+            utf8.encode(
+              jsonEncode({
+                'outbounds': [
+                  {'tag': 'provider-proxy', 'protocol': 'freedom'},
+                ],
+              }),
+            ),
+          ),
+        ),
+      ),
+    );
+    return (await db.coreConfigDao.searchRow(id))!;
+  }
+
+  return (await insert('Selected profile'), await insert('Other old profile'));
+}
+
+ConnectionRuntime _providerRuntime(CoreConfigData row) {
+  final configuration = ConnectionConfiguration(
+    connection: ConnectionSettings(selection: ServerSelection.server(row.id)),
+  );
+  final profile = ResolvedProfile.fromRow(row);
+  final xrayJson = jsonEncode(profile.config);
+  return ConnectionRuntime.create(
+    configuration: configuration,
+    compiled: CompiledConnection(
+      xrayJson: xrayJson,
+      entries: const [],
+      finalExit: null,
+      nodeTags: const {},
+      profile: profile,
+    ),
+    platform: ConnectionPlatform.android,
+    request: StartVpnRequest(
+      null,
+      null,
+      '18003',
+      jsonEncode(
+        LibXrayInvokeRequest(
+          method: LibXrayMethod.runXray,
+          payload: RunXrayRequest(xrayJson).toJson(),
+        ).toJson(),
+      ),
+    ),
   );
 }

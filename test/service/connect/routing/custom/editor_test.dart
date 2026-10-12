@@ -2,9 +2,12 @@ import 'package:onexray/core/errors/failure.dart';
 
 import 'dart:convert';
 
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/constants.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/connect/compiler.dart';
@@ -428,6 +431,204 @@ void main() {
     );
   });
 
+  for (final connected in [false, true]) {
+    test(
+      'provider ${connected ? 'runtime' : 'selection'} saves and deletes selected Custom preferences without reconnecting',
+      () async {
+        final id = await CustomRoutingService(db).save(_state('Work'));
+        final profile = await _providerRow(db);
+        final configuration = ConnectionConfiguration(
+          connection: ConnectionSettings(
+            selection: ServerSelection.server(profile.id),
+            trafficMode: TrafficMode.custom,
+            customId: id,
+          ),
+        );
+        await db.connectionConfigDao.commit(
+          configurationJson: configuration.encode(),
+        );
+        final runtime = connected
+            ? _runtime(
+                'provider',
+                configuration,
+                profile: ResolvedProfile.fromRow(profile),
+              )
+            : null;
+        final host = HostConnection(
+          connected ? VpnStatus.connected : VpnStatus.disconnected,
+          runtime: runtime,
+        );
+        final coordinator = await _initialize(
+          ConnectionCoordinator(
+            database: db,
+            readRuntime: () async => runtime,
+            inspect: (_, {observedStatus}) async => host,
+            prepare: (_, _) async => throw StateError(
+              'Custom preferences must not prepare a provider',
+            ),
+            start: (_) async => throw StateError(
+              'Custom preferences must not start a provider',
+            ),
+            stop: () async =>
+                throw StateError('Custom preferences must not stop a provider'),
+          ),
+        );
+        var validations = 0;
+        final service = CustomRoutingEditorService(
+          database: db,
+          coordinator: coordinator,
+          testXray: (_) async {
+            validations++;
+            return '';
+          },
+          prepare: (_, _, _) async =>
+              throw StateError('Custom drafts must not prepare a provider'),
+        );
+        final draft = await service.load(id);
+        expect(
+          await service.save(
+            CustomRoutingEditorDraft(
+              original: draft.original,
+              state: _state(
+                'Updated',
+                entries: 2,
+                action: RoutingRuleAction.proxy,
+              ),
+            ),
+            confirmReconnect: () async => throw StateError(
+              'Provider Custom preferences do not require reconnects',
+            ),
+          ),
+          id,
+        );
+        expect(validations, 1);
+        final updated = (await service.load(id)).original!;
+        final state = CustomRoutingService.read(updated);
+        expect(state.name, 'Updated');
+        expect(state.entryCount, 2);
+        expect(state.rules.single.action, RoutingRuleAction.proxy);
+        expect(
+          (await coordinator.configuration).encode(),
+          configuration.encode(),
+        );
+        expect(coordinator.state.value.runtime, same(runtime));
+
+        expect(
+          await service.delete(
+            updated,
+            confirm: (selected, reconnect) async {
+              expect(selected, isTrue);
+              expect(reconnect, isFalse);
+              return true;
+            },
+          ),
+          isTrue,
+        );
+        expect(await db.routingProfileDao.searchRow(id), isNull);
+        final saved = await coordinator.configuration;
+        expect(saved.connection.trafficMode, TrafficMode.smart);
+        expect(saved.connection.customId, isNull);
+        expect(saved.connection.selection.id, profile.id);
+        expect(saved.connection.expert, isFalse);
+        expect(coordinator.state.value.runtime, same(runtime));
+        expect(
+          coordinator.state.value.phase,
+          connected ? ConnectionPhase.connected : ConnectionPhase.disconnected,
+        );
+        if (runtime != null) {
+          expect(runtime.configuration.connection.customId, id);
+        }
+        expect(await db.coreConfigDao.searchRow(profile.id), profile);
+      },
+    );
+  }
+
+  test(
+    'a provider runtime old Custom ID does not block inactive preference edits',
+    () async {
+      final id = await CustomRoutingService(db).save(_state('Old preference'));
+      final profile = await _providerRow(db);
+      final runningConfiguration = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          selection: ServerSelection.server(profile.id),
+          trafficMode: TrafficMode.custom,
+          customId: id,
+        ),
+      );
+      final runtime = _runtime(
+        'provider',
+        runningConfiguration,
+        profile: ResolvedProfile.fromRow(profile),
+      );
+      final configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          selection: ServerSelection.server(profile.id),
+        ),
+      );
+      await db.connectionConfigDao.commit(
+        configurationJson: configuration.encode(),
+      );
+      final host = HostConnection(VpnStatus.connected, runtime: runtime);
+      final coordinator = await _initialize(
+        ConnectionCoordinator(
+          database: db,
+          readRuntime: () async => runtime,
+          inspect: (_, {observedStatus}) async => host,
+          prepare: (_, _) async => throw StateError(
+            'Inactive preferences must not prepare a provider',
+          ),
+          start: (_) async => throw StateError(
+            'Inactive preferences must not start a provider',
+          ),
+          stop: () async =>
+              throw StateError('Inactive preferences must not stop a provider'),
+        ),
+      );
+      final service = CustomRoutingEditorService(
+        database: db,
+        coordinator: coordinator,
+        testXray: (_) async => '',
+        prepare: (_, _, _) async => throw StateError(
+          'Inactive Custom drafts must not prepare a provider',
+        ),
+      );
+      final draft = await service.load(id);
+      expect(
+        await service.save(
+          CustomRoutingEditorDraft(
+            original: draft.original,
+            state: _state('Updated preference', entries: 2),
+          ),
+          confirmReconnect: () async => throw StateError(
+            'Inactive preferences do not require reconnects',
+          ),
+        ),
+        id,
+      );
+      final updated = (await service.load(id)).original!;
+      expect(
+        await service.delete(
+          updated,
+          confirm: (selected, reconnect) async {
+            expect(selected, isFalse);
+            expect(reconnect, isFalse);
+            return true;
+          },
+        ),
+        isTrue,
+      );
+      expect(await db.routingProfileDao.searchRow(id), isNull);
+      expect(
+        (await coordinator.configuration).encode(),
+        configuration.encode(),
+      );
+      expect(coordinator.state.value.runtime, same(runtime));
+      expect(coordinator.state.value.phase, ConnectionPhase.connected);
+      expect(runtime.configuration.connection.customId, id);
+      expect(await db.coreConfigDao.searchRow(profile.id), profile);
+    },
+  );
+
   test(
     'unselected edits and stale drafts do not overwrite newer assets',
     () async {
@@ -518,8 +719,9 @@ Future<ConnectionCoordinator> _initialize(
 
 ConnectionRuntime _runtime(
   String digit,
-  ConnectionConfiguration configuration,
-) {
+  ConnectionConfiguration configuration, {
+  ResolvedProfile? profile,
+}) {
   const text = '{"outbounds":[{"protocol":"freedom"}]}';
   final invoke = LibXrayInvokeRequest(
     method: LibXrayMethod.runXray,
@@ -532,6 +734,7 @@ ConnectionRuntime _runtime(
       entries: [],
       finalExit: null,
       nodeTags: {},
+      profile: profile,
     ),
     platform: ConnectionPlatform.android,
     request: StartVpnRequest(
@@ -541,4 +744,28 @@ ConnectionRuntime _runtime(
       jsonEncode(invoke.toJson()),
     ),
   );
+}
+
+Future<CoreConfigData> _providerRow(AppDatabase db) async {
+  final sourceId = await db.subscriptionDao.insertRow(
+    SubscriptionCompanion.insert(
+      name: 'Provider',
+      url: 'https://example.com/provider',
+      timestamp: DateTime(2026, 10, 12),
+      mode: Value(SubscriptionMode.providerManaged.name),
+    ),
+  );
+  final id = await db.coreConfigDao.insertRow(
+    CoreConfigCompanion.insert(
+      name: 'Provider profile',
+      type: CoreConfigType.Remnawave.name,
+      tags: '',
+      delay: PingDelayConstants.unknown,
+      subId: sourceId,
+      data: Value(
+        base64Encode(utf8.encode('{"outbounds":[{"protocol":"freedom"}]}')),
+      ),
+    ),
+  );
+  return (await db.coreConfigDao.searchRow(id))!;
 }

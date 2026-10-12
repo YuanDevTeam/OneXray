@@ -1,8 +1,11 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/constants.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
@@ -426,6 +429,117 @@ void main() {
     expect((await coordinator.configuration).encode(), saved.encode());
   });
 
+  for (final connected in [false, true]) {
+    test(
+      'provider ${connected ? 'session' : 'selection'} saves Smart preferences without reconnecting',
+      () async {
+        final sourceId = await db.subscriptionDao.insertRow(
+          SubscriptionCompanion.insert(
+            name: 'Provider',
+            url: 'https://example.com/provider',
+            timestamp: DateTime(2026, 10, 12),
+            mode: Value(SubscriptionMode.providerManaged.name),
+          ),
+        );
+        final profileId = await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: 'Provider profile',
+            type: CoreConfigType.Remnawave.name,
+            tags: '',
+            delay: PingDelayConstants.unknown,
+            subId: sourceId,
+            data: Value(
+              base64Encode(
+                utf8.encode('{"outbounds":[{"protocol":"freedom"}]}'),
+              ),
+            ),
+          ),
+        );
+        final profile = (await db.coreConfigDao.searchRow(profileId))!;
+        final original = ConnectionConfiguration(
+          connection: ConnectionSettings(
+            selection: ServerSelection.server(profileId),
+          ),
+        );
+        await db.connectionConfigDao.commit(
+          configurationJson: original.encode(),
+        );
+        final runtime = connected
+            ? _runtime(
+                'provider',
+                original,
+                profile: ResolvedProfile.fromRow(profile),
+              )
+            : null;
+        if (connected) {
+          // A mode-only edit keeps the current provider session running even
+          // though its old cache is no longer in the active server list.
+          final source = (await db.subscriptionDao.searchRow(sourceId))!;
+          await db.subscriptionDao.updateRow(
+            source.copyWith(mode: SubscriptionMode.appManaged.name),
+          );
+        }
+        final host = HostConnection(
+          connected ? VpnStatus.connected : VpnStatus.disconnected,
+          runtime: runtime,
+        );
+        final coordinator = await _initialize(
+          ConnectionCoordinator(
+            database: db,
+            readRuntime: () async => runtime,
+            inspect: (_, {observedStatus}) async => host,
+            prepare: (_, _) async => throw StateError(
+              'Smart preferences must not prepare a provider',
+            ),
+            start: (_) async =>
+                throw StateError('Smart preferences must not start a provider'),
+            stop: () async =>
+                throw StateError('Smart preferences must not stop a provider'),
+          ),
+        );
+        var validations = 0;
+        final service = SmartRoutingEditorService(
+          database: db,
+          coordinator: coordinator,
+          loadRegions: () async =>
+              throw StateError('Provider sessions do not use Smart rules'),
+          testXray: (_) async {
+            validations++;
+            return '';
+          },
+        );
+        final smart = SmartRoutingSettings(fragment: true, blockAds: true);
+        expect(
+          await service.save(
+            original: original,
+            smart: smart,
+            confirmReconnect: () async => throw StateError(
+              'Provider sessions do not require Smart reconnects',
+            ),
+          ),
+          isTrue,
+        );
+        expect(validations, 1);
+        final saved = await coordinator.configuration;
+        expect(saved.connection.smart.toJson(), smart.toJson());
+        expect(saved.connection.selection.id, profileId);
+        expect(saved.connection.expert, isFalse);
+        expect(coordinator.state.value.runtime, same(runtime));
+        expect(
+          coordinator.state.value.phase,
+          connected ? ConnectionPhase.connected : ConnectionPhase.disconnected,
+        );
+        expect(await db.coreConfigDao.searchRow(profileId), profile);
+        expect(
+          (await db.subscriptionDao.searchRow(sourceId))!.mode,
+          connected
+              ? SubscriptionMode.appManaged.name
+              : SubscriptionMode.providerManaged.name,
+        );
+      },
+    );
+  }
+
   test(
     'active save cancels without writes and failed reconnect is not restored',
     () async {
@@ -611,8 +725,9 @@ Future<ConnectionCoordinator> _initialize(
 
 ConnectionRuntime _runtime(
   String digit,
-  ConnectionConfiguration configuration,
-) {
+  ConnectionConfiguration configuration, {
+  ResolvedProfile? profile,
+}) {
   const text = '{"outbounds":[{"protocol":"freedom"}]}';
   return ConnectionRuntime.create(
     configuration: configuration,
@@ -621,6 +736,7 @@ ConnectionRuntime _runtime(
       entries: [],
       finalExit: null,
       nodeTags: {},
+      profile: profile,
     ),
     platform: ConnectionPlatform.android,
     request: StartVpnRequest(

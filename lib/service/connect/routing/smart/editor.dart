@@ -6,6 +6,7 @@ import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/service/connect/compiler.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/provider_mode.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/custom/geodata_suggestions.dart';
@@ -88,7 +89,13 @@ class SmartRoutingEditorService {
       throw const ConnectionHostException('configurationChanged');
     }
     final connection = original.connection;
+    final providerActive = await usesProviderConfiguration(
+      db,
+      connection,
+      runtime: coordinator.state.value.runtime,
+    );
     final affectsRuntime =
+        !providerActive &&
         !connection.expert &&
         connection.trafficMode == TrafficMode.smart &&
         !sameRuntime(connection, smart, await regions());

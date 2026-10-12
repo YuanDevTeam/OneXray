@@ -12,6 +12,7 @@ import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/shared/share/xray_share_reader.dart';
 import 'package:onexray/service/shared/xray/validation.dart';
+import 'package:onexray/service/shared/xray/remnawave.dart';
 
 final class SubscriptionConfigurationResult {
   final List<CoreConfigCompanion> rows;
@@ -108,7 +109,9 @@ class SubscriptionConfigurationReader {
             'A complete Xray configuration needs nonempty outbounds',
           );
         }
-        final error = await _validate(XrayValidation.raw(config));
+        final error = await _validate(
+          XrayValidation.raw(RemnawaveAdapter.adapt(config)),
+        );
         if (error.isNotEmpty) throw FormatException(error);
         final name =
             [config['remarks'], config['name']]

@@ -11,6 +11,7 @@ import 'package:onexray/service/connect/routing/region_catalog.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
+import 'package:onexray/service/shared/xray/remnawave.dart';
 
 final catalog = RegionCatalog.fromJson(
   {
@@ -62,6 +63,222 @@ ResolvedServer node(int id, {String? address}) => ResolvedServer(
 );
 
 void main() {
+  test('copying a provider profile into personal Raw retains its tunnel routing semantics', () {
+    final source = <String, dynamic>{
+      'inbounds': [
+        {'tag': 'provider', 'protocol': 'http', 'port': 1080},
+      ],
+      'dns': {
+        'servers': ['1.1.1.1'],
+      },
+      'outbounds': [
+        {'tag': 'first', 'protocol': 'freedom'},
+      ],
+      'routing': {
+        'rules': [
+          {
+            'inboundTag': ['provider'],
+            'outboundTag': 'first',
+          },
+        ],
+      },
+    };
+    final profile = ResolvedProfile(
+      id: 99,
+      sourceId: 7,
+      name: 'Provider',
+      config: source,
+    );
+    final copied = RemnawaveAdapter.adapt(source)..['name'] = 'Personal Raw';
+    final provider = ConnectionCompiler.compile(
+      settings: ConnectionSettings(selection: const ServerSelection.server(99)),
+      entries: const [],
+      profile: profile,
+      regions: catalog,
+      options: options(),
+    ).config;
+    final raw = ConnectionCompiler.compile(
+      settings: ConnectionSettings(expert: true),
+      entries: const [],
+      raw: copied,
+      regions: catalog,
+      options: options(),
+    ).config..remove('name');
+    expect(raw, provider);
+    expect(copied.containsKey('metrics'), isFalse);
+    expect(copied.containsKey('log'), isFalse);
+    expect(copied.containsKey('env'), isFalse);
+    expect((source['inbounds'] as List).single['tag'], 'provider');
+  });
+
+  test('provider profiles bypass App routes and keep the complete graph on every platform', () {
+    final source = <String, dynamic>{
+      'remarks': 'Provider',
+      'inbounds': [
+        {
+          'tag': 'provider',
+          'protocol': 'socks',
+          'port': 1080,
+          'sniffing': {
+            'enabled': true,
+            'destOverride': ['http', 'tls'],
+          },
+        },
+      ],
+      'dns': {
+        'servers': ['1.1.1.1'],
+        'disableCache': true,
+      },
+      'outbounds': [
+        {
+          'tag': 'edge',
+          'protocol': 'socks',
+          'streamSettings': {
+            'sockopt': {'dialerProxy': 'last'},
+          },
+        },
+        {'tag': 'last', 'protocol': 'freedom'},
+      ],
+      'routing': {
+        'domainStrategy': 'IPIfNonMatch',
+        'rules': [
+          {
+            'inboundTag': ['provider'],
+            'ip': ['203.0.113.0/24'],
+            'balancerTag': 'provider-pool',
+          },
+        ],
+        'balancers': [
+          {
+            'tag': 'provider-pool',
+            'selector': ['edge'],
+            'fallbackTag': 'last',
+            'strategy': {'type': 'leastPing'},
+          },
+        ],
+      },
+      'observatory': {
+        'subjectSelector': ['edge'],
+        'probeURL': 'https://example.com/probe',
+      },
+    };
+    final before = jsonEncode(source);
+    final profile = ResolvedProfile(
+      id: 99,
+      sourceId: 7,
+      name: 'Row metadata',
+      config: source,
+    );
+    for (final platform in ConnectionPlatform.values) {
+      final compiled = ConnectionCompiler.compile(
+        settings: ConnectionSettings(
+          selection: const ServerSelection.server(99),
+          trafficMode: TrafficMode.custom,
+          smart: SmartRoutingSettings(
+            entryCount: 3,
+            finalExitId: 123,
+            fakeDns: true,
+            fragment: true,
+            blockAds: true,
+          ),
+        ),
+        entries: const [],
+        profile: profile,
+        regions: catalog,
+        options: options(
+          platform: platform,
+          windowsMode: WindowsMode.msix,
+          interfaceName: 'Ethernet',
+          lanProxyEnabled: true,
+        ),
+      );
+      final actual = compiled.config;
+      expect(compiled.profile, same(profile));
+      expect(compiled.entries, isEmpty);
+      expect(compiled.nodeTags, isEmpty);
+      expect(actual['routing']['domainStrategy'], 'IPIfNonMatch');
+      expect(actual['routing']['balancers'], source['routing']['balancers']);
+      expect(actual['observatory'], source['observatory']);
+      final rules = actual['routing']['rules'] as List;
+      expect(rules, hasLength(2));
+      expect(rules.first['outboundTag'], 'app-remna-dns');
+      expect(rules.last['inboundTag'], ['provider', 'tunIn']);
+      expect(rules.last['balancerTag'], 'provider-pool');
+      final outbounds = actual['outbounds'] as List;
+      expect(outbounds.map((value) => value['tag']), [
+        'edge',
+        'last',
+        'app-remna-dns',
+      ]);
+      expect(
+        outbounds.first['streamSettings']['sockopt']['dialerProxy'],
+        'last',
+      );
+      expect(actual['dns']['disableCache'], isTrue);
+      expect(actual['metrics']['listen'], '127.0.0.1:18186');
+      expect(actual['stats'], isEmpty);
+      final inbounds = actual['inbounds'] as List;
+      expect(inbounds.where((value) => value['tag'] == 'tunIn'), hasLength(1));
+      expect(
+        inbounds.where((value) => value['tag'] == lanProxyInboundTag),
+        isEmpty,
+      );
+      expect(
+        inbounds.first['protocol'],
+        platform == ConnectionPlatform.windows ? 'socks' : 'tun',
+      );
+      expect(
+        inbounds.first['sniffing'],
+        (source['inbounds'] as List).single['sniffing'],
+      );
+    }
+    expect(jsonEncode(source), before);
+  });
+
+  test('provider compilation requires one matching fixed profile without normal nodes', () {
+    final profile = ResolvedProfile(
+      id: 99,
+      sourceId: 7,
+      name: 'Provider',
+      config: {
+        'outbounds': [
+          {'tag': 'first', 'protocol': 'freedom'},
+        ],
+      },
+    );
+    for (final settings in [
+      ConnectionSettings(),
+      ConnectionSettings(selection: const ServerSelection.server(98)),
+      ConnectionSettings(
+        expert: true,
+        selection: const ServerSelection.server(99),
+      ),
+    ]) {
+      expect(
+        () => ConnectionCompiler.compile(
+          settings: settings,
+          entries: const [],
+          profile: profile,
+          regions: catalog,
+          options: options(),
+        ),
+        throwsFormatException,
+      );
+    }
+    expect(
+      () => ConnectionCompiler.compile(
+        settings: ConnectionSettings(
+          selection: const ServerSelection.server(99),
+        ),
+        entries: [node(1)],
+        profile: profile,
+        regions: catalog,
+        options: options(),
+      ),
+      throwsFormatException,
+    );
+  });
+
   test(
     'LAN sharing adds one mixed SOCKS inbound without changing selected routes',
     () {

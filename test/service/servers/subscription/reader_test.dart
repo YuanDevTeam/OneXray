@@ -53,6 +53,58 @@ Map<String, dynamic> _saved(CoreConfigCompanion row) =>
         as Map<String, dynamic>;
 
 void main() {
+  test('native validation uses tunnel adaptation while stored provider JSON stays original', () async {
+    final source = _config('Ingress');
+    source['inbounds'] = [
+      {
+        'tag': 'provider',
+        'protocol': 'socks',
+        'port': 1080,
+        'sniffing': {
+          'enabled': true,
+          'destOverride': ['tls'],
+        },
+      },
+    ];
+    (source['routing']['rules'] as List).first['inboundTag'] = ['provider'];
+    Map<String, dynamic>? validation;
+    final result = await _reader(
+      validate: (text) async {
+        validation = jsonDecode(text) as Map<String, dynamic>;
+        return '';
+      },
+    ).read(jsonEncode(source), _input);
+    final inbounds = validation!['inbounds'] as List;
+    expect(inbounds.where((value) => value['tag'] == 'tunIn'), hasLength(1));
+    expect(inbounds.first['protocol'], 'socks');
+    expect(
+      inbounds.first['sniffing'],
+      (source['inbounds'] as List).single['sniffing'],
+    );
+    final rules = validation!['routing']['rules'] as List;
+    expect(rules.first['port'], '53');
+    expect(rules.first['outboundTag'], 'app-remna-dns');
+    expect(rules.last['inboundTag'], ['provider', 'tunIn']);
+    expect(_saved(result.rows.first), source);
+    final conflicting = _config('Conflicting ingress')
+      ..['inbounds'] = [
+        {
+          'tag': 'one',
+          'protocol': 'socks',
+          'sniffing': {'enabled': true},
+        },
+        {
+          'tag': 'two',
+          'protocol': 'http',
+          'sniffing': {'enabled': false},
+        },
+      ];
+    await expectLater(
+      _reader().read(jsonEncode([source, conflicting]), _input),
+      throwsFormatException,
+    );
+  });
+
   test(
     'multiple profiles preserve complete objects and default to provider mode',
     () async {

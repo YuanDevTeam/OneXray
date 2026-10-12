@@ -6,8 +6,46 @@ import 'package:onexray/core/pigeon/constants.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/shared/xray/validation.dart';
+import 'package:onexray/service/shared/xray/remnawave.dart';
 
 void main() {
+  test('provider validation retains adapted graph and replaces only the disposable tunnel', () {
+    final source = <String, dynamic>{
+      'inbounds': [
+        {'tag': 'provider', 'protocol': 'http', 'port': 1080},
+      ],
+      'outbounds': [
+        {'tag': 'first', 'protocol': 'freedom'},
+      ],
+      'dns': {
+        'servers': ['fakedns', '1.1.1.1'],
+      },
+      'fakedns': [
+        {'ipPool': '198.19.0.0/16', 'poolSize': 1024},
+      ],
+      'routing': {
+        'domainStrategy': 'IPIfNonMatch',
+        'rules': [
+          {
+            'inboundTag': ['provider'],
+            'outboundTag': 'first',
+          },
+        ],
+      },
+    };
+    final adapted = RemnawaveAdapter.adapt(source);
+    final validation = jsonDecode(XrayValidation.raw(adapted));
+    expect(validation['routing'], adapted['routing']);
+    expect(validation['outbounds'], adapted['outbounds']);
+    expect(validation['fakedns'], source['fakedns']);
+    final inbounds = validation['inbounds'] as List;
+    expect(inbounds.first['protocol'], 'socks');
+    expect(inbounds.first['tag'], 'tunIn');
+    expect(inbounds.first['sniffing']['destOverride'], contains('fakedns'));
+    expect((adapted['inbounds'] as List).first['protocol'], 'tun');
+    expect((source['inbounds'] as List).single['tag'], 'provider');
+  });
+
   test(
     'node validation preserves protocol fields without runtime resources',
     () {
