@@ -3,13 +3,15 @@
 ## 配置边界
 
 普通模式使用 App 节点与智能/常规自定义路由；高级自定义是仍复用 App 节点的 JSON 模板；
-专家模式使用自带节点的完整 Raw JSON。高级模板不提供逐字段表单，不与常规表单双向转换。
+专家模式使用自带节点的个人 Raw JSON。订阅完整配置使用独立 Remnawave 类型，逐项选中后执行整份提供方图，
+不要求切到专家模式、不占用个人 Raw 配额。高级模板不提供逐字段表单，不与常规表单双向转换。
 常规/高级自定义共用三份上限，已有记录类型不可切换。Raw 新增最多三份，旧库超额行完整保留、可选和可编辑。
 持久化、升级和导入事务见 [数据管理](data-management.md) 与 [服务器及分享](subscriptions-and-sharing.md)。
 
 普通运行直接构造 `XrayJson` 及嵌套模型，最终一次序列化；不先拼完整 Map 再 `fromJson → toJson`。
 模型只定义必要字段及标准序列化，不承担构造或协议解析。节点 outbound 保持完整 Map。
 高级模板/Raw 使用独立 Map 编译路径，分别按模板边界或完整配置保留用户字段，不经普通模型裁剪。
+提供方完整配置使用 Map 与共享 Raw 运行注入，加上独立入口适配；保存原图不写入运行字段。
 编译器是纯值转换：不读库、分配端口、写文件或启动 Core；App 运行字段只由对应编译路径生成。
 
 Xray 字段有效性以 libXray 为准，App 不重复维护协议、算法、网络、端口或重复 tag 等内核校验。
@@ -19,7 +21,8 @@ App 保留自身名称、资产数量/交换格式、文件链接安全、事务
 
 ## 普通配置编译
 
-自动/订阅/地区按路由要求选择 1–3 个可用接入节点；固定节点及全部使用 VPN 使用一个。
+自动、App 管理的订阅或手工分组按路由要求选择 1–3 个可用接入节点；固定节点及全部使用 VPN 使用一个。
+提供方方式的来源和完整配置不参与这些普通候选、最终出口或单 outbound 测速。
 已运行节点不因后台测速或订阅更新热替换；节点命名与排序见 [服务器及分享](subscriptions-and-sharing.md)。
 
 代理规则固定使用 `balancerTag: proxy`，单节点同样使用 balancer。selector 填完整运行 tag，
@@ -96,7 +99,7 @@ selector 与 subjectSelector 来自实际完整运行 tag，不把辅助出站�
 默认探测 URL 为 `https://www.google.com/generate_204`，间隔 60s，并发探测开启。
 普通页面提供 30/60/300 秒，导入/高级参数接受至少 10 秒的有限 Go duration；URL 必须为合法 HTTP(S)。
 停止/重连后的旧观测不混入新运行。连接页复用 metrics 展示链路未知、可用、失败、延迟和最近探测时间；
-无报告或 metrics 暂不可读显示未知，不判定 VPN 已断开，不写入手动测速或地区缓存。
+无报告或 metrics 暂不可读显示未知，不判定 VPN 已断开，不写入手动测速缓存。
 Alive 只表示探测 URL 的 HTTP 可达性，不表示 Netflix 解锁、AI 服务可用、带宽或已有连接实际出口。
 
 ### Fragment
@@ -163,6 +166,42 @@ App 管理日志、metrics、统计、policy、env、运行 balancer/observatory
 不测速、不 Start、不加启动预检；保存、依赖发布、回滚与普通路由共享。
 导出只含槽和用户配置，依赖声明仍仅为交换元数据。
 
+## 提供方完整配置
+
+`CoreConfigType.Remnawave` 归属于订阅，每项数组对象是一条完整配置。名称与来源身份在行元数据保存，
+选择固定配置即编译一份完整图，不按 App 接入数量拆分、测速或拼节点；缺行、来源或 mode 不兼容明确失败。
+来源组只能浏览和逐项选择，不能把完整配置来源当作自动节点池。导入和双缓存合同见 [订阅](subscriptions-and-sharing.md#完整-xray-json)。
+
+运行在深副本复用 Raw 的资源路径、Geodata 管理、日志、metrics、stats/policy、IPv6 DNS 查询策略、
+物理网卡、端口与平台 TUN 注入。不叠加 Smart/Custom 业务规则、地区直连、App Fragment 或 LAN 共享。
+provider 原有 outbounds 顺序/tag、routing 规则顺序/domainStrategy、DNS、balancers、observatory、链式引用保留；
+共享 Raw 的 App 托管字段仍按下节覆盖，不能把运行称为原文逐字透传。
+
+`RemnawaveAdapter` 只负责入口语义，保存校验、运行、复制个人 Raw 和完整分享使用同一适配：
+
+- 只生成或合并一份 `tunIn`，平台字段由共享 Raw 注入，Android/Apple 使用原生 FD，MSIX 使用私有 SOCKS/TUN 后端。
+  额外 TUN、重复 `tunIn`、占用托管端口或无法满足的资源依赖明确失败。
+- 一个 SOCKS/HTTP 入口，或多个嗅探与入口限定路由等价的入口，把其 sniffing 深复制到托管 TUN；
+  相关规则只向 `inboundTag` 补 `tunIn`，保留其它条件和原 tag。入口冲突明确失败，不任意挑选或合并。
+  无 provider 嗅探时使用 App 新 TUN 的默认设置。FakeDNS 只向 TUN 副本追加域名恢复，原 proxy 入站不改；
+  显式关闭嗅探时 FakeDNS 接入报错，池和 DNS server 保留 provider 值。
+- 源配置定义内置 DNS 或使用 FakeDNS 时，复用可确定兼容且在有效优先级上的原生 DNS 入口；
+  不能只凭 `protocol=dns` 判定自定义转发与内置查询等价。否则在出站末尾追加
+  `tag=app-remna-dns / protocol=dns / settings={}`，不设置 dialerProxy，前置仅匹配
+  `tunIn + TCP/UDP 53` 的规则，使用 Core 默认 A/AAAA hijack 和同一内置 DNS。
+  保留原 DNS servers/hosts/tag；与已有明确自定义 DNS 接入冲突时失败，不静默改其语义。
+- 添加桥接前检查保留 tag、规则引用、balancer 前缀 selector 和观察 subjectSelector 冲突，
+  DNS 自身 tag 不得与 `tunIn` 冲突。不补通用 proxy/direct/DoT 或 TUN catch-all，不重命名 provider 图。
+  没有内置 DNS/FakeDNS 时按原规则转发系统 DNS。
+
+`IPIfNonMatch`、默认首出站和 provider 已有兜底仍遵循 Core 语义；App 不把 balancer 存在当作默认出口。
+只补有界 DNS 规则，不加入会改变首轮未命中和第二轮 IP 匹配的无条件规则。
+
+编译结果和 start metadata 保存 profile ID/source ID/name/type，准备、待启动和运行引用都保护完整配置原行。
+更新和 mode 切换不热替换运行；连接页仍使用启动时名称快照。App 路由控件停用并解释偏好保留，
+Smart/Custom 保存只更新未应用偏好，不为提供方会话重连；平台隧道等有效设置仍沿原确认重连规则。
+提供方内部 balancer/observatory 由 Core 执行，不显示为 App 手动延迟或普通自动链路观察。
+
 ## Raw JSON
 
 Raw 保存原文，不经过 `XrayJson` 或常规 State，运行只改深副本。
@@ -186,6 +225,9 @@ iOS 模拟器完全由 Swift 判断，将 tunIn 转为 SOCKS，原子写回 run/
 `testXray` 执行 LoadConfig → New → Close，不 Start；允许进程级副作用，不做环境快照恢复。
 通过只证明投影能构造/关闭，不保证监听、TUN、授权或连通性；必要本地文件缺失直接报错，不下载兜底。
 同进程已有受管理 Core 时 testXray 拒绝，需重连的编辑遵循先停后校验，不绕过生命周期。
+Android VPN 的 :native、Apple 真机 extension 和桌面 session Core 与 UI 的串行 Invoke 通道隔离，
+因此不按全局 VPN 状态预先禁止完整订阅校验；iOS Simulator 的代理 Core 可在同一 App 进程，仍保留已有拒绝。
+刷新通过不表示真实 VPN/网络/平台已验收，需对应环境验证隔离及当前会话持续运行。
 
 ## 局域网代理共享
 
@@ -214,8 +256,9 @@ Turning sharing off in settings therefore does not close an existing listener. S
 that running listener but leaves the saved input unchanged; a background start can still reuse it.
 Other platform-policy changes retain their existing reconnect behavior.
 
-Complete Raw JSON is unaffected by managed sharing. While using Raw, saving sharing settings only
+Complete Raw JSON and provider configurations are unaffected by managed sharing. In these modes, saving sharing settings only
 stores them for other modes; no inbound is added and no sharing-specific tag/port conflict is imposed.
+Inactive advanced-template conflicts are not checked when a provider configuration is selected or running.
 The configured sharing port is `1024–65535`. In applicable modes, enabling sharing checks the saved
 HTTP API port and the selected advanced template's inbound ports/tags; user inbounds are not silently
 replaced. HTTP API port edits also avoid enabled sharing's configured port. Actual external port
@@ -266,12 +309,13 @@ libXray 原始原因完整可复制，不猜字段，不把投影行号当原文
 文件/剪贴板错误完整展示，仅原 JSON 语法错误提供原文位置，不把链接/下载失败伪装成编辑位置。
 提示与 Core v26.10.10 的 XDNS names/addrs、MASQUE WARP、TLS useSystemCA 和 DNS/嗅探结构保持一致。
 高级模板只提示其可保存的策略/探测字段，不提示运行 selector/fallback/subjectSelector；Raw 保留完整模块提示。
-Lua 不纳入本轮提示、普通模型或资源管理。
+Lua 不属于 JSON 编辑提示、普通模型或资源管理范围。
 
 ## 运行协调与统计
 
 `ConnectionCoordinator` 串行停止并确认旧运行，再准备/启动/确认新运行，最后提交设置。
-run/start.json 是唯一原生启动请求：coreInvokeText 为实际输入，metadataJson 仅还原运行描述、节点保护和起始时间。
+run/start.json 是唯一原生启动请求：coreInvokeText 为实际输入，metadataJson 仅还原运行描述、资产保护和起始时间。
+旧 metadata 缺 profile 仍能恢复；提供方 profile 字段与 nodeIds 保护完整配置，不因 entries 为空而丢失身份。
 不另存 App 计划、快照或跨进程提交日志。文件队列在连接命令取得执行权后进入；只读状态/metrics 不入队。
 停止失败不继续准备；启停已开始后的失败尽力停止本次运行并进入 failed，不恢复旧连接/输入。
 不能确认停止时仍以原生状态为准，缺少 metrics 或描述不等于断开。
