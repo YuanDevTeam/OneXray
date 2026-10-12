@@ -31,6 +31,7 @@ class SharePageState {
     this.appLink = '',
     this.linkError = '',
     this.format = ShareLinkFormat.original,
+    this.supportsOriginal = true,
     this.qrExpanded = false,
     this.qrCode,
     this.qrError = '',
@@ -43,6 +44,7 @@ class SharePageState {
   final String appLink;
   final String linkError;
   final ShareLinkFormat format;
+  final bool supportsOriginal;
   final bool qrExpanded;
   final Uint8List? qrCode;
   final String qrError;
@@ -58,6 +60,7 @@ class SharePageState {
     String? appLink,
     String? linkError,
     ShareLinkFormat? format,
+    bool? supportsOriginal,
     bool? qrExpanded,
     Uint8List? qrCode,
     bool clearQr = false,
@@ -70,6 +73,7 @@ class SharePageState {
     appLink: appLink ?? this.appLink,
     linkError: linkError ?? this.linkError,
     format: format ?? this.format,
+    supportsOriginal: supportsOriginal ?? this.supportsOriginal,
     qrExpanded: qrExpanded ?? this.qrExpanded,
     qrCode: clearQr ? null : qrCode ?? this.qrCode,
     qrError: qrError ?? this.qrError,
@@ -81,8 +85,11 @@ class ShareController extends PageCubit<SharePageState> {
     this.params, {
     AppDatabase? database,
     Future<Uint8List?> Function(String)? qrEncoder,
+    Future<String> Function(Map<String, dynamic>)? originalLinkEncoder,
   }) : _database = database ?? AppDatabase(),
        _qrEncoder = qrEncoder ?? _encodeQr,
+       _originalLinkEncoder =
+           originalLinkEncoder ?? AppHostApi().convertXrayJsonToShareLinks,
        super(const SharePageState()) {
     _initialize();
   }
@@ -90,6 +97,7 @@ class ShareController extends PageCubit<SharePageState> {
   final SharePageParams params;
   final AppDatabase _database;
   final Future<Uint8List?> Function(String) _qrEncoder;
+  final Future<String> Function(Map<String, dynamic>) _originalLinkEncoder;
   late final _appLinkShareService = OneXrayAppLinkShareService(
     geoDataLookup: _database.geoDataDao.searchRowByName,
   );
@@ -115,19 +123,29 @@ class ShareController extends PageCubit<SharePageState> {
     final config = configId == DBConstants.defaultId
         ? null
         : await _database.coreConfigDao.searchRow(configId);
-    if (config == null ||
-        CoreConfigType.fromString(config.type) != CoreConfigType.outbound) {
+    final type = config == null ? null : CoreConfigType.fromString(config.type);
+    if (config == null || type == null) {
       _finishLinkError();
       return;
     }
+    final supportsOriginal = type == CoreConfigType.outbound;
     emit(
       state.copyWith(
         name: config.name,
-        appLink: await _appLinkShareService.config(config) ?? '',
+        supportsOriginal: supportsOriginal,
+        format: supportsOriginal
+            ? ShareLinkFormat.original
+            : ShareLinkFormat.onexray,
       ),
     );
+    final appLink = await _appLinkShareService.config(config) ?? '';
+    emit(state.copyWith(appLink: appLink));
+    if (!supportsOriginal) {
+      if (appLink.isEmpty) _finishLinkError();
+      return;
+    }
     final outbound = readOutboundFromDbData(config);
-    final url = await AppHostApi().convertXrayJsonToShareLinks({
+    final url = await _originalLinkEncoder({
       'outbounds': [outbound],
     });
     if (url.trim().isEmpty) {
@@ -172,7 +190,10 @@ class ShareController extends PageCubit<SharePageState> {
   }
 
   void selectFormat(ShareLinkFormat format) {
-    if (state.format == format) return;
+    if (state.format == format ||
+        (!state.supportsOriginal && format == ShareLinkFormat.original)) {
+      return;
+    }
     _qrGeneration++;
     emit(state.copyWith(format: format, clearQr: true, qrError: ''));
     if (state.qrExpanded) _generateQr();

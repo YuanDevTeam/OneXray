@@ -36,7 +36,9 @@ class SharePage extends StatelessWidget {
         return AppDialog(
           title: params.type == ShareType.subscription
               ? l.prototypeShareSubscription
-              : l.prototypeShareServer,
+              : state.supportsOriginal
+              ? l.prototypeShareServer
+              : l.prototypeShare,
           subtitle: state.name.isEmpty ? null : state.name,
           body: _body(context, state),
           actions: [
@@ -52,6 +54,9 @@ class SharePage extends StatelessWidget {
                 text: controller.state.selectedLink,
               ),
               outgoing: outgoingShare,
+              warning: state.supportsOriginal
+                  ? null
+                  : l.prototypeRawJsonShareWarning,
               builder: (_, action) => ConnectDialogButton(
                 label: action.label,
                 icon: action.icon,
@@ -97,14 +102,16 @@ class SharePage extends StatelessWidget {
               child: Row(
                 children: [
                   for (final format in ShareLinkFormat.values)
-                    Expanded(
-                      child: _formatChoice(
-                        context,
-                        format,
-                        selected: state.format == format,
-                        onPressed: () => controller.selectFormat(format),
+                    if (state.supportsOriginal ||
+                        format == ShareLinkFormat.onexray)
+                      Expanded(
+                        child: _formatChoice(
+                          context,
+                          format,
+                          selected: state.format == format,
+                          onPressed: () => controller.selectFormat(format),
+                        ),
                       ),
-                    ),
                 ],
               ),
             ),
@@ -250,7 +257,9 @@ class SharePage extends StatelessWidget {
           warning: true,
           text: params.type == ShareType.subscription
               ? l.prototypeSubscriptionShareWarning
-              : l.prototypeServerShareWarning,
+              : state.supportsOriginal
+              ? l.prototypeServerShareWarning
+              : l.prototypeRawJsonShareWarning,
         ),
       ],
     );
