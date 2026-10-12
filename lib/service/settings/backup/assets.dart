@@ -206,7 +206,7 @@ void validateBackupAssets(BackupDocument document) {
         json,
         name: row.name,
         allowMetadata: false,
-        ignoreRemovedDnsFields: true,
+        ignoreRetiredFields: true,
       );
     }
   }

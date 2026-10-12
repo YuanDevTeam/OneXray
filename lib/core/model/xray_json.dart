@@ -306,16 +306,12 @@ class XrayInboundSniffing {
   bool? routeOnly;
   List<String>? destOverride;
   bool? metadataOnly;
-  List<String>? domainsExcluded;
-  List<String>? ipsExcluded;
 
   XrayInboundSniffing({
     this.enabled,
     this.routeOnly,
     this.destOverride,
     this.metadataOnly,
-    this.domainsExcluded,
-    this.ipsExcluded,
   });
 
   factory XrayInboundSniffing.fromJson(Map<String, dynamic> json) =>

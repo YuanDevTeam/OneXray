@@ -312,8 +312,6 @@ void main() {
       const settings = RoutingSniffingSettings(
         routeOnly: true,
         metadataOnly: true,
-        domainsExcluded: ['domain:internal.test'],
-        ipsExcluded: ['192.168.0.0/16'],
       );
       final sniffing = settings.toXraySniffing(fakeDns: true);
       expect(sniffing.destOverride, ['http', 'tls', 'quic', 'fakedns']);
@@ -332,22 +330,6 @@ void main() {
                 .validate(fakeDns: true),
         throwsFormatException,
       );
-      for (final excluded in [
-        '198.19.1.1',
-        '198.18.0.0/15',
-        '0.0.0.0/0',
-        'fc00:1::1',
-        'fc00::/7',
-        '::/0',
-      ]) {
-        expect(
-          () =>
-              RoutingSniffingSettings(ipsExcluded: [excluded])
-                  .validate(fakeDns: true),
-          throwsFormatException,
-          reason: excluded,
-        );
-      }
       expect(
         () => RoutingSniffingSettings.fromXraySniffing(
           XrayInboundSniffing(destOverride: ['http']),

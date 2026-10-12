@@ -157,54 +157,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('sniffing completion generates plain geodata exclusions', (
+  testWidgets('sniffing form saves switches and retains disabled preferences', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      _app(
-        RoutingSniffingSettingsForm(
-          value: const RoutingSniffingSettings(),
-          onChanged: (_) {},
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    final l = AppLocalizations.of(
-      tester.element(find.byType(RoutingSniffingSettingsForm)),
-    )!;
-    for (final entry in {
-      l.routingSniffingDomainsExcluded: 'geosite:CN',
-      l.routingSniffingIpsExcluded: 'geoip:CN',
-    }.entries) {
-      final field = find.byWidgetPredicate(
-        (widget) =>
-            widget is TextField && widget.decoration?.labelText == entry.key,
-      );
-      final autocomplete = tester.widget<RawAutocomplete<String>>(
-        find.ancestor(
-          of: field,
-          matching: find.byType(RawAutocomplete<String>),
-        ),
-      );
-      expect(
-        await autocomplete.optionsBuilder(
-          const TextEditingValue(
-            text: '',
-            selection: TextSelection.collapsed(offset: 0),
-          ),
-        ),
-        isEmpty,
-      );
-      expect(autocomplete.displayStringForOption(entry.value), entry.value);
-    }
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('sniffing form saves comma-containing regex as one exclusion', (
-    tester,
-  ) async {
-    const regex = r'regexp:^api[0-9]{1,3}\.example\.com$';
-    const other = 'full:other.example.com';
     var value = const RoutingSniffingSettings();
     Map<String, dynamic>? saved;
     await tester.pumpWidget(
@@ -218,7 +173,7 @@ void main() {
               ),
               TextButton(
                 onPressed: () => saved = value.toJson(),
-                child: const Text('Save exclusions'),
+                child: const Text('Save sniffing'),
               ),
             ],
           ),
@@ -229,46 +184,45 @@ void main() {
     final l = AppLocalizations.of(
       tester.element(find.byType(RoutingSniffingSettingsForm)),
     )!;
-    final field = find.byWidgetPredicate(
-      (widget) =>
-          widget is TextField &&
-          widget.decoration?.labelText == l.routingSniffingDomainsExcluded,
-    );
-    await tester.ensureVisible(field);
-    await tester.enterText(field, '$regex\n$other\n');
+    await tester.ensureVisible(_switch(l.routingSniffingRouteOnly));
+    await tester.tap(_switch(l.routingSniffingRouteOnly));
     await tester.pumpAndSettle();
-    expect(value.domainsExcluded, [regex, other]);
+    await tester.ensureVisible(find.text(l.routingSniffingMore));
+    await tester.tap(find.text(l.routingSniffingMore));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(_switch(l.routingSniffingMetadataOnly));
+    await tester.tap(_switch(l.routingSniffingMetadataOnly));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(_switch(l.routingSniffingEnabled));
+    await tester.tap(_switch(l.routingSniffingEnabled));
+    await tester.pumpAndSettle();
+    expect(value.enabled, false);
+    expect(value.routeOnly, true);
+    expect(value.metadataOnly, true);
     expect(
-      tester.widget<TextField>(field).controller!.text,
-      '$regex\n$other\n',
+      tester.widget<ShadSwitch>(_switch(l.routingSniffingRouteOnly)).enabled,
+      false,
     );
-    final save = find.widgetWithText(TextButton, 'Save exclusions');
+    expect(
+      tester.widget<ShadSwitch>(_switch(l.routingSniffingMetadataOnly)).enabled,
+      false,
+    );
+    final save = find.widgetWithText(TextButton, 'Save sniffing');
     await tester.ensureVisible(save);
     await tester.tap(save);
     await tester.pumpAndSettle();
-    expect(saved!['domainsExcluded'], [regex, other]);
-    expect(RoutingSniffingSettings.fromJson(saved!).domainsExcluded, [
-      regex,
-      other,
-    ]);
-
-    // Selecting a completion at the start replaces the whole current line,
-    // rather than treating the comma inside the regex quantifier as a boundary.
-    final autocomplete = tester.widget<RawAutocomplete<String>>(
-      find.ancestor(of: field, matching: find.byType(RawAutocomplete<String>)),
-    );
+    final restored = RoutingSniffingSettings.fromJson(saved!);
+    expect(restored.enabled, false);
+    expect(restored.routeOnly, true);
+    expect(restored.metadataOnly, true);
+    expect(saved, isNot(contains('domainsExcluded')));
+    expect(saved, isNot(contains('ipsExcluded')));
+    expect(find.text('Excluded domains', skipOffstage: false), findsNothing);
+    expect(find.text('Excluded IPs', skipOffstage: false), findsNothing);
+    expect(find.byType(TextField, skipOffstage: false), findsNothing);
     expect(
-      await autocomplete.optionsBuilder(
-        const TextEditingValue(
-          text: '$regex\n$other',
-          selection: TextSelection.collapsed(offset: 0),
-        ),
-      ),
-      isEmpty,
-    );
-    expect(
-      autocomplete.displayStringForOption('geosite:CN'),
-      'geosite:CN\n$other',
+      find.byType(RawAutocomplete<String>, skipOffstage: false),
+      findsNothing,
     );
     expect(tester.takeException(), isNull);
   });

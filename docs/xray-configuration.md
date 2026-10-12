@@ -78,9 +78,12 @@ Raw 只给新建 tunIn 添加默认还原，已有 sniffing 不自动修改；�
 ### 嗅探
 
 智能/常规自定义共用 `RoutingSniffingSettings`，用于托管 TUN、MSIX 私有 SOCKS 与普通 LAN SOCKS。
-默认 enabled=true、routeOnly=false，识别 HTTP/TLS/QUIC；metadataOnly=false、域名/IP 排除为空。
-页面开放启用、仅用于路由、排除域名/IP；metadataOnly 位于更多项，开启后不读取 HTTP/TLS/QUIC 内容。
-停用时保留填写值。FakeDNS 要求嗅探开启；其域名或地址池被排除可能阻止目标恢复，不保证任意排除组合可用。
+默认 enabled=true、routeOnly=false，识别 HTTP/TLS/QUIC；metadataOnly=false。
+页面开放启用、仅用于路由；metadataOnly 位于更多项，开启后不读取 HTTP/TLS/QUIC 内容。
+停用时保留 routeOnly/metadataOnly 偏好；FakeDNS 要求嗅探开启。
+普通模型和表单不保存 `domainsExcluded/ipsExcluded`，高级/Raw 原生支持及 JSON 字段提示保留。
+旧 Smart 设置、本机普通数据库与备份内部读取忽略这些退休字段，不改原文；外部普通 JSON/分享导入仍拒绝。
+高级/Raw 中匹配 FakeDNS 域名或池的排除规则可能阻止目标恢复，不由普通表单改写。
 高级模板显式 sniffing 完整保留，省略沿用默认；Raw 的原对象不由普通设置覆盖。
 
 ### 运行自动选路
@@ -126,7 +129,8 @@ direct/block 只在校验/运行时生成，规则的动作引用保留。名称
 DNS 使用标准 servers，固定 proxy/direct tag 保存主 resolver 与有序备用地址，
 root 保存全局缓存和同出口备用；`app-dns-fake` 表示 FakeDNS。运行池、domains、派生
 finalQuery 和平台 queryStrategy 编译时产生，不另存第二套规则。旧单直连地址读入主直连 resolver。
-嗅探通过唯一 `inbounds:[{tag:"tunIn",sniffing:{...}}]` 占位保存，普通文档不开放实际监听或平台 settings。
+嗅探通过唯一 `inbounds:[{tag:"tunIn",sniffing:{...}}]` 占位保存，开放 enabled/routeOnly/metadataOnly，
+destOverride 由 App 固定管理；普通文档不开放实际监听、平台 settings 或嗅探排除列表。
 选路通过唯一 tag 为 proxy 的 strategy.type，以及 observatory 的 probeURL/probeInterval/enableConcurrency 保存；
 运行 selector/fallback/subjectSelector 由 App 生成，导出不包含它们。
 缺省沿用旧默认；不支持的结构仍明确拒绝，不依赖数组位置标记 DNS 角色。

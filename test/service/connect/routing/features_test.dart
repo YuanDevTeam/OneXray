@@ -42,12 +42,17 @@ Map<String, dynamic> compile(
   ).xrayJson,
 ) as Map<String, dynamic>;
 void main() {
-  test('disabled sniffing retains its draft but does not load excluded assets in Core', () {
-    const settings = RoutingSniffingSettings(
-      enabled: false,
-      domainsExcluded: ['ext:missing.dat:cn'],
-      ipsExcluded: ['regexp:['],
-    );
+  test('old disabled sniffing preferences ignore retired exclusions', () {
+    final settings = RoutingSniffingSettings.fromJson({
+      'enabled': false,
+      'domainsExcluded': ['ext:missing.dat:cn'],
+      'ipsExcluded': ['regexp:['],
+    });
+    expect(settings.toJson(), {
+      'enabled': false,
+      'routeOnly': false,
+      'metadataOnly': false,
+    });
     final state = RoutingProfileState(name: 'disabled', sniffing: settings);
     expect(
       RoutingProfileDocument.parse(
@@ -68,10 +73,7 @@ void main() {
       entryCount: 2,
       finalExitId: 3,
       selection: const RoutingSelectionSettings(type: 'leastPing'),
-      sniffing: const RoutingSniffingSettings(
-        routeOnly: true,
-        domainsExcluded: ['domain:example.com'],
-      ),
+      sniffing: const RoutingSniffingSettings(routeOnly: true),
     );
     final json = compile(smart, finalExit: node(3));
     expect(json['routing']['balancers'].single['selector'], [

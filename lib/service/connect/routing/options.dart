@@ -235,28 +235,18 @@ final class RoutingSniffingSettings {
   final bool enabled;
   final bool routeOnly;
   final bool metadataOnly;
-  final List<String> _domainsExcluded;
-  final List<String> _ipsExcluded;
 
   const RoutingSniffingSettings({
     this.enabled = true,
     this.routeOnly = false,
     this.metadataOnly = false,
-    List<String> domainsExcluded = const [],
-    List<String> ipsExcluded = const [],
-  }) : _domainsExcluded = domainsExcluded,
-       _ipsExcluded = ipsExcluded;
-
-  List<String> get domainsExcluded => List.unmodifiable(_domainsExcluded);
-  List<String> get ipsExcluded => List.unmodifiable(_ipsExcluded);
+  });
 
   factory RoutingSniffingSettings.fromJson(Map<String, dynamic> json) =>
       RoutingSniffingSettings(
         enabled: json['enabled'] as bool? ?? true,
         routeOnly: json['routeOnly'] as bool? ?? false,
         metadataOnly: json['metadataOnly'] as bool? ?? false,
-        domainsExcluded: _strings(json['domainsExcluded']),
-        ipsExcluded: _strings(json['ipsExcluded']),
       );
 
   factory RoutingSniffingSettings.fromXraySniffing(
@@ -281,8 +271,6 @@ final class RoutingSniffingSettings {
       enabled: sniffing?.enabled ?? true,
       routeOnly: sniffing?.routeOnly ?? false,
       metadataOnly: sniffing?.metadataOnly ?? false,
-      domainsExcluded: List.unmodifiable(sniffing?.domainsExcluded ?? const []),
-      ipsExcluded: List.unmodifiable(sniffing?.ipsExcluded ?? const []),
     );
   }
 
@@ -290,8 +278,6 @@ final class RoutingSniffingSettings {
     'enabled': enabled,
     'routeOnly': routeOnly,
     'metadataOnly': metadataOnly,
-    'domainsExcluded': domainsExcluded,
-    'ipsExcluded': ipsExcluded,
   };
 
   Map<String, dynamic> effectiveJson({bool fakeDns = false}) =>
@@ -307,37 +293,21 @@ final class RoutingSniffingSettings {
           routeOnly: routeOnly,
           destOverride: ['http', 'tls', 'quic', if (fakeDns) 'fakedns'],
           metadataOnly: metadataOnly ? true : null,
-          domainsExcluded: domainsExcluded.isEmpty ? null : domainsExcluded,
-          ipsExcluded: ipsExcluded.isEmpty ? null : ipsExcluded,
         );
 
   RoutingSniffingSettings copyWith({
     bool? enabled,
     bool? routeOnly,
     bool? metadataOnly,
-    List<String>? domainsExcluded,
-    List<String>? ipsExcluded,
   }) => RoutingSniffingSettings(
     enabled: enabled ?? this.enabled,
     routeOnly: routeOnly ?? this.routeOnly,
     metadataOnly: metadataOnly ?? this.metadataOnly,
-    domainsExcluded: List.unmodifiable(domainsExcluded ?? this.domainsExcluded),
-    ipsExcluded: List.unmodifiable(ipsExcluded ?? this.ipsExcluded),
   );
 
   void validate({bool fakeDns = false}) {
     if (fakeDns && !enabled) {
       throw const FormatException('FakeDNS requires managed sniffing');
-    }
-    if (fakeDns) {
-      for (final (index, excluded) in ipsExcluded.indexed) {
-        if (_overlapsFakeDnsPool(excluded)) {
-          throw JsonDiagnostic(
-            'Sniffing IP exclusions overlap a managed FakeDNS pool',
-            path: ['inbounds', 0, 'sniffing', 'ipsExcluded', index],
-          );
-        }
-      }
     }
   }
 }
@@ -499,39 +469,9 @@ final class RoutingSelectionSettings {
   }
 }
 
-List<String> _strings(Object? value) => value == null
-    ? const []
-    : List<String>.unmodifiable((value as List).cast<String>());
-
 List<RoutingDnsResolver> _resolvers(Object? value) => value == null
     ? RoutingDnsSettings.defaultResolvers
     : List<RoutingDnsResolver>.unmodifiable([
         for (final json in value as List)
           RoutingDnsResolver.fromJson(Map<String, dynamic>.from(json as Map)),
       ]);
-bool _overlapsFakeDnsPool(String text) {
-  final parts = text.trim().split('/');
-  if (parts.length > 2) return false;
-  final address = InternetAddress.tryParse(parts.first);
-  if (address == null) return false;
-  final bytes = address.rawAddress;
-  final prefix = parts.length == 1
-      ? bytes.length * 8
-      : int.tryParse(parts.last);
-  if (prefix == null || prefix < 0 || prefix > bytes.length * 8) return false;
-  final pool = address.type == InternetAddressType.IPv4
-      ? InternetAddress('198.19.0.0').rawAddress
-      : InternetAddress('fc00:1::').rawAddress;
-  final poolPrefix = address.type == InternetAddressType.IPv4 ? 16 : 64;
-  final compareBits = prefix < poolPrefix ? prefix : poolPrefix;
-  for (
-    var index = 0;
-    index < bytes.length && index * 8 < compareBits;
-    index++
-  ) {
-    final remaining = compareBits - index * 8;
-    final mask = remaining >= 8 ? 255 : (255 << (8 - remaining)) & 255;
-    if ((bytes[index] & mask) != (pool[index] & mask)) return false;
-  }
-  return true;
-}

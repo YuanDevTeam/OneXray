@@ -95,57 +95,75 @@ void main() {
     }
   });
 
-  test(
-    'ordinary imports reject retired DNS fields at their original paths',
-    () {
-      for (final field in [
-        'serveStale',
-        'serveExpiredTTL',
-        'enableParallelQuery',
-      ]) {
-        expect(
-          () => RoutingProfileDocument.fromJson({
-            'outbounds': [{}],
-            'dns': {
-              field: false,
-              'servers': [
-                {'tag': 'app-dns-proxy', 'address': '1.1.1.1'},
-              ],
+  test('ordinary imports reject retired fields at their original paths', () {
+    for (final field in [
+      'serveStale',
+      'serveExpiredTTL',
+      'enableParallelQuery',
+    ]) {
+      expect(
+        () => RoutingProfileDocument.fromJson({
+          'outbounds': [{}],
+          'dns': {
+            field: false,
+            'servers': [
+              {'tag': 'app-dns-proxy', 'address': '1.1.1.1'},
+            ],
+          },
+        }),
+        throwsA(_diagnostic(['dns', field], 'Unsupported field: dns.$field')),
+      );
+    }
+    for (final field in [
+      'expectedIPs',
+      'expectIPs',
+      'unexpectedIPs',
+      'serveStale',
+      'serveExpiredTTL',
+      'timeoutMs',
+      'disableCache',
+    ]) {
+      expect(
+        () => RoutingProfileDocument.fromJson({
+          'outbounds': [{}],
+          'dns': {
+            'servers': [
+              {'tag': 'app-dns-proxy', 'address': '1.1.1.1', field: null},
+            ],
+          },
+        }),
+        throwsA(
+          _diagnostic([
+            'dns',
+            'servers',
+            0,
+            field,
+          ], 'Unsupported field: dns.servers[0].$field'),
+        ),
+      );
+    }
+    for (final field in ['domainsExcluded', 'ipsExcluded']) {
+      expect(
+        () => RoutingProfileDocument.fromJson({
+          'outbounds': [{}],
+          'inbounds': [
+            {
+              'tag': 'tunIn',
+              'sniffing': {'enabled': true, field: []},
             },
-          }),
-          throwsA(_diagnostic(['dns', field], 'Unsupported field: dns.$field')),
-        );
-      }
-      for (final field in [
-        'expectedIPs',
-        'expectIPs',
-        'unexpectedIPs',
-        'serveStale',
-        'serveExpiredTTL',
-        'timeoutMs',
-        'disableCache',
-      ]) {
-        expect(
-          () => RoutingProfileDocument.fromJson({
-            'outbounds': [{}],
-            'dns': {
-              'servers': [
-                {'tag': 'app-dns-proxy', 'address': '1.1.1.1', field: null},
-              ],
-            },
-          }),
-          throwsA(
-            _diagnostic([
-              'dns',
-              'servers',
-              0,
-              field,
-            ], 'Unsupported field: dns.servers[0].$field'),
-          ),
-        );
-      }
-    },
-  );
+          ],
+        }),
+        throwsA(
+          _diagnostic([
+            'inbounds',
+            0,
+            'sniffing',
+            field,
+          ], 'Unsupported field: inbounds[0].sniffing.$field'),
+        ),
+      );
+    }
+  });
 
   test(
     'advanced App checks identify precise members without changing messages',

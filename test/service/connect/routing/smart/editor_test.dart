@@ -113,12 +113,7 @@ void main() {
       );
       final after = SmartRoutingSettings.fromJson({
         ...before.toJson(),
-        'sniffing': before.sniffing
-            .copyWith(
-              metadataOnly: true,
-              domainsExcluded: ['domain:internal.test'],
-            )
-            .toJson(),
+        'sniffing': before.sniffing.copyWith(metadataOnly: true).toJson(),
         'selection': before.selection
             .copyWith(
               probeURL: 'https://example.com/probe',
@@ -347,9 +342,7 @@ void main() {
         ]);
         expect(json['observatory']['probeInterval'], '30s');
         expect(json['inbounds'].single['protocol'], 'socks');
-        expect(json['inbounds'].single['sniffing']['ipsExcluded'], [
-          '192.168.0.0/16',
-        ]);
+        expect(json['inbounds'].single['sniffing']['metadataOnly'], true);
         return '';
       },
     );
@@ -359,7 +352,7 @@ void main() {
         type: 'leastPing',
         probeInterval: '30s',
       ),
-      sniffing: const RoutingSniffingSettings(ipsExcluded: ['192.168.0.0/16']),
+      sniffing: const RoutingSniffingSettings(metadataOnly: true),
     );
     expect(
       await service.save(

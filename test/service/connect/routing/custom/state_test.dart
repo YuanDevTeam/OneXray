@@ -8,71 +8,74 @@ import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/state_db.dart';
 
 void main() {
-  test(
-    'stored ordinary DNS drops retired fields without mutating the source',
-    () {
-      final expected = RoutingProfileState(
-        name: 'Stored route',
-        directDnsAddress: '223.5.5.5',
-        fakeDns: true,
-      );
-      final legacy = expected.toJson();
-      final dns = legacy['dns'] as Map<String, dynamic>;
-      dns.addAll({
-        'serveStale': false,
-        'serveExpiredTTL': 300,
-        'enableParallelQuery': false,
+  test('stored ordinary configuration drops retired fields without mutating the source', () {
+    final expected = RoutingProfileState(
+      name: 'Stored route',
+      directDnsAddress: '223.5.5.5',
+      fakeDns: true,
+    );
+    final legacy = expected.toJson();
+    final dns = legacy['dns'] as Map<String, dynamic>;
+    dns.addAll({
+      'serveStale': false,
+      'serveExpiredTTL': 300,
+      'enableParallelQuery': false,
+    });
+    for (final server
+        in (dns['servers'] as List).cast<Map<String, dynamic>>()) {
+      if (server['tag'] == 'app-dns-fake') continue;
+      server.addAll({
+        'timeoutMs': 4000,
+        'disableCache': false,
+        'expectedIPs': ['geoip:US'],
+        'expectIPs': ['geoip:JP'],
+        'unexpectedIPs': ['geoip:CN'],
+        'serveStale': true,
+        'serveExpiredTTL': 0,
       });
-      for (final server
-          in (dns['servers'] as List).cast<Map<String, dynamic>>()) {
-        if (server['tag'] == 'app-dns-fake') continue;
-        server.addAll({
-          'timeoutMs': 4000,
-          'disableCache': false,
-          'expectedIPs': ['geoip:US'],
-          'expectIPs': ['geoip:JP'],
-          'unexpectedIPs': ['geoip:CN'],
-          'serveStale': true,
-          'serveExpiredTTL': 0,
-        });
-      }
-      final source = jsonEncode(legacy);
-      final decoded = RoutingProfileDocument.fromJson(
+    }
+    final sniffing =
+        (legacy['inbounds'] as List).single['sniffing'] as Map<String, dynamic>;
+    sniffing.addAll({
+      'domainsExcluded': ['domain:example.com'],
+      'ipsExcluded': ['192.168.0.0/16'],
+    });
+    final source = jsonEncode(legacy);
+    final decoded = RoutingProfileDocument.fromJson(
+      legacy,
+      name: 'Stored route',
+      allowMetadata: false,
+      ignoreRetiredFields: true,
+    ).state;
+    expect(decoded.toJson(), expected.toJson());
+    expect(jsonEncode(legacy), source);
+    final stored = RoutingProfileStateDb.readData(
+      id: 7,
+      name: 'Stored route',
+      data: base64Encode(utf8.encode(source)),
+    );
+    expect(stored.id, 7);
+    expect(stored.toJson(), expected.toJson());
+    expect(
+      jsonDecode(utf8.decode(base64Decode(stored.databaseData))),
+      expected.toJson(),
+    );
+    expect(CustomRoutingEditorService.sameRouting(stored, expected), true);
+    expect(
+      () => RoutingProfileDocument.fromJson(legacy, name: 'Stored route'),
+      throwsFormatException,
+    );
+    dns['futureUnknownField'] = true;
+    expect(
+      () => RoutingProfileDocument.fromJson(
         legacy,
         name: 'Stored route',
         allowMetadata: false,
-        ignoreRemovedDnsFields: true,
-      ).state;
-      expect(decoded.toJson(), expected.toJson());
-      expect(jsonEncode(legacy), source);
-      final stored = RoutingProfileStateDb.readData(
-        id: 7,
-        name: 'Stored route',
-        data: base64Encode(utf8.encode(source)),
-      );
-      expect(stored.id, 7);
-      expect(stored.toJson(), expected.toJson());
-      expect(
-        jsonDecode(utf8.decode(base64Decode(stored.databaseData))),
-        expected.toJson(),
-      );
-      expect(CustomRoutingEditorService.sameRouting(stored, expected), true);
-      expect(
-        () => RoutingProfileDocument.fromJson(legacy, name: 'Stored route'),
-        throwsFormatException,
-      );
-      dns['futureUnknownField'] = true;
-      expect(
-        () => RoutingProfileDocument.fromJson(
-          legacy,
-          name: 'Stored route',
-          allowMetadata: false,
-          ignoreRemovedDnsFields: true,
-        ),
-        throwsFormatException,
-      );
-    },
-  );
+        ignoreRetiredFields: true,
+      ),
+      throwsFormatException,
+    );
+  });
 
   test('fragment helper persists and shares its imported parameters', () {
     final legacy = RoutingProfileDocument.parse(jsonEncode(_document())).state;

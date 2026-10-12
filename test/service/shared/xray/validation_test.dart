@@ -90,6 +90,7 @@ void main() {
             'enabled': true,
             'routeOnly': true,
             'domainsExcluded': ['ext:missing.dat:cn'],
+            'ipsExcluded': ['ext:missing-ip.dat:private'],
           },
         },
         {'tag': 'local', 'protocol': 'socks', 'port': 1080},
@@ -219,50 +220,64 @@ void main() {
     expect(jsonDecode(XrayValidation.nodes([false]))['outbounds'], [false]);
   });
 
-  test(
-    'advanced and Raw validation preserve full DNS maps after DTO reduction',
-    () {
-      final dns = <String, dynamic>{
-        'serveStale': true,
-        'serveExpiredTTL': 300,
-        'enableParallelQuery': true,
-        'servers': [
-          {
-            'address': 'tcp://8.8.8.8',
-            'timeoutMs': 1200,
-            'disableCache': true,
-            'expectedIPs': ['geoip:CN'],
-            'unexpectedIPs': ['geoip:PRIVATE'],
-            'serveStale': false,
-            'serveExpiredTTL': 60,
-          },
-          {
-            'address': 'tcp://1.1.1.1',
-            'timeoutMs': 4000,
-            'disableCache': false,
-            'expectIPs': ['!geoip:PRIVATE'],
-          },
-        ],
-      };
-      final raw = <String, dynamic>{
-        'dns': dns,
-        'outbounds': [
-          {'protocol': 'freedom'},
-        ],
-      };
-      final before = jsonEncode(raw);
-      expect(jsonDecode(XrayValidation.raw(raw))['dns'], dns);
-      final advanced = AdvancedRoutingDocument.fromJson({
-        'name': 'Advanced DNS',
-        'outbounds': [<String, dynamic>{}],
-        'dns': dns,
-      }).state;
-      final projection = jsonDecode(
-        CustomRoutingService.validationJson(advanced),
-      );
-      expect(projection['dns'], dns);
-      expect(advanced.toJson()['dns'], dns);
-      expect(jsonEncode(raw), before);
-    },
-  );
+  test('advanced and Raw validation preserve native DNS and sniffing maps after DTO reduction', () {
+    final dns = <String, dynamic>{
+      'serveStale': true,
+      'serveExpiredTTL': 300,
+      'enableParallelQuery': true,
+      'servers': [
+        {
+          'address': 'tcp://8.8.8.8',
+          'timeoutMs': 1200,
+          'disableCache': true,
+          'expectedIPs': ['geoip:CN'],
+          'unexpectedIPs': ['geoip:PRIVATE'],
+          'serveStale': false,
+          'serveExpiredTTL': 60,
+        },
+        {
+          'address': 'tcp://1.1.1.1',
+          'timeoutMs': 4000,
+          'disableCache': false,
+          'expectIPs': ['!geoip:PRIVATE'],
+        },
+      ],
+    };
+    final sniffing = <String, dynamic>{
+      'enabled': true,
+      'routeOnly': true,
+      'destOverride': ['http', 'tls', 'quic'],
+      'domainsExcluded': ['domain:private.example'],
+      'ipsExcluded': ['192.0.2.0/24'],
+    };
+    final raw = <String, dynamic>{
+      'dns': dns,
+      'outbounds': [
+        {'protocol': 'freedom'},
+      ],
+      'inbounds': [
+        {'tag': 'tunIn', 'protocol': 'tun', 'sniffing': sniffing},
+      ],
+    };
+    final before = jsonEncode(raw);
+    final rawProjection = jsonDecode(XrayValidation.raw(raw));
+    expect(rawProjection['dns'], dns);
+    expect(rawProjection['inbounds'].single['sniffing'], sniffing);
+    final advanced = AdvancedRoutingDocument.fromJson({
+      'name': 'Advanced DNS',
+      'outbounds': [<String, dynamic>{}],
+      'dns': dns,
+      'inbounds': [
+        {'tag': 'tunIn', 'sniffing': sniffing},
+      ],
+    }).state;
+    final projection = jsonDecode(
+      CustomRoutingService.validationJson(advanced),
+    );
+    expect(projection['dns'], dns);
+    expect(projection['inbounds'].single['sniffing'], sniffing);
+    expect(advanced.toJson()['dns'], dns);
+    expect(advanced.toJson()['inbounds'].single['sniffing'], sniffing);
+    expect(jsonEncode(raw), before);
+  });
 }

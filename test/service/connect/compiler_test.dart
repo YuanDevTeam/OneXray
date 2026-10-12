@@ -248,6 +248,7 @@ void main() {
                 'enabled': false,
                 'routeOnly': true,
                 'domainsExcluded': ['domain:example.net'],
+                'ipsExcluded': ['192.0.2.0/24'],
               },
             },
           ],
@@ -1343,71 +1344,88 @@ void main() {
     expect(semantic('one'), isNot(semantic('two')));
   });
 
-  test(
-    'advanced and Raw retain DNS features retired from ordinary routing',
-    () {
-      final dns = <String, dynamic>{
-        'serveStale': true,
-        'serveExpiredTTL': 300,
-        'enableParallelQuery': true,
-        'servers': [
-          {
-            'address': 'tcp://8.8.8.8',
-            'timeoutMs': 1200,
-            'disableCache': true,
-            'expectedIPs': ['geoip:CN'],
-            'unexpectedIPs': ['geoip:PRIVATE'],
-            'serveStale': false,
-            'serveExpiredTTL': 60,
-          },
-          {
-            'address': 'tcp://1.1.1.1',
-            'timeoutMs': 4000,
-            'disableCache': false,
-            'expectIPs': ['!geoip:PRIVATE'],
-          },
-        ],
-      };
-      final raw = <String, dynamic>{
-        'outbounds': [node(1).outbound],
-        'dns': dns,
-      };
-      final advanced = AdvancedRoutingDocument.fromJson({
-        'name': 'Advanced DNS',
-        'outbounds': [<String, dynamic>{}],
-        'dns': dns,
-      }).state;
-      final rawBefore = jsonEncode(raw);
-      final advancedBefore = advanced.encode();
-      for (final ipv6 in [false, true]) {
-        for (final isRaw in [false, true]) {
-          final config = ConnectionCompiler.compile(
-            settings: ConnectionSettings(
-              expert: isRaw,
-              trafficMode: TrafficMode.custom,
-            ),
-            entries: isRaw ? [] : [node(1)],
-            raw: isRaw ? raw : null,
-            custom: isRaw ? null : advanced,
-            regions: catalog,
-            options: options(ipv6: ipv6),
-          ).config;
-          final strategy = ipv6 ? 'UseIP' : 'UseIPv4';
-          expect(config['dns'], {
-            ...dns,
-            'queryStrategy': strategy,
-            'servers': [
-              for (final server in dns['servers'] as List)
-                {...server as Map<String, dynamic>, 'queryStrategy': strategy},
-            ],
-          });
-        }
+  test('advanced and Raw retain native DNS and sniffing fields retired from ordinary routing', () {
+    final dns = <String, dynamic>{
+      'serveStale': true,
+      'serveExpiredTTL': 300,
+      'enableParallelQuery': true,
+      'servers': [
+        {
+          'address': 'tcp://8.8.8.8',
+          'timeoutMs': 1200,
+          'disableCache': true,
+          'expectedIPs': ['geoip:CN'],
+          'unexpectedIPs': ['geoip:PRIVATE'],
+          'serveStale': false,
+          'serveExpiredTTL': 60,
+        },
+        {
+          'address': 'tcp://1.1.1.1',
+          'timeoutMs': 4000,
+          'disableCache': false,
+          'expectIPs': ['!geoip:PRIVATE'],
+        },
+      ],
+    };
+    final sniffing = <String, dynamic>{
+      'enabled': true,
+      'routeOnly': true,
+      'destOverride': ['http', 'tls', 'quic'],
+      'domainsExcluded': ['domain:private.example'],
+      'ipsExcluded': ['192.0.2.0/24'],
+    };
+    final raw = <String, dynamic>{
+      'outbounds': [node(1).outbound],
+      'dns': dns,
+      'inbounds': [
+        {'tag': 'tunIn', 'protocol': 'tun', 'sniffing': sniffing},
+      ],
+    };
+    final advanced = AdvancedRoutingDocument.fromJson({
+      'name': 'Advanced DNS',
+      'outbounds': [<String, dynamic>{}],
+      'dns': dns,
+      'inbounds': [
+        {'tag': 'tunIn', 'sniffing': sniffing},
+      ],
+    }).state;
+    final rawBefore = jsonEncode(raw);
+    final advancedBefore = advanced.encode();
+    for (final ipv6 in [false, true]) {
+      for (final isRaw in [false, true]) {
+        final config = ConnectionCompiler.compile(
+          settings: ConnectionSettings(
+            expert: isRaw,
+            trafficMode: TrafficMode.custom,
+          ),
+          entries: isRaw ? [] : [node(1)],
+          raw: isRaw ? raw : null,
+          custom: isRaw ? null : advanced,
+          regions: catalog,
+          options: options(ipv6: ipv6),
+        ).config;
+        final strategy = ipv6 ? 'UseIP' : 'UseIPv4';
+        expect(config['dns'], {
+          ...dns,
+          'queryStrategy': strategy,
+          'servers': [
+            for (final server in dns['servers'] as List)
+              {...server as Map<String, dynamic>, 'queryStrategy': strategy},
+          ],
+        });
+        expect(
+          (config['inbounds'] as List).singleWhere(
+            (inbound) => inbound['tag'] == 'tunIn',
+          )['sniffing'],
+          sniffing,
+        );
       }
-      expect(jsonEncode(raw), rawBefore);
-      expect(advanced.encode(), advancedBefore);
-      expect(advanced.toJson()['dns'], dns);
-    },
-  );
+    }
+    expect(jsonEncode(raw), rawBefore);
+    expect(advanced.encode(), advancedBefore);
+    expect(advanced.toJson()['dns'], dns);
+    expect(advanced.toJson()['inbounds'].single['sniffing'], sniffing);
+  });
 
   test('Raw keeps the default outbound and routing untouched', () {
     final plan = ConnectionCompiler.compile(

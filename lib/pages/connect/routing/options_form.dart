@@ -7,7 +7,6 @@ import 'package:onexray/pages/shared/widgets/menu_picker.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/service/connect/routing/options.dart';
-import 'package:onexray/service/connect/routing/custom/geodata_suggestions.dart';
 import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch;
 
 /// Ordinary routing forms edit business values, never generated Core JSON.
@@ -224,34 +223,6 @@ class RoutingSniffingSettingsForm extends StatelessWidget {
                 onChanged(value.copyWith(routeOnly: selected)),
             divider: false,
           ),
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 12,
-              children: [
-                _OptionTextField(
-                  label: l.routingSniffingDomainsExcluded,
-                  geodataDomain: true,
-                  value: value.domainsExcluded.join('\n'),
-                  multiline: true,
-                  enabled: enabled && value.enabled,
-                  onChanged: (text) =>
-                      onChanged(value.copyWith(domainsExcluded: _lines(text))),
-                ),
-                _OptionTextField(
-                  label: l.routingSniffingIpsExcluded,
-                  geodataDomain: false,
-                  value: value.ipsExcluded.join('\n'),
-                  multiline: true,
-                  enabled: enabled && value.enabled,
-                  onChanged: (text) =>
-                      onChanged(value.copyWith(ipsExcluded: _lines(text))),
-                ),
-                _HelpPadding(text: l.routingSniffingExclusionsHint),
-              ],
-            ),
-          ),
           _RoutingDetails(
             title: l.routingSniffingMore,
             child: _OptionSwitch(
@@ -356,12 +327,6 @@ class RoutingSelectionSettingsForm extends StatelessWidget {
     );
   }
 }
-
-List<String> _lines(String value) => value
-    .split('\n')
-    .map((text) => text.trim())
-    .where((text) => text.isNotEmpty)
-    .toList();
 
 class _OptionSwitch extends StatelessWidget {
   final IconData icon;
@@ -489,164 +454,4 @@ class _HelpPadding extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _OptionTextField extends StatefulWidget {
-  final String label;
-  final String value;
-  final bool enabled;
-  final bool multiline;
-  final bool? geodataDomain;
-  final ValueChanged<String> onChanged;
-  const _OptionTextField({
-    required this.label,
-    required this.value,
-    required this.enabled,
-    required this.onChanged,
-    this.multiline = false,
-    this.geodataDomain,
-  });
-  @override
-  State<_OptionTextField> createState() => _OptionTextFieldState();
-}
-
-class _OptionTextFieldState extends State<_OptionTextField> {
-  late final controller = TextEditingController(text: widget.value);
-  final focus = FocusNode();
-  TextEditingValue _autocompleteValue = TextEditingValue.empty;
-  String? _pendingEcho;
-
-  @override
-  void initState() {
-    super.initState();
-    focus.addListener(_syncAfterFocus);
-  }
-
-  void _syncAfterFocus() {
-    if (!focus.hasFocus && controller.text != widget.value) {
-      controller.text = widget.value;
-    }
-  }
-
-  void _changed(String text) {
-    _pendingEcho = widget.multiline ? _lines(text).join('\n') : text;
-    widget.onChanged(text);
-  }
-
-  @override
-  void didUpdateWidget(covariant _OptionTextField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final echo = _pendingEcho == widget.value;
-    _pendingEcho = null;
-    // Keep unfinished local text while focused, but never conceal imported
-    // values or values shifted into this resolver row after deleting another.
-    if (controller.text != widget.value &&
-        (!focus.hasFocus || (oldWidget.value != widget.value && !echo))) {
-      controller.text = widget.value;
-    }
-  }
-
-  @override
-  void dispose() {
-    focus.removeListener(_syncAfterFocus);
-    controller.dispose();
-    focus.dispose();
-    super.dispose();
-  }
-
-  ({int start, int end, String query}) _currentRule(TextEditingValue value) {
-    final text = value.text;
-    final cursor = value.selection.isValid
-        ? value.selection.extentOffset
-        : text.length;
-    final before = text.substring(0, cursor);
-    final boundary = RegExp(r'\n');
-    final preceding = boundary.allMatches(before).lastOrNull;
-    final following = boundary.firstMatch(text.substring(cursor));
-    final start = preceding == null ? 0 : preceding.end;
-    final end = following == null ? text.length : cursor + following.start;
-    final query = text.substring(start, cursor).trim();
-    return (start: start, end: end, query: query);
-  }
-
-  Future<Iterable<String>> _suggestions(TextEditingValue value) async {
-    _autocompleteValue = value;
-    final rule = _currentRule(value);
-    if (rule.query.isEmpty) return const [];
-    try {
-      final index = await RoutingGeodataIndex.load();
-      if (!mounted) return const [];
-      return index.suggestions(rule.query, domain: widget.geodataDomain!);
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  String _replacement(String option) {
-    final value = _autocompleteValue;
-    final rule = _currentRule(value);
-    return value.text.replaceRange(rule.start, rule.end, option);
-  }
-
-  Widget _field({VoidCallback? submit}) => TextField(
-    controller: controller,
-    focusNode: focus,
-    enabled: widget.enabled,
-    textDirection: TextDirection.ltr,
-    textAlign: TextAlign.left,
-    autocorrect: false,
-    enableSuggestions: false,
-    minLines: widget.multiline ? 2 : 1,
-    maxLines: widget.multiline ? 5 : 1,
-    keyboardType: widget.multiline
-        ? TextInputType.multiline
-        : TextInputType.text,
-    style: AppTypography.settingsInput,
-    decoration: InputDecoration(labelText: widget.label),
-    onChanged: _changed,
-    onSubmitted: submit == null ? null : (_) => submit(),
-  );
-
-  @override
-  Widget build(BuildContext context) => widget.geodataDomain == null
-      ? _field()
-      : LayoutBuilder(
-          builder: (context, constraints) => RawAutocomplete<String>(
-            textEditingController: controller,
-            focusNode: focus,
-            optionsBuilder: _suggestions,
-            displayStringForOption: _replacement,
-            onSelected: (_) => _changed(controller.text),
-            fieldViewBuilder: (context, text, focus, submit) =>
-                _field(submit: submit),
-            optionsViewBuilder: (context, select, options) => Align(
-              alignment: AlignmentDirectional.topStart,
-              child: Material(
-                elevation: 4,
-                color: ColorManager.palette(context).card,
-                child: SizedBox(
-                  width: constraints.maxWidth,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 240),
-                    child: ListView(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      children: [
-                        for (final option in options)
-                          ListTile(
-                            title: Text(
-                              option,
-                              textDirection: TextDirection.ltr,
-                              style: AppTypography.routingInput,
-                            ),
-                            onTap: () => select(option),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
 }

@@ -18,13 +18,13 @@ final class RoutingProfileDocument {
     int? id,
     String? name,
     bool allowMetadata = true,
-    bool ignoreRemovedDnsFields = false,
+    bool ignoreRetiredFields = false,
   }) => RoutingProfileDocument.fromJson(
     jsonDecode(text),
     id: id,
     name: name,
     allowMetadata: allowMetadata,
-    ignoreRemovedDnsFields: ignoreRemovedDnsFields,
+    ignoreRetiredFields: ignoreRetiredFields,
   );
 
   factory RoutingProfileDocument.fromJson(
@@ -32,7 +32,7 @@ final class RoutingProfileDocument {
     int? id,
     String? name,
     bool allowMetadata = true,
-    bool ignoreRemovedDnsFields = false,
+    bool ignoreRetiredFields = false,
   }) {
     final document = Map<String, dynamic>.of(_object(value, const []));
     _onlyKeys(
@@ -64,7 +64,7 @@ final class RoutingProfileDocument {
         ? routingAssets(document.remove('geodata'))
         : <Map<String, String>>[];
     document.remove('name');
-    if (ignoreRemovedDnsFields) _removeRetiredDnsFields(document);
+    if (ignoreRetiredFields) _removeRetiredFields(document);
     _checkEditableFields(document);
     try {
       final xrayJson = XrayJson.fromJson(document);
@@ -88,6 +88,28 @@ final class RoutingProfileDocument {
 
 // Only stored App data and backups use this compatibility boundary. External
 // ordinary imports still reject fields the current form cannot represent.
+void _removeRetiredFields(Map<String, dynamic> document) {
+  _removeRetiredDnsFields(document);
+  final inbounds = document['inbounds'];
+  if (inbounds is! List) return;
+  document['inbounds'] = [
+    for (final inbound in inbounds)
+      if (inbound is Map<String, dynamic> &&
+          inbound['sniffing'] is Map<String, dynamic>)
+        {
+          ...inbound,
+          'sniffing':
+              Map<String, dynamic>.of(
+                  inbound['sniffing'] as Map<String, dynamic>,
+                )
+                ..remove('domainsExcluded')
+                ..remove('ipsExcluded'),
+        }
+      else
+        inbound,
+  ];
+}
+
 void _removeRetiredDnsFields(Map<String, dynamic> document) {
   final value = document['dns'];
   if (value is! Map<String, dynamic>) return;
@@ -152,14 +174,7 @@ void _checkEditableFields(Map<String, dynamic> document) {
     }
     _onlyKeys(
       _object(inbound['sniffing'], const ['inbounds', 0, 'sniffing']),
-      const {
-        'enabled',
-        'routeOnly',
-        'destOverride',
-        'metadataOnly',
-        'domainsExcluded',
-        'ipsExcluded',
-      },
+      const {'enabled', 'routeOnly', 'destOverride', 'metadataOnly'},
       const ['inbounds', 0, 'sniffing'],
     );
   }

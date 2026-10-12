@@ -39,7 +39,9 @@ void main() {
         '{"serveStale":true,"serveExpiredTTL":60,"enableParallelQuery":true,'
         '"servers":[{"address":"1.1.1.1","expectedIPs":["1.1.1.0/24"],'
         '"expectIPs":["9.9.9.0/24"],"unexpectedIPs":["192.0.2.0/24"],'
-        '"serveStale":true,"serveExpiredTTL":60}]}\n}',
+        '"serveStale":true,"serveExpiredTTL":60}]},"inbounds":['
+        '{"tag":"tunIn","sniffing":{"enabled":true,'
+        '"domainsExcluded":["domain:example.com"],"ipsExcluded":["192.168.0.0/16"]}}]\n}',
       ),
     );
     final fragmentOutbound = <String, dynamic>{
@@ -59,6 +61,7 @@ void main() {
     final advancedDns = advanced['dns'] as Map<String, dynamic>;
     advancedDns.addAll(_retiredDnsRoot);
     (advancedDns['servers'] as List).single.addAll(_retiredDnsResolver);
+    (advanced['inbounds'] as List).single['sniffing'].addAll(_retiredSniffing);
     final ordinary = RoutingProfileState(
       name: '普通路由',
       fragmentOutbound: fragmentOutbound,
@@ -69,6 +72,9 @@ void main() {
     for (final server in (ordinaryDns['servers'] as List)) {
       server.addAll(_retiredDnsResolver);
     }
+    (legacyOrdinary['inbounds'] as List).single['sniffing'].addAll(
+      _retiredSniffing,
+    );
     final routeData = [
       base64Encode(utf8.encode(jsonEncode(legacyOrdinary))),
       base64Encode(utf8.encode(jsonEncode(advanced))),
@@ -171,10 +177,7 @@ void main() {
             ],
             sameExitOnly: true,
           ),
-          sniffing: const RoutingSniffingSettings(
-            metadataOnly: true,
-            domainsExcluded: ['domain:example.com'],
-          ),
+          sniffing: const RoutingSniffingSettings(metadataOnly: true),
           selection: const RoutingSelectionSettings(
             type: 'leastPing',
             probeInterval: '30s',
@@ -189,6 +192,7 @@ void main() {
     (legacySmartDns['proxyResolvers'] as List).first.addAll(
       _retiredDnsResolver,
     );
+    legacySettings['connection']['smart']['sniffing'].addAll(_retiredSniffing);
     await db.connectionConfigDao.commit(
       configurationJson: jsonEncode(legacySettings),
     );
@@ -199,6 +203,10 @@ void main() {
     expect(document.routingProfiles.map((row) => row.data), routeData);
     expect(document.smartRouting.fragment, true);
     expect(document.smartRouting.dns, original.connection.smart.dns.toJson());
+    expect(
+      document.smartRouting.sniffing,
+      original.connection.smart.sniffing.toJson(),
+    );
     expect(jsonEncode(document.toJson()), isNot(contains('finalExitId')));
     expect(document.subscriptions.single.toJson(), {
       'name': 'Source',
@@ -214,6 +222,7 @@ void main() {
     final backupDns = legacySnapshot['smartRouting']['dns'] as Map;
     backupDns.addAll(_retiredDnsRoot);
     (backupDns['proxyResolvers'] as List).first.addAll(_retiredDnsResolver);
+    legacySnapshot['smartRouting']['sniffing'].addAll(_retiredSniffing);
     final decoded = decodeBackup(
       Uint8List.fromList(utf8.encode(jsonEncode(legacySnapshot))),
     );
@@ -278,6 +287,10 @@ void main() {
     final recaptured = await assets.capture();
     expect(recaptured.geoData.single.name, 'blocked');
     expect(recaptured.smartRouting.dns, original.connection.smart.dns.toJson());
+    expect(
+      recaptured.smartRouting.sniffing,
+      original.connection.smart.sniffing.toJson(),
+    );
     expect(recaptured.routingProfiles.map((row) => row.data), routeData);
   });
 }
@@ -295,4 +308,9 @@ const _retiredDnsResolver = {
   'unexpectedIPs': ['192.0.2.0/24'],
   'serveStale': true,
   'serveExpiredTTL': 60,
+};
+
+const _retiredSniffing = {
+  'domainsExcluded': ['domain:example.com'],
+  'ipsExcluded': ['192.168.0.0/16'],
 };
