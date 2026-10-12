@@ -392,16 +392,15 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
             throw TunnelError.noXrayJson
         }
         var root = try JsonTool.decodeObject(from: Data(xrayJson.utf8))
-        var env = try XrayEnv.fromObject(root["env"])
-        env.tunFd = "\(fd)"
+        var env = try xrayRuntimeEnvWithTunFd(root["env"], fd: fd)
         if Constants.useSystemExtension {
             guard let dat = datDir() else {
                 YGLog("PacketTunnelProvider TunnelError.noGroupContainer")
                 throw TunnelError.noGroupContainer
             }
             let datPath = dat.adaptedPath()
-            env.assetLocation = datPath
-            env.certLocation = datPath
+            env["xray.location.asset"] = datPath
+            env["xray.location.cert"] = datPath
             if var log = root["log"] as? [String: Any] {
                 for (key, access) in [("access", true), ("error", false)] {
                     guard let path = log[key] as? String, !path.isEmpty, path != "none" else { continue }
@@ -413,7 +412,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
                 root["log"] = log
             }
         }
-        root["env"] = try env.toObject()
+        root["env"] = env
         let data = try JsonTool.encodeObject(root)
         guard let updatedJson = String(data: data, encoding: .utf8) else {
             throw TunnelError.noXrayJson

@@ -40,6 +40,7 @@
 		EBE36B452F9683E000686880 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B3D2F9683E000686880 /* Constants.swift */; };
 		EBE36B462F9683E000686880 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B402F9683E000686880 /* Model.swift */; };
 		EBD300022FE9000000000002 /* DatFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD300012FE9000000000001 /* DatFileTransfer.swift */; };
+		EBD700023006000000000002 /* RuntimeEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD700013006000000000001 /* RuntimeEnv.swift */; };
 		EBE36B472F9683E000686880 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B412F9683E000686880 /* Tools.swift */; };
 		EBE36B482F9683E000686880 /* LibXray.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = EBE36B3E2F9683E000686880 /* LibXray.xcframework */; };
 		EBE36B492F9683E000686880 /* LibXray.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = EBE36B3E2F9683E000686880 /* LibXray.xcframework */; };
@@ -47,6 +48,7 @@
 		EBE36B4B2F9683E000686880 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B3D2F9683E000686880 /* Constants.swift */; };
 		EBE36B4C2F9683E000686880 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B402F9683E000686880 /* Model.swift */; };
 		EBD300032FE9000000000003 /* DatFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD300012FE9000000000001 /* DatFileTransfer.swift */; };
+		EBD700033006000000000003 /* RuntimeEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD700013006000000000001 /* RuntimeEnv.swift */; };
 		EBE36B4D2F9683E000686880 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B412F9683E000686880 /* Tools.swift */; };
 		EBEAD85B2B95749600A8D27B /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EBEAD85A2B95749600A8D27B /* NetworkExtension.framework */; };
 		EBEAD8632B95749600A8D27B /* tunnel.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EBEAD8592B95749600A8D27B /* tunnel.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -132,6 +134,7 @@
 		EBE36B3F2F9683E000686880 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		EBE36B402F9683E000686880 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		EBD300012FE9000000000001 /* DatFileTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatFileTransfer.swift; sourceTree = "<group>"; };
+		EBD700013006000000000001 /* RuntimeEnv.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEnv.swift; sourceTree = "<group>"; };
 		EBE36B412F9683E000686880 /* Tools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tools.swift; sourceTree = "<group>"; };
 		EBE36B422F9683E000686880 /* WireGuardKitC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WireGuardKitC.h; sourceTree = "<group>"; };
 		EBEAD8592B95749600A8D27B /* tunnel.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = tunnel.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -294,6 +297,7 @@
 				EBE36B3F2F9683E000686880 /* Logger.swift */,
 				EBE36B402F9683E000686880 /* Model.swift */,
 				EBD300012FE9000000000001 /* DatFileTransfer.swift */,
+				EBD700013006000000000001 /* RuntimeEnv.swift */,
 				EBE36B412F9683E000686880 /* Tools.swift */,
 				EBE36B422F9683E000686880 /* WireGuardKitC.h */,
 			);
@@ -483,6 +487,7 @@
 				EBE36B4B2F9683E000686880 /* Constants.swift in Sources */,
 				EBE36B4C2F9683E000686880 /* Model.swift in Sources */,
 				EBD300032FE9000000000003 /* DatFileTransfer.swift in Sources */,
+				EBD700033006000000000003 /* RuntimeEnv.swift in Sources */,
 				EBE36B4D2F9683E000686880 /* Tools.swift in Sources */,
 				EB68C72E2F95200E007C293A /* AppDelegate.swift in Sources */,
 				EB68C72F2F95200E007C293A /* MainFlutterWindow.swift in Sources */,
@@ -504,6 +509,7 @@
 				EBE36B452F9683E000686880 /* Constants.swift in Sources */,
 				EBE36B462F9683E000686880 /* Model.swift in Sources */,
 				EBD300022FE9000000000002 /* DatFileTransfer.swift in Sources */,
+				EBD700023006000000000002 /* RuntimeEnv.swift in Sources */,
 				EBE36B472F9683E000686880 /* Tools.swift in Sources */,
 				EBE36B3B2F9683C900686880 /* PacketTunnelProvider.swift in Sources */,
 			);

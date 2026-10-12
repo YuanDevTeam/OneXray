@@ -20,12 +20,14 @@
 		EB68C7052F94D150007C293A /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB68C7012F94D150007C293A /* Tools.swift */; };
 		EB68C7062F94D150007C293A /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB68C7002F94D150007C293A /* Model.swift */; };
 		EBD300022FE9000000000002 /* DatFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD300012FE9000000000001 /* DatFileTransfer.swift */; };
+		EBD700023006000000000002 /* RuntimeEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD700013006000000000001 /* RuntimeEnv.swift */; };
 		EB68C7072F94D150007C293A /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB68C6FF2F94D150007C293A /* Logger.swift */; };
 		EB68C7082F94D150007C293A /* LibXray.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB68C6FE2F94D150007C293A /* LibXray.xcframework */; };
 		EB68C7092F94D150007C293A /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB68C6FD2F94D150007C293A /* Constants.swift */; };
 		EB68C70A2F94D150007C293A /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB68C7012F94D150007C293A /* Tools.swift */; };
 		EB68C70B2F94D150007C293A /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB68C7002F94D150007C293A /* Model.swift */; };
 		EBD300032FE9000000000003 /* DatFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD300012FE9000000000001 /* DatFileTransfer.swift */; };
+		EBD700033006000000000003 /* RuntimeEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD700013006000000000001 /* RuntimeEnv.swift */; };
 		EB68C70C2F94D150007C293A /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB68C6FF2F94D150007C293A /* Logger.swift */; };
 		EB68C70D2F94D150007C293A /* LibXray.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB68C6FE2F94D150007C293A /* LibXray.xcframework */; };
 		EB68C7162F94D172007C293A /* Vpn.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB68C7122F94D172007C293A /* Vpn.swift */; };
@@ -106,6 +108,7 @@
 		EB68C6FF2F94D150007C293A /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		EB68C7002F94D150007C293A /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		EBD300012FE9000000000001 /* DatFileTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatFileTransfer.swift; sourceTree = "<group>"; };
+		EBD700013006000000000001 /* RuntimeEnv.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEnv.swift; sourceTree = "<group>"; };
 		EB68C7012F94D150007C293A /* Tools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tools.swift; sourceTree = "<group>"; };
 		EB68C7022F94D150007C293A /* WireGuardKitC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WireGuardKitC.h; sourceTree = "<group>"; };
 		EB68C70E2F94D172007C293A /* FlutterApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlutterApi.swift; sourceTree = "<group>"; };
@@ -230,6 +233,7 @@
 				EB68C6FF2F94D150007C293A /* Logger.swift */,
 				EB68C7002F94D150007C293A /* Model.swift */,
 				EBD300012FE9000000000001 /* DatFileTransfer.swift */,
+				EBD700013006000000000001 /* RuntimeEnv.swift */,
 				EB68C7012F94D150007C293A /* Tools.swift */,
 				EB68C7022F94D150007C293A /* WireGuardKitC.h */,
 			);
@@ -440,6 +444,7 @@
 				EB68C7052F94D150007C293A /* Tools.swift in Sources */,
 				EB68C7062F94D150007C293A /* Model.swift in Sources */,
 				EBD300022FE9000000000002 /* DatFileTransfer.swift in Sources */,
+				EBD700023006000000000002 /* RuntimeEnv.swift in Sources */,
 				EB68C7072F94D150007C293A /* Logger.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				EB68C7162F94D172007C293A /* Vpn.swift in Sources */,
@@ -458,6 +463,7 @@
 				EB68C70A2F94D150007C293A /* Tools.swift in Sources */,
 				EB68C70B2F94D150007C293A /* Model.swift in Sources */,
 				EBD300032FE9000000000003 /* DatFileTransfer.swift in Sources */,
+				EBD700033006000000000003 /* RuntimeEnv.swift in Sources */,
 				EB68C70C2F94D150007C293A /* Logger.swift in Sources */,
 				EB68C6FB2F94D127007C293A /* PacketTunnelProvider.swift in Sources */,
 			);

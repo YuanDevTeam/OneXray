@@ -27,10 +27,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.jsonObject
 import libXray.DialerController
 import libXray.LibXray
 import net.yuandev.onexray.MainActivity
@@ -44,7 +40,6 @@ import net.yuandev.onexray.pigeon.LibXrayMethod
 import net.yuandev.onexray.pigeon.PerAppVPNMode
 import net.yuandev.onexray.pigeon.StartVpnRequest
 import net.yuandev.onexray.pigeon.TunJson
-import net.yuandev.onexray.pigeon.XrayEnv
 import net.yuandev.onexray.pigeon.VpnStatus
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
@@ -542,21 +537,8 @@ class OneVpnService : VpnService() {
             if (xrayJson.isEmpty()) {
                 throw IllegalStateException("xrayJson is empty")
             }
-            val root = JsonTool.json.parseToJsonElement(xrayJson).jsonObject
-            val currentEnv = root["env"]?.let {
-                JsonTool.json.decodeFromJsonElement<XrayEnv>(it)
-            } ?: XrayEnv()
-            val env = currentEnv.copy(tunFd = fd.toString())
-            val updated = buildJsonObject {
-                root.forEach { (key, value) ->
-                    if (key != "env") {
-                        put(key, value)
-                    }
-                }
-                put("env", JsonTool.json.encodeToJsonElement(env))
-            }
             val updatedPayload = payload.copy(
-                xrayJson = JsonTool.json.encodeToString(updated),
+                xrayJson = RuntimeTunConfig.withTunFd(xrayJson, fd),
             )
             return JsonTool.json.encodeToString(request.copy(payload = updatedPayload))
         } catch (_: IllegalArgumentException) {
