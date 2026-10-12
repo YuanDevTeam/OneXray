@@ -50,6 +50,8 @@ class BackupSubscription {
   final String? agePublicKey;
   final bool hwidEnabled;
   final String? hwid;
+  final String panel;
+  final String mode;
 
   const BackupSubscription(
     this.name,
@@ -57,8 +59,10 @@ class BackupSubscription {
     this.ageSecretKey,
     this.agePublicKey,
     this.hwidEnabled,
-    this.hwid,
-  );
+    this.hwid, {
+    this.panel = 'generic',
+    this.mode = 'appManaged',
+  });
   factory BackupSubscription.fromJson(Map<String, dynamic> json) =>
       _$BackupSubscriptionFromJson(json);
   Map<String, dynamic> toJson() => _$BackupSubscriptionToJson(this);

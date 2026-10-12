@@ -341,6 +341,8 @@ SubscriptionData _subscription({
   String? agePublicKey,
 }) {
   return SubscriptionData(
+    panel: 'generic',
+    mode: 'appManaged',
     id: 2,
     hwidEnabled: false,
     name: 'Provider',

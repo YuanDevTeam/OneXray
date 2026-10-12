@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/errors/json_diagnostic.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/network/client.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/model.dart';
@@ -181,6 +182,8 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   AgeKeyType? _linkAgeType;
   String? _hwid;
   String? _hwidUrl;
+  SubscriptionPanel _panel = SubscriptionPanel.generic;
+  SubscriptionMode? _mode;
   int _jsonRevision = 0;
 
   bool get supportsScan => AppPlatform.isMobile;
@@ -194,6 +197,8 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
               url: SubscriptionUrl.normalize(state.url),
               ageSecretKey: state.secretKey,
               agePublicKey: state.publicKey,
+              panel: _panel,
+              mode: _mode,
             ),
           ) ==
           null;
@@ -286,6 +291,12 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       }
       final sameOrigin = SubscriptionUrl.sameOrigin(row.url, url.text);
       _hwid = row.hwid;
+      _panel =
+          SubscriptionPanel.fromString(row.panel) ??
+          (throw const FormatException('Unsupported subscription panel'));
+      _mode =
+          SubscriptionMode.fromString(row.mode) ??
+          (throw const FormatException('Unsupported subscription mode'));
       _hwidUrl = sameOrigin ? row.url : null;
       emit(state.copyWith(hwidEnabled: sameOrigin && row.hwidEnabled));
     } catch (error) {
@@ -752,6 +763,8 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         agePublicKey: state.publicKey,
         hwidEnabled: state.hwidEnabled,
         hwid: _hwid,
+        panel: _panel,
+        mode: _mode,
       );
       final problem = SubscriptionValidator.validate(input);
       if (!isPageActive || !context.mounted) return;

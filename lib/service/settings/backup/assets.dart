@@ -5,6 +5,7 @@ import 'package:onexray/core/backup/codec.dart';
 import 'package:onexray/core/backup/model.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/constants.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/db/dao/routing_profile.dart';
 import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/service/advanced/xray/geodata/model.dart';
@@ -55,6 +56,8 @@ class BackupAssets {
             _optional(row.agePublicKey),
             row.hwidEnabled,
             _optional(row.hwid),
+            panel: row.panel,
+            mode: row.mode,
           ),
       ],
       routingProfiles: [
@@ -120,6 +123,8 @@ class BackupAssets {
                 SubscriptionCompanion.insert(
                   name: row.name,
                   url: row.url,
+                  panel: Value(row.panel),
+                  mode: Value(row.mode),
                   ageSecretKey: Value(_optional(row.ageSecretKey)),
                   agePublicKey: Value(_optional(row.agePublicKey)),
                   hwidEnabled: Value(row.hwidEnabled),
@@ -168,6 +173,10 @@ void validateBackupAssets(BackupDocument document) {
   for (final row in document.subscriptions) {
     _name(row.name);
     GeoDataInput.httpsUri(row.url);
+    if (SubscriptionPanel.fromString(row.panel) == null ||
+        SubscriptionMode.fromString(row.mode) == null) {
+      throw const FormatException('Unsupported subscription panel or mode');
+    }
     if (!urls.add(row.url)) {
       throw const FormatException('Duplicate subscription URL');
     }

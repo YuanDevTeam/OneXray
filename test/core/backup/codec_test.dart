@@ -70,6 +70,39 @@ void main() {
     expect(document.smartRouting.toJson()['fragment'], false);
   });
 
+  test('previous subscriptions default to generic App management', () {
+    final json = sample().toJson();
+    final source =
+        (json['subscriptions'] as List).single as Map<String, dynamic>;
+    source.remove('panel');
+    source.remove('mode');
+    source['futureSourceField'] = {'preservedByFutureClient': true};
+    final document = decodeBackup(
+      Uint8List.fromList(utf8.encode(jsonEncode(json))),
+    );
+    expect(document.subscriptions.single.panel, 'generic');
+    expect(document.subscriptions.single.mode, 'appManaged');
+    expect(
+      document.subscriptions.single.toJson(),
+      isNot(contains('futureSourceField')),
+    );
+  });
+
+  test('source panel and mode round trip without changing backup version', () {
+    final json = sample().toJson();
+    final source =
+        (json['subscriptions'] as List).single as Map<String, dynamic>;
+    source['panel'] = 'remnawave';
+    source['mode'] = 'providerManaged';
+    final document = decodeBackup(
+      Uint8List.fromList(utf8.encode(jsonEncode(json))),
+    );
+    final result = decodeBackup(encodeBackup(document));
+    expect(result.version, 1);
+    expect(result.subscriptions.single.panel, 'remnawave');
+    expect(result.subscriptions.single.mode, 'providerManaged');
+  });
+
   test('fragment must be a boolean when present', () {
     final json = sample().toJson();
     (json['smartRouting'] as Map<String, dynamic>)['fragment'] = 'true';

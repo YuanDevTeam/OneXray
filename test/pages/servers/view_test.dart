@@ -66,26 +66,24 @@ class _Controller extends ServersController {
   }
 }
 
-CoreConfigData _server(int id, String country, {bool favorite = false}) =>
-    CoreConfigData(
-      id: id,
-      name: 'Node $id',
-      type: 'outbound',
-      tags: 'vless,xhttp,tls',
-      data: base64Encode(
-        utf8.encode(
-          jsonEncode({
-            'tag': 'Node $id',
-            'protocol': 'vless',
-            'streamSettings': {'network': 'xhttp', 'security': 'tls'},
-          }),
-        ),
-      ),
-      delay: id * 20,
-      subId: 0,
-      countryCode: country,
-      favorite: favorite,
-    );
+CoreConfigData _server(int id, {bool favorite = false}) => CoreConfigData(
+  id: id,
+  name: 'Node $id',
+  type: 'outbound',
+  tags: 'vless,xhttp,tls',
+  data: base64Encode(
+    utf8.encode(
+      jsonEncode({
+        'tag': 'Node $id',
+        'protocol': 'vless',
+        'streamSettings': {'network': 'xhttp', 'security': 'tls'},
+      }),
+    ),
+  ),
+  delay: id * 20,
+  subId: 0,
+  favorite: favorite,
+);
 
 void main() {
   late AppDatabase db;
@@ -101,7 +99,7 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     coordinator = ConnectionCoordinator(database: db);
     controller = _Controller(database: db, coordinator: coordinator)
-      ..servers = [_server(1, 'JP', favorite: true), _server(2, 'SG')];
+      ..servers = [_server(1, favorite: true), _server(2)];
     scroll = ScrollController();
   });
 
@@ -461,6 +459,8 @@ void main() {
     ) async {
       controller.sources = [
         SubscriptionData(
+          panel: 'generic',
+          mode: 'appManaged',
           id: 1,
           name: 'Provider subscription with a long descriptive name',
           url: 'https://example.test/subscription',
@@ -473,7 +473,7 @@ void main() {
           userInfoUpdatedAt: DateTime(2026, 9, 1),
         ),
       ];
-      controller.servers = [_server(1, 'JP').copyWith(subId: 1)];
+      controller.servers = [_server(1).copyWith(subId: 1)];
       await pumpBrowser(tester, width, locale: locale);
       expect(find.byType(SubscriptionPackageSummary), findsWidgets);
       expect(tester.takeException(), isNull);
@@ -488,6 +488,8 @@ void main() {
     tester,
   ) async {
     final source = SubscriptionData(
+      panel: 'generic',
+      mode: 'appManaged',
       id: 1,
       name: 'Provider',
       url: 'https://example.test/subscription',
@@ -496,7 +498,7 @@ void main() {
     );
     controller.sources = [source];
     controller.servers = [
-      _server(1, 'JP').copyWith(
+      _server(1).copyWith(
         subId: 1,
         data: outboundCompanion({'tag': 'Node 1', 'protocol': 'vless'}).data,
       ),
@@ -563,7 +565,7 @@ void main() {
           ];
           controller.servers = [
             for (final (index, (delay, _)) in samples.indexed)
-              _server(index + 1, 'JP').copyWith(delay: delay),
+              _server(index + 1).copyWith(delay: delay),
           ];
           await pumpBrowser(
             tester,
@@ -612,6 +614,8 @@ void main() {
     ) async {
       controller.sources = [
         SubscriptionData(
+          panel: 'generic',
+          mode: 'appManaged',
           id: 4,
           name: 'Source',
           hwidEnabled: false,
@@ -619,7 +623,7 @@ void main() {
           timestamp: DateTime(2026),
         ),
       ];
-      controller.servers = [_server(1, 'JP').copyWith(subId: 4)];
+      controller.servers = [_server(1).copyWith(subId: 4)];
       await pumpBrowser(tester, width, groupPage: true);
       final l = AppLocalizations.of(
         tester.element(find.byType(ServerGroupView)),
@@ -841,6 +845,8 @@ void main() {
     (tester) async {
       controller.sources = [
         SubscriptionData(
+          panel: 'generic',
+          mode: 'appManaged',
           id: 1,
           name: 'First provider',
           url: 'https://example.test/first',
@@ -848,6 +854,8 @@ void main() {
           timestamp: DateTime(2026),
         ),
         SubscriptionData(
+          panel: 'generic',
+          mode: 'appManaged',
           id: 2,
           name: 'Second provider',
           url: 'https://example.test/second',
@@ -856,8 +864,8 @@ void main() {
         ),
       ];
       controller.servers = [
-        _server(1, 'JP').copyWith(subId: 1),
-        _server(2, 'SG').copyWith(subId: 2),
+        _server(1).copyWith(subId: 1),
+        _server(2).copyWith(subId: 2),
       ];
       await pumpBrowser(tester, 900);
       final group = find.byType(ServerGroupView);
@@ -892,30 +900,9 @@ void main() {
     ) async {
       final mobile = width <= AppLayout.mobileBreakpoint;
       controller.servers = [
-        for (var id = 1; id <= 200; id++) _server(id, 'JP'),
-        for (final (index, country) in [
-          'AR',
-          'AT',
-          'AU',
-          'BE',
-          'BR',
-          'CA',
-          'CH',
-          'DE',
-          'DK',
-          'ES',
-          'FI',
-          'FR',
-          'GB',
-          'HK',
-          'IE',
-          'IN',
-          'IT',
-          'KR',
-          'NL',
-          'SG',
-        ].indexed)
-          _server(201 + index, country).copyWith(subId: index + 1),
+        for (var id = 1; id <= 200; id++) _server(id),
+        for (var index = 0; index < 20; index++)
+          _server(201 + index).copyWith(subId: index + 1),
       ];
       await pumpBrowser(tester, width, groupPage: mobile);
       final group = find.byType(ServerGroupView);

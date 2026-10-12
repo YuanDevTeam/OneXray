@@ -31,9 +31,9 @@ void main() {
     'automatic, source and fixed selections retain distinct same-name IDs',
     () async {
       final rows = [
-        _row(1, delay: 60, source: 1, region: 'US'),
-        _row(2, delay: 20, source: 2, region: 'US'),
-        _row(3, delay: 0, source: 0, region: 'CN'),
+        _row(1, delay: 60, source: 1),
+        _row(2, delay: 20, source: 2),
+        _row(3, delay: 0, source: 0),
         _row(4, delay: 1, type: 'raw'),
       ];
       final resolver = _oneShot(rows);
@@ -310,7 +310,6 @@ CoreConfigData _row(
   int id, {
   int delay = 10,
   int source = 0,
-  String region = 'US',
   String type = 'outbound',
   String name = 'Same name',
 }) => CoreConfigData(
@@ -320,7 +319,6 @@ CoreConfigData _row(
   tags: 'socks',
   delay: delay,
   subId: source,
-  countryCode: region,
   favorite: false,
   data: base64Encode(
     utf8.encode(

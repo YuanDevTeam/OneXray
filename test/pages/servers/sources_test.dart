@@ -15,6 +15,8 @@ import 'package:onexray/service/connect/coordinator.dart';
 
 const _open = Key('open-sources');
 final _source = SubscriptionData(
+  panel: 'generic',
+  mode: 'appManaged',
   id: 7,
   name: 'Example subscription',
   hwidEnabled: false,

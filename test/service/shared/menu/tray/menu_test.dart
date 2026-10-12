@@ -47,7 +47,6 @@ CoreConfigCompanion _node(String name, {int source = 0, int delay = 10}) =>
       ),
       delay: delay,
       subId: source,
-      countryCode: const Value('JP'),
     );
 
 TrayMenuData _menuData(int count) {
@@ -62,7 +61,6 @@ TrayMenuData _menuData(int count) {
         data: _node('Node $id').data.value,
         delay: 10,
         subId: id == 1 ? 0 : id,
-        countryCode: 'JP',
         favorite: false,
       ),
   ];
@@ -72,6 +70,8 @@ TrayMenuData _menuData(int count) {
       sources: [
         for (final id in ids)
           SubscriptionData(
+            panel: 'generic',
+            mode: 'appManaged',
             id: id,
             name: 'Source $id',
             url: 'https://example.com/$id',

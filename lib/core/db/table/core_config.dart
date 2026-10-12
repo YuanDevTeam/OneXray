@@ -15,7 +15,5 @@ class CoreConfig extends Table {
 
   IntColumn get subId => integer()();
 
-  TextColumn get countryCode => text().nullable()();
-
   BoolColumn get favorite => boolean().withDefault(const Constant(false))();
 }

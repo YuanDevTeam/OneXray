@@ -604,6 +604,8 @@ void main() {
     final controller = ServerImportController(
       subscriptionId: 7,
       loadSubscription: (_) async => SubscriptionData(
+        panel: 'generic',
+        mode: 'appManaged',
         id: 7,
         name: 'Provider',
         url: 'https://provider.example/list',
@@ -716,6 +718,8 @@ void main() {
       controller.name.text = 'Typed while loading';
       loaded.complete(
         SubscriptionData(
+          panel: 'generic',
+          mode: 'appManaged',
           id: 7,
           name: 'Provider',
           hwidEnabled: false,

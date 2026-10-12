@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
@@ -181,6 +182,99 @@ void main() {
       );
     }
   });
+
+  test(
+    'mode and panel edits retain package cache, timestamp and node data',
+    () async {
+      var downloads = 0;
+      final subject = service((_) async {
+        downloads++;
+        return loaded(firstInfo);
+      });
+      final inserted = await subject.insertSubscription(input);
+      final original = (await database.subscriptionDao.searchRow(
+        inserted.subId,
+      ))!;
+      final nodes = await database.coreConfigDao.allOutboundRowsWithDataBySubId(
+        original.id,
+      );
+      final status = await subject.saveSubscriptionInput(
+        original.id,
+        const SubscriptionInput(
+          name: 'Provider',
+          url: 'https://example.com/sub',
+          panel: SubscriptionPanel.remnawave,
+          mode: SubscriptionMode.providerManaged,
+        ),
+      );
+      expect(status, SubscriptionUpdateResult.success);
+      expect(downloads, 1);
+      final changed = (await database.subscriptionDao.searchRow(original.id))!;
+      expect(changed.panel, 'remnawave');
+      expect(changed.mode, 'providerManaged');
+      expect(changed.timestamp, original.timestamp);
+      expect(changed.uploadBytes, original.uploadBytes);
+      expect(changed.downloadBytes, original.downloadBytes);
+      expect(changed.totalBytes, original.totalBytes);
+      expect(changed.expireTimestamp, original.expireTimestamp);
+      expect(changed.userInfoUpdatedAt, original.userInfoUpdatedAt);
+      expect(
+        await database.coreConfigDao.allOutboundRowsWithDataBySubId(
+          original.id,
+        ),
+        nodes,
+      );
+
+      await subject.saveSubscriptionInput(
+        original.id,
+        const SubscriptionInput(
+          name: 'Renamed',
+          url: 'https://example.com/sub',
+          panel: SubscriptionPanel.remnawave,
+        ),
+      );
+      expect(
+        (await database.subscriptionDao.searchRow(original.id))!.mode,
+        'providerManaged',
+      );
+    },
+  );
+
+  test(
+    'mode edit supersedes an earlier response without clearing package cache',
+    () async {
+      final response = Completer<SubscriptionLoadResult>();
+      final started = Completer<void>();
+      var refreshing = false;
+      final subject = service((_) async {
+        if (!refreshing) return loaded(firstInfo);
+        started.complete();
+        return response.future;
+      });
+      final inserted = await subject.insertSubscription(input);
+      final source = (await database.subscriptionDao.searchRow(
+        inserted.subId,
+      ))!;
+      refreshing = true;
+      final pending = subject.refreshSubscriptionResult(source);
+      await started.future;
+      await subject.saveSubscriptionInput(
+        source.id,
+        const SubscriptionInput(
+          name: 'Provider',
+          url: 'https://example.com/sub',
+          mode: SubscriptionMode.providerManaged,
+        ),
+      );
+      response.complete(loaded(null));
+      expect((await pending).superseded, isTrue);
+      final changed = (await database.subscriptionDao.searchRow(source.id))!;
+      expect(changed.mode, 'providerManaged');
+      expect(changed.totalBytes, source.totalBytes);
+      expect(changed.userInfoUpdatedAt, source.userInfoUpdatedAt);
+      expect(changed.timestamp, source.timestamp);
+    },
+  );
 
   for (final delete in [false, true]) {
     test(

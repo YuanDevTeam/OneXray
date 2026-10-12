@@ -98,7 +98,6 @@ void main() {
           delay: 100,
           subId: 0,
           favorite: const Value(true),
-          countryCode: const Value('CN'),
         ),
       );
     }
@@ -139,6 +138,8 @@ void main() {
       SubscriptionCompanion.insert(
         name: 'Source',
         url: 'https://example.com/sub',
+        panel: const Value('remnawave'),
+        mode: const Value('providerManaged'),
         ageSecretKey: const Value('secret-fixture'),
         agePublicKey: const Value('public-fixture'),
         hwid: const Value('keep'),
@@ -210,12 +211,23 @@ void main() {
     expect(jsonEncode(document.toJson()), isNot(contains('finalExitId')));
     expect(document.subscriptions.single.toJson(), {
       'name': 'Source',
+      'panel': 'remnawave',
+      'mode': 'providerManaged',
       'url': 'https://example.com/sub',
       'ageSecretKey': 'secret-fixture',
       'agePublicKey': 'public-fixture',
       'hwidEnabled': false,
       'hwid': 'keep',
     });
+    for (final key in ['panel', 'mode']) {
+      final invalid = document.toJson();
+      ((invalid['subscriptions'] as List).single as Map<String, dynamic>)[key] =
+          'unsupported';
+      final decodedInvalid = decodeBackup(
+        Uint8List.fromList(utf8.encode(jsonEncode(invalid))),
+      );
+      expect(() => validateBackupAssets(decodedInvalid), throwsFormatException);
+    }
     expect(document.geoData.single.name, 'blocked');
     final legacySnapshot =
         jsonDecode(utf8.decode(encodeBackup(document))) as Map<String, dynamic>;
@@ -232,13 +244,7 @@ void main() {
     final restored = await db.coreConfigDao.allRawRowsWithData;
     expect(restored.length, 4);
     expect(
-      restored.every(
-        (row) =>
-            row.id > 6 &&
-            row.data == raw &&
-            row.countryCode == null &&
-            !row.favorite,
-      ),
+      restored.every((row) => row.id > 6 && row.data == raw && !row.favorite),
       true,
     );
     final connection = ConnectionConfiguration.fromJson(
@@ -284,6 +290,9 @@ void main() {
     );
     expect(routes.every((row) => row.id > 2), true);
     expect((await db.geoDataDao.allRows).single.installed, false);
+    final restoredSource = (await db.subscriptionDao.allRows).single;
+    expect(restoredSource.panel, 'remnawave');
+    expect(restoredSource.mode, 'providerManaged');
     final recaptured = await assets.capture();
     expect(recaptured.geoData.single.name, 'blocked');
     expect(recaptured.smartRouting.dns, original.connection.smart.dns.toJson());

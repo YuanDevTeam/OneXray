@@ -72,7 +72,8 @@ class CoreConfigDao extends DatabaseAccessor<AppDatabase>
 
   Future<bool> updateRow(CoreConfigData entry) async {
     if (entry.type != CoreConfigType.outbound.name &&
-        entry.type != CoreConfigType.raw.name) {
+        entry.type != CoreConfigType.raw.name &&
+        entry.type != CoreConfigType.Remnawave.name) {
       throw StateError('Unsupported asset type');
     }
     return await (update(coreConfig)..where(
@@ -117,8 +118,13 @@ class CoreConfigDao extends DatabaseAccessor<AppDatabase>
     for (final entry in entries) {
       final type = entry.type.present ? entry.type.value : null;
       if (type != CoreConfigType.outbound.name &&
-          type != CoreConfigType.raw.name) {
+          type != CoreConfigType.raw.name &&
+          type != CoreConfigType.Remnawave.name) {
         throw ArgumentError('Unsupported asset type');
+      }
+      if (type == CoreConfigType.Remnawave.name &&
+          (!entry.subId.present || entry.subId.value <= 0)) {
+        throw ArgumentError('Provider configurations require a subscription');
       }
       if (type == CoreConfigType.raw.name) {
         addedRaw += 1;

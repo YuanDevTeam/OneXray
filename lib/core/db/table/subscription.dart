@@ -7,6 +7,9 @@ class Subscription extends Table {
 
   TextColumn get url => text()();
 
+  TextColumn get panel => text().withDefault(const Constant('generic'))();
+  TextColumn get mode => text().withDefault(const Constant('appManaged'))();
+
   TextColumn get ageSecretKey => text().nullable()();
 
   TextColumn get agePublicKey => text().nullable()();

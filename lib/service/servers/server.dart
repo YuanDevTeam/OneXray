@@ -181,9 +181,6 @@ class ServerAssetService {
             tags: companion.tags.value,
             data: companion.data,
             delay: semanticChange ? PingDelayConstants.unknown : current.delay,
-            countryCode: semanticChange
-                ? const Value(null)
-                : const Value.absent(),
           ),
         );
       },
@@ -207,10 +204,7 @@ class ServerAssetService {
       final outbound = readOutboundFromDbData(current);
       outbound['tag'] = '${outboundDisplayName(outbound)} · $suffix';
       return db.coreConfigDao.insertAssetRow(
-        outboundCompanion(outbound).copyWith(
-          countryCode: Value(current.countryCode),
-          favorite: const Value(false),
-        ),
+        outboundCompanion(outbound).copyWith(favorite: const Value(false)),
       );
     });
     _schedule([id]);

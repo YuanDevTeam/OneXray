@@ -108,6 +108,8 @@ void main() {
       controller.servers = [newer, olderFast, olderSlow, local];
       controller.sources = [
         SubscriptionData(
+          panel: 'generic',
+          mode: 'appManaged',
           id: 10,
           name: 'A newer source',
           hwidEnabled: false,
@@ -115,6 +117,8 @@ void main() {
           timestamp: DateTime(2026, 9, 8),
         ),
         SubscriptionData(
+          panel: 'generic',
+          mode: 'appManaged',
           id: 2,
           name: 'Z older source',
           hwidEnabled: false,
@@ -150,6 +154,8 @@ void main() {
     controller.servers = [one];
     controller.sources = [
       SubscriptionData(
+        panel: 'generic',
+        mode: 'appManaged',
         id: 4,
         name: 'Used source',
         hwidEnabled: false,
@@ -157,6 +163,8 @@ void main() {
         timestamp: DateTime(2026, 9, 4),
       ),
       SubscriptionData(
+        panel: 'generic',
+        mode: 'appManaged',
         id: 5,
         name: 'Empty source',
         hwidEnabled: false,

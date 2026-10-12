@@ -199,6 +199,8 @@ class SubscriptionService {
         final row = SubscriptionCompanion.insert(
           name: input.name,
           url: input.url,
+          panel: Value(input.panel.name),
+          mode: Value((input.mode ?? SubscriptionMode.appManaged).name),
           ageSecretKey: Value(input.normalizedAgeSecretKey),
           agePublicKey: Value(input.normalizedAgePublicKey),
           hwidEnabled: Value(input.hwidEnabled),
@@ -262,12 +264,14 @@ class SubscriptionService {
         var next = row.copyWith(
           name: input.name,
           url: input.url,
+          panel: input.panel.name,
+          mode: input.mode?.name ?? row.mode,
           ageSecretKey: Value(input.normalizedAgeSecretKey),
           agePublicKey: Value(input.normalizedAgePublicKey),
           hwidEnabled: input.hwidEnabled,
           hwid: Value(hwid),
         );
-        if (!_sameSource(next, row)) {
+        if (!_sameRequestSource(next, row)) {
           next = next.copyWith(
             uploadBytes: const Value(null),
             downloadBytes: const Value(null),
@@ -399,6 +403,12 @@ class SubscriptionService {
           agePublicKey: subscription.agePublicKey,
           hwidEnabled: subscription.hwidEnabled,
           hwid: subscription.hwid,
+          panel:
+              SubscriptionPanel.fromString(subscription.panel) ??
+              (throw const FormatException('Unsupported subscription panel')),
+          mode:
+              SubscriptionMode.fromString(subscription.mode) ??
+              (throw const FormatException('Unsupported subscription mode')),
         ),
       );
       _ensureCurrent(id, generation);
@@ -484,6 +494,14 @@ class SubscriptionService {
   }
 
   static bool _sameSource(
+    SubscriptionData current,
+    SubscriptionData expected,
+  ) =>
+      _sameRequestSource(current, expected) &&
+      current.panel == expected.panel &&
+      current.mode == expected.mode;
+
+  static bool _sameRequestSource(
     SubscriptionData current,
     SubscriptionData expected,
   ) =>

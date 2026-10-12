@@ -65,6 +65,8 @@ BackupSubscription _$BackupSubscriptionFromJson(Map<String, dynamic> json) =>
       json['agePublicKey'] as String?,
       json['hwidEnabled'] as bool,
       json['hwid'] as String?,
+      panel: json['panel'] as String? ?? 'generic',
+      mode: json['mode'] as String? ?? 'appManaged',
     );
 
 Map<String, dynamic> _$BackupSubscriptionToJson(BackupSubscription instance) =>
@@ -75,6 +77,8 @@ Map<String, dynamic> _$BackupSubscriptionToJson(BackupSubscription instance) =>
       'agePublicKey': instance.agePublicKey,
       'hwidEnabled': instance.hwidEnabled,
       'hwid': instance.hwid,
+      'panel': instance.panel,
+      'mode': instance.mode,
     };
 
 BackupRoutingProfile _$BackupRoutingProfileFromJson(

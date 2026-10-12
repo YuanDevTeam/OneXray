@@ -126,6 +126,34 @@ void main() {
   );
 
   test(
+    'subscription configurations do not consume the manual Raw quota',
+    () async {
+      final dao = database.coreConfigDao;
+      await dao.insertAssetRows(List.generate(3, (_) => _config('raw')));
+      expect(
+        await dao.insertAssetRows(
+          List.generate(5, (_) => _config('Remnawave', subId: 7)),
+        ),
+        5,
+      );
+      expect(await dao.allRawRowsWithData, hasLength(3));
+      final provider = (await database.select(database.coreConfig).get())
+          .firstWhere((row) => row.type == 'Remnawave');
+      expect(await dao.updateRow(provider.copyWith(favorite: true)), isTrue);
+      expect((await dao.searchRow(provider.id))!.favorite, isTrue);
+      await expectLater(dao.insertAssetRow(_config('raw')), throwsStateError);
+      await expectLater(
+        dao.insertAssetRow(_config('Remnawave')),
+        throwsArgumentError,
+      );
+      await expectLater(
+        dao.insertAssetRow(_config('full', subId: 7)),
+        throwsArgumentError,
+      );
+    },
+  );
+
+  test(
     'custom routing enforces three profiles without limiting edits',
     () async {
       final dao = database.routingProfileDao;

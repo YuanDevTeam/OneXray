@@ -27,7 +27,6 @@ void main() {
       outboundCompanion({'tag': 'original', 'protocol': 'freedom'}).copyWith(
         subId: Value(subId),
         favorite: Value(favorite),
-        countryCode: const Value('JP'),
         delay: const Value(20),
       ),
     );
@@ -101,7 +100,6 @@ void main() {
           saved.delay,
           change == 'rename' ? 20 : PingDelayConstants.unknown,
         );
-        expect(saved.countryCode, change == 'rename' ? 'JP' : isNull);
         await service.favorite(row.id, true);
         expect((await db.coreConfigDao.searchRow(row.id))!.favorite, true);
         expect(
@@ -192,7 +190,6 @@ void main() {
       final copy = (await db.coreConfigDao.searchRow(copyId))!;
       expect(copy.subId, 0);
       expect(copy.favorite, false);
-      expect(copy.countryCode, 'JP');
       expect(copy.delay, PingDelayConstants.unknown);
       expect(readOutboundFromDbData(copy)['tag'], 'original · Local copy');
       expect(scheduled, [copyId]);
@@ -251,7 +248,6 @@ void main() {
     expect(renamed.original.name, 'renamed');
     expect(renamed.original.favorite, true);
     expect(renamed.original.delay, row.delay);
-    expect(renamed.original.countryCode, row.countryCode);
     final changed = ServerEditDraft(
       renamed.original,
       renamed.text.replaceFirst('freedom', 'blackhole'),

@@ -32,7 +32,7 @@ abstract final class OneXrayAppLinkGenerator {
     final type = switch (CoreConfigType.fromString(config.type)) {
       CoreConfigType.outbound => OneXrayConfigLinkType.outbound,
       CoreConfigType.raw => OneXrayConfigLinkType.raw,
-      null => null,
+      _ => null,
     };
     var data = config.data?.trim();
     if (type == null || data == null || data.isEmpty) {

@@ -1,7 +1,49 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 
 void main() {
+  test('new source keeps mode unspecified and HWID copies retain policy', () {
+    const automatic = SubscriptionInput(
+      name: 'Plain',
+      url: 'https://example.com/sub',
+    );
+    expect(automatic.panel, SubscriptionPanel.generic);
+    expect(automatic.mode, isNull);
+    expect(automatic.withHwid('device').mode, isNull);
+
+    const explicit = SubscriptionInput(
+      name: 'Full',
+      url: 'https://example.com/full',
+      panel: SubscriptionPanel.remnawave,
+      mode: SubscriptionMode.providerManaged,
+      ageSecretKey: 'private',
+      agePublicKey: 'public',
+    );
+    final copied = explicit.withHwid('device');
+    expect(copied.panel, SubscriptionPanel.remnawave);
+    expect(copied.mode, SubscriptionMode.providerManaged);
+    expect(copied.ageSecretKey, explicit.ageSecretKey);
+    expect(copied.agePublicKey, explicit.agePublicKey);
+    expect(copied.hwid, 'device');
+  });
+
+  test('configuration and source enum wire values remain distinct', () {
+    expect(CoreConfigType.fromString('Remnawave'), CoreConfigType.Remnawave);
+    expect(CoreConfigType.fromString('full'), isNull);
+    expect(CoreConfigType.fromString('remnawave'), isNull);
+    expect(
+      SubscriptionPanel.fromString('remnawave'),
+      SubscriptionPanel.remnawave,
+    );
+    expect(
+      SubscriptionMode.fromString('providerManaged'),
+      SubscriptionMode.providerManaged,
+    );
+    expect(SubscriptionPanel.fromString('unknown'), isNull);
+    expect(SubscriptionMode.fromString('automatic'), isNull);
+  });
+
   group('SubscriptionUrl.normalize', () {
     test('removes whitespace and URL fragment', () {
       expect(

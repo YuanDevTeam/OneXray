@@ -36,7 +36,7 @@ void main() {
       await database.close();
 
       final upgraded = sqlite.sqlite3.open(file.path);
-      expect(upgraded.userVersion, 6);
+      expect(upgraded.userVersion, 7);
       expect(_snapshotV5(upgraded), before);
       upgraded.close();
 
@@ -129,7 +129,7 @@ void main() {
       );
       await database.close();
       final upgraded = sqlite.sqlite3.open(file.path);
-      expect(upgraded.userVersion, 6);
+      expect(upgraded.userVersion, 7);
       expect(_snapshotV3(upgraded), before);
       upgraded.close();
       final reopened = AppDatabase.forTesting(NativeDatabase(file));
@@ -150,7 +150,7 @@ void main() {
     expect(
       (await database.customSelect('PRAGMA user_version').getSingle())
           .read<int>('user_version'),
-      6,
+      7,
     );
   });
 
@@ -210,7 +210,7 @@ void main() {
             .read<String>('name'),
         'WAL-only name',
       );
-      expect(writer.userVersion, 6);
+      expect(writer.userVersion, 7);
       expect(_snapshot(writer, hasAgeKeys: true), _afterUpgrade(before));
       expect(
         file.parent.listSync().where(
@@ -221,7 +221,7 @@ void main() {
     },
   );
 
-  test('new installation creates schema 6 with empty assets and default connection configuration', () async {
+  test('new installation creates schema 7 with empty assets and default connection configuration', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
 
@@ -237,7 +237,7 @@ void main() {
       'routing_profile',
     ]);
     for (final entry in {
-      'core_config': ['location_source', 'last_measured_at'],
+      'core_config': ['country_code', 'location_source', 'last_measured_at'],
       'subscription': [
         'parse_failure_count',
         'auto_update',
@@ -258,7 +258,7 @@ void main() {
     expect(
       (await database.customSelect('PRAGMA user_version').getSingle())
           .read<int>('user_version'),
-      6,
+      7,
     );
   });
 
@@ -301,7 +301,6 @@ void main() {
           final rawRows = await database.coreConfigDao.allRawRowsWithData;
           expect(rawRows, hasLength(4));
           expect(rawRows.every((row) => !row.favorite), isTrue);
-          expect(rawRows.every((row) => row.countryCode == null), isTrue);
           expect(await database.routingProfileDao.allRows, isEmpty);
           expect(
             (await database.connectionConfigDao.read()).configurationJson,
@@ -325,7 +324,7 @@ void main() {
           expect(
             (await reopened.customSelect('PRAGMA user_version').getSingle())
                 .read<int>('user_version'),
-            6,
+            7,
           );
           final subId = await reopened.subscriptionDao.insertRow(
             SubscriptionCompanion.insert(
@@ -427,10 +426,50 @@ void main() {
     await database.close();
 
     final upgraded = sqlite.sqlite3.open(file.path);
-    expect(upgraded.userVersion, 6);
+    expect(upgraded.userVersion, 7);
     expect(_snapshotV3(upgraded), before);
     upgraded.close();
 
+    final reopened = AppDatabase.forTesting(NativeDatabase(file));
+    addTearDown(reopened.close);
+    expect((await reopened.subscriptionDao.allRows).single, source);
+  });
+
+  test('schema 6 removes country cache and preserves package and configuration data', () async {
+    final file = await _legacyDatabase(6);
+    final legacy = sqlite.sqlite3.open(file.path);
+    final before = _snapshotV6(legacy);
+    final originalConfiguration = legacy
+        .select('SELECT configuration_json FROM connection_config')
+        .single['configuration_json'];
+    legacy.close();
+
+    final database = AppDatabase.forTesting(NativeDatabase(file));
+    final source = (await database.subscriptionDao.allRows).single;
+    expect(source.panel, 'generic');
+    expect(source.mode, 'appManaged');
+    expect(source.uploadBytes, 10);
+    expect(source.downloadBytes, 20);
+    expect(source.totalBytes, 100);
+    expect(source.hwid, 'keep-hwid');
+    expect(
+      (await database.connectionConfigDao.read()).configurationJson,
+      originalConfiguration,
+    );
+    expect((await database.coreConfigDao.searchRow(12))!.favorite, isTrue);
+    final columns = await database
+        .customSelect('PRAGMA table_info(core_config)')
+        .get();
+    expect(
+      columns.map((row) => row.read<String>('name')),
+      isNot(contains('country_code')),
+    );
+    await database.close();
+
+    final upgraded = sqlite.sqlite3.open(file.path);
+    expect(upgraded.userVersion, 7);
+    expect(_snapshotV6(upgraded), before);
+    upgraded.close();
     final reopened = AppDatabase.forTesting(NativeDatabase(file));
     addTearDown(reopened.close);
     expect((await reopened.subscriptionDao.allRows).single, source);
@@ -441,7 +480,7 @@ void main() {
     () async {
       final file = await _legacyDatabase(2);
       final legacy = sqlite.sqlite3.open(file.path);
-      legacy.userVersion = 7;
+      legacy.userVersion = 8;
       legacy.close();
       final before = _snapshotFile(file, hasAgeKeys: true);
       final database = AppDatabase.forTesting(NativeDatabase(file));
@@ -450,7 +489,7 @@ void main() {
       expect(await file.exists(), isTrue);
       final check = sqlite.sqlite3.open(file.path);
       try {
-        expect(check.userVersion, 7);
+        expect(check.userVersion, 8);
         expect(_snapshot(check, hasAgeKeys: true), before);
       } finally {
         check.close();
@@ -567,6 +606,20 @@ Future<File> _legacyDatabase(int version) async {
       );
       database.execute('UPDATE geo_data SET installed = 0');
     }
+    if (version >= 6) {
+      database.execute('''
+        ALTER TABLE subscription ADD COLUMN upload_bytes INTEGER;
+        ALTER TABLE subscription ADD COLUMN download_bytes INTEGER;
+        ALTER TABLE subscription ADD COLUMN total_bytes INTEGER;
+        ALTER TABLE subscription ADD COLUMN expire_timestamp INTEGER;
+        ALTER TABLE subscription ADD COLUMN user_info_updated_at INTEGER;
+        UPDATE subscription SET upload_bytes = 10, download_bytes = 20,
+          total_bytes = 100, expire_timestamp = 1790812800,
+          user_info_updated_at = 1234;
+        UPDATE connection_config SET configuration_json =
+          '{"connection":{"selection":{"kind":"region","region":"JP"},"smart":{"directRegions":["CN"]}}}';
+      ''');
+    }
     database.execute('PRAGMA user_version = $version');
   } finally {
     database.close();
@@ -582,6 +635,16 @@ void _expectNoUserInfo(SubscriptionData subscription) {
   expect(subscription.userInfoUpdatedAt, isNull);
 }
 
+Map<String, List<List<Object?>>> _snapshotV6(sqlite.Database database) => {
+  ..._snapshotV5(database),
+  'subscription': database
+      .select(
+        'SELECT id, name, url, timestamp, age_secret_key, age_public_key, hwid_enabled, hwid, upload_bytes, download_bytes, total_bytes, expire_timestamp, user_info_updated_at FROM subscription ORDER BY id',
+      )
+      .map((row) => row.values.toList())
+      .toList(),
+};
+
 Map<String, List<List<Object?>>> _snapshotV5(sqlite.Database database) => {
   for (final table in [
     'subscription',
@@ -594,6 +657,8 @@ Map<String, List<List<Object?>>> _snapshotV5(sqlite.Database database) => {
         .select(
           table == 'subscription'
               ? 'SELECT id, name, url, timestamp, age_secret_key, age_public_key, hwid_enabled, hwid FROM subscription ORDER BY id'
+              : table == 'core_config'
+              ? 'SELECT id, name, type, tags, data, delay, sub_id, favorite FROM core_config ORDER BY id'
               : 'SELECT * FROM $table ORDER BY id',
         )
         .map((row) => row.values.toList())
@@ -616,6 +681,8 @@ Map<String, List<List<Object?>>> _snapshotV3(sqlite.Database database) => {
               ? 'SELECT id, name, data FROM routing_profile ORDER BY id'
               : table == 'geo_data'
               ? 'SELECT id, name, type, url, timestamp, category_count, rule_count FROM geo_data ORDER BY id'
+              : table == 'core_config'
+              ? 'SELECT id, name, type, tags, data, delay, sub_id, favorite FROM core_config ORDER BY id'
               : 'SELECT * FROM $table ORDER BY id',
         )
         .map((row) => row.values.toList())

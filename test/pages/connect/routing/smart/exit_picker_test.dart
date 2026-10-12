@@ -34,7 +34,6 @@ CoreConfigData _server(int id, {int delay = 20}) => CoreConfigData(
   ),
   delay: delay,
   subId: 0,
-  countryCode: 'SG',
   favorite: false,
 );
 

@@ -56,7 +56,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -71,7 +71,7 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA user_version = $schemaVersion');
     }),
     onUpgrade: (migrator, from, to) => transaction(() async {
-      if (from < 1 || from > 5 || to != 6) {
+      if (from < 1 || from > 6 || to != 7) {
         throw StateError('Unsupported database schema upgrade');
       }
 
@@ -82,7 +82,6 @@ class AppDatabase extends _$AppDatabase {
         }
         await migrator.dropColumn(subscription, 'count');
         await migrator.dropColumn(subscription, 'expanded');
-        await migrator.addColumn(coreConfig, coreConfig.countryCode);
         await migrator.addColumn(coreConfig, coreConfig.favorite);
         await migrator.createTable(routingProfile);
         await migrator.createTable(connectionConfig);
@@ -104,11 +103,18 @@ class AppDatabase extends _$AppDatabase {
         }
         await migrator.addColumn(geoData, geoData.installed);
       }
-      await migrator.addColumn(subscription, subscription.uploadBytes);
-      await migrator.addColumn(subscription, subscription.downloadBytes);
-      await migrator.addColumn(subscription, subscription.totalBytes);
-      await migrator.addColumn(subscription, subscription.expireTimestamp);
-      await migrator.addColumn(subscription, subscription.userInfoUpdatedAt);
+      if (from < 6) {
+        await migrator.addColumn(subscription, subscription.uploadBytes);
+        await migrator.addColumn(subscription, subscription.downloadBytes);
+        await migrator.addColumn(subscription, subscription.totalBytes);
+        await migrator.addColumn(subscription, subscription.expireTimestamp);
+        await migrator.addColumn(subscription, subscription.userInfoUpdatedAt);
+      }
+      if (from >= 3) {
+        await migrator.dropColumn(coreConfig, 'country_code');
+      }
+      await migrator.addColumn(subscription, subscription.panel);
+      await migrator.addColumn(subscription, subscription.mode);
 
       // Drift writes this again after beforeOpen. Commit it with the DDL so an
       // interruption between those callbacks cannot leave the old version.
