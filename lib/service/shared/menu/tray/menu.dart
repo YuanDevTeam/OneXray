@@ -81,16 +81,12 @@ class TrayMenuData {
     bool isSelected(ServerSelection selection) =>
         !configuration.expert &&
         selected.kind == selection.kind &&
-        selected.id == selection.id &&
-        selected.region == selection.region;
+        selected.id == selection.id;
     final sources = <int, String>{
       if (catalog.servers.any((row) => row.subId == 0))
         0: l.prototypeManualAdditions,
       for (final source in catalog.sources.take(_maxDataItems))
         source.id: source.name,
-    };
-    final countries = {
-      for (final row in catalog.servers) row.countryCode?.toUpperCase() ?? '',
     };
     return [
       group(l.prototypeServers, [
@@ -105,14 +101,6 @@ class TrayMenuData {
               'source:${source.key}',
               source.value,
               isSelected(ServerSelection.source(source.key)),
-            ),
-        ]),
-        group(l.prototypeByNodeLocation, [
-          for (final country in countries.take(_maxDataItems))
-            choice(
-              'region:$country',
-              country.isEmpty ? '—' : l.countryRegionName(country),
-              isSelected(ServerSelection.region(country)),
             ),
         ]),
         group(l.prototypeServers, [

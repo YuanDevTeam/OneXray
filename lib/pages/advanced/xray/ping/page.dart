@@ -232,31 +232,6 @@ class PingPage extends StatelessWidget {
                             ],
                           ),
                           SizedBox(height: mobile ? 25 : 28),
-                          SettingSection(
-                            title: l.pingLocationEnabled,
-                            icon: LucideIcons.mapPin,
-                            description: l.pingLocationEnabledHint,
-                            descriptionBelow: true,
-                            padding: EdgeInsets.zero,
-                            children: [
-                              SettingRow(
-                                title: l.pingLocationEnabled,
-                                titleStyle: AppTypography.settingsSelect,
-                                contentPadding:
-                                    const EdgeInsetsDirectional.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
-                                    ),
-                                trailing: ShadSwitch(
-                                  value: value.locationEnabled,
-                                  onChanged: state.saving
-                                      ? null
-                                      : controller.updateLocationEnabled,
-                                ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: mobile ? 25 : 28),
                           Text(
                             l.pingVpnAccuracyHint,
                             style: AppTypography.settingsDetailNote.copyWith(

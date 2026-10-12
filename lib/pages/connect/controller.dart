@@ -627,10 +627,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
         ? l.prototypeMultipleEntriesReason(names.length)
         : switch (settings.selection.kind) {
             SelectionKind.server => l.prototypeFixedEntryReason(entryNames),
-            SelectionKind.region => l.prototypeRegionEntryReason(
-              entryNames,
-              settings.selection.region ?? '',
-            ),
             _ => l.prototypeAutomaticEntryReason(entryNames),
           };
     await showConnectDialog<void>(
@@ -689,9 +685,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
           }
           final matches = switch (settings.selection.kind) {
             SelectionKind.automatic => true,
-            SelectionKind.region =>
-              row.countryCode?.toUpperCase() ==
-                  settings.selection.region?.toUpperCase(),
             SelectionKind.source => row.subId == settings.selection.id,
             SelectionKind.server => row.id == settings.selection.id,
           };

@@ -90,6 +90,33 @@ void main() {
   });
 
   test(
+    'runtime metadata shares the default for unknown selection kinds',
+    () async {
+      for (final kind in ['region', 'futureSelection']) {
+        final request = _runtime().request;
+        final metadata =
+            jsonDecode(request.metadataJson!) as Map<String, dynamic>;
+        metadata['configuration']['connection']['selection'] = {
+          'kind': kind,
+          'region': 'SG',
+        };
+        final stored = request.toJson()
+          ..['metadataJson'] = jsonEncode(metadata);
+        await File(p.join(directory.path, 'start.json'))
+            .writeAsString(jsonEncode(stored));
+        final restored = await ConnectionRuntimeHost(
+          runDirectory: directory.path,
+        ).readRuntime();
+        expect(
+          restored?.configuration.connection.selection.kind,
+          SelectionKind.automatic,
+        );
+        expect(restored?.nodeIds, {1});
+      }
+    },
+  );
+
+  test(
     'inspect associates native status with the active start request',
     () async {
       final runtime = _runtime();

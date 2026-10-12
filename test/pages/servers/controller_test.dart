@@ -33,7 +33,6 @@ void main() {
   Future<CoreConfigData> server(
     String name, {
     int source = 0,
-    String country = 'JP',
     bool favorite = false,
   }) async {
     final id = await db.coreConfigDao.insertAssetRow(
@@ -41,11 +40,7 @@ void main() {
         'tag': name,
         'protocol': 'vless',
         'streamSettings': {'network': 'xhttp', 'security': 'tls'},
-      }).copyWith(
-        subId: Value(source),
-        countryCode: Value(country),
-        favorite: Value(favorite),
-      ),
+      }).copyWith(subId: Value(source), favorite: Value(favorite)),
     );
     return (await db.coreConfigDao.searchRow(id))!;
   }
@@ -82,22 +77,15 @@ void main() {
     },
   );
 
-  test('location/source grouping shares rows; searching never changes connection settings', () async {
-    expect(ServerGrouping.values, [
-      ServerGrouping.subscription,
-      ServerGrouping.location,
-    ]);
-    expect(controller.grouping, ServerGrouping.subscription);
+  test('subscription grouping shares rows; searching never changes connection settings', () async {
     final one = await server('Tokyo', source: 4, favorite: true);
     final two = await server('Osaka', source: 4);
     controller.servers = [one, two];
     final before = controller.configuration.encode();
-    controller.groupBy(ServerGrouping.location);
     expect(controller.groups(l).single.rows, [one, two]);
     controller.search.text = 'Tokyo';
     expect(controller.groups(l).single.visibleRows, [one]);
     expect(controller.favorites(l), [one]);
-    controller.groupBy(ServerGrouping.subscription);
     expect(controller.groups(l).single.rows, [one, two]);
     expect(controller.groups(l).single.selection.id, 4);
     expect(controller.configuration.encode(), before);
@@ -176,9 +164,6 @@ void main() {
         timestamp: DateTime(2026, 9, 4),
       ),
     ];
-
-    controller.groupBy(ServerGrouping.subscription);
-
     expect(controller.groups(l).map((group) => group.name), ['Used source']);
   });
 

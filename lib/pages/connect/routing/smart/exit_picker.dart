@@ -7,7 +7,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/routing/widgets.dart';
 import 'package:onexray/pages/connect/routing/smart/exit_picker_controller.dart';
-import 'package:onexray/pages/servers/catalog.dart';
 import 'package:onexray/pages/servers/page.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/color.dart';
@@ -97,7 +96,6 @@ class ServerExitPickerView extends StatelessWidget {
                                 : () => controller.selectDraft(null),
                           ),
                           _search(context, mobile),
-                          _grouping(context, mobile),
                           for (final group in groups) ...[
                             Container(
                               padding: const EdgeInsets.fromLTRB(14, 10, 14, 7),
@@ -114,6 +112,7 @@ class ServerExitPickerView extends StatelessWidget {
                                 icon: LucideIcons.server,
                                 title: controller.serverName(row),
                                 detail: controller.exitRowDetail(l, row),
+                                type: row.type,
                                 protocol: controller.protocol(row),
                                 selected: controller.selectedId == row.id,
                                 onTap:
@@ -217,72 +216,6 @@ class ServerExitPickerView extends StatelessWidget {
       ),
     );
   }
-
-  Widget _grouping(BuildContext context, bool mobile) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final control = Container(
-      width: mobile ? double.infinity : null,
-      margin: EdgeInsets.symmetric(horizontal: mobile ? 12 : 14, vertical: 10),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        border: Border.all(color: palette.border),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      child: SizedBox(
-        height: 41,
-        child: Row(
-          children: [
-            for (final grouping in ServerGrouping.values)
-              Expanded(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 112),
-                  child: Semantics(
-                    button: true,
-                    selected: controller.grouping == grouping,
-                    child: Material(
-                      color: controller.grouping == grouping
-                          ? palette.selectedSurface
-                          : palette.card,
-                      child: InkWell(
-                        onTap: () => controller.groupBy(grouping),
-                        child: Container(
-                          alignment: Alignment.center,
-                          padding: const EdgeInsets.symmetric(horizontal: 13),
-                          foregroundDecoration: BoxDecoration(
-                            border: controller.grouping == grouping
-                                ? Border.all(color: palette.primary)
-                                : grouping == ServerGrouping.location
-                                ? BorderDirectional(
-                                    end: BorderSide(color: palette.border),
-                                  )
-                                : null,
-                          ),
-                          child: Text(
-                            grouping == ServerGrouping.location
-                                ? l.prototypeByNodeLocation
-                                : l.prototypeBySubscription,
-                            style: AppTypography.subscriptionField.copyWith(
-                              color: controller.grouping == grouping
-                                  ? palette.primary
-                                  : palette.mutedStrong,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-    return Align(
-      alignment: AlignmentDirectional.centerStart,
-      child: mobile ? control : IntrinsicWidth(child: control),
-    );
-  }
 }
 
 class _SelectionRow extends StatelessWidget {
@@ -292,6 +225,7 @@ class _SelectionRow extends StatelessWidget {
     required this.title,
     required this.detail,
     required this.selected,
+    this.type,
     this.protocol,
     this.onTap,
   });
@@ -300,6 +234,7 @@ class _SelectionRow extends StatelessWidget {
   final String title;
   final String detail;
   final bool selected;
+  final String? type;
   final String? protocol;
   final VoidCallback? onTap;
 
@@ -346,7 +281,11 @@ class _SelectionRow extends StatelessWidget {
                             color: palette.foreground,
                           ),
                         ),
-                        if (protocol != null && protocol!.isNotEmpty) ...[
+                        for (final label in [
+                          ?type,
+                          if (protocol != null && protocol!.isNotEmpty)
+                            protocol!,
+                        ]) ...[
                           const SizedBox(height: 3),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -359,7 +298,7 @@ class _SelectionRow extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              protocol!,
+                              label,
                               textDirection: TextDirection.ltr,
                               style: AppTypography.serverProtocol.copyWith(
                                 color: palette.mutedStrong,

@@ -7,15 +7,8 @@ class PingJson {
   double? timeout;
   String? url;
   String? customUrl;
-  @JsonKey(defaultValue: false)
-  bool locationEnabled;
 
-  PingJson(
-    this.timeout,
-    this.url,
-    this.customUrl, {
-    this.locationEnabled = false,
-  });
+  PingJson(this.timeout, this.url, this.customUrl);
 
   factory PingJson.fromJson(Map<String, dynamic> json) =>
       _$PingJsonFromJson(json);

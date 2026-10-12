@@ -163,55 +163,6 @@ void main() {
     );
   }
 
-  test('tray limits locations after deduplication in first-seen order', () {
-    final data = _menuData(1);
-    final node = data.catalog.servers.single;
-    const countries = [
-      null,
-      '',
-      'jp',
-      'JP',
-      'US',
-      'GB',
-      'DE',
-      'FR',
-      'SG',
-      'HK',
-      'TW',
-      'CA',
-      'AU',
-    ];
-    data.catalog = ServerCatalog(
-      servers: [
-        for (final (index, country) in countries.indexed)
-          node.copyWith(id: index + 1, countryCode: Value(country)),
-      ],
-    );
-    data.configuration = ConnectionSettings(
-      selection: const ServerSelection.region('CA'),
-    );
-    final items = data.selectionItems(l, busy: false);
-    expect(
-      _descendants(items)
-          .where((item) => item.key?.startsWith('region:') ?? false)
-          .map((item) => item.key),
-      [
-        'region:',
-        'region:JP',
-        'region:US',
-        'region:GB',
-        'region:DE',
-        'region:FR',
-        'region:SG',
-        'region:HK',
-        'region:TW',
-        'region:CA',
-      ],
-    );
-    expect(_item(items, 'region:').label, '—');
-    expect(_item(items, 'region:CA').checked, isTrue);
-  });
-
   test(
     'tray keeps selection, disabled and pending state within the data prefix',
     () {

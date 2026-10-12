@@ -23,13 +23,11 @@ const _unchanged = Object();
 
 class ServerExitPickerState {
   final ServerCatalog catalog;
-  final ServerGrouping grouping;
   final String query;
   final int? selectedId;
   final bool ready, failed, busy;
   ServerExitPickerState({
     ServerCatalog? catalog,
-    this.grouping = ServerGrouping.subscription,
     this.query = '',
     this.selectedId,
     this.ready = false,
@@ -39,7 +37,6 @@ class ServerExitPickerState {
 
   ServerExitPickerState copyWith({
     ServerCatalog? catalog,
-    ServerGrouping? grouping,
     String? query,
     Object? selectedId = _unchanged,
     bool? ready,
@@ -47,7 +44,6 @@ class ServerExitPickerState {
     bool? busy,
   }) => ServerExitPickerState(
     catalog: catalog ?? this.catalog,
-    grouping: grouping ?? this.grouping,
     query: query ?? this.query,
     selectedId: identical(selectedId, _unchanged)
         ? this.selectedId
@@ -80,8 +76,6 @@ class ServerExitPickerController extends PageCubit<ServerExitPickerState>
   @override
   ServerCatalog get catalog => state.catalog;
   @override
-  ServerGrouping get grouping => state.grouping;
-  @override
   String get query => state.query;
   int? get selectedId => state.selectedId;
   bool get ready => state.ready;
@@ -107,8 +101,6 @@ class ServerExitPickerController extends PageCubit<ServerExitPickerState>
     if (query != value) emit(state.copyWith(query: value));
   }
 
-  void groupBy(ServerGrouping value) => emit(state.copyWith(grouping: value));
-
   List<ServerGroup> selectionGroups(AppLocalizations l) =>
       groups(l).where((group) => group.visibleRows.isNotEmpty).toList();
   bool canSelect(CoreConfigData row) =>
@@ -121,10 +113,7 @@ class ServerExitPickerController extends PageCubit<ServerExitPickerState>
   String exitRowDetail(AppLocalizations l, CoreConfigData row) {
     if (params.excludedIds.contains(row.id)) return l.prototypeEntryServer;
     if (!canSelect(row)) return l.prototypeTemporarilyUnavailable;
-    final context = grouping == ServerGrouping.location
-        ? sourceName(l, row)
-        : countryName(l, row.countryCode);
-    return '$context · ${health(l, row)}';
+    return health(l, row);
   }
 
   bool get canFinish =>

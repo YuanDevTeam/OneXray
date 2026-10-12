@@ -180,7 +180,7 @@ class PingService {
     final pingState = PingState();
     await pingState.readFromPreferences();
 
-    // Location/manual selections may span subscriptions too. Never mix them
+    // Manual selections may span subscriptions too. Never mix them
     // within a native batch; finish one subscription before starting the next.
     final batches = rows
         .groupListsBy((row) => row.subId)
@@ -211,7 +211,7 @@ class PingService {
               : result.delay == PingDelayConstants.timeout
               ? PingDelayConstants.timeout
               : PingDelayConstants.error;
-          await _updateRow(db, batchRows[index], delay, result.countryCode);
+          await _updateRow(db, batchRows[index], delay);
         }
       });
       AppEventBus.instance.updatePingResults({
@@ -234,17 +234,8 @@ class PingService {
     }
   }
 
-  Future<void> _updateRow(
-    AppDatabase db,
-    CoreConfigData row,
-    int delay,
-    String? countryCode,
-  ) async {
+  Future<void> _updateRow(AppDatabase db, CoreConfigData row, int delay) async {
     if (delay == PingDelayConstants.unknown || row.data == null) return;
-    final country =
-        countryCode != null && RegExp(r'^[A-Z]{2}$').hasMatch(countryCode)
-        ? countryCode
-        : null;
     // A slow result must not overwrite an edit, favorite, or restored asset.
     await (db.update(db.coreConfig)..where(
           (table) =>
@@ -253,13 +244,6 @@ class PingService {
               table.type.equals(row.type) &
               table.data.equals(row.data!),
         ))
-        .write(
-          CoreConfigCompanion(
-            delay: Value(delay),
-            countryCode: country == null
-                ? const Value.absent()
-                : Value(country),
-          ),
-        );
+        .write(CoreConfigCompanion(delay: Value(delay)));
   }
 }

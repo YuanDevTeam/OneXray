@@ -39,8 +39,7 @@ class AppEventBus extends Cubit<AppEventBusState> {
   void updatePingResults(Map<int, PingBatchResult> results) {
     final failures = {...state.pingFailures};
     for (final entry in results.entries) {
-      if (!entry.value.success ||
-          entry.value.locationError?.isNotEmpty == true) {
+      if (!entry.value.success) {
         failures[entry.key] = entry.value;
       } else {
         failures.remove(entry.key);

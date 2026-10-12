@@ -33,147 +33,62 @@ void main() {
     addTearDown(db.close);
   });
 
-  test('manual retest refreshes location per node and keeps delay on location failure', () async {
-    await (PingState()..locationEnabled = true).saveToPreferences();
-    final first = await db.coreConfigDao.insertRow(_node('First'));
-    final second = await db.coreConfigDao.insertRow(_node('Second'));
-    var run = 0;
+  test('manual retest updates delay and clears an old probe failure', () async {
+    final node = await db.coreConfigDao.insertRow(_node('Node'));
+    var runs = 0;
     final service = PingService.forTesting(
       database: db,
-      runBatch: (_, state) async {
-        expect(state.locationEnabled, isTrue);
-        run++;
-        return run == 1
-            ? const [
-                PingBatchResult(true, 0, '', countryCode: 'US'),
-                PingBatchResult(true, 20, '', countryCode: 'JP'),
-              ]
-            : const [
-                PingBatchResult(true, 12, '', locationError: 'unavailable'),
-                PingBatchResult(true, 15, '', countryCode: 'SG'),
-              ];
+      runBatch: (_, _) async {
+        runs++;
+        return [
+          runs == 1
+              ? const PingBatchResult(
+                  false,
+                  PingDelayConstants.timeout,
+                  'timeout',
+                )
+              : const PingBatchResult(true, 0, ''),
+        ];
       },
     );
-    await service.pingConfigIds([first, second]);
-    expect((await db.coreConfigDao.searchRow(first))!.countryCode, 'US');
-    expect((await db.coreConfigDao.searchRow(first))!.delay, 0);
-    expect((await db.coreConfigDao.searchRow(second))!.countryCode, 'JP');
-    await service.pingConfigIds([first, second]);
-    expect(run, 1);
-    await service.pingConfigIds([first, second], force: true);
-    final row = (await db.coreConfigDao.searchRow(first))!;
-    expect(row.delay, 12);
-    expect(row.countryCode, 'US');
-    expect(PingService.isUnmeasured(row), isFalse);
-    expect((await db.coreConfigDao.searchRow(second))!.countryCode, 'SG');
+    await service.pingConfigIds([node]);
     expect(
-      AppEventBus.instance.state.pingFailures[first]?.locationError,
-      'unavailable',
+      (await db.coreConfigDao.searchRow(node))!.delay,
+      PingDelayConstants.timeout,
     );
-    expect(AppEventBus.instance.state.pingFailures[first]?.success, isTrue);
-    expect(
-      AppEventBus.instance.state.pingFailures.containsKey(second),
-      isFalse,
-    );
+    expect(AppEventBus.instance.state.pingFailures[node]?.error, 'timeout');
+    await service.pingConfigIds([node], force: true);
+    expect((await db.coreConfigDao.searchRow(node))!.delay, 0);
+    expect(AppEventBus.instance.state.pingFailures.containsKey(node), isFalse);
   });
 
   test(
-    'disabled location probes preserve cache and clear old location errors',
+    'a task keeps its timeout across batches and later tasks reread it',
     () async {
-      final node = await db.coreConfigDao.insertRow(
-        _node('Cached')
-            .copyWith(delay: const Value(30), countryCode: const Value('US')),
-      );
-      AppEventBus.instance.updatePingResults({
-        node: const PingBatchResult(true, 30, '', locationError: 'unavailable'),
-      });
+      final ids = <int>[];
+      for (var index = 0; index < 7; index++) {
+        ids.add(await db.coreConfigDao.insertRow(_node('Node $index')));
+      }
+      final automatic = await db.coreConfigDao.insertRow(_node('Automatic'));
+      final timeouts = <double>[];
       final service = PingService.forTesting(
         database: db,
-        runBatch: (_, state) async {
-          expect(state.locationEnabled, isFalse);
-          return const [PingBatchResult(true, 0, '')];
+        runBatch: (sources, state) async {
+          timeouts.add(state.timeout);
+          if (timeouts.length == 1) {
+            await (PingState()..timeout = 8).saveToPreferences();
+          }
+          return _successes(sources.length);
         },
       );
-
-      await service.pingConfigIds([node], force: true);
-
-      final row = (await db.coreConfigDao.searchRow(node))!;
-      expect(row.delay, 0);
-      expect(row.countryCode, 'US');
-      expect(
-        AppEventBus.instance.state.pingFailures.containsKey(node),
-        isFalse,
-      );
+      await service.pingConfigIds(ids, force: true);
+      service.schedulePingConfigIds([automatic]);
+      await service.pingConfigIds([automatic]);
+      expect(timeouts, [5, 5, 8]);
+      expect((await db.coreConfigDao.searchRow(automatic))!.delay, 20);
+      expect(service.isPinging, isFalse);
     },
   );
-
-  test('invalid and missing locations preserve cache while latency fails independently', () async {
-    await (PingState()..locationEnabled = true).saveToPreferences();
-    final cached = await db.coreConfigDao.insertRow(
-      _node('Invalid').copyWith(countryCode: const Value('US')),
-    );
-    final empty = await db.coreConfigDao.insertRow(_node('No cache'));
-    final failed = await db.coreConfigDao.insertRow(
-      _node('Failed delay').copyWith(countryCode: const Value('JP')),
-    );
-    final service = PingService.forTesting(
-      database: db,
-      runBatch: (_, _) async => const [
-        PingBatchResult(
-          true,
-          15,
-          '',
-          countryCode: 'USA',
-          locationError: 'invalid location response',
-        ),
-        PingBatchResult(true, 20, ''),
-        PingBatchResult(
-          false,
-          PingDelayConstants.timeout,
-          'timeout',
-          countryCode: 'SG',
-        ),
-      ],
-    );
-
-    await service.pingConfigIds([cached, empty, failed]);
-
-    expect((await db.coreConfigDao.searchRow(cached))!.countryCode, 'US');
-    expect((await db.coreConfigDao.searchRow(cached))!.delay, 15);
-    expect((await db.coreConfigDao.searchRow(empty))!.countryCode, isNull);
-    final failedRow = (await db.coreConfigDao.searchRow(failed))!;
-    expect(failedRow.countryCode, 'SG');
-    expect(failedRow.delay, PingDelayConstants.timeout);
-    expect(AppEventBus.instance.state.pingFailures[failed]?.success, isFalse);
-  });
-
-  test('a task keeps its location setting across batches and later automatic tasks reread it', () async {
-    final ids = <int>[];
-    for (var index = 0; index < 7; index++) {
-      ids.add(await db.coreConfigDao.insertRow(_node('Node $index')));
-    }
-    final automatic = await db.coreConfigDao.insertRow(_node('Automatic'));
-    final locations = <bool>[];
-    final service = PingService.forTesting(
-      database: db,
-      runBatch: (sources, state) async {
-        locations.add(state.locationEnabled);
-        if (locations.length == 1) {
-          await (PingState()..locationEnabled = true).saveToPreferences();
-        }
-        return _successes(sources.length);
-      },
-    );
-
-    await service.pingConfigIds(ids, force: true);
-    service.schedulePingConfigIds([automatic]);
-    // Wait for the preceding automatic task; the already measured row is skipped.
-    await service.pingConfigIds([automatic]);
-
-    expect(locations, [false, false, true]);
-    expect((await db.coreConfigDao.searchRow(automatic))!.delay, 20);
-    expect(service.isPinging, isFalse);
-  });
 
   test('manual node probes leave Raw configurations unmeasured', () async {
     final node = await db.coreConfigDao.insertRow(_node('Node'));
@@ -398,7 +313,7 @@ void main() {
         await release.future;
         return const [
           PingBatchResult(false, 7, 'failure'),
-          PingBatchResult(true, 9, '', countryCode: 'SG'),
+          PingBatchResult(true, 9, ''),
         ];
       },
     );
@@ -426,7 +341,6 @@ void main() {
     expect(edited.name, 'New content');
     expect(edited.subId, 9);
     expect(edited.delay, PingDelayConstants.unknown);
-    expect(edited.countryCode, isNull);
     expect(PingService.isUnmeasured(edited), isTrue);
     expect(edited.favorite, isTrue);
   });

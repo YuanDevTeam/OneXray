@@ -238,8 +238,6 @@ class ConnectionResolver {
   static bool _inScope(CoreConfigData row, ServerSelection selection) =>
       switch (selection.kind) {
         SelectionKind.automatic => true,
-        SelectionKind.region =>
-          row.countryCode?.toUpperCase() == selection.region?.toUpperCase(),
         SelectionKind.source => row.subId == selection.id,
         SelectionKind.server => row.id == selection.id,
       };

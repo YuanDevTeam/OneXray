@@ -82,8 +82,6 @@ PingBatchItemResponse _$PingBatchItemResponseFromJson(
   json['success'] as bool?,
   (json['delay'] as num?)?.toInt(),
   json['error'] as String?,
-  locationJson: json['locationJson'] as String?,
-  locationError: json['locationError'] as String?,
 );
 
 Map<String, dynamic> _$PingBatchItemResponseToJson(
@@ -92,8 +90,6 @@ Map<String, dynamic> _$PingBatchItemResponseToJson(
   'success': ?instance.success,
   'delay': ?instance.delay,
   'error': ?instance.error,
-  'locationJson': ?instance.locationJson,
-  'locationError': ?instance.locationError,
 };
 
 XrayVersionResponse _$XrayVersionResponseFromJson(Map<String, dynamic> json) =>
@@ -125,7 +121,6 @@ PingBatchRequest _$PingBatchRequestFromJson(Map<String, dynamic> json) =>
           .toList(),
       (json['timeout'] as num?)?.toInt(),
       json['url'] as String?,
-      locationUrl: json['locationUrl'] as String?,
     );
 
 Map<String, dynamic> _$PingBatchRequestToJson(PingBatchRequest instance) =>
@@ -133,7 +128,6 @@ Map<String, dynamic> _$PingBatchRequestToJson(PingBatchRequest instance) =>
       'configs': ?instance.configs?.map((e) => e.toJson()).toList(),
       'timeout': ?instance.timeout,
       'url': ?instance.url,
-      'locationUrl': ?instance.locationUrl,
     };
 
 PingBatchItemRequest _$PingBatchItemRequestFromJson(

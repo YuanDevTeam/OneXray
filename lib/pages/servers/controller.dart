@@ -55,7 +55,6 @@ class ServersPageState {
     this.ready = false,
     this.failed = false,
     this.failure,
-    this.serverGroupingIndex = 0,
     this.activeServerGroupId,
     this.serverSearchQuery = '',
     Set<String> pendingServerActions = const {},
@@ -81,7 +80,6 @@ class ServersPageState {
   final bool failed;
   final Object? failure;
 
-  final int serverGroupingIndex;
   final String? activeServerGroupId;
   final String serverSearchQuery;
   final Set<String> pendingServerActions;
@@ -98,7 +96,6 @@ class ServersPageState {
     bool? ready,
     bool? failed,
     Object? failure,
-    int? serverGroupingIndex,
     Object? activeServerGroupId = _unchanged,
     String? serverSearchQuery,
     Set<String>? pendingServerActions,
@@ -114,7 +111,6 @@ class ServersPageState {
     ready: ready ?? this.ready,
     failed: failed ?? this.failed,
     failure: failed == false ? null : failure ?? this.failure,
-    serverGroupingIndex: serverGroupingIndex ?? this.serverGroupingIndex,
     activeServerGroupId: identical(activeServerGroupId, _unchanged)
         ? this.activeServerGroupId
         : activeServerGroupId as String?,
@@ -226,11 +222,6 @@ class ServersController extends PageCubit<ServersPageState>
   final PingService _ping;
   bool _confirmingTest = false;
   final search = TextEditingController();
-  @override
-  ServerGrouping get grouping =>
-      ServerGrouping.values[state.serverGroupingIndex];
-  set grouping(ServerGrouping value) =>
-      emit(state.copyWith(serverGroupingIndex: value.index));
   String? get activeGroupId => state.activeServerGroupId;
   set activeGroupId(String? value) =>
       emit(state.copyWith(activeServerGroupId: value));
@@ -276,16 +267,6 @@ class ServersController extends PageCubit<ServersPageState>
     }
   }
 
-  void groupBy(ServerGrouping value) {
-    search.clear();
-    emit(
-      state.copyWith(
-        serverGroupingIndex: value.index,
-        activeServerGroupId: null,
-      ),
-    );
-  }
-
   int entryCount(ServerSelection selection) {
     final connection = ConnectionSettings.fromJson({
       ...configuration.connection.toJson(),
@@ -304,7 +285,6 @@ class ServersController extends PageCubit<ServersPageState>
   }
 
   bool canUse(ServerGroup group) {
-    if (group.country == '') return false;
     final count = entryCount(group.selection);
     final finalExit = configuration.connection.trafficMode == TrafficMode.smart
         ? configuration.connection.smart.finalExitId
@@ -352,8 +332,6 @@ class ServersController extends PageCubit<ServersPageState>
           }
           return switch (selection.kind) {
             SelectionKind.automatic => true,
-            SelectionKind.region =>
-              row.countryCode?.toUpperCase() == selection.region?.toUpperCase(),
             SelectionKind.source => row.subId == selection.id,
             SelectionKind.server => row.id == selection.id,
           };
@@ -391,7 +369,6 @@ class ServersController extends PageCubit<ServersPageState>
         servers.where((row) => row.id == selection.id).firstOrNull;
     final title = switch (selection.kind) {
       SelectionKind.automatic => l.prototypeAutomaticSelection,
-      SelectionKind.region => countryName(l, selection.region),
       SelectionKind.source =>
         selection.id == 0
             ? l.prototypeManualAdditions
@@ -409,7 +386,7 @@ class ServersController extends PageCubit<ServersPageState>
       detail: selection.kind == SelectionKind.server
           ? row == null
                 ? ''
-                : '${countryName(l, row.countryCode)} · ${sourceName(l, row)}'
+                : sourceName(l, row)
           : '${l.prototypeAutomaticSelection}${display.names.isEmpty ? '' : ' · ${display.names.join(' + ')}'}',
     );
   }
@@ -417,12 +394,6 @@ class ServersController extends PageCubit<ServersPageState>
   String? get currentGroupId {
     final selection = configuration.connection.selection;
     final first = _displaySelection.first;
-    if (grouping == ServerGrouping.location) {
-      final code = selection.kind == SelectionKind.region
-          ? selection.region
-          : first?.countryCode;
-      return code == null ? null : 'location:${code.toUpperCase()}';
-    }
     final id = selection.kind == SelectionKind.source
         ? selection.id
         : first?.subId;

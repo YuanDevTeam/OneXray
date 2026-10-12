@@ -406,12 +406,6 @@ final class TrayService {
             : id == 0
             ? l.prototypeManualAdditions
             : (await _db.subscriptionDao.searchRow(id))!.name;
-      case 'region':
-        values = {
-          'expert': false,
-          'selection': ServerSelection.region(value).toJson(),
-        };
-        label = value.isEmpty ? '—' : l.countryRegionName(value);
       case 'raw':
         if (id == null) return;
         await validate();

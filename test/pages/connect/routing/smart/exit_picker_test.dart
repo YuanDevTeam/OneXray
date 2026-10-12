@@ -10,7 +10,6 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/l10n/localizations/app_localizations_en.dart';
 import 'package:onexray/pages/connect/routing/widgets.dart';
-import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/connect/routing/smart/exit_picker_controller.dart';
 import 'package:onexray/pages/connect/routing/smart/exit_picker.dart';
 import 'package:onexray/pages/theme/theme.dart';
@@ -79,7 +78,7 @@ void main() {
   });
 
   test(
-    'draft keeps exclusions, real health and search across grouping',
+    'draft keeps exclusions, real health and search within subscriptions',
     () async {
       final before = (await coordinator.configuration).encode();
       controller.selectDraft(
@@ -109,7 +108,6 @@ void main() {
       );
       expect(controller.selectedId, 3);
       controller.search.text = 'Server 3';
-      controller.groupBy(ServerGrouping.subscription);
       expect(controller.search.text, 'Server 3');
       expect(controller.selectionGroups(l).single.visibleRows.single.id, 3);
       expect(
@@ -117,7 +115,7 @@ void main() {
           l,
           controller.servers.singleWhere((row) => row.id == 3),
         ),
-        '${l.countryRegionName('SG')} · ${l.prototypeFastLatency(20)}',
+        l.prototypeFastLatency(20),
       );
       expect((await coordinator.configuration).encode(), before);
     },
@@ -175,8 +173,8 @@ void main() {
     expect(find.text(l.prototypeManageSources), findsNothing);
     expect(find.text(l.prototypeFavorites), findsNothing);
     expect(find.text('VLESS | XHTTP | TLS'), findsNWidgets(4));
-    await tester.tap(find.text(l.prototypeBySubscription));
-    await tester.pumpAndSettle();
+    expect(find.text('outbound'), findsNWidgets(4));
+    expect(find.text(l.countryRegionName('SG')), findsNothing);
     await tester.tap(find.text('Server 3'));
     await tester.pumpAndSettle();
     expect(controller.selectedId, 3);
@@ -205,13 +203,7 @@ void main() {
       tester.widget<PageActionBar>(find.byType(PageActionBar)).maxWidth,
       AppLayout.routingEditorMaxWidth,
     );
-    expect(
-      find.descendant(of: card, matching: find.byType(IntrinsicWidth)),
-      findsOneWidget,
-    );
-    await tester.tap(find.text(l.prototypeBySubscription));
-    await tester.pumpAndSettle();
-    expect(controller.grouping, ServerGrouping.subscription);
+    expect(find.byType(TabBar), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

@@ -149,8 +149,6 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
       SelectionKind.automatic => l.prototypeAutomaticEntries(
         effectiveEntryCount,
       ),
-      SelectionKind.region =>
-        '${setupRegionLabel(l, selection.region!)} · ${l.prototypeAutomaticEntries(effectiveEntryCount)}',
       SelectionKind.source =>
         '${state.original!.selectionName ?? l.prototypeTemporarilyUnavailable} · ${l.prototypeUseEntryServers(effectiveEntryCount)}',
       SelectionKind.server =>

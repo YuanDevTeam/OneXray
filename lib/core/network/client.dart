@@ -70,8 +70,6 @@ class NetClient {
     }
   }
 
-  static const geoIPUrl = "https://ip-check-perf.radar.cloudflare.com/";
-
   static const _maxDownloadRedirects = 8;
 
   static bool isHttpsDownloadUri(Uri uri) =>

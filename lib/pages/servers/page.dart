@@ -75,22 +75,6 @@ class _ServersPageState extends State<ServersPage> {
                   icon: const Icon(LucideIcons.plus),
                 ),
             ],
-            bottom: mobileRoot || empty
-                ? null
-                : TabBar(
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.page,
-                    ),
-                    labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-                    tabs: [
-                      Tab(text: l.prototypeBySubscription),
-                      Tab(text: l.prototypeByNodeLocation),
-                    ],
-                    onTap: (index) =>
-                        controller.groupBy(ServerGrouping.values[index]),
-                  ),
           ),
           body: SafeArea(
             child: ServerLoadState(
@@ -105,13 +89,7 @@ class _ServersPageState extends State<ServersPage> {
             ),
           ),
         );
-        return mobileRoot
-            ? page
-            : DefaultTabController(
-                length: 2,
-                initialIndex: controller.grouping.index,
-                child: page,
-              );
+        return page;
       },
     ),
   );

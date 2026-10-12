@@ -388,7 +388,7 @@ void main() {
                   body: TextButton(
                     onPressed: () => servers.choose(
                       context,
-                      const ServerSelection.region('SG'),
+                      const ServerSelection.source(0),
                     ),
                     child: const Text('use-group'),
                   ),

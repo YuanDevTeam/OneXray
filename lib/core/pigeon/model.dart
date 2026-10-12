@@ -105,16 +105,8 @@ class PingBatchItemResponse {
   bool? success;
   int? delay;
   String? error;
-  String? locationJson;
-  String? locationError;
 
-  PingBatchItemResponse(
-    this.success,
-    this.delay,
-    this.error, {
-    this.locationJson,
-    this.locationError,
-  });
+  PingBatchItemResponse(this.success, this.delay, this.error);
 
   factory PingBatchItemResponse.fromJson(Map<String, dynamic> json) =>
       _$PingBatchItemResponseFromJson(json);
@@ -153,9 +145,8 @@ class PingBatchRequest {
   List<PingBatchItemRequest>? configs;
   int? timeout;
   String? url;
-  String? locationUrl;
 
-  PingBatchRequest(this.configs, this.timeout, this.url, {this.locationUrl});
+  PingBatchRequest(this.configs, this.timeout, this.url);
 
   factory PingBatchRequest.fromJson(Map<String, dynamic> json) =>
       _$PingBatchRequestFromJson(json);

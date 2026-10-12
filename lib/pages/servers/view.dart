@@ -72,7 +72,7 @@ class ServerBrowser extends StatelessWidget {
                 Expanded(
                   child: SingleChildScrollView(
                     controller: scroll,
-                    child: _locationList(context, groups, favorites),
+                    child: _subscriptionList(context, groups, favorites),
                   ),
                 ),
                 if (active != null) ...[
@@ -108,29 +108,13 @@ class ServerBrowser extends StatelessWidget {
     List<ServerGroup> groups,
     List<CoreConfigData> favorites,
   ) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
     return ListView(
       controller: scroll,
       padding: const EdgeInsets.fromLTRB(15, 13, 15, 22),
       children: [
-        DefaultTabController(
-          length: ServerGrouping.values.length,
-          initialIndex: controller.grouping.index,
-          child: TabBar(
-            onTap: (index) => controller.groupBy(ServerGrouping.values[index]),
-            unselectedLabelColor: palette.mutedStrong,
-            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-            tabs: [
-              Tab(text: l.prototypeBySubscription),
-              Tab(text: l.prototypeByNodeLocation),
-            ],
-          ),
-        ),
-        const SizedBox(height: 15),
         _search(context),
         const SizedBox(height: 12),
-        _locationList(context, groups, favorites),
+        _subscriptionList(context, groups, favorites),
       ],
     );
   }
@@ -178,7 +162,7 @@ class ServerBrowser extends StatelessWidget {
     );
   }
 
-  Widget _locationList(
+  Widget _subscriptionList(
     BuildContext context,
     List<ServerGroup> groups,
     List<CoreConfigData> favorites,
@@ -254,21 +238,14 @@ class ServerBrowser extends StatelessWidget {
             for (final row in favorites)
               ServerNodeRow(controller: controller, row: row),
           ],
-          _listHeading(
-            context,
-            controller.grouping == ServerGrouping.location
-                ? l.prototypeByNodeLocation
-                : l.prototypeBySubscription,
-          ),
+          _listHeading(context, l.prototypeBySubscription),
           for (final group in groups)
             _groupRow(context, group, active: group.id == activeGroup?.id),
           if (groups.isEmpty && controller.search.text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
               child: Text(
-                controller.grouping == ServerGrouping.location
-                    ? l.prototypeNoMatchingLocations
-                    : l.prototypeNoMatchingSubscriptions,
+                l.prototypeNoMatchingSubscriptions,
                 textAlign: TextAlign.center,
                 style: AppTypography.settingsInput.copyWith(
                   color: palette.mutedForeground,
@@ -477,19 +454,11 @@ class ServerBrowser extends StatelessWidget {
                           color: palette.surfaceHover,
                           borderRadius: BorderRadius.circular(9),
                         ),
-                        child: group.country == null
-                            ? Icon(
-                                LucideIcons.layers,
-                                size: 17,
-                                color: palette.primary,
-                              )
-                            : Text(
-                                group.country!,
-                                textDirection: TextDirection.ltr,
-                                style: AppTypography.serverRegionCode.copyWith(
-                                  color: palette.mutedStrong,
-                                ),
-                              ),
+                        child: Icon(
+                          LucideIcons.layers,
+                          size: 17,
+                          color: palette.primary,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -670,9 +639,7 @@ class ServerGroupView extends StatelessWidget {
               key: ValueKey(row.id),
               controller: controller,
               row: row,
-              detail: group.country != null
-                  ? controller.sourceName(l, row)
-                  : controller.countryName(l, row.countryCode),
+              detail: controller.sourceName(l, row),
               showDivider: rowIndex != group.visibleRows.length - 1,
             );
           },
@@ -719,14 +686,7 @@ class ServerGroupView extends StatelessWidget {
             color: palette.surfaceHover,
             borderRadius: BorderRadius.circular(9),
           ),
-          child: group.country == null
-              ? Icon(LucideIcons.layers3, size: 20, color: palette.primary)
-              : Text(
-                  group.country!.isEmpty ? '—' : group.country!,
-                  style: AppTypography.serverGroupCode.copyWith(
-                    color: palette.mutedStrong,
-                  ),
-                ),
+          child: Icon(LucideIcons.layers3, size: 20, color: palette.primary),
         ),
         const SizedBox(width: 13),
         if (mobile) Expanded(child: label) else Flexible(child: label),
@@ -950,15 +910,11 @@ class ServerNodeRow extends StatelessWidget {
                 child: SelectableText(
                   appFailureMessage(
                     AppLocalizations.of(context)!,
-                    failure.success ? failure.locationError : failure.error,
-                    operation: failure.success
-                        ? AppLocalizations.of(context)!.prototypeByNodeLocation
-                        : AppLocalizations.of(context)!.prototypeSpeedTest,
+                    failure.error,
+                    operation: AppLocalizations.of(context)!.prototypeSpeedTest,
                   ),
                   style: AppTypography.settingsDetailNote.copyWith(
-                    color: failure.success
-                        ? ColorManager.palette(context).mutedForeground
-                        : ColorManager.palette(context).destructive,
+                    color: ColorManager.palette(context).destructive,
                   ),
                 ),
               ),
@@ -976,7 +932,7 @@ class ServerNodeRow extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
     final conflict = controller.exitConflict(row);
-    final rowDetail = detail ?? controller.countryName(l, row.countryCode);
+    final rowDetail = detail ?? controller.sourceName(l, row);
     return Container(
       foregroundDecoration: running
           ? BoxDecoration(
@@ -1074,7 +1030,10 @@ class ServerNodeRow extends StatelessWidget {
                                                 color: palette.foreground,
                                               ),
                                         ),
-                                        if (protocol.isNotEmpty) ...[
+                                        for (final label in [
+                                          row.type,
+                                          if (protocol.isNotEmpty) protocol,
+                                        ]) ...[
                                           const SizedBox(height: 3),
                                           Container(
                                             padding: const EdgeInsets.symmetric(
@@ -1090,7 +1049,7 @@ class ServerNodeRow extends StatelessWidget {
                                                   BorderRadius.circular(4),
                                             ),
                                             child: Text(
-                                              protocol,
+                                              label,
                                               textDirection: TextDirection.ltr,
                                               style: AppTypography
                                                   .serverProtocol

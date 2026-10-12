@@ -67,11 +67,6 @@ class PingController extends PageCubit<PingPageState> {
     emit(state.copyWith());
   }
 
-  void updateLocationEnabled(bool value) {
-    state.pingState.locationEnabled = value;
-    emit(state.copyWith());
-  }
-
   void updateUrl(String value) {
     final url = PingUrl.fromString(value);
     if (url != null) {

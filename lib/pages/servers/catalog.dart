@@ -4,12 +4,9 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/service/connect/settings.dart';
 
-enum ServerGrouping { subscription, location }
-
 class ServerGroup {
   final String id;
   final String name;
-  final String? country;
   final SubscriptionData? source;
   final ServerSelection selection;
   final List<CoreConfigData> rows;
@@ -17,7 +14,6 @@ class ServerGroup {
   const ServerGroup({
     required this.id,
     required this.name,
-    this.country,
     this.source,
     required this.selection,
     required this.rows,
@@ -29,7 +25,6 @@ mixin ServerLabels {
   String selectionName(AppLocalizations l10n, ServerSelection selection) =>
       switch (selection.kind) {
         SelectionKind.automatic => l10n.prototypeAutomaticSelection,
-        SelectionKind.region => selection.region ?? '',
         SelectionKind.source =>
           catalog.sourcesById[selection.id]?.name ??
               l10n.prototypeTemporarilyUnavailable,
@@ -57,17 +52,9 @@ mixin ServerLabels {
 }
 
 mixin ServerGroups on ServerLabels {
-  ServerGrouping get grouping;
   String get query;
   List<CoreConfigData> get servers => catalog.servers;
   List<SubscriptionData> get sources => catalog.sources;
-  String countryName(AppLocalizations l, String? code) {
-    final normalized = code?.toUpperCase();
-    return normalized == null || normalized.isEmpty
-        ? '—'
-        : l.countryRegionName(normalized);
-  }
-
   String sourceName(AppLocalizations l, CoreConfigData row) =>
       catalog.sourcesById[row.subId]?.name ?? l.prototypeManualAdditions;
 
@@ -78,8 +65,6 @@ mixin ServerGroups on ServerLabels {
     return query.isEmpty ||
         [
           serverName(row),
-          countryName(l, row.countryCode),
-          row.countryCode ?? '',
           sourceName(l, row),
         ].any((value) => value.toLowerCase().contains(query));
   }
@@ -90,19 +75,13 @@ mixin ServerGroups on ServerLabels {
   List<ServerGroup> groups(AppLocalizations l, {bool filter = true}) {
     final buckets = <String, List<CoreConfigData>>{};
     for (final row in servers) {
-      final key = grouping == ServerGrouping.location
-          ? (row.countryCode?.toUpperCase() ?? '')
-          : '${row.subId}';
+      final key = '${row.subId}';
       buckets.putIfAbsent(key, () => []).add(row);
     }
     final result = <ServerGroup>[];
     for (final entry in buckets.entries) {
-      final source = grouping == ServerGrouping.subscription
-          ? catalog.sourcesById[int.parse(entry.key)]
-          : null;
-      final name = grouping == ServerGrouping.location
-          ? countryName(l, entry.key)
-          : source?.name ?? l.prototypeManualAdditions;
+      final source = catalog.sourcesById[int.parse(entry.key)];
+      final name = source?.name ?? l.prototypeManualAdditions;
       final query = this.query.trim().toLowerCase();
       final wholeGroup = !filter || name.toLowerCase().contains(query);
       final visible = wholeGroup
@@ -113,21 +92,16 @@ mixin ServerGroups on ServerLabels {
       }
       result.add(
         ServerGroup(
-          id: '${grouping.name}:${entry.key}',
+          id: 'subscription:${entry.key}',
           name: name,
-          country: grouping == ServerGrouping.location ? entry.key : null,
           source: source,
-          selection: grouping == ServerGrouping.location
-              ? ServerSelection.region(entry.key)
-              : ServerSelection.source(int.parse(entry.key)),
+          selection: ServerSelection.source(int.parse(entry.key)),
           rows: entry.value,
           visibleRows: visible,
         ),
       );
     }
-    if (grouping == ServerGrouping.subscription) {
-      result.sort((a, b) => a.selection.id!.compareTo(b.selection.id!));
-    }
+    result.sort((a, b) => a.selection.id!.compareTo(b.selection.id!));
     return result;
   }
 }

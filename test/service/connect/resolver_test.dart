@@ -10,27 +10,46 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 
 void main() {
-  test('automatic, region, source and fixed selections retain distinct same-name IDs', () async {
-    final rows = [
-      _row(1, delay: 60, source: 1, region: 'US'),
-      _row(2, delay: 20, source: 2, region: 'US'),
-      _row(3, delay: 0, source: 0, region: 'CN'),
-      _row(4, delay: 1, type: 'raw'),
-    ];
-    final resolver = _oneShot(rows);
-    Future<List<int>> selected(ServerSelection selection, int count) async =>
-        (await resolver.resolve(
-          ConnectionSettings(
-            selection: selection,
-            smart: SmartRoutingSettings(entryCount: count),
-          ),
-        )).map((node) => node.id).toList();
-    expect(await selected(const ServerSelection.automatic(), 2), [3, 2]);
-    expect(await selected(const ServerSelection.region('us'), 2), [2, 1]);
-    expect(await selected(const ServerSelection.source(1), 1), [1]);
-    expect(await selected(const ServerSelection.source(0), 1), [3]);
-    expect(await selected(const ServerSelection.server(2), 3), [2]);
-  });
+  test(
+    'unknown selection kinds use the default while known fields are checked',
+    () {
+      for (final kind in ['region', 'futureSelection']) {
+        final selection = ServerSelection.fromJson({
+          'kind': kind,
+          'region': 'SG',
+        });
+        expect(selection.toJson(), {'kind': 'automatic'});
+      }
+      expect(ServerSelection.fromJson({'kind': 'server', 'id': 7}).id, 7);
+      expect(
+        () => ServerSelection.fromJson({'kind': 'server', 'id': '7'}),
+        throwsA(isA<TypeError>()),
+      );
+    },
+  );
+  test(
+    'automatic, source and fixed selections retain distinct same-name IDs',
+    () async {
+      final rows = [
+        _row(1, delay: 60, source: 1, region: 'US'),
+        _row(2, delay: 20, source: 2, region: 'US'),
+        _row(3, delay: 0, source: 0, region: 'CN'),
+        _row(4, delay: 1, type: 'raw'),
+      ];
+      final resolver = _oneShot(rows);
+      Future<List<int>> selected(ServerSelection selection, int count) async =>
+          (await resolver.resolve(
+            ConnectionSettings(
+              selection: selection,
+              smart: SmartRoutingSettings(entryCount: count),
+            ),
+          )).map((node) => node.id).toList();
+      expect(await selected(const ServerSelection.automatic(), 2), [3, 2]);
+      expect(await selected(const ServerSelection.source(1), 1), [1]);
+      expect(await selected(const ServerSelection.source(0), 1), [3]);
+      expect(await selected(const ServerSelection.server(2), 3), [2]);
+    },
+  );
 
   test(
     'All VPN is one node and Custom uses slots without inheriting Smart exit',
@@ -96,13 +115,13 @@ void main() {
   );
 
   test('missing scope and too few candidates fail without changing selection or probing', () async {
-    final selection = const ServerSelection.region('missing');
+    final selection = const ServerSelection.source(99);
     final resolver = _oneShot([_row(1)]);
     await expectLater(
       resolver.resolve(ConnectionSettings(selection: selection)),
       _fails(ConnectionResolutionFailure.selectionUnavailable),
     );
-    expect(selection.region, 'missing');
+    expect(selection.id, 99);
     await expectLater(
       resolver.resolve(
         ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),

@@ -65,20 +65,20 @@ void main() {
     expect(find.byType(PageActionBar), findsOneWidget);
     expect(find.byType(Slider), findsNothing);
     expect(find.byType(SettingSelect<double>), findsOneWidget);
-    expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isFalse);
+    expect(find.byType(ShadSwitch), findsNothing);
     final l = AppLocalizations.of(tester.element(find.byType(PingPage)))!;
-    expect(find.text(l.pingLocationEnabledHint), findsOneWidget);
     expect(find.text(l.pingVpnAccuracyHint), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsWidgets);
     expect(tester.takeException(), isNull);
   });
 
   for (final save in [false, true]) {
-    testWidgets('region setting ${save ? 'saves' : 'cancels'} its draft', (
+    testWidgets('ping URL ${save ? 'saves' : 'cancels'} its draft', (
       tester,
     ) async {
       await (PingState()
-            ..url = PingUrl.google
+            ..url = PingUrl.custom
+            ..customUrl = 'https://example.com/old'
             ..timeout = 7)
           .saveToPreferences();
       final router = GoRouter(
@@ -111,26 +111,28 @@ void main() {
       );
       await tester.tap(find.text('Open ping settings'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byType(ShadSwitch));
-      await tester.tap(find.byType(ShadSwitch));
+      await tester.ensureVisible(find.byType(TextField));
+      await tester.enterText(find.byType(TextField), 'https://example.com/new');
       await tester.pumpAndSettle();
-      expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isTrue);
       final storedDraft = PingState();
       await storedDraft.readFromPreferences();
-      expect(storedDraft.locationEnabled, isFalse);
+      expect(storedDraft.customUrl, 'https://example.com/old');
 
       await tester.tap(find.text(save ? 'Save' : 'Cancel'));
       await tester.pumpAndSettle();
       expect(find.byType(PingPage), findsNothing);
       final restored = PingState();
       await restored.readFromPreferences();
-      expect(restored.locationEnabled, save);
-      expect(restored.url, PingUrl.google);
+      expect(restored.customUrl, 'https://example.com/${save ? 'new' : 'old'}');
+      expect(restored.url, PingUrl.custom);
       expect(restored.timeout, 7);
 
       await tester.tap(find.text('Open ping settings'));
       await tester.pumpAndSettle();
-      expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, save);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        restored.customUrl,
+      );
       expect(tester.takeException(), isNull);
     });
   }

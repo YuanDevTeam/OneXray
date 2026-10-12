@@ -1055,10 +1055,6 @@
   "@prototypeFavorites": {
     "description": "Approved prototype copy: Favorites"
   },
-  "prototypeByNodeLocation": "By node location",
-  "@prototypeByNodeLocation": {
-    "description": "Approved prototype copy: By node location"
-  },
   "prototypeBySubscription": "By subscription",
   "@prototypeBySubscription": {
     "description": "Approved prototype copy: By subscription"
@@ -1067,9 +1063,9 @@
   "@prototypeSubscriptions": {
     "description": "Approved prototype copy: Subscriptions"
   },
-  "prototypeSearchSubscriptionsServers": "Search subscriptions, locations, or servers",
+  "prototypeSearchSubscriptionsServers": "Search subscriptions or servers",
   "@prototypeSearchSubscriptionsServers": {
-    "description": "Approved prototype copy: Search subscriptions, locations, or servers"
+    "description": "Approved prototype copy: Search subscriptions or servers"
   },
   "prototypeGroupAvailability": "{available}/{total} available · best {latency} ms",
   "@prototypeGroupAvailability": {
@@ -1106,10 +1102,6 @@
   "prototypeNotTested": "Not tested",
   "@prototypeNotTested": {
     "description": "Approved prototype copy: Not tested"
-  },
-  "prototypeNoMatchingLocations": "No matching locations",
-  "@prototypeNoMatchingLocations": {
-    "description": "Approved prototype copy: No matching locations"
   },
   "prototypeNoMatchingSubscriptions": "No matching subscriptions",
   "@prototypeNoMatchingSubscriptions": {
@@ -1304,18 +1296,6 @@
     "description": "Approved prototype copy: You selected {server} directly.",
     "placeholders": {
       "server": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeRegionEntryReason": "OneXray selected {server} as the fastest available server in {region}.",
-  "@prototypeRegionEntryReason": {
-    "description": "Approved prototype copy: OneXray selected {server} as the fastest available server in {region}.",
-    "placeholders": {
-      "server": {
-        "type": "String"
-      },
-      "region": {
         "type": "String"
       }
     }
@@ -1874,7 +1854,7 @@
   "@prototypeSpeedTest": {
     "description": "Approved prototype copy: Speed test"
   },
-  "prototypeSpeedTestSummary": "Timeout, test URL, and region detection",
+  "prototypeSpeedTestSummary": "Timeout and test URL",
   "@prototypeSpeedTestSummary": {
     "description": "Summary of the speed test settings page."
   },
@@ -3045,10 +3025,6 @@
       }
     }
   },
-  "pingLocationEnabled": "Detect node exit region",
-  "@pingLocationEnabled": {"description": "Node latency test setting or VPN accuracy reminder."},
-  "pingLocationEnabledHint": "Enabling this makes an extra request for each node’s exit region and significantly increases test time. Existing region information is kept when disabled.",
-  "@pingLocationEnabledHint": {"description": "Node latency test setting or VPN accuracy reminder."},
   "pingVpnAccuracyHint": "While the VPN is on, test requests may pass through the current VPN and latency results may be inaccurate. Disconnect the VPN before testing for more accurate results.",
   "@pingVpnAccuracyHint": {"description": "Node latency test setting or VPN accuracy reminder."},
   "pingVpnActiveTitle": "VPN is on",

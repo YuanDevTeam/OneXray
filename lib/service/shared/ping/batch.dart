@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:onexray/core/errors/failure.dart';
 
 import 'package:onexray/core/db/database/constants.dart';
-import 'package:onexray/core/network/client.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/shared/ping/state.dart';
@@ -19,16 +16,8 @@ class PingBatchResult {
   final bool success;
   final int delay;
   final String error;
-  final String? countryCode;
-  final String? locationError;
 
-  const PingBatchResult(
-    this.success,
-    this.delay,
-    this.error, {
-    this.countryCode,
-    this.locationError,
-  });
+  const PingBatchResult(this.success, this.delay, this.error);
 
   factory PingBatchResult.failed([String error = ""]) =>
       PingBatchResult(false, PingDelayConstants.error, error);
@@ -38,33 +27,10 @@ class PingBatchResult {
       return PingBatchResult.failed(response.error ?? "");
     }
 
-    String? countryCode;
-    var locationError = response.locationError;
-    if (response.locationJson != null) {
-      try {
-        final location = jsonDecode(response.locationJson!);
-        final country = location is Map<String, dynamic>
-            ? location['country']
-            : null;
-        final normalized = country is String
-            ? country.trim().toUpperCase()
-            : '';
-        if (RegExp(r'^[A-Z]{2}$').hasMatch(normalized)) {
-          countryCode = normalized;
-        } else {
-          locationError = 'invalid location response';
-        }
-      } on FormatException {
-        locationError = 'invalid location response';
-      }
-    }
-
     return PingBatchResult(
       response.success ?? false,
       response.delay!,
       response.error ?? "",
-      countryCode: countryCode,
-      locationError: locationError,
     );
   }
 }
@@ -98,7 +64,6 @@ class PingBatchRunner {
           .toList(growable: false),
       pingState.timeout.toInt(),
       pingState.realUrl,
-      locationUrl: pingState.locationEnabled ? NetClient.geoIPUrl : null,
     );
     final PingBatchResponse? response;
     try {

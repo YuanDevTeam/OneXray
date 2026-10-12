@@ -237,10 +237,6 @@ class ServerAssetService {
       SelectionKind.source =>
         selection.id == sourceId ||
             !remaining.any((row) => row.subId == selection.id),
-      SelectionKind.region => !remaining.any(
-        (row) =>
-            row.countryCode?.toUpperCase() == selection.region?.toUpperCase(),
-      ),
     };
     final next = ConnectionConfiguration(
       policy: current.policy,

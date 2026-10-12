@@ -13,12 +13,11 @@ void main() {
     await PreferencesKey().clearUserDataPreferences();
   });
 
-  test('location probes are disabled without preferences', () async {
+  test('ping settings use defaults without preferences', () async {
     final state = PingState();
 
     await state.readFromPreferences();
 
-    expect(state.locationEnabled, isFalse);
     expect(state.timeout, PingTimeout.defaultValue);
     expect(state.url, PingUrl.cloudflare);
   });
@@ -43,8 +42,7 @@ void main() {
     final original = PingState()
       ..timeout = 8
       ..url = PingUrl.custom
-      ..customUrl = 'https://example.com/ping'
-      ..locationEnabled = true;
+      ..customUrl = 'https://example.com/ping';
 
     await original.saveToPreferences();
 
@@ -55,51 +53,37 @@ void main() {
     expect(restored.url, PingUrl.custom);
     expect(restored.customUrl, 'https://example.com/ping');
     expect(restored.realUrl, 'https://example.com/ping');
-    expect(restored.locationEnabled, isTrue);
-
-    restored.locationEnabled = false;
-    await restored.saveToPreferences();
-    final disabled = PingState();
-    await disabled.readFromPreferences();
-    expect(disabled.locationEnabled, isFalse);
-    expect(disabled.realUrl, 'https://example.com/ping');
-    expect(
-      (await PreferencesKey().readPingState())!['locationEnabled'],
-      isFalse,
-    );
   });
 
-  test(
-    'legacy preferences retain the custom URL and disable location probes',
-    () async {
-      await PreferencesKey().savePingState({
-        'timeout': 5,
-        'url': 'Custom',
-        'customUrl': 'https://legacy.example.com/ping',
-      });
+  test('legacy preferences retain the custom URL', () async {
+    await PreferencesKey().savePingState({
+      'timeout': 5,
+      'url': 'Custom',
+      'customUrl': 'https://legacy.example.com/ping',
+    });
 
-      final restored = PingState();
-      await restored.readFromPreferences();
+    final restored = PingState();
+    await restored.readFromPreferences();
 
-      expect(restored.url, PingUrl.custom);
-      expect(restored.customUrl, 'https://legacy.example.com/ping');
-      expect(restored.locationEnabled, isFalse);
-    },
-  );
+    expect(restored.url, PingUrl.custom);
+    expect(restored.customUrl, 'https://legacy.example.com/ping');
+  });
 
-  test('null location preference restores as disabled', () async {
+  test('unknown preferences are ignored and omitted when saving', () async {
     await PreferencesKey().savePingState({
       'timeout': 8,
       'url': 'Google',
-      'locationEnabled': null,
+      'locationEnabled': true,
     });
-    final restored = PingState()..locationEnabled = true;
-
+    final restored = PingState();
     await restored.readFromPreferences();
-
-    expect(restored.locationEnabled, isFalse);
     expect(restored.timeout, 8);
     expect(restored.url, PingUrl.google);
+    await restored.saveToPreferences();
+    expect(
+      (await PreferencesKey().readPingState())!.keys,
+      unorderedEquals(['timeout', 'url', 'customUrl']),
+    );
   });
 
   test('invalid legacy custom URLs are retained but not activated', () async {

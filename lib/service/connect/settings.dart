@@ -2,43 +2,33 @@ import 'package:onexray/service/connect/routing/options.dart';
 
 enum ConnectionPlatform { ios, macos, android, windows, linux }
 
-enum SelectionKind { automatic, region, source, server }
+enum SelectionKind { automatic, source, server }
 
 enum TrafficMode { smart, allVpn, custom }
 
 class ServerSelection {
   final SelectionKind kind;
   final int? id;
-  final String? region;
 
-  const ServerSelection.automatic()
-    : kind = SelectionKind.automatic,
-      id = null,
-      region = null;
-  const ServerSelection.server(int this.id)
-    : kind = SelectionKind.server,
-      region = null;
-  const ServerSelection.source(int this.id)
-    : kind = SelectionKind.source,
-      region = null;
-  const ServerSelection.region(String this.region)
-    : kind = SelectionKind.region,
-      id = null;
+  const ServerSelection.automatic() : kind = SelectionKind.automatic, id = null;
+  const ServerSelection.server(int this.id) : kind = SelectionKind.server;
+  const ServerSelection.source(int this.id) : kind = SelectionKind.source;
 
   factory ServerSelection.fromJson(Map<String, dynamic> value) {
-    final kind = SelectionKind.values.byName(value['kind'] as String);
+    final kind = SelectionKind.values
+        .where((kind) => kind.name == value['kind'])
+        .firstOrNull;
     return switch (kind) {
       SelectionKind.automatic => const ServerSelection.automatic(),
       SelectionKind.server => ServerSelection.server(value['id'] as int),
       SelectionKind.source => ServerSelection.source(value['id'] as int),
-      SelectionKind.region => ServerSelection.region(value['region'] as String),
+      null => const ServerSelection.automatic(),
     };
   }
 
   Map<String, dynamic> toJson() => {
     'kind': kind.name,
     if (id != null) 'id': id,
-    if (region != null) 'region': region,
   };
 }
 

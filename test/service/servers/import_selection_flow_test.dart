@@ -43,14 +43,14 @@ void main() {
             automaticStarted.complete();
             await releaseAutomatic.future;
             return const [
-              PingBatchResult(true, 80, '', countryCode: 'JP'),
-              PingBatchResult(true, 10, '', countryCode: 'JP'),
-              PingBatchResult(true, 30, '', countryCode: 'US'),
+              PingBatchResult(true, 80, ''),
+              PingBatchResult(true, 10, ''),
+              PingBatchResult(true, 30, ''),
             ];
           }
           manualStarted.complete();
           await releaseManual.future;
-          return const [PingBatchResult(true, 5, '', countryCode: 'JP')];
+          return const [PingBatchResult(true, 5, '')];
         } finally {
           activeBatches--;
         }
@@ -96,7 +96,6 @@ void main() {
     await manualStarted.future.timeout(const Duration(seconds: 5));
     final measured = await measuredList.timeout(const Duration(seconds: 5));
     expect(measured.map((row) => row.name), ['Fast', 'Middle', 'Slow']);
-    expect(measured.map((row) => row.countryCode), ['JP', 'US', 'JP']);
 
     final settings = ConnectionSettings(
       smart: SmartRoutingSettings(entryCount: 2),
