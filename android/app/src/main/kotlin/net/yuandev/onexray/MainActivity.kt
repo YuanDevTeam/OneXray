@@ -54,9 +54,16 @@ class MainActivity : FlutterFragmentActivity() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == OneVpnService.ACTION_VPN_STATUS) {
                     val running = intent.getBooleanExtra(OneVpnService.EXTRA_RUNNING, false)
-                    XLog.d("MainActivity: received VPN status changed: $running")
+                    val starting = intent.getBooleanExtra(OneVpnService.EXTRA_STARTING, false)
+                    val startRequestId = intent.getLongExtra(OneVpnService.EXTRA_START_REQUEST_ID, 0L)
+                    XLog.d("MainActivity: received VPN status changed: $running starting=$starting request=$startRequestId")
                     // 将状态交给现有 hostApi（可触发 Flutter 通知或内部状态更新）
-                    hostApi.onVpnStatusChanged(running, intent.getStringExtra(OneVpnService.EXTRA_ERROR))
+                    hostApi.onVpnStatusChanged(
+                        running,
+                        intent.getStringExtra(OneVpnService.EXTRA_ERROR),
+                        startRequestId,
+                        starting,
+                    )
                 }
             }
         }

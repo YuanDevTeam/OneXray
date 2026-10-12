@@ -84,6 +84,7 @@ class VpnAutomationTest {
         assertEquals(ComponentName(context, OneVpnService::class.java), intent.component)
         assertTrue(intent.getBooleanExtra(OneVpnService.EXTRA_REUSE_CONFIGURATION, false))
         assertTrue(intent.getBooleanExtra(OneVpnService.EXTRA_AUTOMATION_START, false))
+        assertTrue(intent.getLongExtra(OneVpnService.EXTRA_START_REQUEST_ID, 0L) > 0L)
         assertNull(shadowOf(context).nextStartedActivity)
     }
 

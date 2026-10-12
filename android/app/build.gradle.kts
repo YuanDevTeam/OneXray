@@ -111,6 +111,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.13.0")
 
     val kotlinxCoroutinesVersion = "1.11.0"
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlinxCoroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxCoroutinesVersion")

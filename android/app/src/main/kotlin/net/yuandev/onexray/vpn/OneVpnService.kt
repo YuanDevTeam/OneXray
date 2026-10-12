@@ -50,6 +50,7 @@ class OneVpnService : VpnService() {
         const val ACTION_START: String = "vpn_start"
         const val EXTRA_REUSE_CONFIGURATION: String = "reuse_configuration"
         const val EXTRA_AUTOMATION_START: String = "automation_start"
+        const val EXTRA_START_REQUEST_ID: String = "start_request_id"
         const val ACTION_STOP: String = "vpn_stop"
         const val ACTION_STOP_REQUEST: String = "net.yuandev.onexray.VPN_STOP_REQUEST"
 
@@ -57,6 +58,7 @@ class OneVpnService : VpnService() {
         const val IPV6_ADDRESS = "fc00::1"
         const val ACTION_VPN_STATUS: String = "net.yuandev.onexray.VPN_STATUS"
         const val EXTRA_RUNNING: String = "running"
+        const val EXTRA_STARTING: String = "starting"
         const val EXTRA_ERROR: String = "error"
         const val NOTIFICATION_OPEN_REQUEST_CODE = 1
         const val NOTIFICATION_STOP_REQUEST_CODE = 2
@@ -72,6 +74,8 @@ class OneVpnService : VpnService() {
     private var backgroundStart = false
     private val startGeneration = AtomicInteger(0)
     private val released = AtomicBoolean(true)
+    @Volatile
+    private var currentStartRequestId = 0L
 
     private val resourceStatus: VpnStatus
         get() = when {
@@ -85,7 +89,9 @@ class OneVpnService : VpnService() {
         val intent = Intent(ACTION_VPN_STATUS).apply {
             setPackage(packageName) // 限定仅本包接收
             putExtra(EXTRA_RUNNING, running)
+            putExtra(EXTRA_STARTING, resourceStatus == VpnStatus.CONNECTING)
             putExtra(EXTRA_ERROR, error)
+            putExtra(EXTRA_START_REQUEST_ID, currentStartRequestId)
         }
         sendBroadcast(intent)
         VpnController.requestTileRefresh(this)
@@ -129,6 +135,7 @@ class OneVpnService : VpnService() {
             data.enforceInterface(VpnStatusConnection.DESCRIPTOR)
             reply?.writeNoException()
             reply?.writeInt(resourceStatus.ordinal)
+            reply?.writeLong(currentStartRequestId)
             return true
         }
     }
@@ -173,6 +180,11 @@ class OneVpnService : VpnService() {
         }
         if (intent != null && intent.action == ACTION_START) {
             XLog.d("OneVpnService: onStartCommand $ACTION_START running=$running")
+            val status = resourceStatus
+            if (status == VpnStatus.DISCONNECTED) {
+                currentStartRequestId = intent.getLongExtra(EXTRA_START_REQUEST_ID, 0L)
+                    .takeIf { it > 0 } ?: VpnController.newStartRequestId()
+            }
             if (intent.getBooleanExtra(EXTRA_AUTOMATION_START, false) && AutomationStore(this).startBlocked) {
                 // A clear/restore may have started after the receiver dispatched this command.
                 if (resourceStatus == VpnStatus.DISCONNECTED) stopSelf(startId)
@@ -183,7 +195,6 @@ class OneVpnService : VpnService() {
                 stopTun()
                 return START_NOT_STICKY
             }
-            val status = resourceStatus
             if (status == VpnStatus.DISCONNECTED) {
                 backgroundStart = intent.getBooleanExtra(EXTRA_REUSE_CONFIGURATION, false)
                 startTun(startId)
@@ -218,7 +229,7 @@ class OneVpnService : VpnService() {
     }
 
     private fun startTun(startId: Int) {
-        XLog.d("OneVpnService: startTun $startId")
+        XLog.d("OneVpnService: startTun $startId request=$currentStartRequestId")
         if (!released.compareAndSet(true, false)) {
             XLog.d("OneVpnService: startTun ignored because VPN resources are active")
             return
@@ -227,6 +238,9 @@ class OneVpnService : VpnService() {
         try {
             updateWidget(VpnStatus.CONNECTING)
             showNotification()
+            // Subscribe the UI to this service's death during Core startup,
+            // without acknowledging CONNECTED before the Core succeeds.
+            sendStatusBroadcast(false)
             val file = VpnController.startFile(this)
             val saved = SavedVpnConfig.read(file)
             val model = if (backgroundStart) {

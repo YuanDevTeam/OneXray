@@ -16,6 +16,7 @@ import net.yuandev.onexray.vpn.OneVpnService
 
 class OneQuickSettingsTileService : TileService() {
     private var vpnStatusReceiver: BroadcastReceiver? = null
+    private var latestStartRequestId = 0L
 
     override fun onTileAdded() {
         super.onTileAdded()
@@ -29,6 +30,17 @@ class OneQuickSettingsTileService : TileService() {
             vpnStatusReceiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     if (intent?.action != OneVpnService.ACTION_VPN_STATUS) {
+                        return
+                    }
+                    val startRequestId = intent.getLongExtra(OneVpnService.EXTRA_START_REQUEST_ID, 0L)
+                    if (startRequestId < latestStartRequestId) return
+                    latestStartRequestId = startRequestId
+                    if (intent.getBooleanExtra(OneVpnService.EXTRA_STARTING, false)) {
+                        updateTileState(
+                            state = Tile.STATE_UNAVAILABLE,
+                            subtitle = getString(R.string.quick_settings_tile_status_connecting),
+                            iconRes = R.drawable.play_light,
+                        )
                         return
                     }
                     val running = intent.getBooleanExtra(OneVpnService.EXTRA_RUNNING, false)

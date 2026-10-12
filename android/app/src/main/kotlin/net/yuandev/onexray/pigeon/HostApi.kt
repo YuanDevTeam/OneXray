@@ -43,10 +43,15 @@ class AppHostApi(
             }
         }
 
-    fun onVpnStatusChanged(running: Boolean, error: String? = null) {
-        XLog.d("AppHostApi: onVpnStatusChanged running=$running")
+    fun onVpnStatusChanged(
+        running: Boolean,
+        error: String? = null,
+        startRequestId: Long = 0L,
+        starting: Boolean = false,
+    ) {
+        XLog.d("AppHostApi: onVpnStatusChanged running=$running starting=$starting request=$startRequestId")
         scope.launch(Dispatchers.Main.immediate) {
-            try { vpnStatus.changed(running, error) }
+            try { vpnStatus.changed(running, error, startRequestId, starting) }
             catch (failure: Exception) {
                 XLog.e("VPN status notification failed", failure)
             }
@@ -105,7 +110,9 @@ class AppHostApi(
                 return@launch
             }
             try {
-                val status = vpnStatus.command(VpnStatus.CONNECTED) { VpnController.startVpn(context) }
+                val status = vpnStatus.command(VpnStatus.CONNECTED) { startRequestId ->
+                    VpnController.startVpn(context, startRequestId = startRequestId)
+                }
                 callback(Result.success(commandSuccess(permission, status)))
             } catch (error: Exception) {
                 VpnController.lastError = error.message ?: error.toString()

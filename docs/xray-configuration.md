@@ -336,6 +336,11 @@ Linux 用自身 exitCode 或接管 pidfd（不支持时报错，不降级轮询�
 仅 MSIX 内部每 5 秒检查系统 VPN，启停有界快速确认，不随隐藏/失焦停止。
 startVpn/stopVpn 成功返回已确认状态，不仅是“提交命令”；只读返回不通过回调绕行，每次同步只读一次 start.json。
 
+Android 每次原生启动使用内部单调 request ID，启动 Intent、Binder 查询和状态广播携带相同身份，
+不关联订阅或配置记录。App 在交付启动前绑定本次身份，旧运行迟到的成功、断开和错误广播不完成或拒绝新命令。
+启动中的广播只用于建立 Binder 退出订阅，Core 成功后才确认已连接；本次启动失败、取消或进程退出仍及时失败。
+Widget/Tile 与 saved-start 使用同一身份合同，无 App 待处理命令时也能同步其新运行。
+
 ### 本次流量
 
 可见连接页且已连接时共享一个秒级 metrics 采样器；resumed/inactive 均可见，失焦不重置基线。

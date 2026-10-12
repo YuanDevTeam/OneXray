@@ -28,6 +28,8 @@ class VpnStatusConnection(
     private var pending: CompletableDeferred<Unit>? = null
     private var target: VpnStatus? = null
     private var eventGeneration = 0
+    // Kept after stop/death so their delayed broadcasts cannot describe a new launch.
+    private var latestStartRequestId = 0L
 
     suspend fun read(): VpnStatus = withContext(Dispatchers.Main) {
         target?.let {
@@ -37,25 +39,42 @@ class VpnStatusConnection(
             return@withContext VpnStatus.DISCONNECTED
         }
         val binder = bind()
-        withContext(Dispatchers.IO) {
+        val (status, startRequestId) = withContext(Dispatchers.IO) {
             val request = Parcel.obtain()
             val reply = Parcel.obtain()
             try {
                 request.writeInterfaceToken(DESCRIPTOR)
                 check(binder.transact(READ_STATUS, request, reply, 0)) { "VPN status query was rejected" }
                 reply.readException()
-                VpnStatus.entries[reply.readInt()]
+                VpnStatus.entries[reply.readInt()] to reply.readLong()
             } finally {
                 request.recycle()
                 reply.recycle()
             }
         }
+        latestStartRequestId = maxOf(latestStartRequestId, startRequestId)
+        status
     }
 
-    suspend fun changed(running: Boolean, error: String?) = withContext(Dispatchers.Main) {
+    suspend fun changed(
+        running: Boolean,
+        error: String?,
+        startRequestId: Long,
+        starting: Boolean = false,
+    ) = withContext(Dispatchers.Main) {
+        if (startRequestId < latestStartRequestId ||
+            (target == VpnStatus.CONNECTED && startRequestId != latestStartRequestId)) {
+            return@withContext
+        }
+        // Saved/widget launches use the same monotonic IDs, without a pending UI
+        // command. Bind their service anew instead of retaining the old session.
+        if (startRequestId > latestStartRequestId) {
+            unbind()
+            latestStartRequestId = startRequestId
+        }
         val generation = ++eventGeneration
-        if (running) {
-            // Subscribe to process death before acknowledging start completion.
+        if (running || starting) {
+            // Observe process death during startup as well as after success.
             try { bind() } catch (failure: Exception) {
                 if (generation != eventGeneration) return@withContext
                 pending?.completeExceptionally(failure)
@@ -66,27 +85,36 @@ class VpnStatusConnection(
             unbind()
         }
         if (running || error != null) VpnController.lastError = error
-        val status = if (running) VpnStatus.CONNECTED else VpnStatus.DISCONNECTED
+        val status = when {
+            running -> VpnStatus.CONNECTED
+            starting -> VpnStatus.CONNECTING
+            else -> VpnStatus.DISCONNECTED
+        }
         if (status == target) pending?.complete(Unit)
-        else if (!running) pending?.completeExceptionally(
+        else if (!running && !starting) pending?.completeExceptionally(
             IllegalStateException(error ?: "VPN service stopped before connecting")
         )
         notify(status)
     }
 
-    suspend fun command(wanted: VpnStatus, action: () -> Boolean): VpnStatus = withContext(Dispatchers.Main) {
+    suspend fun command(wanted: VpnStatus, action: (Long) -> Boolean): VpnStatus = withContext(Dispatchers.Main) {
         check(pending == null) { "A VPN command is already running" }
         val current = read()
         if (wanted == VpnStatus.DISCONNECTED && current == VpnStatus.DISCONNECTED) {
-            check(action()) { VpnController.lastError ?: "Could not stop VPN" }
+            check(action(latestStartRequestId)) { VpnController.lastError ?: "Could not stop VPN" }
             return@withContext VpnStatus.DISCONNECTED
         }
         val completion = CompletableDeferred<Unit>()
         pending = completion
         target = wanted
+        if (wanted == VpnStatus.CONNECTED) {
+            // Set the expected identity before dispatching start: native failure
+            // or success can arrive immediately after the service receives it.
+            latestStartRequestId = VpnController.newStartRequestId(after = latestStartRequestId)
+        }
         try {
             notify(if (wanted == VpnStatus.CONNECTED) VpnStatus.CONNECTING else VpnStatus.DISCONNECTING)
-            check(action()) { VpnController.lastError ?: "VPN command failed" }
+            check(action(latestStartRequestId)) { VpnController.lastError ?: "VPN command failed" }
             withTimeout(if (wanted == VpnStatus.CONNECTED) 30_000L else 15_000L) { completion.await() }
             wanted
         } finally {
@@ -125,7 +153,8 @@ class VpnStatusConnection(
             }
             return withTimeout(3_000) { connected.await() }
         } catch (error: Exception) {
-            unbind()
+            // This await can resume after another event replaced its binding.
+            if (binding === connection) unbind()
             throw error
         }
     }

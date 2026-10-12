@@ -83,7 +83,9 @@ Pigeon、FFI、Drift 或本地化变更先生成对应输出；只改测试时�
 - macOS SE 激活：`bash tool/test_system_extension_activation.sh` 编译生产 Swift，
   验证并发请求合并及完成后的重新激活；使用可控系统回复，不申请真实扩展授权或启动 VPN。
 - Android 原生：在 `android/` 执行 `./gradlew :app:testDebugUnitTest`，
-  Robolectric 调用正式 Receiver、保存配置和 Widget 资源；不替代真实 VPN 与桌面验收。
+  Robolectric 调用正式 Receiver、保存配置、Widget 资源与 VPN 状态桥；
+  状态桥回归使用真实 command/changed 与可控 Binder 重演停止确认后旧事件迟到，
+  并区分当前错误/退出、旧绑定回调和外部启动；不替代真实 VPN 与桌面验收。
 - Android Manifest/网络 XML 变更补跑 `./gradlew :app:lintVitalRelease`；
   发布相关修复还需本地 Release AAB 构建，不调用会上传商店的部署脚本。
 - 原生桥合同变更验证实际序列化/消费方与对应平台构建；

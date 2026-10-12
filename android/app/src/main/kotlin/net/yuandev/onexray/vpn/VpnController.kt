@@ -12,6 +12,7 @@ import android.content.pm.ShortcutManager
 import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
+import android.os.SystemClock
 import android.service.quicksettings.TileService
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -26,11 +27,13 @@ import java.io.File
 import java.net.InetAddress
 import java.net.NetworkInterface
 import java.net.SocketException
+import java.util.concurrent.atomic.AtomicLong
 
 object VpnController {
     enum class SavedStartResult { STARTED, OPEN_APP, FAILED }
 
     var lastError: String? = null
+    private val lastStartRequestId = AtomicLong(0)
     private const val stopRequestRelativePath = "run/vpn.stop"
     private val vpnAddresses by lazy {
         setOf(
@@ -114,7 +117,21 @@ object VpnController {
             else SavedStartResult.FAILED
     }
 
-    fun startVpn(context: Context, reuseConfiguration: Boolean = false, automation: Boolean = false): Boolean {
+    /** Internal native launch identity, unrelated to subscription or profile IDs. */
+    fun newStartRequestId(after: Long = 0): Long {
+        while (true) {
+            val previous = lastStartRequestId.get()
+            val next = maxOf(SystemClock.elapsedRealtimeNanos(), previous + 1, after + 1)
+            if (lastStartRequestId.compareAndSet(previous, next)) return next
+        }
+    }
+
+    fun startVpn(
+        context: Context,
+        reuseConfiguration: Boolean = false,
+        automation: Boolean = false,
+        startRequestId: Long = newStartRequestId(),
+    ): Boolean {
         lastError = null
         if (!clearStopRequest(context)) {
             lastError = "Unable to clear the VPN stop marker."
@@ -124,6 +141,7 @@ object VpnController {
             val intent = buildStartIntent(context)
                 .putExtra(OneVpnService.EXTRA_REUSE_CONFIGURATION, reuseConfiguration)
                 .putExtra(OneVpnService.EXTRA_AUTOMATION_START, automation)
+                .putExtra(OneVpnService.EXTRA_START_REQUEST_ID, startRequestId)
             ContextCompat.startForegroundService(context, intent)
             true
         } catch (error: RuntimeException) {
