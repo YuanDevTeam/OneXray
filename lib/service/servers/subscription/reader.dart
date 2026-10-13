@@ -96,19 +96,6 @@ class SubscriptionConfigurationReader {
     final rows = <CoreConfigCompanion>[];
     await _withFiles(() async {
       for (final (index, config) in configs.indexed) {
-        final outbounds = config['outbounds'];
-        if (outbounds is! List ||
-            outbounds.isEmpty ||
-            outbounds.any(
-              (outbound) =>
-                  outbound is! Map<String, dynamic> ||
-                  outbound['protocol'] is! String ||
-                  (outbound['protocol'] as String).isEmpty,
-            )) {
-          throw const FormatException(
-            'A complete Xray configuration needs nonempty outbounds',
-          );
-        }
         final error = await _validate(
           XrayValidation.raw(RemnawaveAdapter.adapt(config)),
         );
@@ -130,6 +117,7 @@ class SubscriptionConfigurationReader {
             subId: DBConstants.defaultId,
           ),
         );
+        final outbounds = config['outbounds'] as List? ?? const [];
         for (final outbound in outbounds.cast<Map<String, dynamic>>()) {
           if (const [
                 'freedom',

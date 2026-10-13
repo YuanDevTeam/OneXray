@@ -174,28 +174,28 @@ App 管理日志、metrics、统计、policy、env、运行 balancer/observatory
 
 运行在深副本复用 Raw 的资源路径、Geodata 管理、日志、metrics、stats/policy、IPv6 DNS 查询策略、
 物理网卡、端口与平台 TUN 注入。不叠加 Smart/Custom 业务规则、地区直连、App Fragment 或 LAN 共享。
-provider 原有 outbounds 顺序/tag、routing 规则顺序/domainStrategy、DNS、balancers、observatory、链式引用保留；
+入口替换后其余 inbounds/outbounds 的相对顺序与 tag、原 routing 规则顺序/domainStrategy、
+DNS、balancers、observatory、链式引用保留；
 共享 Raw 的 App 托管字段仍按下节覆盖，不能把运行称为原文逐字透传。
 
-`RemnawaveAdapter` 只负责入口语义，保存校验、运行、复制个人 Raw 和完整分享使用同一适配：
+`RemnawaveAdapter` 负责入口与必要系统出站适配，保存校验、运行、复制个人 Raw 和完整分享使用同一适配：
 
-- 只生成或合并一份 `tunIn`，平台字段由共享 Raw 注入，Android/Apple 使用原生 FD，MSIX 使用私有 SOCKS/TUN 后端。
-  额外 TUN、重复 `tunIn`、占用托管端口或无法满足的资源依赖明确失败。
-- 一个 SOCKS/HTTP 入口，或多个嗅探与入口限定路由等价的入口，把其 sniffing 深复制到托管 TUN；
-  相关规则只向 `inboundTag` 补 `tunIn`，保留其它条件和原 tag。入口冲突明确失败，不任意挑选或合并。
-  无 provider 嗅探时使用 App 新 TUN 的默认设置。FakeDNS 只向 TUN 副本追加域名恢复，原 proxy 入站不改；
-  显式关闭嗅探时 FakeDNS 接入报错，池和 DNS server 保留 provider 值。
-- 源配置定义内置 DNS 或使用 FakeDNS 时，复用可确定兼容且在有效优先级上的原生 DNS 入口；
-  不能只凭 `protocol=dns` 判定自定义转发与内置查询等价。否则在出站末尾追加
-  `tag=app-remna-dns / protocol=dns / settings={}`，不设置 dialerProxy，前置仅匹配
-  `tunIn + TCP/UDP 53` 的规则，使用 Core 默认 A/AAAA hijack 和同一内置 DNS。
-  保留原 DNS servers/hosts/tag；与已有明确自定义 DNS 接入冲突时失败，不静默改其语义。
-- 添加桥接前检查保留 tag、规则引用、balancer 前缀 selector 和观察 subjectSelector 冲突，
-  DNS 自身 tag 不得与 `tunIn` 冲突。不补通用 proxy/direct/DoT 或 TUN catch-all，不重命名 provider 图。
-  没有内置 DNS/FakeDNS 时按原规则转发系统 DNS。
+- 删除全部 `protocol=tun` 入站，在入站首位新建固定 `tag=tunIn` 的 App TUN；
+  平台字段由共享 Raw 注入，Android/Apple 使用原生 FD，MSIX 使用私有 SOCKS/TUN 后端。
+- 新 TUN 沿用 Raw 的默认嗅探与 FakeDNS 识别；第一个 SOCKS/HTTP 入站提供 sniffing 时，
+  将该对象完整深复制到新 TUN，保留显式关闭等设置。原 SOCKS/HTTP 入站保留，
+  限定这些入口的规则向 `inboundTag` 补 `tunIn`，其它条件与原 tag 保留。
+- 删除全部 `protocol=dns` 出站。按 tag 检查 `direct` 和 `block`；已有定义保留，
+  缺少时分别在末尾补 `protocol=freedom` 和 `protocol=blackhole` 出站。
+- 补齐系统出站后，固定在出站末尾添加
+  `tag=app-remna-dns / protocol=dns / settings={}`，不设置 dialerProxy。
+  始终前置仅匹配 `tunIn + TCP/UDP 53` 的规则，由该出站处理系统 DNS；
+  原 DNS servers/hosts/tag 及 FakeDNS 池保留，查询地址族仍由共享 Raw 管理。
+- App 入口固定使用 `tunIn` 和 `app-remna-dns`；适配后的配置交由既有 libXray 校验与启动流程处理。
+  其余图的 tag、规则引用、balancer selector 和观察 subjectSelector 保留。
 
 `IPIfNonMatch`、默认首出站和 provider 已有兜底仍遵循 Core 语义；App 不把 balancer 存在当作默认出口。
-只补有界 DNS 规则，不加入会改变首轮未命中和第二轮 IP 匹配的无条件规则。
+前置 DNS 规则只接管 TUN 的 TCP/UDP 53；其它流量保持 provider 业务规则，不补通用 proxy/direct/DoT 或 TUN catch-all。
 
 编译结果和 start metadata 保存 profile ID/source ID/name/type，准备、待启动和运行引用都保护完整配置原行。
 更新和 mode 切换不热替换运行；连接页仍使用启动时名称快照。App 路由控件停用并解释偏好保留，

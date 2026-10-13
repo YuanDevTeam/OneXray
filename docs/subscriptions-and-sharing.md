@@ -38,17 +38,19 @@ App 的 Smart/Custom、智能选路和 LAN 共享偏好保留，切回 App 管�
 ### 完整 Xray JSON
 
 解密后的单对象或非空数组都可作为完整配置候选，数组每项独立保存为 `CoreConfigType.Remnawave`，关联同一来源。
-对象需要非空 Xray `outbounds`；数组中的错误元素使整次导入失败，不接受用户资料 JSON、Sing-box JSON 或空数组。
+完整对象先应用 App 入口与系统出站适配，再交给 libXray 校验；数组中的非对象元素或任一校验失败使整次导入失败。
+不转换 Sing-box 配置；空数组按无配置处理。
 仅含 `outbounds` 的普通 JSON 继续旧节点解析路径；有其它根字段的完整候选校验失败不降级为普通节点。
 协议、算法等内核语义交给 libXray，不在 App 维护第二套 Core schema。
 
 完整对象不经过普通分享字段投影；outbounds 顺序/tag、链路、routing、DNS、balancers、observatory、mux 及未知扩展字段
 保存在同一完整 Map。名称从 remarks/name/来源名加序号取得，存于行元数据，不为名称校验向源对象添加字段。
-保存校验在深副本上使用与运行相同的 TUN/必要规则适配，再使用 Raw 校验投影和串行 `testXray`；
+保存校验在深副本上使用与运行相同的 App TUN/DNS 入口替换、系统出站补齐及规则适配，
+再使用 Raw 校验投影和串行 `testXray`；
 全部条目通过后才提交两类缓存。构造通过不等于 VPN 启动或联网通过，运行托管边界见 [完整配置运行](xray-configuration.md#提供方完整配置)。
 
 查看 JSON 展示保存的原图，不开放普通节点编辑器；需要编辑时复制为个人 Raw，脱离来源更新并计入 Raw 三份配额。
-复制和完整配置分享先在深副本补 TUN/必要规则，再使用现有 Raw 交换及 Geodata 伴随链接，避免丢失入口路由语义；
+复制和完整配置分享先在深副本应用同一 App 入口与系统出站适配，再使用现有 Raw 交换及 Geodata 伴随链接；
 分享副本用元数据名称补 Raw 名称，数据库原图不改。敏感信息确认沿用完整配置分享合同。
 
 ### 套餐信息

@@ -86,24 +86,43 @@ void main() {
     expect(rules.first['outboundTag'], 'app-remna-dns');
     expect(rules.last['inboundTag'], ['provider', 'tunIn']);
     expect(_saved(result.rows.first), source);
-    final conflicting = _config('Conflicting ingress')
-      ..['inbounds'] = [
-        {
-          'tag': 'one',
-          'protocol': 'socks',
-          'sniffing': {'enabled': true},
-        },
-        {
-          'tag': 'two',
-          'protocol': 'http',
-          'sniffing': {'enabled': false},
-        },
-      ];
-    await expectLater(
-      _reader().read(jsonEncode([source, conflicting]), _input),
-      throwsFormatException,
-    );
   });
+
+  test(
+    'different provider ingress policies reach Core without a Dart rejection',
+    () async {
+      final conflicting = _config('Conflicting ingress')
+        ..['inbounds'] = [
+          {
+            'tag': 'one',
+            'protocol': 'socks',
+            'port': 1080,
+            'sniffing': {'enabled': true},
+          },
+          {
+            'tag': 'two',
+            'protocol': 'http',
+            'port': 1081,
+            'sniffing': {'enabled': false},
+          },
+        ];
+      Map<String, dynamic>? validation;
+      final result = await _reader(
+        validate: (text) async {
+          validation = jsonDecode(text) as Map<String, dynamic>;
+          return '';
+        },
+      ).read(jsonEncode(conflicting), _input);
+      expect(
+        (validation!['inbounds'] as List).where(
+          (value) => value['tag'] == 'one' || value['tag'] == 'two',
+        ),
+        conflicting['inbounds'],
+      );
+      expect(_saved(result.rows.first), conflicting);
+      expect(result.count, 1);
+    },
+  );
 
   test(
     'multiple profiles preserve complete objects and default to provider mode',
@@ -190,33 +209,186 @@ void main() {
   });
 
   test(
-    'invalid full arrays fail as a unit without falling back to node parsing',
+    'invalid JSON envelopes fail before Core or ordinary node parsing',
     () async {
       for (final text in [
         '[]',
         '[1]',
-        '{"user":{"name":"Guest"}}',
-        jsonEncode([
-          _config('Valid'),
-          {'outbounds': []},
-        ]),
-        jsonEncode({
+        jsonEncode([_config('Valid'), 1]),
+        '{"outbounds":',
+        '[{"outbounds":[]},',
+      ]) {
+        await expectLater(
+          _reader(
+            validate: (_) async =>
+                throw StateError('Invalid envelope reached Core validation'),
+          ).read(text, _input),
+          throwsFormatException,
+        );
+      }
+    },
+  );
+
+  test(
+    'invalid outbound protocols reach Core intact and retain its error',
+    () async {
+      for (final protocol in [null, '', 'unsupported-protocol']) {
+        final outbound = {'tag': 'invalid-proxy', 'protocol': protocol};
+        final config = _config('Invalid')..['outbounds'] = [outbound];
+        Map<String, dynamic>? validation;
+        const coreError = 'Core rejected the outbound protocol';
+        await expectLater(
+          _reader(
+            validate: (text) async {
+              validation = jsonDecode(text) as Map<String, dynamic>;
+              return coreError;
+            },
+          ).read(jsonEncode(config), _input),
+          throwsA(
+            isA<FormatException>().having(
+              (error) => error.message,
+              'message',
+              coreError,
+            ),
+          ),
+        );
+        expect(
+          (validation!['outbounds'] as List).singleWhere(
+            (value) => value['tag'] == 'invalid-proxy',
+          ),
+          outbound,
+        );
+      }
+    },
+  );
+
+  test(
+    'complete candidates rejected by Core do not fall back to node parsing',
+    () async {
+      for (final config in [
+        {
+          'user': {'name': 'Guest'},
+        },
+        {
           'remarks': 'Sing-box',
           'outbounds': [
             {'type': 'socks'},
           ],
-        }),
-        '{"outbounds":',
+        },
       ]) {
-        await expectLater(_reader().read(text, _input), throwsFormatException);
+        var reachedCore = false;
+        const coreError = 'Core rejected the configuration';
+        await expectLater(
+          _reader(
+            validate: (_) async {
+              reachedCore = true;
+              return coreError;
+            },
+          ).read(jsonEncode(config), _input),
+          throwsA(
+            isA<FormatException>().having(
+              (error) => error.message,
+              'message',
+              coreError,
+            ),
+          ),
+        );
+        expect(reachedCore, isTrue);
       }
-      await expectLater(
-        _reader(validate: (_) async => 'Invalid core configuration')
-            .read(jsonEncode(_config('Invalid')), _input),
-        throwsFormatException,
-      );
     },
   );
+
+  test(
+    'a later Core error rejects the entire array without a partial result',
+    () async {
+      final validated = <String>[];
+      const coreError = 'Core rejected the second configuration';
+      final configs = [
+        _config('First'),
+        _config('Second')
+          ..['outbounds'] = [
+            {'tag': 'invalid-proxy', 'protocol': ''},
+          ],
+        _config('Third'),
+      ];
+      await expectLater(
+        _reader(
+          validate: (text) async {
+            final value = jsonDecode(text) as Map<String, dynamic>;
+            final name = value['remarks'] as String;
+            validated.add(name);
+            return name == 'Second' ? coreError : '';
+          },
+        ).read(jsonEncode(configs), _input),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            coreError,
+          ),
+        ),
+      );
+      expect(validated, ['First', 'Second']);
+    },
+  );
+
+  test('native validation failures propagate through the reader', () async {
+    final failure = StateError('Native validation unavailable');
+    await expectLater(
+      _reader(validate: (_) async => throw failure)
+          .read(jsonEncode(_config('Native failure')), _input),
+      throwsA(same(failure)),
+    );
+  });
+
+  for (final outbounds in [null, <Map<String, dynamic>>[]]) {
+    test(
+      'Core can accept a provider with ${outbounds == null ? 'missing' : 'empty'} source outbounds',
+      () async {
+        final config = {
+          'remarks': 'DNS only',
+          'dns': {
+            'servers': ['1.1.1.1'],
+          },
+          'outbounds': ?outbounds,
+        };
+        Map<String, dynamic>? validation;
+        final result = await _reader(
+          validate: (text) async {
+            validation = jsonDecode(text) as Map<String, dynamic>;
+            return '';
+          },
+        ).read(jsonEncode(config), _input);
+        expect(
+          (validation!['outbounds'] as List).where(
+            (value) => value['protocol'] == 'dns',
+          ),
+          hasLength(1),
+        );
+        expect(result.mode, SubscriptionMode.providerManaged);
+        expect(result.count, 1);
+        expect(result.rows, hasLength(1));
+        expect(_saved(result.rows.single), config);
+        await expectLater(
+          _reader().read(
+            jsonEncode(config),
+            const SubscriptionInput(
+              name: 'Source',
+              url: 'https://example.com/sub',
+              mode: SubscriptionMode.appManaged,
+            ),
+          ),
+          throwsA(
+            isA<FormatException>().having(
+              (error) => error.message,
+              'message',
+              'The selected mode contains no usable configurations',
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   test('ordinary node text keeps the existing parser and explicit panel format is checked', () async {
     final reader = _reader(

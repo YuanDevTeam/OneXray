@@ -208,6 +208,8 @@ void main() {
       expect(outbounds.map((value) => value['tag']), [
         'edge',
         'last',
+        'direct',
+        'block',
         'app-remna-dns',
       ]);
       expect(

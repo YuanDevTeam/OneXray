@@ -133,7 +133,14 @@ void main() {
           ),
           hasLength(1),
         );
-        expect(config['routing']['rules'][0]['inboundTag'], [
+        expect(config['routing']['rules'][0], {
+          'type': 'field',
+          'inboundTag': ['tunIn'],
+          'network': 'tcp,udp',
+          'port': '53',
+          'outboundTag': 'app-remna-dns',
+        });
+        expect(config['routing']['rules'][1]['inboundTag'], [
           'provider-socks',
           'tunIn',
         ]);

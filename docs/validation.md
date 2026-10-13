@@ -44,8 +44,10 @@
   缺缓存与固定选择不兼容有明确反馈，旧菜单和迟到响应再次复查真实来源/模式。
 - 刷新保护 preparing/pending/running profile ID 及固定/最终出口/收藏原行，保留旧 JSON 并插新结果；
   失败、来源删除和请求策略改变不覆盖缓存或套餐。删除来源清理两类缓存且按运行引用停机/重连。
-- 保存校验与编译使用同一纯入口适配，验证单入口、等价多入口、冲突入口、FakeDNS、DNS 桥接和保留 tag/selector 冲突；
-  TUN 只一份，原图顺序、链式引用、balancer/observatory 和 domainStrategy 保留，不添加通用 catch-all。
+- 保存校验与编译使用同一纯配置适配，验证全部来源 TUN 入站与 DNS 出站替换、固定入口及始终前置的有界 DNS 规则，
+  覆盖有无内置 DNS、FakeDNS、多个 SOCKS/HTTP 入站及显式嗅探关闭。源对象不变，其余入站/出站相对顺序、
+  原业务规则、链式引用、balancer/observatory 和 domainStrategy 保留；配置有效性交由既有 libXray 流程验证。
+  验证缺少的 direct/block 在托管 DNS 出站之前补齐，已有同 tag 定义保留。
   Raw 复制/分享补同一入口语义，个人 Raw 配额与原图查看不互相混淆。
 - 连接页显示 provider 名称快照与完整路由说明，不伪装成 App 多入口或单节点延迟；
   App Smart/Custom/LAN 偏好保存不影响 provider 会话，平台策略有效变更保持原重连流程。
