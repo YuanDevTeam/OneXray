@@ -237,6 +237,149 @@ void main() {
     expect(jsonEncode(source), before);
   });
 
+  test('provider tunnel and DNS policies pass through shared Raw platform compilation', () {
+    final source = <String, dynamic>{
+      'inbounds': [
+        {
+          'tag': 'provider-http',
+          'protocol': 'http',
+          'port': 12080,
+          'sniffing': {'enabled': true},
+        },
+        {
+          'tag': 'provider-tun',
+          'protocol': 'tun',
+          'settings': {
+            'name': 'ProviderTun',
+            'mtu': 1234,
+            'gateway': ['192.0.2.1/24'],
+            'autoOutboundsInterface': 'ProviderInterface',
+            'userLevel': 5,
+            'autoSystemDnsToGateway': true,
+          },
+          'sniffing': {'enabled': false, 'routeOnly': true},
+        },
+      ],
+      'dns': {
+        'servers': ['1.1.1.1'],
+      },
+      'outbounds': [
+        {
+          'tag': 'proxy',
+          'protocol': 'socks',
+          'streamSettings': {
+            'sockopt': {
+              'interface': 'ProviderInterface',
+              'dialerProxy': 'direct',
+            },
+          },
+        },
+        {
+          'tag': 'direct',
+          'protocol': 'freedom',
+          'settings': {'domainStrategy': 'UseIPv4'},
+        },
+        {'tag': 'block', 'protocol': 'blackhole'},
+        {
+          'tag': 'provider-dns',
+          'protocol': 'dns',
+          'settings': {'address': '9.9.9.9', 'port': 5353},
+          'streamSettings': {
+            'sockopt': {'interface': 'ProviderDnsInterface'},
+          },
+        },
+      ],
+      'routing': {
+        'rules': [
+          {
+            'type': 'field',
+            'inboundTag': ['provider-tun'],
+            'port': '53',
+            'outboundTag': 'provider-dns',
+          },
+          {
+            'type': 'field',
+            'inboundTag': ['provider-tun'],
+            'network': 'tcp,udp',
+            'outboundTag': 'proxy',
+          },
+        ],
+      },
+    };
+    final before = jsonEncode(source);
+    final profile = ResolvedProfile(
+      id: 99,
+      sourceId: 7,
+      name: 'Provider',
+      config: source,
+    );
+    for (final (platform, windowsMode) in [
+      (ConnectionPlatform.linux, WindowsMode.exe),
+      (ConnectionPlatform.windows, WindowsMode.exe),
+      (ConnectionPlatform.windows, WindowsMode.msix),
+    ]) {
+      final config = ConnectionCompiler.compile(
+        settings: ConnectionSettings(
+          selection: const ServerSelection.server(99),
+        ),
+        entries: const [],
+        profile: profile,
+        regions: catalog,
+        options: options(
+          platform: platform,
+          windowsMode: windowsMode,
+          interfaceName: 'Ethernet',
+          ipv6: false,
+        ),
+      ).config;
+      final inbounds = config['inbounds'] as List;
+      expect(inbounds, hasLength(2));
+      expect(inbounds.first, source['inbounds'][0]);
+      final tunnel = inbounds.last;
+      expect(tunnel['tag'], 'tunIn');
+      expect(tunnel['sniffing'], source['inbounds'][1]['sniffing']);
+      if (windowsMode == WindowsMode.msix) {
+        expect(tunnel['protocol'], 'socks');
+        expect(tunnel['port'], '18187');
+        expect(tunnel['settings'], {'auth': 'noauth', 'udp': true});
+      } else {
+        expect(tunnel['protocol'], 'tun');
+        expect(tunnel['settings']['name'], 'OneXrayTun');
+        expect(tunnel['settings']['mtu'], VpnConstants.tunMtu);
+        expect(tunnel['settings']['gateway'], ['198.18.0.1/15']);
+        expect(tunnel['settings']['autoOutboundsInterface'], 'Ethernet');
+        expect(tunnel['settings']['userLevel'], 5);
+        expect(tunnel['settings']['autoSystemDnsToGateway'], true);
+      }
+      final rules = config['routing']['rules'] as List;
+      expect(rules, hasLength(2));
+      expect(rules.first, {
+        ...source['routing']['rules'][0] as Map<String, dynamic>,
+        'inboundTag': ['tunIn'],
+      });
+      expect(rules.last['inboundTag'], ['tunIn']);
+      expect(rules.last['outboundTag'], 'proxy');
+      final outbounds = config['outbounds'] as List;
+      expect(outbounds.map((value) => value['tag']), [
+        'proxy',
+        'direct',
+        'block',
+        'provider-dns',
+      ]);
+      expect(outbounds.first['streamSettings']['sockopt'], {
+        'interface': 'Ethernet',
+        'dialerProxy': 'direct',
+      });
+      expect(
+        outbounds[1]['streamSettings']['sockopt']['interface'],
+        'Ethernet',
+      );
+      expect(outbounds[1]['settings'], source['outbounds'][1]['settings']);
+      expect(outbounds.last, source['outbounds'][3]);
+    }
+    expect(jsonEncode(source), before);
+  });
+
   test('provider compilation requires one matching fixed profile without normal nodes', () {
     final profile = ResolvedProfile(
       id: 99,

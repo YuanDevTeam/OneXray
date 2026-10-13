@@ -98,14 +98,7 @@ class ServerAssetService {
 
   static bool selectable(CoreConfigData row) {
     if (row.type == CoreConfigType.Remnawave.name) {
-      try {
-        final outbounds = ResolvedProfile.fromRow(row).config['outbounds'];
-        return outbounds is List &&
-            outbounds.isNotEmpty &&
-            outbounds.every((entry) => entry is Map<String, dynamic>);
-      } on FormatException {
-        return false;
-      }
+      return ServerDisplay.fromRow(row).readable;
     }
     if (measured(row) && !healthy(row)) return false;
     try {

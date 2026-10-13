@@ -23,16 +23,8 @@ class ServerDisplay {
   factory ServerDisplay.fromRow(CoreConfigData row) {
     try {
       if (row.type == CoreConfigType.Remnawave.name) {
-        final profile = ResolvedProfile.fromRow(row);
-        final outbounds = profile.config['outbounds'];
-        return ServerDisplay(
-          row.name,
-          '',
-          outbounds is List &&
-              outbounds.isNotEmpty &&
-              outbounds.every((entry) => entry is Map<String, dynamic>),
-          type: row.type,
-        );
+        ResolvedProfile.fromRow(row);
+        return ServerDisplay(row.name, '', true, type: row.type);
       }
       final outbound = readOutboundFromDbData(row);
       return ServerDisplay(

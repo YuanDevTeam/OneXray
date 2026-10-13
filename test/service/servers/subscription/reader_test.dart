@@ -88,6 +88,63 @@ void main() {
     expect(_saved(result.rows.first), source);
   });
 
+  test('provider tunnel DNS rules survive validation while source JSON remains original', () async {
+    final source = _config('Existing tunnel');
+    source['inbounds'] = [
+      {
+        'tag': 'provider-tun',
+        'protocol': 'tun',
+        'settings': {'userLevel': 5},
+        'sniffing': {'enabled': false, 'routeOnly': true},
+      },
+    ];
+    (source['outbounds'] as List).add({
+      'tag': 'provider-dns',
+      'protocol': 'dns',
+      'settings': {'address': '9.9.9.9', 'port': 5353},
+    });
+    (source['routing'] as Map)['rules'] = [
+      {
+        'type': 'field',
+        'inboundTag': ['provider-tun'],
+        'port': 53,
+        'outboundTag': 'provider-dns',
+      },
+      {
+        'type': 'field',
+        'inboundTag': ['provider-tun'],
+        'domain': ['example.com'],
+        'outboundTag': 'proxy',
+      },
+    ];
+    final before = jsonEncode(source);
+    Map<String, dynamic>? validation;
+    final result = await _reader(
+      validate: (text) async {
+        validation = jsonDecode(text) as Map<String, dynamic>;
+        return '';
+      },
+    ).read(before, _input);
+    final tunnel = (validation!['inbounds'] as List).single;
+    expect(tunnel['tag'], 'tunIn');
+    expect(tunnel['protocol'], 'socks');
+    expect(tunnel['sniffing'], source['inbounds'][0]['sniffing']);
+    final rules = validation!['routing']['rules'] as List;
+    expect(rules, hasLength(2));
+    expect(rules.first, {
+      ...source['routing']['rules'][0] as Map<String, dynamic>,
+      'inboundTag': ['tunIn'],
+    });
+    expect(rules.last['inboundTag'], ['tunIn']);
+    final dns = (validation!['outbounds'] as List).where(
+      (value) => value['protocol'] == 'dns',
+    );
+    expect(dns, [source['outbounds'][2]]);
+    expect(_saved(result.rows.first), source);
+    expect(jsonEncode(source), before);
+    expect(result.count, 1);
+  });
+
   test(
     'different provider ingress policies reach Core without a Dart rejection',
     () async {

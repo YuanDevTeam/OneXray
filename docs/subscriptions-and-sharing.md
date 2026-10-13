@@ -45,8 +45,9 @@ App 的 Smart/Custom、智能选路和 LAN 共享偏好保留，切回 App 管�
 
 完整对象不经过普通分享字段投影；outbounds 顺序/tag、链路、routing、DNS、balancers、observatory、mux 及未知扩展字段
 保存在同一完整 Map。名称从 remarks/name/来源名加序号取得，存于行元数据，不为名称校验向源对象添加字段。
-保存校验在深副本上使用与运行相同的 App TUN/DNS 入口替换、系统出站补齐及规则适配，
-再使用 Raw 校验投影和串行 `testXray`；
+保存校验在深副本上应用与运行相同的 `RemnawaveAdapter`，按需复用或补充入口、系统出站及 DNS 规则，
+再使用 Raw 校验投影和串行 `testXray`。适配后的配置由 libXray 判断有效性，
+列表和选择不再以原始 `outbounds` 是否非空重复拒绝已导入配置，仅保留来源、资产及 JSON 可读取要求；
 全部条目通过后才提交两类缓存。构造通过不等于 VPN 启动或联网通过，运行托管边界见 [完整配置运行](xray-configuration.md#提供方完整配置)。
 
 查看 JSON 展示保存的原图，不开放普通节点编辑器；需要编辑时复制为个人 Raw，脱离来源更新并计入 Raw 三份配额。

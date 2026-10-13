@@ -10,8 +10,10 @@ import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/service/servers/server.dart';
+import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
+import 'package:onexray/service/servers/subscription/reader.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
 import 'package:onexray/service/connect/raw/db.dart';
 import 'package:onexray/service/connect/compiler.dart';
@@ -45,6 +47,20 @@ void main() {
   ) async {
     addTearDown(coordinator.dispose);
     await coordinator.initialize(observe: false, registerReferences: false);
+    return coordinator;
+  }
+
+  ConnectionCoordinator selectionCoordinator() {
+    final coordinator = ConnectionCoordinator(
+      database: db,
+      readRuntime: () async => null,
+      inspect: (_, {observedStatus}) async =>
+          const HostConnection(VpnStatus.disconnected),
+      start: (_) async => throw StateError('No implicit start'),
+      stop: () async => throw StateError('No implicit stop'),
+      disposeStatus: () {},
+    );
+    addTearDown(coordinator.dispose);
     return coordinator;
   }
 
@@ -713,13 +729,131 @@ void main() {
     );
   });
 
+  for (final emptyOutbounds in [false, true]) {
+    test(
+      'an imported provider with ${emptyOutbounds ? 'empty' : 'missing'} original outbounds can be selected',
+      () async {
+        final original = <String, dynamic>{
+          'remarks': 'Complete profile',
+          if (emptyOutbounds) 'outbounds': <dynamic>[],
+        };
+        final validations = <Map<String, dynamic>>[];
+        final reader = SubscriptionConfigurationReader(
+          decode: (text, {ageSecretKey}) async => text,
+          readNodes: (_) async => throw StateError('No node projection'),
+          withFiles: (action) => action(),
+          validate: (text) async {
+            validations.add(jsonDecode(text) as Map<String, dynamic>);
+            return '';
+          },
+        );
+        final subscriptions = SubscriptionService.forTesting(
+          database: db,
+          schedulePing: (_) => throw StateError('No provider measurement'),
+          loadRows: (input) async {
+            final result = await reader.read(jsonEncode(original), input);
+            return SubscriptionLoadResult(
+              status: SubscriptionUpdateResult.success,
+              mode: result.mode,
+              rows: result.rows,
+            );
+          },
+        );
+        final inserted = await subscriptions.insertSubscription(
+          const SubscriptionInput(
+            name: 'Provider',
+            url: 'https://example.com/provider',
+            panel: SubscriptionPanel.remnawave,
+          ),
+        );
+        expect(inserted.success, isTrue);
+        expect(inserted.count, 1);
+        expect(validations, hasLength(1));
+        expect(
+          (validations.single['outbounds'] as List).map(
+            (value) => value['tag'],
+          ),
+          containsAll(['direct', 'block', 'app-remna-dns']),
+        );
+        final profile = (await db.coreConfigDao.allActiveServerRows()).single;
+        final source = (await db.subscriptionDao.searchRow(inserted.subId))!;
+        expect(ResolvedProfile.fromRow(profile).config, original);
+        expect(profile.type, CoreConfigType.Remnawave.name);
+        final catalog = ServerCatalog(servers: [profile], sources: [source]);
+        expect(catalog.display(profile).readable, isTrue);
+        expect(catalog.selectable(profile), isTrue);
+        expect(ServerAssetService.selectable(profile), isTrue);
+        final service = ServerAssetService(
+          database: db,
+          coordinator: selectionCoordinator(),
+          subscriptions: subscriptions,
+          validate: (_) async =>
+              throw StateError('Already validated at import'),
+        );
+        await service.validateSelection(ServerSelection.server(profile.id));
+        final configuration = ConnectionConfiguration(
+          connection: ConnectionSettings(
+            selection: ServerSelection.server(profile.id),
+          ),
+        );
+        await db.connectionConfigDao.commit(
+          configurationJson: configuration.encode(),
+        );
+        final available = await subscriptions.modeAvailability(source.id);
+        expect(available.count, 1);
+        expect(available.selectedCompatible, isTrue);
+
+        final appManaged = source.copyWith(mode: 'appManaged');
+        await db.subscriptionDao.updateRow(appManaged);
+        expect(
+          catalog.copyWith(sources: [appManaged]).selectable(profile),
+          isFalse,
+        );
+        await expectLater(
+          service.validateSelection(ServerSelection.server(profile.id)),
+          throwsFormatException,
+        );
+        final unavailable = await subscriptions.modeAvailability(source.id);
+        expect(unavailable.count, 0);
+        expect(unavailable.selectedCompatible, isFalse);
+      },
+    );
+  }
+
+  test('a provider asset with unreadable JSON cannot be selected', () async {
+    final profile = await _provider(db);
+    final unreadable = profile.copyWith(
+      data: Value(base64Encode(utf8.encode('{'))),
+    );
+    await db.coreConfigDao.updateRow(unreadable);
+    expect(ServerAssetService.selectable(unreadable), isFalse);
+    await expectLater(
+      ServerAssetService(
+        database: db,
+        coordinator: selectionCoordinator(),
+        subscriptions: SubscriptionService.forTesting(
+          database: db,
+          schedulePing: (_) {},
+        ),
+      ).validateSelection(ServerSelection.server(profile.id)),
+      throwsFormatException,
+    );
+  });
+
   test(
     'selection checks use the latest mode rather than a stale server view',
     () async {
       final profile = await _provider(db);
       final derived = await server(subId: profile.subId);
       await server();
-      final service = ServerAssetService(database: db);
+      final service = ServerAssetService(
+        database: db,
+        coordinator: selectionCoordinator(),
+        subscriptions: SubscriptionService.forTesting(
+          database: db,
+          schedulePing: (_) {},
+        ),
+      );
       await service.validateSelection(const ServerSelection.automatic());
       await service.validateSelection(const ServerSelection.source(0));
       await service.validateSelection(ServerSelection.server(profile.id));

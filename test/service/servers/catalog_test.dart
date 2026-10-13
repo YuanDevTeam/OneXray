@@ -36,6 +36,16 @@ void main() {
     expect(appManaged.selectable(provider), isFalse);
   });
 
+  test('a provider row with unreadable JSON remains unavailable', () {
+    final provider = _provider().copyWith(
+      data: Value(base64Encode(utf8.encode('{'))),
+    );
+    final catalog = ServerCatalog(servers: [provider], sources: [_source()]);
+    expect(catalog.servers, [provider]);
+    expect(catalog.display(provider).readable, isFalse);
+    expect(catalog.selectable(provider), isFalse);
+  });
+
   test(
     'catalog watches local source mode changes across both caches',
     () async {

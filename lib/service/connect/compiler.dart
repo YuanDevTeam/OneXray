@@ -278,7 +278,8 @@ class ConnectionCompiler {
           'Provider configuration requires one fixed profile',
         );
       }
-      config = _rawRuntimeMap(RemnawaveAdapter.adapt(profile.config), options);
+      final adapted = RemnawaveAdapter.adapt(profile.config);
+      config = _rawRuntimeMap(adapted, options);
     } else if (settings.expert) {
       if (raw == null || entries.isNotEmpty || finalExit != null) {
         throw const FormatException(

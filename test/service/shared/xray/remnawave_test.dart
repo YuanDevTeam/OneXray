@@ -112,21 +112,19 @@ void main() {
     expect((result['outbounds'] as List).last['protocol'], 'dns');
   });
 
-  test('replaces every supplied TUN and DNS definition regardless of tag', () {
+  test('reuses provider TUN and DNS while adapting only tunnel references', () {
     final source = _source();
-    (source['inbounds'] as List).addAll([
-      {
-        'tag': 'foreign',
-        'protocol': 'tun',
-        'settings': {'name': 'Foreign tunnel'},
-      },
-      {
-        'tag': 'tunIn',
-        'protocol': 'tun',
-        'settings': {'mtu': 1200},
-      },
-      {'tag': 'tunIn', 'protocol': 'tun'},
-    ]);
+    final tunnel = {
+      'tag': 'provider-tun',
+      'protocol': 'tun',
+      'settings': {'name': 'Provider tunnel', 'mtu': 1200},
+      'sniffing': {'enabled': false},
+    };
+    source['inbounds'].add(tunnel);
+    source['routing']['rules'].insert(0, {
+      'inboundTag': ['provider-tun', 'tunIn', 'provider-socks', 'other'],
+      'outboundTag': 'entry',
+    });
     (source['outbounds'] as List).addAll([
       {
         'tag': 'provider-query',
@@ -134,7 +132,7 @@ void main() {
         'settings': {'address': '9.9.9.9'},
         'proxySettings': {'tag': 'entry'},
       },
-      {'tag': 'app-remna-dns', 'protocol': 'dns'},
+      {'tag': 'backup-query', 'protocol': 'dns'},
     ]);
     final original = jsonEncode(source);
     final result = RemnawaveAdapter.adapt(source);
@@ -143,43 +141,130 @@ void main() {
         .toList();
     expect(tunnels, hasLength(1));
     expect(tunnels.single['tag'], 'tunIn');
-    expect(tunnels.single['settings']['name'], 'OneXrayTun');
+    expect(tunnels.single, {...tunnel, 'tag': 'tunIn'});
+    expect(result['inbounds'][0], source['inbounds'][0]);
+    expect(result['inbounds'][1], tunnels.single);
     final dnsOutbounds = (result['outbounds'] as List)
         .where((value) => value['protocol'] == 'dns')
         .toList();
-    expect(dnsOutbounds, [
-      {'tag': 'app-remna-dns', 'protocol': 'dns', 'settings': {}},
+    expect(dnsOutbounds, (source['outbounds'] as List).skip(4).toList());
+    expect(result['routing']['rules'][0]['outboundTag'], 'provider-query');
+    expect(result['routing']['rules'][1]['inboundTag'], [
+      'tunIn',
+      'provider-socks',
+      'other',
     ]);
     expect(jsonEncode(source), original);
   });
 
-  test('prepends DNS routing without interpreting existing DNS conditions', () {
-    final source = _source();
-    final originalRule = <String, dynamic>{
-      'inboundTag': ['provider-socks'],
-      'network': 'udp',
-      'port': '53',
-      'ip': ['9.9.9.9/32'],
-      'outboundTag': 'provider-query',
-    };
-    source['routing']['rules'].insert(0, originalRule);
-    (source['outbounds'] as List).add({
-      'tag': 'provider-query',
-      'protocol': 'dns',
-      'settings': {'address': '9.9.9.9'},
-    });
-    final result = RemnawaveAdapter.adapt(source);
-    expect(result['routing']['rules'][0]['outboundTag'], 'app-remna-dns');
-    expect(result['routing']['rules'][1], {
-      ...originalRule,
-      'inboundTag': ['provider-socks', 'tunIn'],
-    });
-    expect(
-      (result['outbounds'] as List).any(
-        (value) => value['tag'] == 'provider-query',
-      ),
-      isFalse,
+  test(
+    'retains declared DNS routing and its outbound without coverage inference',
+    () {
+      final source = _source();
+      final originalRule = <String, dynamic>{
+        'inboundTag': ['provider-socks'],
+        'network': 'udp',
+        'port': '53',
+        'ip': ['9.9.9.9/32'],
+        'outboundTag': 'provider-query',
+      };
+      source['routing']['rules'].insert(0, originalRule);
+      (source['outbounds'] as List).add({
+        'tag': 'provider-query',
+        'protocol': 'dns',
+        'settings': {'address': '9.9.9.9'},
+      });
+      final result = RemnawaveAdapter.adapt(source);
+      expect(result['routing']['rules'], hasLength(3));
+      expect(result['routing']['rules'][0], {
+        ...originalRule,
+        'inboundTag': ['provider-socks', 'tunIn'],
+      });
+      expect(
+        (result['outbounds'] as List).any(
+          (value) => value['tag'] == 'provider-query',
+        ),
+        isTrue,
+      );
+      expect(result['outbounds'], source['outbounds']);
+    },
+  );
+
+  test(
+    'retains managed TUN settings and sniffing at the original position',
+    () {
+      final source = _source();
+      source['inbounds'].add({
+        'tag': 'tunIn',
+        'protocol': 'tun',
+        'settings': {'mtu': 1200, 'autoSystemDnsToGateway': true},
+        'sniffing': {'enabled': false},
+      });
+      final result = RemnawaveAdapter.adapt(source);
+      expect(result['inbounds'], source['inbounds']);
+    },
+  );
+
+  for (final emptyTags in [false, true]) {
+    test(
+      'respects a global DNS rule with ${emptyTags ? 'empty' : 'absent'} ingress tags',
+      () {
+        final source = _source();
+        final rule = {
+          'port': emptyTags ? 53 : '53',
+          if (emptyTags) 'inboundTag': <String>[],
+          'outboundTag': 'entry',
+          'domain': ['example.com'],
+        };
+        source['routing']['rules'].add(rule);
+        final result = RemnawaveAdapter.adapt(source);
+        expect(result['routing']['rules'], hasLength(3));
+        expect(result['routing']['rules'].last, rule);
+        expect(result['outbounds'], source['outbounds']);
+        expect(
+          (result['outbounds'] as List).any(
+            (value) => value['protocol'] == 'dns',
+          ),
+          false,
+        );
+      },
     );
+  }
+
+  test(
+    'supplements tunnel DNS when an existing rule only handles internal DNS',
+    () {
+      final source = _source();
+      final internalRule = {
+        'port': '53',
+        'inboundTag': ['provider-dns'],
+        'outboundTag': 'direct',
+      };
+      source['routing']['rules'].add(internalRule);
+      final result = RemnawaveAdapter.adapt(source);
+      expect(result['routing']['rules'], hasLength(4));
+      expect(result['routing']['rules'][0]['outboundTag'], 'app-remna-dns');
+      expect(result['routing']['rules'].last, internalRule);
+    },
+  );
+
+  test('assigns a missing DNS tag without replacing the provided outbound', () {
+    final source = _source();
+    final dns = {
+      'protocol': 'dns',
+      'settings': {'address': '9.9.9.9', 'port': 5353},
+      'streamSettings': {
+        'sockopt': {'dialerProxy': 'entry'},
+      },
+    };
+    source['outbounds'].add(dns);
+    final result = RemnawaveAdapter.adapt(source);
+    expect((result['outbounds'] as List).last, {
+      ...dns,
+      'tag': 'app-remna-dns',
+    });
+    expect(result['routing']['rules'][0]['outboundTag'], 'app-remna-dns');
+    expect(source['outbounds'].last.containsKey('tag'), false);
   });
 
   test(
