@@ -5,11 +5,13 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/service/servers/server.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
+import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
 import 'package:onexray/service/connect/raw/db.dart';
 import 'package:onexray/service/connect/compiler.dart';
@@ -17,6 +19,7 @@ import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 
 void main() {
@@ -169,6 +172,182 @@ void main() {
       expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
     });
   }
+
+  for (final ordinaryCount in [1, 2]) {
+    test(
+      'source selection follows the remaining active ordinary pool: $ordinaryCount',
+      () async {
+        final profile = await _provider(db, mode: SubscriptionMode.appManaged);
+        final ordinary = [
+          for (var index = 0; index < ordinaryCount; index++)
+            await server(subId: profile.subId),
+        ];
+        final configuration = ConnectionConfiguration(
+          connection: ConnectionSettings(
+            selection: ServerSelection.source(profile.subId),
+          ),
+        );
+        await db.connectionConfigDao.commit(
+          configurationJson: configuration.encode(),
+        );
+        final coordinator = await initialize(
+          ConnectionCoordinator(
+            database: db,
+            readRuntime: () async => null,
+            inspect: (_, {observedStatus}) async =>
+                const HostConnection(VpnStatus.disconnected),
+            start: (_) async => throw StateError('No implicit start'),
+            stop: () async => throw StateError('No implicit stop'),
+          ),
+        );
+        final service = ServerAssetService(
+          database: db,
+          coordinator: coordinator,
+        );
+        expect(
+          (await db.coreConfigDao.allActiveServerRows()).map((row) => row.id),
+          ordinary.map((row) => row.id),
+        );
+        final preview = await service.previewRemoval(ids: {ordinary.first.id});
+        final expected = ordinaryCount == 1
+            ? const ServerSelection.automatic()
+            : ServerSelection.source(profile.subId);
+        expect(
+          preview.configuration.connection.selection.toJson(),
+          expected.toJson(),
+        );
+        expect(preview.affectsRuntime, isFalse);
+        expect(preview.disconnect, isFalse);
+        await service.remove(preview);
+        expect(
+          (await coordinator.configuration).connection.selection.toJson(),
+          expected.toJson(),
+        );
+        expect(await db.coreConfigDao.searchRow(ordinary.first.id), isNull);
+        expect(await db.coreConfigDao.searchRow(profile.id), profile);
+        expect(await db.subscriptionDao.searchRow(profile.subId), isNotNull);
+        if (ordinaryCount == 2) {
+          expect(
+            await db.coreConfigDao.searchRow(ordinary.last.id),
+            ordinary.last,
+          );
+        }
+      },
+    );
+  }
+
+  test('mode edits and unrelated deletions retain an unavailable source preference', () async {
+    final bus = AppEventBus();
+    addTearDown(bus.close);
+    final subscriptions = SubscriptionService.forTesting(
+      database: db,
+      schedulePing: (_) {},
+      loadRows: (input) async => SubscriptionLoadResult(
+        status: SubscriptionUpdateResult.success,
+        mode: input.mode!,
+        rows: input.mode == SubscriptionMode.appManaged
+            ? [
+                outboundCompanion({
+                  'tag': 'Ordinary',
+                  'protocol': 'socks',
+                  'settings': {
+                    'servers': [
+                      {'address': 'example.com', 'port': 1080},
+                    ],
+                  },
+                }),
+              ]
+            : [
+                CoreConfigCompanion.insert(
+                  name: 'Complete only',
+                  type: CoreConfigType.Remnawave.name,
+                  tags: '',
+                  data: Value(
+                    base64Encode(
+                      utf8.encode(
+                        '{"remarks":"Complete only","outbounds":[{"protocol":"freedom"}]}',
+                      ),
+                    ),
+                  ),
+                  delay: PingDelayConstants.unknown,
+                  subId: 0,
+                ),
+              ],
+      ),
+    );
+    final inserted = await subscriptions.insertSubscription(
+      const SubscriptionInput(
+        name: 'Source',
+        url: 'https://example.com/source',
+        mode: SubscriptionMode.appManaged,
+      ),
+    );
+    expect(inserted.success, isTrue);
+    final configuration = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        selection: ServerSelection.source(inserted.subId),
+      ),
+    );
+    await db.connectionConfigDao.commit(
+      configurationJson: configuration.encode(),
+    );
+    final coordinator = await initialize(
+      ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => null,
+        inspect: (_, {observedStatus}) async =>
+            const HostConnection(VpnStatus.disconnected),
+        start: (_) async => throw StateError('No implicit start'),
+        stop: () async => throw StateError('No implicit stop'),
+      ),
+    );
+    final service = ServerAssetService(
+      database: db,
+      coordinator: coordinator,
+      subscriptions: subscriptions,
+    );
+    expect(
+      await subscriptions.saveSubscriptionInput(
+        inserted.subId,
+        const SubscriptionInput(
+          name: 'Source',
+          url: 'https://example.com/source',
+          mode: SubscriptionMode.providerManaged,
+        ),
+      ),
+      SubscriptionUpdateResult.success,
+    );
+    final unavailable = await subscriptions.modeAvailability(inserted.subId);
+    expect(unavailable.hasActiveCache, isFalse);
+    expect(unavailable.selectedCompatible, isFalse);
+    final unrelated = await server();
+    await service.remove(await service.previewRemoval(ids: {unrelated.id}));
+    expect((await coordinator.configuration).encode(), configuration.encode());
+
+    final source = (await db.subscriptionDao.searchRow(inserted.subId))!;
+    expect(
+      (await subscriptions.refreshSubscriptionResult(source)).success,
+      isTrue,
+    );
+    final profile = (await db.coreConfigDao.allActiveServerRows()).single;
+    expect(profile.type, CoreConfigType.Remnawave.name);
+    await service.remove(await service.previewRemoval(ids: {profile.id}));
+    expect(await service.rows(), isEmpty);
+    expect((await coordinator.configuration).encode(), configuration.encode());
+
+    final another = await server();
+    await service.remove(await service.previewRemoval(ids: {another.id}));
+    expect((await coordinator.configuration).encode(), configuration.encode());
+    expect(await db.subscriptionDao.searchRow(inserted.subId), isNotNull);
+    await service.remove(
+      await service.previewRemoval(sourceId: inserted.subId),
+    );
+    expect(await db.subscriptionDao.searchRow(inserted.subId), isNull);
+    expect(
+      (await coordinator.configuration).connection.selection.kind,
+      SelectionKind.automatic,
+    );
+  });
 
   test(
     'favorite and local copy preserve source identity and do not start VPN',
@@ -608,13 +787,16 @@ ConnectionRuntime _runtime(
   );
 }
 
-Future<CoreConfigData> _provider(AppDatabase db) async {
+Future<CoreConfigData> _provider(
+  AppDatabase db, {
+  SubscriptionMode mode = SubscriptionMode.providerManaged,
+}) async {
   final sourceId = await db.subscriptionDao.insertRow(
     SubscriptionCompanion.insert(
       name: 'Provider',
       url: 'https://example.com/provider',
       timestamp: DateTime(2026),
-      mode: const Value('providerManaged'),
+      mode: Value(mode.name),
     ),
   );
   final id = await db.coreConfigDao.insertAssetRow(

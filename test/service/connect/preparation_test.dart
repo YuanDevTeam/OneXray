@@ -12,9 +12,11 @@ import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
+import 'package:onexray/service/advanced/local_api/service.dart';
 import 'package:onexray/service/advanced/local_api/settings.dart';
 import 'package:onexray/service/connect/preparation.dart';
 import 'package:onexray/service/connect/resolver.dart';
+import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
 
@@ -163,6 +165,477 @@ void main() {
         ),
       );
       profile = (await db.coreConfigDao.searchRow(id))!;
+    });
+
+    Future<void> saveInbound(Map<String, dynamic> inbound) async {
+      final config = {
+        ..._providerConfig,
+        'inbounds': [inbound],
+      };
+      profile = profile.copyWith(
+        data: Value(base64Encode(utf8.encode(jsonEncode(config)))),
+      );
+      await db.coreConfigDao.updateRow(profile);
+    }
+
+    group('HTTP API inbound conflicts', () {
+      for (final collision in [
+        (name: 'same port', port: 18587, listen: '127.0.0.1'),
+        (name: 'port range', port: '18580-18590', listen: '127.0.0.1'),
+        (name: 'wildcard address', port: 18587, listen: '0.0.0.0'),
+        (name: 'default address', port: 18587, listen: null),
+        (name: 'localhost address', port: 18587, listen: 'localhost'),
+        (name: 'trimmed localhost address', port: 18587, listen: ' localhost '),
+        (name: 'dual-stack wildcard', port: 18587, listen: '::'),
+        (name: 'bracketed IPv6 wildcard', port: 18587, listen: '[::]'),
+        (name: 'mapped IPv4 loopback', port: 18587, listen: '::ffff:127.0.0.1'),
+      ]) {
+        test('rejects provider ${collision.name} before allocation', () async {
+          final api = _localApi(enabled: true);
+          addTearDown(api.stop);
+          await saveInbound({
+            'tag': 'provider-socks',
+            'protocol': 'socks',
+            'port': collision.port,
+            if (collision.listen != null) 'listen': collision.listen,
+          });
+          var allocated = false;
+          var dependenciesChecked = false;
+          await expectLater(
+            _providerPreparation(
+              db,
+              localApi: api,
+              getFreePorts: (count, {excludePorts}) async {
+                allocated = true;
+                return [18002, 18003];
+              },
+              requireDependencies: (_) async => dependenciesChecked = true,
+            ).prepare(_providerInput(profile.id)),
+            _throwsApiConflict,
+          );
+          expect(allocated, isFalse);
+          expect(dependenciesChecked, isFalse);
+          expect(
+            (await db.coreConfigDao.searchRow(profile.id))!.data,
+            profile.data,
+          );
+        });
+      }
+
+      test('rejects a provider port occupied by a listening API', () async {
+        final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+        final port = socket.port;
+        await socket.close();
+        final api = _localApi(enabled: true, port: port);
+        addTearDown(api.stop);
+        await api.start();
+        expect(api.listening, isTrue);
+        await saveInbound({
+          'tag': 'provider-socks',
+          'protocol': 'socks',
+          'port': port,
+          'listen': '127.0.0.1',
+        });
+        await expectLater(
+          _providerPreparation(
+            db,
+            localApi: api,
+          ).prepare(_providerInput(profile.id)),
+          _throwsApiConflict,
+        );
+        expect(api.listening, isTrue);
+        expect(
+          (await db.coreConfigDao.searchRow(profile.id))!.data,
+          profile.data,
+        );
+      });
+
+      for (final allowed in [
+        (
+          name: 'another API port',
+          enabled: true,
+          apiPort: 19587,
+          listen: '127.0.0.1',
+        ),
+        (
+          name: 'disabled API',
+          enabled: false,
+          apiPort: 18587,
+          listen: '127.0.0.1',
+        ),
+        (
+          name: 'another IPv4 address',
+          enabled: true,
+          apiPort: 18587,
+          listen: '127.0.0.2',
+        ),
+        (name: 'IPv6 loopback', enabled: true, apiPort: 18587, listen: '::1'),
+        (
+          name: 'Unix socket',
+          enabled: true,
+          apiPort: 18587,
+          listen: '/tmp/onexray-provider.sock',
+        ),
+      ]) {
+        test('preserves provider inbound with ${allowed.name}', () async {
+          final api = _localApi(
+            enabled: allowed.enabled,
+            port: allowed.apiPort,
+          );
+          addTearDown(api.stop);
+          final inbound = {
+            'tag': 'provider-socks',
+            'protocol': 'socks',
+            'port': 18587,
+            'listen': allowed.listen,
+          };
+          await saveInbound(inbound);
+          final runtime = await _providerPreparation(
+            db,
+            localApi: api,
+            getFreePorts: (count, {excludePorts}) async {
+              expect(excludePorts, contains(allowed.apiPort));
+              return [18002, 18003];
+            },
+          ).prepare(_providerInput(profile.id));
+          final compiled = jsonDecode(runtime.xrayJson) as Map<String, dynamic>;
+          expect(
+            (compiled['inbounds'] as List).singleWhere(
+              (value) => value['tag'] == inbound['tag'],
+            ),
+            inbound,
+          );
+          expect(
+            (await db.coreConfigDao.searchRow(profile.id))!.data,
+            profile.data,
+          );
+        });
+      }
+
+      test('preserves a UDP-only provider listener at the API port', () async {
+        final api = _localApi(enabled: true);
+        addTearDown(api.stop);
+        final inbound = {
+          'tag': 'provider-udp',
+          'protocol': 'tunnel',
+          'port': 18587,
+          'listen': '127.0.0.1',
+          'settings': {
+            'allowedNetwork': 'udp',
+            'rewriteAddress': '8.8.8.8',
+            'rewritePort': 53,
+          },
+        };
+        await saveInbound(inbound);
+        final runtime = await _providerPreparation(
+          db,
+          localApi: api,
+        ).prepare(_providerInput(profile.id));
+        final compiled = jsonDecode(runtime.xrayJson) as Map<String, dynamic>;
+        expect(
+          (compiled['inbounds'] as List).singleWhere(
+            (value) => value['tag'] == inbound['tag'],
+          ),
+          inbound,
+        );
+      });
+
+      test('preserves a UDP transport listener at the API port', () async {
+        final api = _localApi(enabled: true);
+        addTearDown(api.stop);
+        final inbound = {
+          'tag': 'provider-socks',
+          'protocol': 'socks',
+          'port': 18587,
+          'listen': '127.0.0.1',
+          'streamSettings': {'network': 'kcp'},
+        };
+        await saveInbound(inbound);
+        final runtime = await _providerPreparation(
+          db,
+          localApi: api,
+        ).prepare(_providerInput(profile.id));
+        final compiled = jsonDecode(runtime.xrayJson) as Map<String, dynamic>;
+        expect(
+          (compiled['inbounds'] as List).singleWhere(
+            (value) => value['tag'] == inbound['tag'],
+          ),
+          inbound,
+        );
+      });
+
+      for (final transport in ['xhttp', 'masque']) {
+        test(
+          'preserves an HTTP/3-only $transport listener at the API port',
+          () async {
+            final api = _localApi(enabled: true);
+            addTearDown(api.stop);
+            final inbound = {
+              'tag': 'provider-socks',
+              'protocol': 'socks',
+              'port': 18587,
+              'listen': '127.0.0.1',
+              'streamSettings': {
+                'network': transport,
+                'security': 'TLS',
+                'tlsSettings': {
+                  'alpn': ['h3'],
+                },
+              },
+            };
+            await saveInbound(inbound);
+            final runtime = await _providerPreparation(
+              db,
+              localApi: api,
+            ).prepare(_providerInput(profile.id));
+            final compiled =
+                jsonDecode(runtime.xrayJson) as Map<String, dynamic>;
+            expect(
+              (compiled['inbounds'] as List).singleWhere(
+                (value) => value['tag'] == inbound['tag'],
+              ),
+              inbound,
+            );
+          },
+        );
+      }
+
+      test(
+        'preserves MASQUE default UDP-only listening at the API port',
+        () async {
+          final api = _localApi(enabled: true);
+          addTearDown(api.stop);
+          final inbound = {
+            'tag': 'provider-socks',
+            'protocol': 'socks',
+            'port': 18587,
+            'listen': '127.0.0.1',
+            'streamSettings': {'network': 'masque', 'security': 'tls'},
+          };
+          await saveInbound(inbound);
+          final runtime = await _providerPreparation(
+            db,
+            localApi: api,
+          ).prepare(_providerInput(profile.id));
+          final compiled = jsonDecode(runtime.xrayJson) as Map<String, dynamic>;
+          expect(
+            (compiled['inbounds'] as List).singleWhere(
+              (value) => value['tag'] == inbound['tag'],
+            ),
+            inbound,
+          );
+        },
+      );
+
+      test('rejects MASQUE TCP listening even with HTTP/3 enabled', () async {
+        final api = _localApi(enabled: true);
+        addTearDown(api.stop);
+        await saveInbound({
+          'tag': 'provider-socks',
+          'protocol': 'socks',
+          'port': 18587,
+          'listen': '127.0.0.1',
+          'streamSettings': {
+            'network': 'masque',
+            'security': 'tls',
+            'tlsSettings': {
+              'alpn': ['h3', 'h2'],
+            },
+          },
+        });
+        await expectLater(
+          _providerPreparation(
+            db,
+            localApi: api,
+          ).prepare(_providerInput(profile.id)),
+          _throwsApiConflict,
+        );
+      });
+
+      test('an empty Shadowsocks network list still defaults to TCP', () async {
+        final api = _localApi(enabled: true);
+        addTearDown(api.stop);
+        await saveInbound({
+          'tag': 'provider-shadowsocks',
+          'protocol': 'shadowsocks',
+          'port': 18587,
+          'listen': '127.0.0.1',
+          'settings': {
+            'method': 'aes-128-gcm',
+            'password': 'test-password',
+            'network': <String>[],
+          },
+        });
+        await expectLater(
+          _providerPreparation(
+            db,
+            localApi: api,
+          ).prepare(_providerInput(profile.id)),
+          _throwsApiConflict,
+        );
+      });
+
+      for (final override in [
+        (method: 'tcp', network: 'kcp', conflicts: true),
+        (method: 'kcp', network: 'tcp', conflicts: false),
+      ]) {
+        test(
+          'transport method ${override.method} overrides network ${override.network}',
+          () async {
+            final api = _localApi(enabled: true);
+            addTearDown(api.stop);
+            await saveInbound({
+              'tag': 'provider-socks',
+              'protocol': 'socks',
+              'port': 18587,
+              'listen': '127.0.0.1',
+              'streamSettings': {
+                'method': override.method,
+                'network': override.network,
+              },
+            });
+            final preparing = _providerPreparation(
+              db,
+              localApi: api,
+            ).prepare(_providerInput(profile.id));
+            if (override.conflicts) {
+              await expectLater(preparing, _throwsApiConflict);
+            } else {
+              expect((await preparing).profile?.id, profile.id);
+            }
+          },
+        );
+      }
+
+      test(
+        'preserves an IPv6-only wildcard listener at the API port',
+        () async {
+          final api = _localApi(enabled: true);
+          addTearDown(api.stop);
+          final inbound = {
+            'tag': 'provider-socks',
+            'protocol': 'socks',
+            'port': 18587,
+            'listen': '::',
+            'streamSettings': {
+              'sockopt': {'v6only': true},
+            },
+          };
+          await saveInbound(inbound);
+          final runtime = await _providerPreparation(
+            db,
+            localApi: api,
+          ).prepare(_providerInput(profile.id));
+          final compiled = jsonDecode(runtime.xrayJson) as Map<String, dynamic>;
+          expect(
+            (compiled['inbounds'] as List).singleWhere(
+              (value) => value['tag'] == inbound['tag'],
+            ),
+            inbound,
+          );
+        },
+      );
+
+      test(
+        'API preference read failures keep the default reservation',
+        () async {
+          final api = LocalApiService.forTesting(
+            readSettings: () async =>
+                throw StateError('Preferences unavailable'),
+            writeSettings: (_) async {},
+            info: () async => {},
+            validate: (_) async => {},
+            compile: (_) async => {},
+          );
+          addTearDown(api.stop);
+          await saveInbound({
+            'tag': 'provider-socks',
+            'protocol': 'socks',
+            'port': 18587,
+            'listen': '127.0.0.1',
+          });
+          final runtime = await _providerPreparation(
+            db,
+            localApi: api,
+            getFreePorts: (count, {excludePorts}) async {
+              expect(excludePorts, contains(LocalApiSettings.defaultPort));
+              return [18002, 18003];
+            },
+          ).prepare(_providerInput(profile.id));
+          expect(runtime.profile?.id, profile.id);
+        },
+      );
+
+      test('rejects a personal Raw inbound at the enabled API port', () async {
+        final api = _localApi(enabled: true);
+        addTearDown(api.stop);
+        await expectLater(
+          _providerPreparation(db, localApi: api).prepare(
+            ConnectionConfiguration(
+              connection: ConnectionSettings(expert: true),
+            ),
+            rawDraft: jsonEncode({
+              'inbounds': [
+                {'tag': 'raw-http', 'protocol': 'http', 'port': '18580-18590'},
+              ],
+              'outbounds': [
+                {'tag': 'direct', 'protocol': 'freedom'},
+              ],
+            }),
+          ),
+          _throwsApiConflict,
+        );
+      });
+
+      test(
+        'rejects an advanced custom inbound at the enabled API port',
+        () async {
+          final api = _localApi(enabled: true);
+          addTearDown(api.stop);
+          final id = await db.coreConfigDao.insertRow(
+            CoreConfigCompanion.insert(
+              name: 'Custom proxy',
+              type: CoreConfigType.outbound.name,
+              tags: '',
+              delay: 30,
+              subId: 0,
+              data: Value(
+                base64Encode(
+                  utf8.encode(
+                    jsonEncode({
+                      'outbounds': [
+                        {'tag': 'proxy', 'protocol': 'freedom'},
+                      ],
+                    }),
+                  ),
+                ),
+              ),
+            ),
+          );
+          await expectLater(
+            ConnectionPreparation(
+              db: db,
+              localApi: api,
+              getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+              requireDependencies: (_) async {},
+            ).prepare(
+              ConnectionConfiguration(
+                connection: ConnectionSettings(
+                  selection: ServerSelection.server(id),
+                  trafficMode: TrafficMode.custom,
+                ),
+              ),
+              customDraft: AdvancedRoutingDocument.fromJson({
+                'outbounds': [<String, dynamic>{}],
+                'inbounds': [
+                  {'tag': 'custom-http', 'protocol': 'http', 'port': 18587},
+                ],
+              }).state,
+            ),
+            _throwsApiConflict,
+          );
+        },
+      );
     });
 
     for (final mode in [TrafficMode.smart, TrafficMode.custom]) {
@@ -362,12 +835,37 @@ void main() {
 
 ConnectionPreparation _providerPreparation(
   AppDatabase db, {
+  LocalApiService? localApi,
+  Future<List<int>> Function(int count, {List<int>? excludePorts})?
+  getFreePorts,
   Future<void> Function(Map<String, GeoDataType>)? requireDependencies,
 }) => ConnectionPreparation(
   db: db,
+  localApi: localApi,
   resolver: _unavailableResolver(),
-  getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+  getFreePorts: getFreePorts ?? (count, {excludePorts}) async => [18002, 18003],
   requireDependencies: requireDependencies ?? (_) async {},
+);
+
+LocalApiService _localApi({bool enabled = false, int port = 18587}) =>
+    LocalApiService.forTesting(
+      readSettings: () async => LocalApiSettings(
+        enabled: enabled,
+        port: port,
+        token: 'a' * 43,
+      ).toJson(),
+      writeSettings: (_) async {},
+      info: () async => {},
+      validate: (_) async => {},
+      compile: (_) async => {},
+    );
+
+final _throwsApiConflict = throwsA(
+  isA<FormatException>().having(
+    (error) => error.message,
+    'message',
+    contains('HTTP API'),
+  ),
 );
 
 ConnectionResolver _unavailableResolver() => ConnectionResolver(

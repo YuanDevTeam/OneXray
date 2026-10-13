@@ -47,20 +47,97 @@ Future<List<int>> allocateRuntimePorts(
   throw const FormatException('Runtime ports are unavailable');
 }
 
+bool _inboundConflictsWithHttpApi(Map<String, dynamic> inbound, int port) {
+  if (inbound['tag'] == 'tunIn' ||
+      !ConnectionCompiler.portIncludes(inbound['port'], port)) {
+    return false;
+  }
+  final protocol = '${inbound['protocol']}'.toLowerCase();
+  if (protocol == 'tun' || protocol == 'wireguard') return false;
+  final stream = inbound['streamSettings'];
+  final transport = stream is Map
+      ? '${stream['method'] ?? stream['network']}'.toLowerCase()
+      : null;
+  if (const ['kcp', 'mkcp', 'hysteria'].contains(transport)) {
+    return false;
+  }
+  if (stream is Map && '${stream['security']}'.toLowerCase() == 'tls') {
+    final tls = stream['tlsSettings'];
+    final configuredAlpn = tls is Map ? tls['alpn'] : null;
+    final alpn = configuredAlpn is String
+        ? configuredAlpn.split(',')
+        : configuredAlpn;
+    if (const ['xhttp', 'splithttp'].contains(transport) &&
+        alpn is List &&
+        alpn.length == 1 &&
+        alpn.single == 'h3') {
+      return false;
+    }
+    // MASQUE selects TCP only when its TLS ALPN includes HTTP/2.
+    if (transport == 'masque' &&
+        (alpn == null || (alpn is List && !alpn.contains('h2')))) {
+      return false;
+    }
+  }
+  final settings = inbound['settings'];
+  if (settings is Map &&
+      const ['tunnel', 'dokodemo-door', 'shadowsocks'].contains(protocol)) {
+    final network =
+        settings['network'] ??
+        (protocol == 'shadowsocks' ? null : settings['allowedNetwork']);
+    final networks = network is String ? network.split(',') : network;
+    if (networks is List &&
+        (protocol != 'shadowsocks' || networks.isNotEmpty) &&
+        !networks.any((value) => '$value'.toLowerCase() == 'tcp')) {
+      return false;
+    }
+  }
+  final listen = inbound['listen'];
+  if (listen == null) return true;
+  if (listen is! String) return false;
+  var listenAddress = listen;
+  if (listenAddress.startsWith('[') && listenAddress.endsWith(']')) {
+    listenAddress = listenAddress.substring(1, listenAddress.length - 1);
+  }
+  listenAddress = listenAddress.trim();
+  if (listenAddress.isEmpty || listenAddress == 'localhost') return true;
+  final address = InternetAddress.tryParse(listenAddress);
+  if (address == null) return false; // Unix sockets do not occupy the API port.
+  var bytes = address.rawAddress;
+  if (address.type == InternetAddressType.IPv6) {
+    if (bytes.every((value) => value == 0)) {
+      final sockopt = stream is Map ? stream['sockopt'] : null;
+      return sockopt is! Map || sockopt['v6only'] != true;
+    }
+    if (bytes.take(10).every((value) => value == 0) &&
+        bytes[10] == 255 &&
+        bytes[11] == 255) {
+      bytes = bytes.sublist(12);
+    } else {
+      return false;
+    }
+  }
+  return bytes.every((value) => value == 0) ||
+      (bytes[0] == 127 && bytes[1] == 0 && bytes[2] == 0 && bytes[3] == 1);
+}
+
 /// Resolves and compiles without publishing settings or starting a VPN.
 class ConnectionPreparation {
   final AppDatabase db;
   final ConnectionResolver resolver;
   final Future<List<int>> Function(int count, {List<int>? excludePorts})?
   getFreePorts;
+  final LocalApiService _localApi;
   final Future<void> Function(Map<String, GeoDataType>) _requireDependencies;
 
   ConnectionPreparation({
     AppDatabase? db,
     ConnectionResolver? resolver,
     this.getFreePorts,
+    LocalApiService? localApi,
     Future<void> Function(Map<String, GeoDataType>)? requireDependencies,
   }) : db = db ?? AppDatabase(),
+       _localApi = localApi ?? LocalApiService.instance,
        _requireDependencies =
            requireDependencies ?? GeoDataService().requireDependencies,
        resolver =
@@ -232,7 +309,23 @@ class ConnectionPreparation {
         userInbounds.any((entry) => entry is! Map<String, dynamic>)) {
       throw const FormatException('inbounds must be an object array');
     }
-    final apiPort = await LocalApiService.instance.reservedPort();
+    final apiPort = await _localApi.reservedPort();
+    if (apiPort != null) {
+      var apiEnabled = _localApi.listening;
+      try {
+        apiEnabled = apiEnabled || (await _localApi.load()).enabled;
+      } catch (_) {
+        // An unavailable optional API preference must not block VPN startup.
+      }
+      if (apiEnabled &&
+          userInbounds.cast<Map<String, dynamic>>().any(
+            (inbound) => _inboundConflictsWithHttpApi(inbound, apiPort),
+          )) {
+        throw const FormatException(
+          'Configuration inbound conflicts with the HTTP API port',
+        );
+      }
+    }
     final shareLanProxy =
         profile == null && !settings.expert && policy.lanProxyEnabled;
     if (shareLanProxy && policy.lanProxyPort == apiPort) {

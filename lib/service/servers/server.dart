@@ -329,7 +329,17 @@ class ServerAssetService {
       SelectionKind.server => removed.contains(selection.id),
       SelectionKind.source =>
         selection.id == sourceId ||
-            !remaining.any((row) => row.subId == selection.id),
+            (all.any(
+                  (row) =>
+                      row.subId == selection.id &&
+                      activeOrdinaryIds.contains(row.id) &&
+                      removed.contains(row.id),
+                ) &&
+                !remaining.any(
+                  (row) =>
+                      row.subId == selection.id &&
+                      activeOrdinaryIds.contains(row.id),
+                )),
     };
     final next = ConnectionConfiguration(
       policy: current.policy,

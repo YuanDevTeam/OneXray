@@ -47,6 +47,7 @@
 		EBE36B5A2F9684A700686880 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B512F9684A700686880 /* Logger.swift */; };
 		EBE36B5B2F9684A700686880 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B522F9684A700686880 /* Model.swift */; };
 		EBD300032FE9000000000003 /* DatFileTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD300012FE9000000000001 /* DatFileTransfer.swift */; };
+		EBD700023006000000000002 /* RuntimeEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD700013006000000000001 /* RuntimeEnv.swift */; };
 		EBE36B5C2F9684A700686880 /* Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B532F9684A700686880 /* Tools.swift */; };
 		EBE36B5D2F9684A700686880 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B4F2F9684A700686880 /* Constants.swift */; };
 		EBE36B5E2F9684A700686880 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBE36B512F9684A700686880 /* Logger.swift */; };
@@ -136,6 +137,7 @@
 		EBE36B512F9684A700686880 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		EBE36B522F9684A700686880 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
 		EBD300012FE9000000000001 /* DatFileTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatFileTransfer.swift; sourceTree = "<group>"; };
+		EBD700013006000000000001 /* RuntimeEnv.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEnv.swift; sourceTree = "<group>"; };
 		EBE36B532F9684A700686880 /* Tools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tools.swift; sourceTree = "<group>"; };
 		EBE36B542F9684A700686880 /* WireGuardKitC.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WireGuardKitC.h; sourceTree = "<group>"; };
 		EBE36B602F9684BD00686880 /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
@@ -298,6 +300,7 @@
 				EBE36B512F9684A700686880 /* Logger.swift */,
 				EBE36B522F9684A700686880 /* Model.swift */,
 				EBD300012FE9000000000001 /* DatFileTransfer.swift */,
+				EBD700013006000000000001 /* RuntimeEnv.swift */,
 				EBE36B532F9684A700686880 /* Tools.swift */,
 				EBE36B542F9684A700686880 /* WireGuardKitC.h */,
 			);
@@ -506,6 +509,7 @@
 			files = (
 				EBE36B5B2F9684A700686880 /* Model.swift in Sources */,
 				EBD300032FE9000000000003 /* DatFileTransfer.swift in Sources */,
+				EBD700023006000000000002 /* RuntimeEnv.swift in Sources */,
 				EBE36B5C2F9684A700686880 /* Tools.swift in Sources */,
 				EBE36B622F9684BD00686880 /* PacketTunnelProvider.swift in Sources */,
 				EBE36B5D2F9684A700686880 /* Constants.swift in Sources */,
