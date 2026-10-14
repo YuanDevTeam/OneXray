@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/local_api/controller.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
@@ -157,7 +158,10 @@ class LocalApiPage extends StatelessWidget {
                             SettingSection(
                               title: l.localApiToken,
                               icon: LucideIcons.keyRound,
-                              description: l.localApiTokenHint,
+                              action: PageHelpButton(
+                                title: l.localApiToken,
+                                messages: [l.localApiTokenHint],
+                              ),
                               descriptionBelow: true,
                               padding: const EdgeInsets.all(14),
                               children: [

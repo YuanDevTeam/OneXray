@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -108,15 +109,6 @@ class SubscriptionFormView extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       _fields(context),
-      Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal:
-              MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
-              ? 4
-              : 0,
-        ).copyWith(top: 12),
-        child: _notice(context, supportText),
-      ),
       const SizedBox(height: 14),
       _configurationCard(context),
       const SizedBox(height: 14),
@@ -146,6 +138,7 @@ class SubscriptionFormView extends StatelessWidget {
           _configurationRow(
             context,
             title: l.subscriptionPanelTitle,
+            help: supportText,
             trailing: SettingSelect<SubscriptionPanel>(
               key: const ValueKey('subscription-panel'),
               value: panel,
@@ -164,6 +157,7 @@ class SubscriptionFormView extends StatelessWidget {
           _configurationRow(
             context,
             title: l.subscriptionModeTitle,
+            help: l.subscriptionModeDescription,
             trailing: SettingSelect<_ModeChoice>(
               key: const ValueKey('subscription-mode'),
               value: choice,
@@ -186,15 +180,6 @@ class SubscriptionFormView extends StatelessWidget {
                     },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(13, 0, 13, 13),
-            child: Text(
-              l.subscriptionModeDescription,
-              style: AppTypography.subscriptionInfo.copyWith(
-                color: palette.mutedForeground,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -204,6 +189,7 @@ class SubscriptionFormView extends StatelessWidget {
     BuildContext context, {
     required String title,
     required Widget trailing,
+    String? help,
   }) => LayoutBuilder(
     builder: (context, constraints) => constraints.maxWidth < 400
         ? Padding(
@@ -211,7 +197,18 @@ class SubscriptionFormView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(title, style: AppTypography.subscriptionAgeTitle),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: AppTypography.subscriptionAgeTitle,
+                      ),
+                    ),
+                    if (help != null)
+                      PageHelpButton(title: title, messages: [help]),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 Align(
                   alignment: AlignmentDirectional.centerStart,
@@ -222,6 +219,9 @@ class SubscriptionFormView extends StatelessWidget {
           )
         : SettingRow(
             title: title,
+            titleTrailing: help == null
+                ? null
+                : PageHelpButton(title: title, messages: [help]),
             titleMaxLines: 3,
             titleStyle: AppTypography.subscriptionAgeTitle,
             contentPadding: const EdgeInsets.all(13),
@@ -242,11 +242,9 @@ class SubscriptionFormView extends StatelessWidget {
         titleMaxLines: 3,
         titleStyle: AppTypography.subscriptionAgeTitle,
         contentPadding: const EdgeInsets.all(13),
-        subtitleWidget: Text(
-          hwidDescription,
-          style: AppTypography.subscriptionInfo.copyWith(
-            color: palette.mutedForeground,
-          ),
+        titleTrailing: PageHelpButton(
+          title: hwidTitle,
+          messages: [hwidDescription],
         ),
         enabled: onHwidChanged != null,
         onTap: onHwidChanged == null

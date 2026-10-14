@@ -1,5 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/android/automation/controller.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
@@ -24,7 +25,15 @@ class AndroidAutomationPage extends StatelessWidget {
         final controller = context.read<AutomationController>();
         final l = AppLocalizations.of(context)!;
         return Scaffold(
-          appBar: PageAppBar(title: Text(l.automationTitle)),
+          appBar: PageAppBar(
+            title: Text(l.automationTitle),
+            actions: [
+              PageHelpButton(
+                title: l.automationTitle,
+                messages: [l.automationSummary, l.automationPermissionHint],
+              ),
+            ],
+          ),
           body: SafeArea(
             child: state.loading
                 ? const Center(child: CircularProgressIndicator())
@@ -42,7 +51,6 @@ class AndroidAutomationPage extends StatelessWidget {
                           SettingSection(
                             title: l.automationTitle,
                             headerInset: 0,
-                            description: l.automationSummary,
                             descriptionBelow: true,
                             padding: EdgeInsets.zero,
                             children: [
@@ -173,11 +181,6 @@ class AndroidAutomationPage extends StatelessWidget {
                         const SizedBox(height: 24),
                         Text(
                           l.automationConfigurationHint,
-                          style: AppTypography.settingsDetailNote,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          l.automationPermissionHint,
                           style: AppTypography.settingsDetailNote,
                         ),
                         Align(

@@ -192,9 +192,7 @@ void main() {
     final selector = find.byKey(const ValueKey('apple-network-action-choice'));
     expect(_toggle('hideVpnIcon'), findsNothing);
     expect(
-      find.textContaining(
-        'Incorrect configuration may cause loss of network connectivity.',
-      ),
+      find.textContaining('Incorrect settings may block network access.'),
       findsOneWidget,
     );
     expect(
@@ -228,7 +226,7 @@ void main() {
       expect(find.text('System VPN policy'), findsNothing);
       expect(find.byType(ShadSwitch), findsNWidgets(5));
       final warning = find.textContaining(
-        'Incorrect configuration may cause loss of network connectivity.',
+        'Incorrect settings may block network access.',
       );
       expect(warning, findsOneWidget);
       await _tap(tester, _toggle('captureAllTraffic'));

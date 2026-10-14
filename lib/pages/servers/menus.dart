@@ -52,9 +52,6 @@ class ServerActionsMenu extends StatelessWidget {
             ServerAction.edit,
             provider ? LucideIcons.fileJson : LucideIcons.pencil,
             provider ? l.providerViewConfiguration : l.prototypeEditServer,
-            hint: provider
-                ? l.providerViewConfigurationHint
-                : l.prototypeEditServerHint,
           ),
           if (!provider)
             _menuRow(
@@ -62,7 +59,6 @@ class ServerActionsMenu extends StatelessWidget {
               ServerAction.test,
               LucideIcons.refreshCw,
               l.prototypeTestAgain,
-              hint: l.prototypeRetestHint,
             ),
           _menuRow(
             context,
@@ -76,9 +72,6 @@ class ServerActionsMenu extends StatelessWidget {
             ServerAction.share,
             LucideIcons.share2,
             provider ? l.prototypeShare : l.prototypeShareServer,
-            hint: provider
-                ? l.prototypeRawJsonShareWarning
-                : l.prototypeShareServerHint,
           ),
           _menuRow(
             context,
@@ -120,7 +113,6 @@ class SourceActionsMenu extends StatelessWidget {
             SourceAction.update,
             LucideIcons.refreshCw,
             l.prototypeCheckForUpdates,
-            hint: l.prototypeSourceUpdateHint,
           ),
           if (!provider)
             _menuRow(
@@ -128,21 +120,18 @@ class SourceActionsMenu extends StatelessWidget {
               SourceAction.test,
               LucideIcons.refreshCw,
               l.prototypeTestServers,
-              hint: l.prototypeRetestHint,
             ),
           _menuRow(
             context,
             SourceAction.edit,
             LucideIcons.pencil,
             l.prototypeEditSubscription,
-            hint: l.prototypeEditSubscriptionHint,
           ),
           _menuRow(
             context,
             SourceAction.share,
             LucideIcons.share2,
             l.prototypeShareSubscription,
-            hint: l.prototypeShareSubscriptionHint,
           ),
           _menuRow(
             context,
@@ -173,7 +162,7 @@ Widget _menuRow<T>(
       onTap: () => Navigator.of(context).pop(action),
       hoverColor: palette.surfaceHover,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 68),
+        constraints: BoxConstraints(minHeight: hint == null ? 52 : 68),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
         decoration: BoxDecoration(
           border: destructive

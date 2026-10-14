@@ -68,9 +68,15 @@ void main() {
           tester.element(find.byType(RoutingFakeDnsRow)),
         )!;
         expect(find.text(l.routingFakeDns), findsOneWidget);
+        expect(find.text(l.routingFakeDnsHint), findsNothing);
+        await tester.tap(find.byTooltip('${l.pageHelp} · ${l.routingFakeDns}'));
+        await tester.pumpAndSettle();
         expect(find.text(l.routingFakeDnsHint), findsOneWidget);
+        expect(selected, isFalse);
+        await tester.tap(find.byTooltip(l.prototypeCloseDialog));
+        await tester.pumpAndSettle();
         expect(find.text(l.routingFragment), findsOneWidget);
-        expect(find.text(l.routingFragmentHint), findsOneWidget);
+        expect(find.text(l.routingFragmentHint), findsNothing);
         final fakeDnsSwitch = find.descendant(
           of: find.byType(RoutingFakeDnsRow),
           matching: find.byType(ShadSwitch),

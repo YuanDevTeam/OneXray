@@ -66,7 +66,6 @@ class _ServersImportPageState extends State<ServersImportPage> {
           canPop: state.canClose,
           child: AppDialog(
             title: l10n.prototypeAddServersToOneXray,
-            subtitle: l10n.prototypeChooseAddMethod,
             onClose: () => controller.closeFlow(context),
             body: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

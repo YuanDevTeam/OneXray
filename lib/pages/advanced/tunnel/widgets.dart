@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -17,6 +18,7 @@ class PolicyDetailScaffold extends StatelessWidget {
   final Widget body;
   final bool canSave;
   final EdgeInsetsGeometry contentPadding;
+  final List<String> help;
 
   const PolicyDetailScaffold({
     super.key,
@@ -25,6 +27,7 @@ class PolicyDetailScaffold extends StatelessWidget {
     required this.body,
     this.canSave = true,
     this.contentPadding = const EdgeInsetsDirectional.only(bottom: 24),
+    this.help = const [],
   });
 
   @override
@@ -34,6 +37,9 @@ class PolicyDetailScaffold extends StatelessWidget {
       appBar: PageAppBar(
         title: Text(title),
         leading: BackButton(onPressed: () => controller.cancel(context)),
+        actions: [
+          if (help.isNotEmpty) PageHelpButton(title: title, messages: help),
+        ],
       ),
       body: SafeArea(
         child: SettingsPageScroll(

@@ -130,7 +130,6 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     _StartupSettingRow(
                       title: l10n.prototypeConnectAfterAppLaunch,
-                      subtitle: l10n.prototypeConnectAfterAppLaunchHint,
                       value: state.connectOnLaunch,
                       onChanged: state.loading || state.saving
                           ? null
@@ -297,31 +296,6 @@ class SettingsPage extends StatelessWidget {
                                   ],
                                 ),
                         ),
-                        Container(
-                          padding: mobile
-                              ? const EdgeInsetsDirectional.fromSTEB(
-                                  10,
-                                  25,
-                                  10,
-                                  0,
-                                )
-                              : const EdgeInsets.only(top: 19, bottom: 3),
-                          decoration: mobile
-                              ? null
-                              : BoxDecoration(
-                                  border: Border(
-                                    top: BorderSide(color: palette.border),
-                                  ),
-                                ),
-                          child: Text(
-                            l10n.prototypeSettingsLocationNote,
-                            style:
-                                (mobile
-                                        ? AppTypography.settingsNote
-                                        : AppTypography.desktopSettingsNote)
-                                    .copyWith(color: palette.mutedForeground),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -439,13 +413,11 @@ class _ThemeOptions extends StatelessWidget {
 
 class _StartupSettingRow extends StatelessWidget {
   final String title;
-  final String subtitle;
   final bool value;
   final ValueChanged<bool>? onChanged;
 
   const _StartupSettingRow({
     required this.title,
-    required this.subtitle,
     required this.value,
     required this.onChanged,
   });
@@ -456,8 +428,7 @@ class _StartupSettingRow extends StatelessWidget {
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     return SettingRow(
       title: title,
-      subtitle: subtitle,
-      minHeight: mobile ? 58 : 64,
+      minHeight: mobile ? 48 : 56,
       contentPadding: EdgeInsetsDirectional.symmetric(
         horizontal: mobile ? 13 : 14,
         vertical: mobile ? 7 : 9,
@@ -465,11 +436,6 @@ class _StartupSettingRow extends StatelessWidget {
       titleStyle: mobile
           ? AppTypography.settingsFieldTitle
           : AppTypography.settingsRow,
-      subtitleStyle:
-          (mobile
-                  ? AppTypography.settingsHint
-                  : AppTypography.desktopSettingsHint)
-              .copyWith(color: ColorManager.secondaryText(context)),
       enabled: onChanged != null,
       onTap: onChanged == null ? null : () => onChanged!(!value),
       trailing: ShadSwitch(
@@ -495,7 +461,6 @@ class _DesktopStartupRows extends StatelessWidget {
             children: [
               _StartupSettingRow(
                 title: l10n.prototypeLaunchAtLogin,
-                subtitle: l10n.prototypeLaunchAtLoginHint,
                 value: state.launchAtLogin.enabled,
                 onChanged: state.launchToggleEnabled && !state.requiresApproval
                     ? (value) => controller.updateLaunchAtLogin(context, value)
@@ -504,7 +469,6 @@ class _DesktopStartupRows extends StatelessWidget {
               const Divider(height: 1),
               _StartupSettingRow(
                 title: l10n.prototypeStartHidden,
-                subtitle: l10n.prototypeStartHiddenHint,
                 value: state.startHidden,
                 onChanged: state.behaviorSettingsEnabled
                     ? (value) =>
@@ -515,7 +479,6 @@ class _DesktopStartupRows extends StatelessWidget {
                 const Divider(height: 1),
                 _StartupSettingRow(
                   title: l10n.prototypeHideDockIcon,
-                  subtitle: l10n.prototypeHideDockIconHint,
                   value: state.hideDockIcon,
                   onChanged: state.behaviorSettingsEnabled
                       ? (value) => controller.updateHideDockIcon(

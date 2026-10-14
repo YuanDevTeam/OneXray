@@ -51,6 +51,15 @@ class AppleVpnPage extends StatelessWidget {
         final controller = context.read<AppleVpnController>();
         return PolicyDetailScaffold(
           title: l.prototypeAppleSystemVpn,
+          help: [
+            l.prototypeAllowLocalNetworkHint,
+            l.prototypeBypassCellularServicesHint,
+            l.prototypeBypassApplePushHint,
+            l.prototypeAllowDeviceCommunicationHint,
+            l.prototypeUseDnsOverTlsHint,
+            l.prototypeAlwaysOnHint,
+            l.prototypeConnectOnDemandHint,
+          ],
           controller: controller,
           canSave: state.appleCapabilities != null,
           contentPadding: EdgeInsets.zero,
@@ -103,10 +112,11 @@ class AppleVpnView extends StatelessWidget {
             String description, {
             bool nested = false,
             bool supported = true,
+            bool showDescription = false,
           }) => AppleSettingToggle(
             key: ValueKey(field),
             title: title,
-            description: description,
+            description: showDescription || !supported ? description : null,
             nested: nested,
             value: apple[field] as bool,
             onChanged: controller.blocked || !supported
@@ -147,6 +157,7 @@ class AppleVpnView extends StatelessWidget {
                       'captureAllTraffic',
                       l.prototypeCaptureAllTraffic,
                       l.prototypeCaptureAllTrafficHint,
+                      showDescription: true,
                     ),
                     if (apple['captureAllTraffic'] == true) ...[
                       toggle(
@@ -191,6 +202,7 @@ class AppleVpnView extends StatelessWidget {
                             ? l.appleHideVpnIconInactive
                             : l.appleHideVpnIconHint,
                         supported: apple['captureAllTraffic'] == false,
+                        showDescription: true,
                       ),
                     toggle(
                       'dnsOverTls',

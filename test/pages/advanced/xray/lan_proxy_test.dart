@@ -71,9 +71,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       final l = AppLocalizations.of(tester.element(find.byType(LanProxyPage)))!;
+      expect(find.text(l.lanProxyProtocolHint), findsNothing);
+      expect(find.text(l.lanProxyRawJsonNotice), findsNothing);
+      await tester.tap(find.byTooltip('${l.pageHelp} · ${l.lanProxyTitle}'));
+      await tester.pumpAndSettle();
       expect(find.text(l.lanProxyProtocolHint), findsOneWidget);
-      expect(find.text(l.lanProxySecurityHint), findsOneWidget);
       expect(find.text(l.lanProxyRawJsonNotice), findsOneWidget);
+      await tester.tap(find.byTooltip(l.prototypeCloseDialog));
+      await tester.pumpAndSettle();
+      expect(find.text(l.lanProxySecurityHint), findsOneWidget);
       expect(find.text(l.lanProxyNextStartNotice), findsOneWidget);
       expect(find.text(l.prototypeSave), findsOneWidget);
       expect(find.text(l.prototypeSaveAndReconnect), findsNothing);

@@ -51,26 +51,13 @@ class ThemeChoiceView extends StatelessWidget {
       child: SettingSection(
         title: "",
         children: ThemeCode.values.map((theme) {
-          final (title, description, icon) = switch (theme) {
-            ThemeCode.system => (
-              l10n.themePageSystem,
-              l10n.themePageSystemDescription,
-              LucideIcons.monitorCog,
-            ),
-            ThemeCode.light => (
-              l10n.themePageLight,
-              l10n.themePageLightDescription,
-              LucideIcons.sun,
-            ),
-            ThemeCode.dark => (
-              l10n.themePageDark,
-              l10n.themePageDarkDescription,
-              LucideIcons.moon,
-            ),
+          final (title, icon) = switch (theme) {
+            ThemeCode.system => (l10n.themePageSystem, LucideIcons.monitorCog),
+            ThemeCode.light => (l10n.themePageLight, LucideIcons.sun),
+            ThemeCode.dark => (l10n.themePageDark, LucideIcons.moon),
           };
           return SettingsChoiceRow(
             title: title,
-            description: description,
             leading: Icon(icon),
             selected: selected == theme,
             onTap: () => onSelected(theme),

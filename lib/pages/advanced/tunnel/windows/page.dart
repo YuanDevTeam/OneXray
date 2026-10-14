@@ -54,6 +54,12 @@ class WindowsVpnView extends StatelessWidget {
       final cidrs = controller.strings('windows', 'excludedCidrs');
       return PolicyDetailScaffold(
         title: l.prototypeWindowsSystemVpn,
+        help: [
+          l.prototypeWindowsBypassNotice,
+          l.prototypeWindowsAutoConnectNotice,
+          l.prototypeBypassLocalSubnetsHint,
+          l.prototypeBypassNetworksHint,
+        ],
         controller: controller,
         canSave: controller.validationHint(l) == null,
         contentPadding: EdgeInsets.zero,
@@ -71,10 +77,6 @@ class WindowsVpnView extends StatelessWidget {
                 l.prototypeSystemVpnPolicy,
                 style: AppTypography.platformDetailTitle,
               ),
-              Text(
-                l.prototypeWindowsBypassNotice,
-                style: AppTypography.platformDetailBody,
-              ),
               SizedBox(height: mobile ? 12 : 14),
               DecoratedBox(
                 decoration: BoxDecoration(
@@ -84,18 +86,12 @@ class WindowsVpnView extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    _toggle(
-                      context,
-                      'alwaysOn',
-                      l.prototypeAlwaysOn,
-                      l.prototypeWindowsAutoConnectNotice,
-                    ),
+                    _toggle(context, 'alwaysOn', l.prototypeAlwaysOn),
                     Divider(height: 1, thickness: 1, color: palette.border),
                     _toggle(
                       context,
                       'allowLocalNetwork',
                       l.prototypeBypassLocalSubnets,
-                      l.prototypeBypassLocalSubnetsHint,
                     ),
                   ],
                 ),
@@ -118,13 +114,6 @@ class WindowsVpnView extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                l.prototypeBypassNetworksHint,
-                style: AppTypography.windowsPolicyHint.copyWith(
-                  color: palette.mutedForeground,
-                ),
               ),
               const SizedBox(height: 16),
               ExcludedNetworks(
@@ -182,31 +171,13 @@ class WindowsVpnView extends StatelessWidget {
     },
   );
 
-  Widget _toggle(
-    BuildContext context,
-    String field,
-    String title,
-    String hint,
-  ) {
-    final palette = ColorManager.palette(context);
+  Widget _toggle(BuildContext context, String field, String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(title, style: AppTypography.platformChoiceTitle),
-                const SizedBox(height: 5),
-                Text(
-                  hint,
-                  style: AppTypography.windowsPolicyHint.copyWith(
-                    color: palette.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
+            child: Text(title, style: AppTypography.platformChoiceTitle),
           ),
           const SizedBox(width: 16),
           ShadSwitch(

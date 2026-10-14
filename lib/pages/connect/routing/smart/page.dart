@@ -155,10 +155,18 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              RoutingCardHeader(title: l.prototypeSmartRoutingSettings),
+              RoutingCardHeader(
+                title: l.prototypeSmartRoutingSettings,
+                help: [
+                  l.prototypeDirectPrivateAddressesHint,
+                  l.prototypeDirectAppleServicesHint,
+                  l.directWindowsServicesHint,
+                  l.prototypeDirectDnsHint,
+                  l.prototypeBlockAdDomainsHint,
+                ],
+              ),
               _switch(
                 l.prototypeDirectPrivateAddresses,
-                l.prototypeDirectPrivateAddressesHint,
                 LucideIcons.network,
                 'directPrivate',
                 smart.directPrivate,
@@ -166,7 +174,6 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
               ),
               _switch(
                 l.prototypeDirectAppleServices,
-                l.prototypeDirectAppleServicesHint,
                 LucideIcons.apple,
                 'directApple',
                 smart.directApple,
@@ -174,7 +181,6 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
               ),
               _switch(
                 l.directWindowsServices,
-                l.directWindowsServicesHint,
                 LucideIcons.appWindow,
                 'directWindows',
                 smart.directWindows,
@@ -182,7 +188,6 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
               ),
               _switch(
                 l.prototypeDirectDns,
-                l.prototypeDirectDnsHint,
                 LucideIcons.earth,
                 'directDns',
                 smart.directDns,
@@ -201,7 +206,6 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
               ),
               _switch(
                 l.prototypeBlockAdDomains,
-                l.prototypeBlockAdDomainsHint,
                 LucideIcons.shieldCheck,
                 'blockAds',
                 smart.blockAds,
@@ -223,7 +227,6 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
               RoutingSettingRow(
                 icon: LucideIcons.earth,
                 title: l.prototypeDirectRegions,
-                description: l.prototypeDirectRegionsHint,
                 value: controller.regionsSummary(l),
                 enabled: !state.busy,
                 onTap: () =>
@@ -232,7 +235,7 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
               RoutingSettingRow(
                 icon: LucideIcons.server,
                 title: l.prototypeVpnFinalExit,
-                description: l.prototypeVpnFinalExitHint,
+                help: l.prototypeVpnFinalExitHint,
                 value: smart.finalExitId == null
                     ? l.prototypeNotSet
                     : state.finalExitName ?? l.prototypeTemporarilyUnavailable,
@@ -262,7 +265,6 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
 
   Widget _switch(
     String title,
-    String description,
     IconData icon,
     String key,
     bool value,
@@ -271,7 +273,6 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
   }) => RoutingSettingRow(
     icon: icon,
     title: title,
-    description: description,
     enabled: state.original != null && !state.busy,
     below: below,
     trailing: Semantics(
@@ -293,10 +294,7 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          RoutingCardHeader(
-            title: l.prototypeRoutingPreview,
-            description: l.prototypeRoutingPreviewHint,
-          ),
+          RoutingCardHeader(title: l.prototypeRoutingPreview),
           _result(
             context,
             l.prototypeDirect,

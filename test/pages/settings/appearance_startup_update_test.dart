@@ -126,8 +126,11 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Follow the device appearance'), findsOneWidget);
-    expect(find.text('Always use the dark appearance'), findsOneWidget);
+    final l = AppLocalizations.of(
+      tester.element(find.byType(ThemeChoiceView)),
+    )!;
+    expect(find.text(l.themePageSystem), findsOneWidget);
+    expect(find.text(l.themePageDark), findsOneWidget);
     expect(find.byIcon(LucideIcons.check), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

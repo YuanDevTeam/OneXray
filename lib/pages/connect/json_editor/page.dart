@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/core/errors/json_diagnostic.dart';
 import 'package:onexray/service/shared/json_editing.dart';
@@ -80,6 +81,19 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                 leading: BackButton(
                   onPressed: () => controller.closePage(context),
                 ),
+                actions: [
+                  PageHelpButton(
+                    title: controller.advanced
+                        ? l10n.routingAdvancedJson
+                        : l10n.xrayRawPageTitle,
+                    messages: controller.advanced
+                        ? [l10n.routingAdvancedNotice]
+                        : [
+                            l10n.prototypeRawManagedSettingsNotice,
+                            l10n.prototypeRawAdditionalSettingsNotice,
+                          ],
+                  ),
+                ],
               ),
               body: SafeArea(
                 bottom: false,
@@ -171,16 +185,6 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                               ),
                             ),
                           ),
-                          SizedBox(height: gap),
-                          _RawNote(
-                            controller.advanced
-                                ? l10n.routingAdvancedNotice
-                                : l10n.prototypeRawManagedSettingsNotice,
-                          ),
-                          if (!controller.advanced) ...[
-                            SizedBox(height: gap),
-                            _RawNote(l10n.prototypeRawAdditionalSettingsNotice),
-                          ],
                           if (controller.advanced)
                             Align(
                               alignment: AlignmentDirectional.centerStart,

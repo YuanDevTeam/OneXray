@@ -1,5 +1,6 @@
 import 'package:onexray/service/shared/failure.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
@@ -7,7 +8,6 @@ import 'package:onexray/core/network/user_agent.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/xray/data_update/controller.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
-import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
@@ -32,7 +32,19 @@ class AutoUpdatePage extends StatelessWidget {
         return Scaffold(
           appBar: PageAppBar(
             title: Text(l.prototypeDataUpdates),
-            actions: const [AppActivityIndicator(pinging: false)],
+            actions: [
+              const AppActivityIndicator(pinging: false),
+              PageHelpButton(
+                title: l.prototypeDataUpdates,
+                messages: [
+                  l.prototypeSubscriptionUpdateGuard,
+                  l.prototypeGeodataUpdatesTogether,
+                  l.prototypeUpdateTimingNotice,
+                  l.prototypeDueUpdatesRetryNotice,
+                  l.prototypeDownloadCompatibilityHint,
+                ],
+              ),
+            ],
           ),
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.advancedMaxWidth,
@@ -90,8 +102,6 @@ class AutoUpdatePage extends StatelessWidget {
                             icon: LucideIcons.refreshCw,
                             padding: EdgeInsets.zero,
                             dividerIndent: 0,
-                            description: l.prototypeSubscriptionUpdateGuard,
-                            descriptionBelow: true,
                             children: [
                               _automaticUpdates(
                                 mobile: mobile,
@@ -115,8 +125,6 @@ class AutoUpdatePage extends StatelessWidget {
                             icon: LucideIcons.globe2,
                             padding: EdgeInsets.zero,
                             dividerIndent: 0,
-                            description: l.prototypeGeodataUpdatesTogether,
-                            descriptionBelow: true,
                             children: [
                               _automaticUpdates(
                                 mobile: mobile,
@@ -135,15 +143,11 @@ class AutoUpdatePage extends StatelessWidget {
                               ),
                             ],
                           ),
-                          _note(context, l.prototypeUpdateTimingNotice),
-                          _note(context, l.prototypeDueUpdatesRetryNotice),
                           SettingSection(
                             title: l.prototypeDownloadCompatibility,
                             icon: LucideIcons.globe2,
                             padding: EdgeInsets.zero,
                             dividerIndent: 0,
-                            description: l.prototypeDownloadCompatibilityHint,
-                            descriptionBelow: true,
                             children: [
                               SettingRow(
                                 title: 'User-Agent',
@@ -206,16 +210,6 @@ class AutoUpdatePage extends StatelessWidget {
       value: value,
       enabled: onChanged != null,
       onChanged: onChanged,
-    ),
-  );
-
-  Widget _note(BuildContext context, String text) => Padding(
-    padding: const EdgeInsets.only(top: 10),
-    child: Text(
-      text,
-      style: AppTypography.settingsDetailNote.copyWith(
-        color: ColorManager.secondaryText(context),
-      ),
     ),
   );
 

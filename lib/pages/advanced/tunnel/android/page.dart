@@ -94,11 +94,6 @@ class _AndroidVpnPageState extends State<AndroidVpnPage> {
                               'included' => l.prototypeOnlySelectedApps,
                               _ => l.prototypeAllExceptSelectedApps,
                             },
-                            description: switch (choice) {
-                              'all' => l.prototypeAllAppsUseVpn,
-                              'included' => l.prototypeOnlySelectedAppsUseVpn,
-                              _ => l.prototypeSelectedAppsBypassVpn,
-                            },
                             selected: mode == choice,
                             enabled: !controller.blocked,
                             onTap: () => controller.update(
@@ -208,7 +203,6 @@ class _AndroidModeRow extends StatelessWidget {
   const _AndroidModeRow({
     required this.value,
     required this.title,
-    required this.description,
     required this.selected,
     required this.enabled,
     required this.onTap,
@@ -216,7 +210,6 @@ class _AndroidModeRow extends StatelessWidget {
 
   final String value;
   final String title;
-  final String description;
   final bool selected;
   final bool enabled;
   final VoidCallback onTap;
@@ -263,13 +256,6 @@ class _AndroidModeRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(title, style: AppTypography.androidModeTitle),
-                        const SizedBox(height: 4),
-                        Text(
-                          description,
-                          style: AppTypography.androidModeHint.copyWith(
-                            color: palette.mutedForeground,
-                          ),
-                        ),
                       ],
                     ),
                   ),

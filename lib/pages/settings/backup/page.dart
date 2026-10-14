@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:intl/intl.dart' show DateFormat;
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -47,7 +48,24 @@ class BackupPage extends StatelessWidget {
             .add_Hm();
         final busy = state.busy;
         return Scaffold(
-          appBar: PageAppBar(title: Text(l.backupTitle)),
+          appBar: PageAppBar(
+            title: Text(l.backupTitle),
+            actions: [
+              PageHelpButton(
+                title: l.backupTitle,
+                messages: [
+                  l.backupScope,
+                  android
+                      ? l.backupAndroidHint
+                      : windows
+                      ? l.backupWindowsHint
+                      : l.backupAppleHint,
+                  l.backupScheduleNotice,
+                  l.backupSyncNotice,
+                ],
+              ),
+            ],
+          ),
           bottomNavigationBar: supported
               ? PageActionBar(
                   children: [
@@ -88,10 +106,6 @@ class BackupPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         spacing: 24,
                         children: [
-                          Text(
-                            l.backupScope,
-                            style: AppTypography.settingsDetailNote,
-                          ),
                           SettingSection(
                             title: l.backupLocation,
                             icon: LucideIcons.cloud,
@@ -104,14 +118,6 @@ class BackupPage extends StatelessWidget {
                                       CrossAxisAlignment.stretch,
                                   spacing: 12,
                                   children: [
-                                    Text(
-                                      android
-                                          ? l.backupAndroidHint
-                                          : windows
-                                          ? l.backupWindowsHint
-                                          : l.backupAppleHint,
-                                      style: AppTypography.settingsDetailNote,
-                                    ),
                                     if (target != null)
                                       SelectableText(
                                         target.label,
@@ -194,7 +200,6 @@ class BackupPage extends StatelessWidget {
                             children: [
                               SettingRow(
                                 title: l.backupAutomatic,
-                                subtitle: l.backupScheduleNotice,
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -219,7 +224,6 @@ class BackupPage extends StatelessWidget {
                               ),
                               SettingRow(
                                 title: l.backupInterval,
-                                subtitle: l.backupIntervalHint,
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -300,12 +304,6 @@ class BackupPage extends StatelessWidget {
                                     ),
                                   ),
                             style: AppTypography.settingsDetailNote,
-                          ),
-                          Text(
-                            l.backupSyncNotice,
-                            style: AppTypography.settingsDetailNote.copyWith(
-                              color: palette.mutedForeground,
-                            ),
                           ),
                           if (backup.error != null)
                             SelectableText(

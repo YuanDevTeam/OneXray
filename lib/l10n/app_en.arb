@@ -1,4 +1,5 @@
 {
+  "pageHelp": "Help",
   "lanProxyConfiguration": "Xray configuration",
   "lanProxyTitle": "LAN proxy sharing",
   "lanProxyListenAddress": "Listen address",
@@ -7,16 +8,16 @@
   "lanProxyRawJsonNotice": "Not available in Raw JSON mode. Configure sharing in your Raw JSON inbounds instead.",
   "lanProxySecurityHint": "No authentication. Enable only on trusted networks.",
   "lanProxyClientHint": "On other devices, enter this device's LAN IP address and this port in proxy settings. Sharing is available only while the VPN is running.",
-  "lanProxyNextStartNotice": "Changes apply the next time you start VPN in OneXray. The running VPN, widgets, tiles and on-demand connections keep the last applied settings.",
+  "lanProxyNextStartNotice": "Applies the next time you start VPN from OneXray.",
   "automationTitle": "External automation",
   "automationEnable": "Allow external automation",
   "automationSummary": "Start or stop VPN from Tasker, MacroDroid or Automate using an authenticated Android broadcast.",
-  "automationTokenHint": "The token controls VPN on this device. Keep it private and remove it before sharing automation templates. Disabling automation keeps your token.",
+  "automationTokenHint": "This token controls VPN. Keep it private and remove it before sharing templates.",
   "automationResetConfirm": "Existing tasks will stop working until you replace their token. Resetting does not stop the current VPN.",
   "automationParameters": "Broadcast parameters",
   "automationCopyParameters": "Copy parameters",
   "automationCopied": "Copied",
-  "automationConfigurationHint": "Uses the most recently generated connection configuration, not necessarily your latest selections or last successful connection. Connect once in OneXray after changing your configuration.",
+  "automationConfigurationHint": "Uses the last generated configuration. After changes, connect once in OneXray first.",
   "automationPermissionHint": "Complete VPN and local network permissions in OneXray first. If a request fails, tap the notification to resolve it. OneXray will not open automatically.",
   "automationHelp": "Automation setup and troubleshooting",
   "localApiTitle": "Local API",
@@ -72,7 +73,7 @@
   "@subscriptionPackageUpdatedAt": {
     "placeholders": {"time": {"type": "String"}}
   },
-  "subscriptionPackageCacheHint": "Reported by your provider at the last successful subscription update, not in real time. Plan status does not prevent VPN connections.",
+  "subscriptionPackageCacheHint": "Provider data from the last subscription update, not live usage.",
   "trafficWidgetAdd": "Add traffic widget",
   "trafficWidgetManualHint": "Add the OneXray traffic widget from your launcher's widget picker.",
   "backupAutomatic": "Automatic backup",
@@ -80,10 +81,10 @@
   "backupInterval": "Backup interval",
   "backupIntervalHint": "Applies only to automatic backups, independently of data updates.",
   "backupScheduleNotice": "Checks when the app starts, resumes or is running. VPN is not required. A suspended or closed app cannot back up on a fixed schedule.",
-  "backupAutomaticNotReady": "Automatic backup is on, but will not write until you choose a location and authorize overwrite.",
+  "backupAutomaticNotReady": "Choose a location and allow overwriting to start automatic backups.",
   "backupTitle": "Backup & restore",
   "backupScope": "Back up local servers, Raw JSON, subscriptions, custom routes, Smart routing settings and custom Geodata sources. No files, subscription server cache, final exit selection or device settings are included.",
-  "backupSensitiveWarning": "This backup is not encrypted. It contains server credentials, subscription URLs, Age private keys and HWIDs. Anyone with access to the file can read them.",
+  "backupSensitiveWarning": "Backups are unencrypted and include credentials and private keys. Keep them private.",
   "backupLocation": "Backup location",
   "backupChooseExisting": "Choose existing file",
   "backupCreateFile": "Create backup file",
@@ -156,7 +157,7 @@
   "routingSniffingEnabled": "Enable sniffing",
   "routingSniffingRouteOnly": "Use sniffed domain only for routing",
   "routingSniffingRouteOnlyHint": "Keep the original connection destination while applying domain routing. FakeDNS still needs domain restoration.",
-  "routingSniffingFakeDnsHint": "Disable FakeDNS before turning sniffing off. Sniffing restores virtual IP destinations.",
+  "routingSniffingFakeDnsHint": "Turn off FakeDNS before disabling sniffing.",
   "routingSniffingMore": "More sniffing settings",
   "routingSniffingMetadataOnly": "Inspect metadata only",
   "routingSniffingMetadataOnlyHint": "Do not inspect HTTP, TLS or QUIC content. Domain restoration from FakeDNS remains available.",
@@ -164,7 +165,7 @@
   "routingSelectionRoundRobin": "Round robin",
   "routingSelectionLeastPing": "Lowest latency",
   "routingSelectionHint": "Probe only proxy chains selected for this connection. New proxy connections use the lowest measured latency; existing sessions stay on their current chain. Failed probes do not switch traffic to direct.",
-  "routingSelectionSingleHint": "Observation starts with at least two proxy chains. This preference is kept for future multi-node connections.",
+  "routingSelectionSingleHint": "Probing requires at least two proxy paths.",
   "routingSelectionProbeSettings": "Observation settings",
   "routingSelectionProbeUrl": "Probe URL",
   "routingSelectionProbeInterval": "Probe interval",
@@ -853,7 +854,7 @@
   "@prototypeCompleteXrayConfiguration": {
     "description": "Approved prototype copy: Complete Xray configuration"
   },
-  "prototypeRawRuntimeOverrideNotice": "A complete configuration controls servers, routing, and Xray DNS. OneXray manages logs, traffic statistics, and platform tunIn settings; other tunIn fields are preserved.",
+  "prototypeRawRuntimeOverrideNotice": "Uses the complete configuration. OneXray manages tunnel platform settings, logs and statistics.",
   "@prototypeRawRuntimeOverrideNotice": {
     "description": "Raw JSON runtime ownership notice, including the limited platform tunIn override."
   },
@@ -1544,7 +1545,7 @@
   "@prototypeRuleEditHint": {
     "description": "Approved prototype copy: Choose what this rule matches and what happens next."
   },
-  "prototypeRuleConditionsHint": "We recommend setting one condition type only. If you set more than one, every type must match.",
+  "prototypeRuleConditionsHint": "All specified conditions must match.",
   "@prototypeRuleConditionsHint": {
     "description": "Approved prototype copy: We recommend setting one condition type only. If you set more than one, every type must match. Multiple values within one type match any one."
   },
@@ -1978,7 +1979,7 @@
   "@prototypeRoutingDataHint": {
     "description": "Approved prototype copy: Manage data sources for geoip / geosite routing rules."
   },
-  "prototypeRoutingDataSummary": "View, add, and update local routing data files",
+  "prototypeRoutingDataSummary": "Manage data sources",
   "@prototypeRoutingDataSummary": {
     "description": "Approved prototype copy: View, add, and update local routing data files"
   },
@@ -2410,7 +2411,7 @@
   "@prototypeCaptureAllTraffic": {
     "description": "Approved prototype copy: Capture all traffic"
   },
-  "prototypeCaptureAllTrafficHint": "Send all device network traffic through the VPN.\nIncorrect configuration may cause loss of network connectivity.",
+  "prototypeCaptureAllTrafficHint": "Routes all traffic through VPN. Incorrect settings may block network access.",
   "@prototypeCaptureAllTrafficHint": {
     "description": "Description and network connectivity warning below the Apple VPN Capture all traffic switch."
   },
@@ -3025,7 +3026,7 @@
       }
     }
   },
-  "pingVpnAccuracyHint": "While the VPN is on, test requests may pass through the current VPN and latency results may be inaccurate. Disconnect the VPN before testing for more accurate results.",
+  "pingVpnAccuracyHint": "VPN may affect latency results. Disconnect before testing.",
   "@pingVpnAccuracyHint": {"description": "Node latency test setting or VPN accuracy reminder."},
   "pingVpnActiveTitle": "VPN is on",
   "@pingVpnActiveTitle": {"description": "Node latency test setting or VPN accuracy reminder."},
@@ -3038,7 +3039,7 @@
   "pingContinueTest": "Continue test",
   "@pingContinueTest": {"description": "Node latency test setting or VPN accuracy reminder."},
   "providerConfigurationTitle": "Provider configuration",
-  "providerRoutingNotice": "This configuration uses the provider’s complete routing. App routing preferences are kept and apply when you switch back to App-managed nodes.",
+  "providerRoutingNotice": "Uses provider routing. App routing resumes when you switch back to managed nodes.",
   "providerConfigurationCount": "{count, plural, =1 {1 configuration} other {{count} configurations}}",
   "@providerConfigurationCount": {"placeholders": {"count": {"type": "int"}}},
   "providerChooseConfiguration": "Choose configuration",

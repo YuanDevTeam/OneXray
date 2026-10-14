@@ -70,14 +70,13 @@ class RoutingDnsSettingsForm extends StatelessWidget {
         children: [
           RoutingCardHeader(
             title: l.routingDnsSettings,
-            description: l.routingDnsSettingsHint,
+            help: [l.routingDnsSettingsHint, l.routingDnsSameExitOnlyHint],
           ),
           _resolvers(context, direct: false),
           if (directEnabled) _resolvers(context, direct: true),
           _OptionSwitch(
             icon: LucideIcons.route,
             title: l.routingDnsSameExitOnly,
-            description: l.routingDnsSameExitOnlyHint,
             value: value.sameExitOnly,
             enabled: enabled,
             onChanged: (selected) =>
@@ -202,7 +201,11 @@ class RoutingSniffingSettingsForm extends StatelessWidget {
         children: [
           RoutingCardHeader(
             title: l.routingSniffingSettings,
-            description: l.routingSniffingHint,
+            help: [
+              l.routingSniffingHint,
+              l.routingSniffingRouteOnlyHint,
+              l.routingSniffingMetadataOnlyHint,
+            ],
           ),
           _OptionSwitch(
             icon: LucideIcons.scanSearch,
@@ -216,7 +219,6 @@ class RoutingSniffingSettingsForm extends StatelessWidget {
           _OptionSwitch(
             icon: LucideIcons.route,
             title: l.routingSniffingRouteOnly,
-            description: l.routingSniffingRouteOnlyHint,
             value: value.routeOnly,
             enabled: enabled && value.enabled,
             onChanged: (selected) =>
@@ -228,7 +230,6 @@ class RoutingSniffingSettingsForm extends StatelessWidget {
             child: _OptionSwitch(
               icon: LucideIcons.fileSearch,
               title: l.routingSniffingMetadataOnly,
-              description: l.routingSniffingMetadataOnlyHint,
               value: value.metadataOnly,
               enabled: enabled && value.enabled,
               onChanged: (selected) =>
@@ -269,6 +270,7 @@ class RoutingSelectionSettingsForm extends StatelessWidget {
         RoutingSettingRow(
           icon: LucideIcons.gitBranch,
           title: l.routingSelectionStrategy,
+          help: l.routingSelectionHint,
           below: _OptionPicker(
             value: value.type,
             labels: choices,
@@ -277,7 +279,6 @@ class RoutingSelectionSettingsForm extends StatelessWidget {
           ),
         ),
         if (value.type == 'leastPing') ...[
-          _HelpPadding(text: l.routingSelectionHint),
           if (entryCount < 2) _HelpPadding(text: l.routingSelectionSingleHint),
           _RoutingDetails(
             title: l.routingSelectionProbeSettings,
@@ -331,7 +332,6 @@ class RoutingSelectionSettingsForm extends StatelessWidget {
 class _OptionSwitch extends StatelessWidget {
   final IconData icon;
   final String title;
-  final String? description;
   final bool value;
   final bool enabled;
   final bool divider;
@@ -339,7 +339,6 @@ class _OptionSwitch extends StatelessWidget {
   const _OptionSwitch({
     required this.icon,
     required this.title,
-    this.description,
     required this.value,
     required this.enabled,
     required this.onChanged,
@@ -349,7 +348,6 @@ class _OptionSwitch extends StatelessWidget {
   Widget build(BuildContext context) => RoutingSettingRow(
     icon: icon,
     title: title,
-    description: description,
     enabled: enabled,
     divider: divider,
     trailing: Semantics(

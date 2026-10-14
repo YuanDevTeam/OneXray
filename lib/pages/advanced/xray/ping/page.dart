@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -31,7 +32,16 @@ class PingPage extends StatelessWidget {
         return Scaffold(
           appBar: PageAppBar(
             title: Text(l.prototypeSpeedTest),
-            actions: const [AppActivityIndicator(downloading: false)],
+            actions: [
+              const AppActivityIndicator(downloading: false),
+              PageHelpButton(
+                title: l.prototypeSpeedTest,
+                messages: [
+                  l.prototypeSpeedTestUrlHint,
+                  l.prototypeSpeedTestSavedNotice,
+                ],
+              ),
+            ],
           ),
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.advancedMaxWidth,
@@ -86,8 +96,6 @@ class PingPage extends StatelessWidget {
                           SettingSection(
                             title: l.prototypeTimeout,
                             icon: LucideIcons.activity,
-                            description: l.prototypeTimeoutHint,
-                            descriptionBelow: true,
                             padding: EdgeInsets.zero,
                             children: [
                               SettingRow(
@@ -125,8 +133,6 @@ class PingPage extends StatelessWidget {
                           SettingSection(
                             title: l.prototypeSpeedTestUrl,
                             icon: LucideIcons.globe,
-                            description: l.prototypeSpeedTestUrlHint,
-                            descriptionBelow: true,
                             padding: EdgeInsets.zero,
                             dividerIndent: 0,
                             children: [
@@ -234,13 +240,6 @@ class PingPage extends StatelessWidget {
                           SizedBox(height: mobile ? 25 : 28),
                           Text(
                             l.pingVpnAccuracyHint,
-                            style: AppTypography.settingsDetailNote.copyWith(
-                              color: palette.mutedForeground,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            l.prototypeSpeedTestSavedNotice,
                             style: AppTypography.settingsDetailNote.copyWith(
                               color: palette.mutedForeground,
                             ),

@@ -1,6 +1,7 @@
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
@@ -204,7 +205,10 @@ class XrayRuntimePage extends StatelessWidget {
                             _section(
                               icon: LucideIcons.fileText,
                               title: l.prototypeLogs,
-                              description: l.prototypeManagedLogNotice,
+                              action: PageHelpButton(
+                                title: l.prototypeLogs,
+                                messages: [l.prototypeManagedLogNotice],
+                              ),
                               children: [
                                 _logToggle(
                                   controller: controller,
@@ -265,7 +269,6 @@ class XrayRuntimePage extends StatelessWidget {
                                   context,
                                   mobile: mobile,
                                   title: l.prototypeAccessLog,
-                                  subtitle: l.prototypeAccessLogHint,
                                   icon: LucideIcons.fileText,
                                   enabled: controller.logPath(true) != null,
                                   onTap: () =>
@@ -275,7 +278,6 @@ class XrayRuntimePage extends StatelessWidget {
                                   context,
                                   mobile: mobile,
                                   title: l.prototypeErrorLog,
-                                  subtitle: l.prototypeErrorLogHint,
                                   icon: LucideIcons.terminal,
                                   enabled: controller.logPath(false) != null,
                                   onTap: () =>
@@ -287,13 +289,19 @@ class XrayRuntimePage extends StatelessWidget {
                             icon: LucideIcons.slidersHorizontal,
                             title: l.lanProxyConfiguration,
                             description:
-                                '${l.lanProxySecurityHint}\n${l.lanProxyNextStartNotice}\n${l.lanProxyRawJsonNotice}',
+                                '${l.lanProxySecurityHint} ${l.lanProxyNextStartNotice}',
+                            action: PageHelpButton(
+                              title: l.lanProxyTitle,
+                              messages: [
+                                l.lanProxyProtocolHint,
+                                l.lanProxyRawJsonNotice,
+                              ],
+                            ),
                             children: [
                               SettingRow(
                                 title: l.lanProxyTitle,
                                 titleMaxLines: 4,
                                 titleStyle: AppTypography.settingsRow,
-                                subtitle: l.lanProxyProtocolHint,
                                 minHeight: 64,
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: mobile ? 13 : 14,
@@ -388,11 +396,13 @@ class XrayRuntimePage extends StatelessWidget {
     required IconData icon,
     required String title,
     String? description,
+    Widget? action,
     required List<Widget> children,
   }) => SettingSection(
     icon: icon,
     title: title,
     description: description,
+    action: action,
     descriptionBelow: true,
     padding: EdgeInsets.zero,
     dividerIndent: 0,
@@ -518,7 +528,7 @@ class XrayRuntimePage extends StatelessWidget {
     BuildContext context, {
     required bool mobile,
     required String title,
-    required String subtitle,
+    String? subtitle,
     required IconData icon,
     required bool enabled,
     required VoidCallback onTap,

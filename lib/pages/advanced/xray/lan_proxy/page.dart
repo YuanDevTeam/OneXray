@@ -32,6 +32,11 @@ class LanProxyPage extends StatelessWidget {
         final gutter = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
         return PolicyDetailScaffold(
           title: l.lanProxyTitle,
+          help: [
+            l.lanProxyProtocolHint,
+            l.lanProxyRawJsonNotice,
+            l.lanProxyClientHint,
+          ],
           controller: controller,
           canSave: state.draft != null,
           contentPadding: EdgeInsets.zero,
@@ -64,17 +69,9 @@ class LanProxyPage extends StatelessWidget {
                           color: palette.mutedForeground,
                         ),
                       ),
-                      Text(
-                        l.lanProxyRawJsonNotice,
-                        style: AppTypography.settingsDetailNote.copyWith(
-                          color: palette.mutedForeground,
-                        ),
-                      ),
                       SettingSection(
                         title: l.lanProxyTitle,
                         icon: LucideIcons.network,
-                        description: l.lanProxyProtocolHint,
-                        descriptionBelow: true,
                         padding: EdgeInsets.zero,
                         dividerIndent: 0,
                         children: [
@@ -113,12 +110,6 @@ class LanProxyPage extends StatelessWidget {
                       ),
                       Text(
                         l.lanProxySecurityHint,
-                        style: AppTypography.settingsDetailNote.copyWith(
-                          color: palette.mutedForeground,
-                        ),
-                      ),
-                      Text(
-                        l.lanProxyClientHint,
                         style: AppTypography.settingsDetailNote.copyWith(
                           color: palette.mutedForeground,
                         ),

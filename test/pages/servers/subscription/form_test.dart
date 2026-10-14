@@ -115,7 +115,6 @@ void main() {
     await tester.pumpWidget(app(form()));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('VMessAEAD / VLESS, Hysteria2'), findsOneWidget);
     expect(find.text('HTTPS only'), findsOneWidget);
     expect(find.byType(ShadInput), findsNWidgets(4));
     expect(
@@ -196,39 +195,57 @@ void main() {
     (Locale('ru'), 390.0),
     (Locale('fa'), 1000.0),
   ]) {
-    testWidgets('format notice and HWID disclosure fit at $width ($locale)', (
-      tester,
-    ) async {
-      await tester.binding.setSurfaceSize(Size(width, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      url.text = 'https://provider.example/list';
-      await tester.pumpWidget(app(form(), locale: locale));
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(SubscriptionFormView)),
-      )!;
-      expect(l.prototypeSubscriptionDescription, contains('VMessAEAD / VLESS'));
-      expect(l.prototypeSubscriptionDescription, contains('Hysteria2'));
-      final formatNotice = tester.widget<Text>(
-        find.text(l.prototypeSubscriptionDescription),
-      );
-      expect(formatNotice.maxLines, isNull);
-      expect(formatNotice.overflow, isNull);
-      final disclosure = tester.widget<Text>(
-        find.text(l.subscriptionHwidDescription),
-      );
-      expect(disclosure.maxLines, isNull);
-      expect(disclosure.overflow, isNull);
-      expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isFalse);
-      await tester.ensureVisible(find.text(l.subscriptionHwidTitle));
-      await tester.tap(find.text(l.subscriptionHwidTitle));
-      await tester.pumpAndSettle();
-      expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isTrue);
-      url.text = 'https://another.example/sub';
-      await tester.pumpAndSettle();
-      expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isFalse);
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      'subscription explanations open without changing the draft at $width ($locale)',
+      (tester) async {
+        await tester.binding.setSurfaceSize(Size(width, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        url.text = 'https://provider.example/list';
+        await tester.pumpWidget(app(form(), locale: locale));
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(SubscriptionFormView)),
+        )!;
+        expect(
+          l.prototypeSubscriptionDescription,
+          contains('VMessAEAD / VLESS'),
+        );
+        expect(l.prototypeSubscriptionDescription, contains('Hysteria2'));
+        for (final (title, message) in [
+          (l.subscriptionPanelTitle, l.prototypeSubscriptionDescription),
+          (l.subscriptionHwidTitle, l.subscriptionHwidDescription),
+        ]) {
+          expect(find.text(message), findsNothing);
+          final help = find.byTooltip('${l.pageHelp} · $title');
+          await tester.ensureVisible(help);
+          await tester.tap(help);
+          await tester.pumpAndSettle();
+          expect(find.text(message), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          await tester.tap(find.byTooltip(l.prototypeCloseDialog));
+          await tester.pumpAndSettle();
+          expect(url.text, 'https://provider.example/list');
+        }
+        expect(
+          tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value,
+          isFalse,
+        );
+        await tester.ensureVisible(find.text(l.subscriptionHwidTitle));
+        await tester.tap(find.text(l.subscriptionHwidTitle));
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value,
+          isTrue,
+        );
+        url.text = 'https://another.example/sub';
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value,
+          isFalse,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   for (final locale in const [Locale('en'), Locale('fa')]) {

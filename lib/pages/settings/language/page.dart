@@ -93,15 +93,6 @@ class LanguageChoiceView extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (mobile) ...[
-              Text(
-                l10n.prototypeChooseLanguage,
-                style: AppTypography.settingsDetailNote.copyWith(
-                  color: ColorManager.secondaryText(context),
-                ),
-              ),
-              const SizedBox(height: 23),
-            ],
             ShadRadioGroup<LanguageCode>(
               axis: Axis.horizontal,
               initialValue: selected,
@@ -179,15 +170,6 @@ class LanguageChoiceView extends StatelessWidget {
                       }).toList(),
                 ),
               ],
-            ),
-            Padding(
-              padding: EdgeInsets.only(top: mobile ? 13 : 14),
-              child: Text(
-                l10n.prototypeLanguageSavedNotice,
-                style: AppTypography.settingsDetailNote.copyWith(
-                  color: ColorManager.secondaryText(context),
-                ),
-              ),
             ),
           ],
         ),

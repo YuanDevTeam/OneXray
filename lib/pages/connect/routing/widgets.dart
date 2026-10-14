@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -24,7 +25,7 @@ class RoutingFakeDnsRow extends StatelessWidget {
     return RoutingSettingRow(
       icon: LucideIcons.network,
       title: l.routingFakeDns,
-      description: l.routingFakeDnsHint,
+      help: l.routingFakeDnsHint,
       enabled: enabled,
       trailing: Semantics(
         label: l.routingFakeDns,
@@ -52,7 +53,7 @@ class RoutingFragmentRow extends StatelessWidget {
     return RoutingSettingRow(
       icon: LucideIcons.scissors,
       title: l.routingFragment,
-      description: l.routingFragmentHint,
+      help: l.routingFragmentHint,
       enabled: enabled,
       trailing: Semantics(
         label: l.routingFragment,
@@ -90,8 +91,14 @@ class RoutingCard extends StatelessWidget {
 class RoutingCardHeader extends StatelessWidget {
   final String title;
   final String? description;
+  final List<String> help;
 
-  const RoutingCardHeader({super.key, required this.title, this.description});
+  const RoutingCardHeader({
+    super.key,
+    required this.title,
+    this.description,
+    this.help = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -105,11 +112,18 @@ class RoutingCardHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: AppTypography.routingCardTitle.copyWith(
-              color: palette.foreground,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: AppTypography.routingCardTitle.copyWith(
+                    color: palette.foreground,
+                  ),
+                ),
+              ),
+              if (help.isNotEmpty) PageHelpButton(title: title, messages: help),
+            ],
           ),
           if (description != null) ...[
             const SizedBox(height: 4),
@@ -173,6 +187,7 @@ class RoutingSettingRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String? description;
+  final String? help;
   final String? value;
   final Widget? trailing;
   final Widget? below;
@@ -185,6 +200,7 @@ class RoutingSettingRow extends StatelessWidget {
     required this.icon,
     required this.title,
     this.description,
+    this.help,
     this.value,
     this.trailing,
     this.below,
@@ -206,13 +222,20 @@ class RoutingSettingRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style:
-              (mobile
-                      ? AppTypography.routingRowTitleMobile
-                      : AppTypography.routingRowTitle)
-                  .copyWith(color: foreground),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                title,
+                style:
+                    (mobile
+                            ? AppTypography.routingRowTitleMobile
+                            : AppTypography.routingRowTitle)
+                        .copyWith(color: foreground),
+              ),
+            ),
+            if (help != null) PageHelpButton(title: title, messages: [help!]),
+          ],
         ),
         if (description != null && !(mobile && navigation)) ...[
           const SizedBox(height: 4),
@@ -227,7 +250,13 @@ class RoutingSettingRow extends StatelessWidget {
     );
     final content = Container(
       constraints: BoxConstraints(
-        minHeight: mobile ? (navigation ? 64 : 69) : 74,
+        minHeight: mobile
+            ? (navigation
+                  ? 64
+                  : description == null
+                  ? 56
+                  : 69)
+            : (description == null ? 60 : 74),
       ),
       padding: EdgeInsetsDirectional.symmetric(
         horizontal: mobile ? 13 : 17,
@@ -426,7 +455,7 @@ class RoutingEntryCountRow extends StatelessWidget {
     return RoutingSettingRow(
       icon: LucideIcons.zap,
       title: l.prototypeAutomaticEntryServers,
-      description: l.prototypeAutomaticEntryServersHint,
+      help: l.prototypeAutomaticEntryServersHint,
       enabled: onChanged != null,
       below: mobile ? picker : null,
       trailing: mobile ? null : picker,

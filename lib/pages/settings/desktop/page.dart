@@ -72,7 +72,7 @@ class DesktopSettingsView extends StatelessWidget {
                 title: l10n.settingsPageLaunchAtLogin,
                 subtitle: launchStatus.state == LaunchAtLoginState.unavailable
                     ? l10n.settingsPageLaunchAtLoginUnavailable
-                    : l10n.settingsPageLaunchAtLoginDescription,
+                    : null,
                 leading: const Icon(LucideIcons.logIn),
                 value: launchStatus.enabled,
                 onChanged: state.launchToggleEnabled
@@ -93,7 +93,6 @@ class DesktopSettingsView extends StatelessWidget {
                 ),
               SwitchSettingRow(
                 title: l10n.settingsPageStartHidden,
-                subtitle: l10n.settingsPageStartHiddenDescription,
                 leading: const Icon(LucideIcons.eyeOff),
                 value: state.startHidden,
                 onChanged: state.behaviorSettingsEnabled
@@ -108,7 +107,6 @@ class DesktopSettingsView extends StatelessWidget {
               children: [
                 SwitchSettingRow(
                   title: l10n.desktopSettingsPageHideDockIcon,
-                  subtitle: l10n.desktopSettingsPageHideDockIconDescription,
                   leading: const Icon(LucideIcons.monitorCog),
                   value: state.hideDockIcon,
                   onChanged: state.behaviorSettingsEnabled

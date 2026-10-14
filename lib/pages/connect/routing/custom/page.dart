@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/connect/routing/options_form.dart';
@@ -73,6 +74,12 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
           appBar: PageAppBar(
             title: Text(name.isEmpty ? l.prototypeCustomRouting : name),
             leading: BackButton(onPressed: () => controller.cancel(context)),
+            actions: [
+              PageHelpButton(
+                title: l.prototypeCustomRouting,
+                messages: [l.prototypeCustomImportHint, l.routingCustomDnsHint],
+              ),
+            ],
           ),
           body: SafeArea(
             child: state.loaded
@@ -111,28 +118,6 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                                             controller: controller.transfer,
                                             disabled: state.busy,
                                           ),
-                                      Padding(
-                                        padding: mobile
-                                            ? EdgeInsets.zero
-                                            : const EdgeInsets.fromLTRB(
-                                                22,
-                                                10,
-                                                22,
-                                                0,
-                                              ),
-                                        child: Text(
-                                          l.prototypeCustomImportHint,
-                                          style:
-                                              (mobile
-                                                      ? AppTypography.actionHelp
-                                                      : AppTypography.shareHint)
-                                                  .copyWith(
-                                                    color: ColorManager.palette(
-                                                      context,
-                                                    ).mutedForeground,
-                                                  ),
-                                        ),
-                                      ),
                                     ],
                                   ),
                                 ),
@@ -280,25 +265,6 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                                                       fakeDns: state.fakeDns,
                                                       onChanged: controller
                                                           .setSniffing,
-                                                    ),
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.fromLTRB(
-                                                            13,
-                                                            0,
-                                                            13,
-                                                            13,
-                                                          ),
-                                                      child: Text(
-                                                        l.routingCustomDnsHint,
-                                                        style: AppTypography
-                                                            .actionHelp
-                                                            .copyWith(
-                                                              color: ColorManager.palette(
-                                                                context,
-                                                              ).mutedForeground,
-                                                            ),
-                                                      ),
                                                     ),
                                                   ],
                                                 ),

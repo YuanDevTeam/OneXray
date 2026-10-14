@@ -14,13 +14,13 @@ class AppleSettingToggle extends StatelessWidget {
   const AppleSettingToggle({
     super.key,
     required this.title,
-    required this.description,
+    this.description,
     required this.value,
     required this.onChanged,
     this.nested = false,
   });
   final String title;
-  final String description;
+  final String? description;
   final bool value;
   final ValueChanged<bool>? onChanged;
   final bool nested;
@@ -50,15 +50,17 @@ class AppleSettingToggle extends StatelessWidget {
                         ? AppTypography.appleSettingTitle
                         : AppTypography.appleSettingTitleDesktop,
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    description,
-                    style:
-                        (mobile
-                                ? AppTypography.appleSettingHint
-                                : AppTypography.appleSettingHintDesktop)
-                            .copyWith(color: palette.mutedForeground),
-                  ),
+                  if (description != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      description!,
+                      style:
+                          (mobile
+                                  ? AppTypography.appleSettingHint
+                                  : AppTypography.appleSettingHintDesktop)
+                              .copyWith(color: palette.mutedForeground),
+                    ),
+                  ],
                 ],
               ),
             ),
