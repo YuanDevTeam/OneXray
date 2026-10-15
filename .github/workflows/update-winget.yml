@@ -231,4 +231,6 @@ jobs:
             echo "A manifest PR already exists; update it instead of creating a duplicate: $existing_pr" >&2
             exit 1
           fi
+          # Sync the fork before Komac creates a branch from upstream HEAD.
+          komac sync-fork
           komac submit "$MANIFEST_DIR" --yes
