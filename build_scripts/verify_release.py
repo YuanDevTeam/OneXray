@@ -44,11 +44,16 @@ def verify_release(
             raise ValueError(f"Empty release metadata: {name}")
         return result
 
+    metadata_attempt = value("run-attempt")
+    run_attempt = run.get("run_attempt")
     if (
         run.get("path") != ".github/workflows/build.yml"
         or run.get("conclusion") != "success"
         or str(run.get("id")) != value("run-id")
-        or str(run.get("run_attempt")) != value("run-attempt")
+        # Retrying failed jobs retains successful earlier jobs and their artifacts.
+        or type(run_attempt) is not int
+        or not metadata_attempt.isdecimal()
+        or not 1 <= int(metadata_attempt) <= run_attempt
         or run.get("head_sha") != value("sha")
         or run.get("repository", {}).get("full_name") != value("repository")
     ):

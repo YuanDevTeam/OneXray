@@ -166,7 +166,11 @@ Only lightweight run/source metadata accompanies packages; local builds do not
 collect Git status, tool versions, input hashes or per-platform receipts.
 [verify_release.py](verify_release.py) checks the selected successful Build run,
 release tag/commit and required channel files, without reading package contents.
-Rerun metadata and build jobs together when retrying a release.
+Retrying failed jobs can retain successful metadata and packages from an earlier
+attempt of the same run. The metadata attempt must be positive and no newer than
+the selected successful Build attempt; run/source/repository/tag checks still
+apply. If rerunning metadata to resolve dependencies again, rerun its dependent
+build jobs together.
 
 - [Publish](../.github/workflows/publish.yml) selects GitHub pre-release files,
   excluding Store packages. Stable promotion is separate.

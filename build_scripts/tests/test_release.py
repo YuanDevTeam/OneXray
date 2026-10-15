@@ -95,12 +95,99 @@ class ReleaseTest(unittest.TestCase):
             ("path", ".github/workflows/other.yml"),
             ("conclusion", "failure"),
             ("id", 456),
-            ("run_attempt", 2),
+            ("run_attempt", 0),
             ("head_sha", "b" * 40),
             ("repository", {"full_name": "Other/Repository"}),
         ):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 verify_release(self.artifacts, {**self.run, field: value})
+
+    def test_failed_job_rerun_can_reuse_successful_metadata_and_packages(self):
+        (self.metadata / "tag.txt").write_text("v26.10.3")
+        all_public = [name for group in PUBLIC_PACKAGES.values() for name in group]
+        for metadata_attempt, run_attempt in ((1, 1), (1, 2), (2, 2), (9, 10)):
+            (self.metadata / "run-attempt.txt").write_text(str(metadata_attempt))
+            self.run["run_attempt"] = run_attempt
+            for windows_only in (False, True):
+                with self.subTest(
+                    metadata_attempt=metadata_attempt,
+                    run_attempt=run_attempt,
+                    windows_only=windows_only,
+                ):
+                    selected = verify_release(
+                        self.artifacts,
+                        self.run,
+                        tag="v26.10.3",
+                        tag_sha=self.run["head_sha"],
+                        windows_only=windows_only,
+                    )
+                    names = STORE_PACKAGES if windows_only else all_public
+                    self.assertEqual(selected, [self.artifacts / name for name in names])
+
+    def test_metadata_from_a_future_attempt_is_rejected(self):
+        (self.metadata / "run-attempt.txt").write_text("2")
+        with self.assertRaises(ValueError):
+            verify_release(self.artifacts, self.run, windows_only=True)
+
+    def test_attempts_must_be_positive_integers(self):
+        for attempt in ("", "0", "-1", "not-a-number", "1.5"):
+            with self.subTest(metadata_attempt=attempt), self.assertRaises(ValueError):
+                (self.metadata / "run-attempt.txt").write_text(attempt)
+                verify_release(self.artifacts, self.run)
+        (self.metadata / "run-attempt.txt").unlink()
+        with self.assertRaises(FileNotFoundError):
+            verify_release(self.artifacts, self.run)
+        (self.metadata / "run-attempt.txt").write_text("1")
+        for attempt in (None, 0, -1, "2", 1.0, True):
+            with self.subTest(run_attempt=attempt), self.assertRaises(ValueError):
+                verify_release(self.artifacts, {**self.run, "run_attempt": attempt})
+
+    def test_reused_metadata_does_not_relax_source_run_tag_or_file_checks(self):
+        self.run["run_attempt"] = 2
+        for field, value in (
+            ("path", ".github/workflows/other.yml"),
+            ("conclusion", "failure"),
+            ("id", 456),
+            ("head_sha", "b" * 40),
+            ("repository", {"full_name": "Other/Repository"}),
+        ):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                verify_release(self.artifacts, {**self.run, field: value})
+        with self.assertRaises(ValueError):
+            verify_release(self.artifacts, self.run, tag="v26.10.3", tag_sha="b" * 40)
+        (self.metadata / "tag.txt").write_text("v26.10.2")
+        with self.assertRaises(ValueError):
+            verify_release(self.artifacts, self.run, tag="v26.10.3", tag_sha="a" * 40)
+        (self.artifacts / STORE_PACKAGES[1]).unlink()
+        with self.assertRaises(FileNotFoundError):
+            verify_release(self.artifacts, self.run, windows_only=True)
+
+    def test_cli_selects_both_store_packages_after_failed_job_rerun(self):
+        self.run["run_attempt"] = 2
+        run_json = self.artifacts / "build-run.json"
+        run_json.write_text(json.dumps(self.run))
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(Path(__file__).resolve().parents[1] / "verify_release.py"),
+                str(self.artifacts),
+                str(run_json),
+                "--windows-only",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            [str(self.artifacts / name) for name in STORE_PACKAGES],
+        )
+        (self.metadata / "run-attempt.txt").write_text("3")
+        command = result.args
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
 
     def test_release_tag_must_match_the_built_commit_and_recorded_tag(self):
         verify_release(self.artifacts, self.run, tag="v26.9.1", tag_sha="a" * 40)
