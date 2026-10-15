@@ -93,26 +93,9 @@ Subscriptions can use **age encryption** with an existing key pair or locally ge
 
 ## Screenshots
 
-Real running screenshots from iOS, Android, macOS, and Windows. Click an image to view it at full size.
+[![OneXray connection screen on Mac, iPad, and iPhone](./readme/images/devices-en.png)](./readme/images/devices-en.png)
 
-<table>
-  <tr>
-    <th width="50%">iOS · Connect</th>
-    <th width="50%">Android · Servers</th>
-  </tr>
-  <tr>
-    <td align="center"><a href="./readme/images/connect-ios.png"><img src="./readme/images/connect-ios.png" width="320" alt="iOS connection page showing server selection and current-session traffic"></a></td>
-    <td align="center"><a href="./readme/images/servers-android.png"><img src="./readme/images/servers-android.png" width="320" alt="Android server page grouped by subscription with latency information"></a></td>
-  </tr>
-</table>
-
-### macOS · Smart Routing
-
-![Smart Routing on macOS, with direct-traffic options and a routing preview](./readme/images/smart-routing-macos.png)
-
-### Windows · Custom Routing
-
-![Custom Routing on Windows, with import, sharing, entry-server count, and ordered rules](./readme/images/custom-routing-windows.png)
+*Mac, iPad and iPhone*
 
 ## First connection
 

@@ -95,26 +95,9 @@ OneXray — клиент Xray-core с открытым исходным кодо
 
 ## Скриншоты
 
-Реальные снимки работающего приложения на iOS, Android, macOS и Windows. Нажмите на изображение, чтобы открыть его в полном размере.
+[![Страница подключения OneXray на Mac, iPad и iPhone](./images/devices-ru.png)](./images/devices-ru.png)
 
-<table>
-  <tr>
-    <th width="50%">iOS · Подключение</th>
-    <th width="50%">Android · Серверы</th>
-  </tr>
-  <tr>
-    <td align="center"><a href="./images/connect-ios.png"><img src="./images/connect-ios.png" width="320" alt="Подключение на iOS: выбор сервера и трафик текущего подключения"></a></td>
-    <td align="center"><a href="./images/servers-android.png"><img src="./images/servers-android.png" width="320" alt="Серверы на Android: группировка по подпискам и задержка"></a></td>
-  </tr>
-</table>
-
-### macOS · Умная маршрутизация
-
-![Умная маршрутизация на macOS: прямые подключения и предварительный просмотр правил](./images/smart-routing-macos.png)
-
-### Windows · Пользовательская маршрутизация
-
-![Пользовательская маршрутизация на Windows: импорт, отправка, число входных серверов и порядок правил](./images/custom-routing-windows.png)
+*Mac, iPad и iPhone*
 
 ## Первое подключение
 

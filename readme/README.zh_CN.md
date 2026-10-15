@@ -90,26 +90,9 @@ VPN Tunnel 操作、预期行为与验证步骤。不为系统设置虚构 JSON 
 
 ## 运行截图
 
-以下为 iOS、Android、macOS 和 Windows 的真实运行截图，点击图片可查看原图。
+[![Mac、iPad 与 iPhone 上的 OneXray 连接页面](./images/devices-zh.png)](./images/devices-zh.png)
 
-<table>
-  <tr>
-    <th width="50%">iOS · 连接</th>
-    <th width="50%">Android · 服务器</th>
-  </tr>
-  <tr>
-    <td align="center"><a href="./images/connect-ios.png"><img src="./images/connect-ios.png" width="320" alt="iOS 连接页面，展示服务器选择与本次连接流量"></a></td>
-    <td align="center"><a href="./images/servers-android.png"><img src="./images/servers-android.png" width="320" alt="Android 服务器页面，按订阅分组并展示延迟"></a></td>
-  </tr>
-</table>
-
-### macOS · 智能路由
-
-![macOS 智能路由页面，展示直连选项和路由结果预览](./images/smart-routing-macos.png)
-
-### Windows · 自定义路由
-
-![Windows 自定义路由页面，展示导入、分享、接入节点数量与有序规则](./images/custom-routing-windows.png)
+*Mac、iPad 与 iPhone*
 
 ## 首次连接
 
