@@ -38,6 +38,22 @@ Prefer maintained Actions for SDK/tool setup, downloads, artifacts and releases.
 Keep scripts for OneXray's build commands, credentials, release policy and native
 packaging. Check target architecture support before replacing a setup step.
 
+Use the latest supported major tag for Actions. When upstream does not publish
+major or minor aliases, use an available release tag: `setup-uv` currently needs
+`v10.3.0` because neither `v10` nor `v10.3` exists. Keep tool versions within the
+project's compatibility limits, including Java 26 for the current Gradle wrapper.
+
+| Workload | Runner image |
+| --- | --- |
+| iOS, Mac App Store and macOS Developer ID | `xcode-27`: macOS 27 ARM64, currently public preview; select the latest stable installed Xcode. |
+| Windows x64 builds and Microsoft Store bundling | `windows-2025-vs2026` |
+| Windows ARM64 builds | `windows-11-vs2026-arm` |
+| Android, validation, metadata, release publishing and WinGet | `ubuntu-26.04` |
+| Linux x64 / ARM64 packages | `ubuntu-24.04` / `ubuntu-24.04-arm`, preserving the glibc 2.39 build baseline. |
+
+GitHub's [macOS 27 image](https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md)
+uses the `xcode-27` label; `macos-27` is not an available runner label.
+
 | Workflow / jobs | Actions and retained project logic |
 | --- | --- |
 | [Build](../.github/workflows/build.yml): `release_metadata` | Checkout outputs supply dependency commits; a short script writes the shared run metadata. |

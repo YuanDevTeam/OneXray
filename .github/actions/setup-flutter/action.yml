@@ -24,7 +24,7 @@ runs:
 
     - name: Configure Flutter paths for ARM64
       if: runner.os != 'macOS' && runner.arch == 'ARM64'
-      uses: actions/github-script@v8
+      uses: actions/github-script@v9
       with:
         script: |
           const path = require('node:path');

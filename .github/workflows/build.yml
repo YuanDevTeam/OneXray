@@ -80,7 +80,7 @@ jobs:
   # build. Tag builds additionally include tag.txt for release validation.
   # =================================================================
   release_metadata:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       libxray_sha: ${{ steps.libxray.outputs.commit }}
       vole_sha: ${{ steps.vole.outputs.commit }}
@@ -130,7 +130,7 @@ jobs:
   ios:
     needs: release_metadata
     if: github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'ios'
-    runs-on: macos-26
+    runs-on: xcode-27 # macOS 27 ARM64 (public preview)
     timeout-minutes: 60
     defaults:
       run:
@@ -162,7 +162,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.x"
           enable-cache: false
@@ -205,7 +205,7 @@ jobs:
   macos:
     needs: release_metadata
     if: github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'macos'
-    runs-on: macos-26
+    runs-on: xcode-27 # macOS 27 ARM64 (public preview)
     timeout-minutes: 60
     defaults:
       run:
@@ -237,7 +237,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.x"
           enable-cache: false
@@ -284,7 +284,7 @@ jobs:
   macos_se:
     needs: release_metadata
     if: github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'macos'
-    runs-on: macos-26
+    runs-on: xcode-27 # macOS 27 ARM64 (public preview)
     timeout-minutes: 60
     defaults:
       run:
@@ -316,7 +316,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.x"
           enable-cache: false
@@ -359,7 +359,7 @@ jobs:
   android:
     needs: release_metadata
     if: github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'android'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     defaults:
       run:
@@ -393,7 +393,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.x"
           enable-cache: false
@@ -450,7 +450,7 @@ jobs:
   # Windows x64 and arm64 × EXE / MSIX.
   #   EXE and ZIP share an exe-mode bundle; Store uses its own msix-mode build.
   #   x64 uses Windows Server 2025 with Visual Studio 2026; arm64 uses
-  #   GitHub's native Windows 11 arm64 runner so Flutter, libXray, and Vole
+  #   Windows 11 with Visual Studio 2026 so Flutter, libXray, and Vole
   #   all match the target architecture.
   # =================================================================
   windows:
@@ -466,12 +466,12 @@ jobs:
             goarch: amd64
             rust_target: x86_64-pc-windows-msvc
             package_suffix: windows-amd64
-            runner: windows-2025
+            runner: windows-2025-vs2026
           - arch: arm64
             goarch: arm64
             rust_target: aarch64-pc-windows-msvc
             package_suffix: windows-arm64
-            runner: windows-11-arm
+            runner: windows-11-vs2026-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     env:
@@ -519,7 +519,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.x"
           enable-cache: false
@@ -669,7 +669,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.2.0
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           version: "0.x"
           enable-cache: false
