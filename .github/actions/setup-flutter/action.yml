@@ -18,6 +18,7 @@ runs:
       with:
         repository: flutter/flutter
         ref: stable
+        fetch-tags: true
         path: references/flutter-sdk
         persist-credentials: false
 

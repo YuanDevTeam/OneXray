@@ -49,7 +49,7 @@ dependencies:
   #---------- third party plugin
   drift: ^2.35.2
   drift_flutter: ^0.3.1
-  sqlite3: ^3.7.0
+  sqlite3: ^3.7.1
 
   dio: ^5.11.1
   uuid: ^4.6.0
@@ -59,16 +59,16 @@ dependencies:
   icloud_storage_plus: 4.0.0
   saf_stream: ^4.0.2
   mobile_scanner: ^7.4.2
-  image: ^4.10.1
+  image: ^4.12.0
   zxing2: ^0.2.4
   # export
   # state management
   flutter_bloc: ^9.1.1
   shadcn_ui: ^0.57.1
-  lucide_icons_flutter: ^3.1.24
+  lucide_icons_flutter: ^3.1.25
   # markdown
   flutter_markdown_plus: ^1.0.12
-  flutter_local_notifications: ^23.0.0-dev.3
+  flutter_local_notifications: ^23.0.0-dev.4
   in_app_review: ^2.0.12
 
   isolate_manager: ^6.3.2
