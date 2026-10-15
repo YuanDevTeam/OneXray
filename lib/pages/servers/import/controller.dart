@@ -10,6 +10,7 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/servers/import/page.dart';
+import 'package:onexray/pages/servers/subscription/format_confirmation.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:onexray/service/shared/failure.dart';
@@ -158,8 +159,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   final Future<SubscriptionData?> Function(int) _loadSubscription;
   final Future<SubscriptionUpdateResult> Function(int, SubscriptionInput)
   _saveSubscriptionInput;
-  final Future<SubscriptionInsertResult> Function(SubscriptionInput)
-  _insertSubscription;
+  final SubscriptionInsertOperation _insertSubscription;
   final Future<SubscriptionModeAvailability> Function(int) _modeAvailability;
   ServerImportController({
     ServerImportService? service,
@@ -167,8 +167,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     Future<SubscriptionData?> Function(int)? loadSubscription,
     Future<SubscriptionUpdateResult> Function(int, SubscriptionInput)?
     saveSubscriptionInput,
-    Future<SubscriptionInsertResult> Function(SubscriptionInput)?
-    insertSubscription,
+    SubscriptionInsertOperation? insertSubscription,
     Future<SubscriptionModeAvailability> Function(int)? modeAvailability,
   }) : service = service ?? ServerImportService(),
        _loadSubscription =
@@ -477,7 +476,10 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       final pending = detection.subscriptions
           .where((link) => !_completedSubscriptions.containsKey(link.url))
           .toList();
-      final results = await service.importSubscriptions(pending);
+      final results = await service.importSubscriptions(
+        pending,
+        confirmOrdinary: (name) => _confirmOrdinary(context, name),
+      );
       for (var index = 0; index < results.length; index++) {
         if (results[index].result.success) {
           _completedSubscriptions[pending[index].url] = results[index];
@@ -847,8 +849,12 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         }
         return;
       }
-      final result = await _insertSubscription(input);
+      final result = await _insertSubscription(
+        input,
+        confirmOrdinary: (name) => _confirmOrdinary(context, name),
+      );
       if (!context.mounted) return;
+      if (failureCancelled(result.error)) return;
       final l10n = AppLocalizations.of(context)!;
       if (!result.success) {
         emit(
@@ -890,6 +896,12 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     SubscriptionUpdateResult status, {
     Object? error,
   }) => subscriptionFailureMessage(l10n, status, error: error);
+
+  Future<bool> _confirmOrdinary(BuildContext context, String name) async {
+    if (!isPageActive) return false;
+    final confirmed = await confirmOrdinarySubscription(context, name);
+    return isPageActive && confirmed;
+  }
 
   Future<void> setPanel(SubscriptionPanel panel) async {
     if (state.busy || state.loadFailed || state.generatingAgeKey) return;

@@ -140,7 +140,7 @@ class ServerImportService {
   final Future<String> Function(String) _validate;
   final Future<ConfigWriteResult> Function(List<CoreConfigCompanion>) _write;
   final void Function(List<int>) _schedule;
-  final Future<SubscriptionInsertResult> Function(OneXraySubscriptionLink)
+  final Future<SubscriptionInsertResult> Function(OneXraySubscriptionLink)?
   _subscribe;
   final Future<bool> Function(OneXrayGeoDataLink) _validateGeoData;
   final Future<bool> Function(OneXrayGeoDataLink) _writeGeoData;
@@ -152,8 +152,7 @@ class ServerImportService {
     Future<String> Function(String)? validate,
     Future<ConfigWriteResult> Function(List<CoreConfigCompanion>)? write,
     void Function(List<int>)? schedule,
-    Future<SubscriptionInsertResult> Function(OneXraySubscriptionLink)?
-    subscribe,
+    this._subscribe,
     Future<bool> Function(OneXrayGeoDataLink)? validateGeoData,
     Future<bool> Function(OneXrayGeoDataLink)? writeGeoData,
   }) : _database = database,
@@ -168,7 +167,6 @@ class ServerImportService {
              null,
            )),
        _schedule = schedule ?? PingService().schedulePingConfigIds,
-       _subscribe = subscribe ?? _importSubscription,
        _validateGeoData =
            validateGeoData ??
            ((link) async =>
@@ -214,8 +212,9 @@ class ServerImportService {
       : text.split('\n').map(_ImportLine.parse).toList();
 
   Future<List<ServerSubscriptionImport>> importSubscriptions(
-    List<OneXraySubscriptionLink> links,
-  ) => _imports.track(() async {
+    List<OneXraySubscriptionLink> links, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) => _imports.track(() async {
     final results = <ServerSubscriptionImport>[];
     for (final link in links) {
       if (_imports.isPaused) break;
@@ -223,7 +222,13 @@ class ServerImportService {
           ? Uri.parse(link.url).host
           : link.name.trim();
       try {
-        results.add(ServerSubscriptionImport(name, await _subscribe(link)));
+        results.add(
+          ServerSubscriptionImport(
+            name,
+            await (_subscribe?.call(link) ??
+                _importSubscription(link, confirmOrdinary: confirmOrdinary)),
+          ),
+        );
       } catch (error) {
         results.add(
           ServerSubscriptionImport(
@@ -240,8 +245,9 @@ class ServerImportService {
   });
 
   static Future<SubscriptionInsertResult> _importSubscription(
-    OneXraySubscriptionLink link,
-  ) async {
+    OneXraySubscriptionLink link, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) async {
     if (!NetClient.isHttpsDownloadUri(Uri.parse(link.url))) {
       return const SubscriptionInsertResult(
         status: SubscriptionUpdateResult.invalidContent,
@@ -250,7 +256,10 @@ class ServerImportService {
     final service = SubscriptionService();
     for (final row in await AppDatabase().subscriptionDao.allRows) {
       if (row.url != link.url) continue;
-      final result = await service.refreshSubscriptionResult(row);
+      final result = await service.refreshSubscriptionResult(
+        row,
+        confirmOrdinary: confirmOrdinary,
+      );
       return SubscriptionInsertResult(
         status: result.status,
         subId: row.id,
@@ -285,6 +294,7 @@ class ServerImportService {
         panel: link.panel,
         mode: link.mode,
       ),
+      confirmOrdinary: confirmOrdinary,
     );
   }
 

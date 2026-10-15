@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
+import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
@@ -384,7 +385,7 @@ void main() {
       final inputs = <SubscriptionInput>[];
       final controller = ServerImportController(
         loadSubscription: (_) async => null,
-        insertSubscription: (input) async {
+        insertSubscription: (input, {confirmOrdinary}) async {
           inputs.add(input);
           return const SubscriptionInsertResult(
             status: SubscriptionUpdateResult.hwidRequired,
@@ -881,7 +882,7 @@ void main() {
         SubscriptionInput? submitted;
         final controller = ServerImportController(
           loadSubscription: (_) async => null,
-          insertSubscription: (input) async {
+          insertSubscription: (input, {confirmOrdinary}) async {
             submitted = input;
             return const SubscriptionInsertResult(
               status: SubscriptionUpdateResult.success,
@@ -928,6 +929,85 @@ void main() {
     },
   );
 
+  for (final approved in [false, true]) {
+    testWidgets(
+      'non-JSON subscription conversion can be ${approved ? "accepted" : "cancelled"}',
+      (tester) async {
+        var parsed = false;
+        final controller = ServerImportController(
+          loadSubscription: (_) async => null,
+          insertSubscription: (input, {confirmOrdinary}) async {
+            expect(confirmOrdinary, isNotNull);
+            if (!await confirmOrdinary!(input.name)) {
+              return const SubscriptionInsertResult(
+                status: SubscriptionUpdateResult.invalidContent,
+                error: AppFailure(FailureCategory.conflict, 'cancelled'),
+              );
+            }
+            parsed = true;
+            return const SubscriptionInsertResult(
+              status: SubscriptionUpdateResult.success,
+              subId: 8,
+              count: 2,
+            );
+          },
+        );
+        addTearDown(controller.close);
+        controller.name.text = 'Provider';
+        controller.url.text = 'https://example.test/subscription';
+        controller.userAgent.text = 'Custom/1.0';
+        await controller.setPanel(SubscriptionPanel.remnawave);
+        await tester.pumpWidget(
+          _app(
+            Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showAppDialog<ServerImportResult>(
+                  context,
+                  (_) => ServerImportFormPage(
+                    controller: controller,
+                    action: ServerImportAction.subscription,
+                  ),
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerImportFormPage)),
+        )!;
+        await _tapVisible(tester, find.text(l.prototypeAddSubscription).last);
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(find.text(l.subscriptionRemnawaveFormatTitle), findsOneWidget);
+        expect(
+          find.text(l.subscriptionConvertToOrdinaryMessage('Provider')),
+          findsOneWidget,
+        );
+        expect(parsed, isFalse);
+        await tester.tap(
+          find
+              .text(approved ? l.subscriptionConvertToOrdinary : l.buttonCancel)
+              .last,
+        );
+        await tester.pumpAndSettle();
+        expect(parsed, approved);
+        expect(controller.state.busy, isFalse);
+        expect(controller.state.error, isNull);
+        expect(
+          find.byType(ServerImportFormPage),
+          approved ? findsNothing : findsOneWidget,
+        );
+        if (!approved) {
+          expect(controller.state.panel, SubscriptionPanel.remnawave);
+          expect(controller.url.text, 'https://example.test/subscription');
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets(
     'mode edit saves locally and reports refresh plus incompatible selection',
     (tester) async {
@@ -949,7 +1029,7 @@ void main() {
           submitted = input;
           return SubscriptionUpdateResult.success;
         },
-        insertSubscription: (_) async {
+        insertSubscription: (_, {confirmOrdinary}) async {
           downloads++;
           throw StateError('Editing must not import or download');
         },

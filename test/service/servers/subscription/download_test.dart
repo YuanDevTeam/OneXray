@@ -184,7 +184,7 @@ void main() {
         expect(cleared.userAgent, 'Unsupported/1.0');
         expect(cleared.userInfoUpdatedAt, isNull);
         final failed = await service.refreshSubscriptionResult(cleared);
-        expect(failed.status, SubscriptionUpdateResult.invalidContent);
+        expect(failed.status, SubscriptionUpdateResult.remnawaveFormatMismatch);
         expect(await database.subscriptionDao.searchRow(source.id), cleared);
         expect(await database.select(database.coreConfig).get(), before);
         expect(requests, hasLength(3));

@@ -8,7 +8,8 @@
 添加和刷新共用 HTTPS 下载、可选 Age 解密、文本分类、libXray 校验及事务入库。
 只有当前使用方式有可用条目才创建或替换；网络、HWID、解密、校验、零可用或写库失败均保留旧缓存、
 套餐、更新时间及输入草稿。报告本轮当前方式实际导入数，不把两类缓存相加，不比较节点 hash 或匹配提供方稳定 ID。
-普通节点和完整配置订阅添加、刷新直接提交；含手工 Raw/Custom/Geodata 的混合导入保留预览确认。
+普通节点和完整配置订阅添加、刷新直接提交；Remnawave 非 JSON 响应先确认是否转为普通订阅，
+含手工 Raw/Custom/Geodata 的混合导入保留预览确认。
 
 名称、HTTPS URL、Age 成对输入由服务检查；重复 URL 在写入事务中拒绝，下载前快速检查不替代提交复核。
 每个来源可选填 `userAgent`，仅覆盖该订阅本次下载的 `User-Agent` 请求头，自定义值优先。
@@ -25,11 +26,16 @@
 
 来源保存 `panel=generic|remnawave` 和 `mode=appManaged|providerManaged`，分别表示面板标记与活动缓存类型。
 旧来源和旧备份缺字段时默认为 `generic/appManaged`。面板标记不替代格式识别；所有来源都先检查解密后的完整 Xray JSON。
-Remnawave 标记要求完整 Xray 配置；仅使用用户输入的 HTTPS URL，不追加 `/json`，
-不通过 Accept 假定响应格式或替用户开启 HWID。
+Remnawave 在 Age 解密后先判断是否为 JSON：有效 JSON 统一进入完整配置解析，即使只有 `outbounds`；
+JSON 结构或 libXray 校验失败直接报错，不再尝试普通节点解析。
+非 JSON 响应由前台操作提示是否转为普通订阅；用户同意后将同一次响应的明文交给 libXray 节点解析，不重新下载。
+解析成功才在保存节点的同一事务中将 `panel/mode` 改为 `generic/appManaged`，保留来源 ID、URL、UA、Age 和 HWID。
+取消、普通解析失败或后台无交互上下文时保持来源与缓存原样；确认期间的来源编辑或删除仍使旧更新失效。
+仅使用用户输入的 HTTPS URL，不追加 `/json`，不通过 Accept 假定响应格式或替用户开启 HWID。
 
 新来源的“根据订阅格式”是尚未决定的输入状态：普通节点默认 App 管理，完整 JSON 默认提供方模式；
-成功导入后保存明确的两种 mode，已有来源刷新保持原 mode。用户也可在添加时明确选择。
+成功导入后保存明确的两种 mode，已有来源刷新保持原 mode；确认从 Remnawave 转为普通订阅时改为 App 管理。
+用户也可在添加时明确选择。
 一次完整响应同时保存完整配置与可独立表示的普通 outbound 派生缓存；含 `dialerProxy/proxySettings` 依赖的代理
 不会删掉引用后伪装成独立节点，系统辅助出站不作为普通节点。
 
@@ -45,7 +51,7 @@ App 的 Smart/Custom、智能选路和 LAN 共享偏好保留，切回 App 管�
 解密后的单对象或非空数组都可作为完整配置候选，数组每项独立保存为 `CoreConfigType.Remnawave`，关联同一来源。
 完整对象先应用 App 入口与系统出站适配，再交给 libXray 校验；数组中的非对象元素或任一校验失败使整次导入失败。
 不转换 Sing-box 配置；空数组按无配置处理。
-仅含 `outbounds` 的普通 JSON 继续旧节点解析路径；有其它根字段的完整候选校验失败不降级为普通节点。
+Generic 来源仅含 `outbounds` 的普通 JSON 继续旧节点解析路径；有其它根字段的完整候选校验失败不降级为普通节点。
 协议、算法等内核语义交给 libXray，不在 App 维护第二套 Core schema。
 
 完整对象不经过普通分享字段投影；outbounds 顺序/tag、链路、routing、DNS、balancers、observatory、mux 及未知扩展字段

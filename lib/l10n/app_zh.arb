@@ -888,5 +888,8 @@
   "subscriptionModeNoCacheTitle": "此方式没有缓存配置",
   "subscriptionUserAgentTitle": "User-Agent（可选）",
   "subscriptionUserAgentHint": "留空使用默认值",
-  "subscriptionUserAgentInvalid": "User-Agent 仅支持单行 ASCII 文本。"
+  "subscriptionUserAgentInvalid": "User-Agent 仅支持单行 ASCII 文本。",
+  "subscriptionRemnawaveFormatTitle": "Remnawave 未返回 JSON",
+  "subscriptionConvertToOrdinaryMessage": "是否将“{name}”转为普通订阅，由 OneXray 管理节点？",
+  "subscriptionConvertToOrdinary": "转为普通订阅"
 }

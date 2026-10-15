@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/main/navigation.dart';
+import 'package:onexray/pages/servers/subscription/format_confirmation.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/connection_action.dart';
 import 'package:onexray/service/connect/coordinator.dart';
@@ -37,7 +38,9 @@ Future<void> handleMobileQuickAction(
         }
       case ShortCutAction.updateSubscriptions:
         context.goPrimaryRoot(AppPrimaryDestination.servers);
-        final results = await SubscriptionService().refreshAll();
+        final results = await SubscriptionService().refreshAll(
+          confirmOrdinary: (name) => confirmOrdinarySubscription(context, name),
+        );
         if (context.mounted) {
           final message = subscriptionRefreshMessage(
             AppLocalizations.of(context)!,
@@ -93,4 +96,13 @@ Future<void> applyTrayConfiguration(
     validateAssets: validate,
     rethrowErrors: true,
   );
+}
+
+Future<bool> confirmTraySubscriptionFormat(
+  BuildContext context,
+  String name,
+) async {
+  await AppStartupService().showMainWindow();
+  if (!context.mounted) return false;
+  return confirmOrdinarySubscription(context, name);
 }

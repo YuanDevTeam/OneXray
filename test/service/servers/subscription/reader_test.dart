@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
@@ -53,6 +54,107 @@ Map<String, dynamic> _saved(CoreConfigCompanion row) =>
         as Map<String, dynamic>;
 
 void main() {
+  const remnawave = SubscriptionInput(
+    name: 'Provider',
+    url: 'https://example.com/sub',
+    panel: SubscriptionPanel.remnawave,
+    mode: SubscriptionMode.providerManaged,
+  );
+
+  test(
+    'Remnawave JSON uses complete parsing even with only outbounds',
+    () async {
+      final source = {'outbounds': _config('Minimal')['outbounds']};
+      final result = await _reader().read(
+        jsonEncode(source),
+        remnawave,
+        confirmOrdinary: (_) async =>
+            throw StateError('JSON must not offer conversion'),
+      );
+      expect(result.mode, SubscriptionMode.providerManaged);
+      expect(result.convertedToOrdinary, isFalse);
+      expect(_saved(result.rows.first), source);
+    },
+  );
+
+  test(
+    'Remnawave JSON validation failures do not offer ordinary conversion',
+    () async {
+      for (final source in [
+        '[]',
+        '[1]',
+        'null',
+        '"plain text"',
+        jsonEncode(_config('Invalid')),
+      ]) {
+        await expectLater(
+          _reader(validate: (_) async => 'Core validation failed').read(
+            source,
+            remnawave,
+            confirmOrdinary: (_) async =>
+                throw StateError('JSON must not offer conversion'),
+          ),
+          throwsFormatException,
+        );
+      }
+    },
+  );
+
+  test(
+    'non-JSON Remnawave plaintext waits for consent before ordinary parsing',
+    () async {
+      var approved = false;
+      final reader = _reader(
+        decode: (_, {ageSecretKey}) async => 'socks://127.0.0.1:1080#Node',
+        readNodes: (text) async {
+          expect(approved, isTrue);
+          expect(text, 'socks://127.0.0.1:1080#Node');
+          return [
+            CoreConfigCompanion.insert(
+              name: 'Node',
+              type: 'outbound',
+              tags: '',
+              delay: 9000,
+              subId: 0,
+            ),
+          ];
+        },
+      );
+      final result = await reader.read(
+        'encrypted response',
+        remnawave,
+        confirmOrdinary: (name) async {
+          expect(name, 'Provider');
+          approved = true;
+          return true;
+        },
+      );
+      expect(result.mode, SubscriptionMode.appManaged);
+      expect(result.convertedToOrdinary, isTrue);
+      expect(result.count, 1);
+      expect(result.rows.single.type.value, CoreConfigType.outbound.name);
+    },
+  );
+
+  test(
+    'declined or unavailable consent never reaches the ordinary parser',
+    () async {
+      final reader = _reader();
+      await expectLater(
+        reader.read('vless://node', remnawave),
+        throwsA(isA<RemnawaveResponseFormatException>()),
+      );
+      await expectLater(
+        reader.read(
+          'vless://node',
+          remnawave,
+          confirmOrdinary: (_) async => false,
+        ),
+        throwsA(predicate(failureCancelled)),
+      );
+    },
+  );
+
   test('native validation uses tunnel adaptation while stored provider JSON stays original', () async {
     final source = _config('Ingress');
     source['inbounds'] = [

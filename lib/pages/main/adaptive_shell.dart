@@ -67,6 +67,8 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
       if (!mounted) return;
       TrayService().onConfigurationChange = (values, label, validate) =>
           applyTrayConfiguration(context, values, label, validate);
+      TrayService().onSubscriptionFormatConfirmation = (name) =>
+          confirmTraySubscriptionFormat(context, name);
       ShortCutService().attach(
         (action) => handleMobileQuickAction(context, action),
       );
@@ -78,6 +80,7 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   void dispose() {
     ShortCutService().detach();
     TrayService().onConfigurationChange = null;
+    TrayService().onSubscriptionFormatConfirmation = null;
     super.dispose();
   }
 

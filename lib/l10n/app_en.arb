@@ -3061,5 +3061,13 @@
   "subscriptionModeNoCacheTitle": "No cached configurations for this mode",
   "subscriptionUserAgentTitle": "User-Agent (optional)",
   "subscriptionUserAgentHint": "Leave blank to use the default",
-  "subscriptionUserAgentInvalid": "Use a single line of ASCII text for User-Agent."
+  "subscriptionUserAgentInvalid": "Use a single line of ASCII text for User-Agent.",
+  "subscriptionRemnawaveFormatTitle": "Remnawave did not return JSON",
+  "subscriptionConvertToOrdinaryMessage": "Switch “{name}” to a regular subscription managed by OneXray?",
+  "subscriptionConvertToOrdinary": "Convert to regular subscription",
+  "@subscriptionConvertToOrdinaryMessage": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  }
 }

@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
+import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
@@ -18,6 +19,7 @@ import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/shared/share/params.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/shared/alert.dart';
+import 'package:onexray/pages/servers/subscription/format_confirmation.dart';
 import 'package:onexray/pages/servers/menus.dart';
 import 'package:onexray/pages/servers/raw_copy_dialog.dart';
 import 'package:onexray/pages/servers/sources.dart';
@@ -713,8 +715,17 @@ class ServersController extends PageCubit<ServersPageState>
         await perform(context, () async {
           final result = await SubscriptionService().refreshSubscriptionResult(
             source,
+            confirmOrdinary: (name) async {
+              if (!isPageActive) return false;
+              final confirmed = await confirmOrdinarySubscription(
+                context,
+                name,
+              );
+              return isPageActive && confirmed;
+            },
           );
           if (!context.mounted) return;
+          if (failureCancelled(result.error)) return;
           if (result.superseded) return;
           final l = AppLocalizations.of(context)!;
           if (result.success) {

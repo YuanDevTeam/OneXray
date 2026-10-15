@@ -1,5 +1,17 @@
 import 'package:onexray/core/db/database/enum.dart';
 
+typedef SubscriptionFormatConfirmation = Future<bool> Function(String name);
+
+typedef SubscriptionInsertOperation = Future<SubscriptionInsertResult> Function(
+  SubscriptionInput input, {
+  SubscriptionFormatConfirmation? confirmOrdinary,
+});
+
+final class RemnawaveResponseFormatException extends FormatException {
+  const RemnawaveResponseFormatException()
+    : super('Remnawave did not return JSON');
+}
+
 final class SubscriptionInput {
   const SubscriptionInput({
     required this.name,
@@ -151,6 +163,7 @@ enum SubscriptionUpdateResult {
   hwidRequired,
   hwidLimitReached,
   hwidRejected,
+  remnawaveFormatMismatch,
   invalidContent,
   invalidAgeSecretKey,
   missingAgeSecretKey,

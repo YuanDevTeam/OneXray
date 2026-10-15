@@ -32,6 +32,7 @@ final class SubscriptionLoadResult {
     this.error,
     this.userInfo,
     this.mode = SubscriptionMode.appManaged,
+    this.convertedToOrdinary = false,
   });
 
   final SubscriptionUpdateResult status;
@@ -39,6 +40,7 @@ final class SubscriptionLoadResult {
   final Object? error;
   final SubscriptionUserInfo? userInfo;
   final SubscriptionMode mode;
+  final bool convertedToOrdinary;
 
   int get count => rows
       .where(
@@ -177,13 +179,20 @@ class SubscriptionService {
   }
 
   Future<SubscriptionInsertResult> insertSubscription(
-    SubscriptionInput input,
-  ) => _downloads.track(() => _insertAndProbeSubscription(input));
+    SubscriptionInput input, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) => _downloads.track(
+    () => _insertAndProbeSubscription(input, confirmOrdinary: confirmOrdinary),
+  );
 
   Future<SubscriptionInsertResult> _insertAndProbeSubscription(
-    SubscriptionInput input,
-  ) async {
-    final result = await _insertSubscription(input);
+    SubscriptionInput input, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) async {
+    final result = await _insertSubscription(
+      input,
+      confirmOrdinary: confirmOrdinary,
+    );
 
     if (result.success &&
         (await _database.subscriptionDao.searchRow(result.subId))?.mode ==
@@ -195,8 +204,9 @@ class SubscriptionService {
   }
 
   Future<SubscriptionInsertResult> _insertSubscription(
-    SubscriptionInput input,
-  ) async {
+    SubscriptionInput input, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) async {
     final problem = SubscriptionValidator.validate(input);
     if (problem != null) return SubscriptionInsertResult(status: problem);
     try {
@@ -208,9 +218,11 @@ class SubscriptionService {
       if (input.hwidEnabled && input.hwid == null) {
         input = input.withHwid(createHwid());
       }
-      final loaded = await _loadRows(input);
+      final loaded = await _loadRows(input, confirmOrdinary: confirmOrdinary);
       if (!loaded.hasUsableRows ||
-          (input.mode != null && input.mode != loaded.mode)) {
+          (!loaded.convertedToOrdinary &&
+              input.mode != null &&
+              input.mode != loaded.mode)) {
         return SubscriptionInsertResult(
           error: loaded.error,
           status: loaded.status == SubscriptionUpdateResult.success
@@ -231,7 +243,11 @@ class SubscriptionService {
           name: input.name,
           url: input.url,
           userAgent: Value(input.normalizedUserAgent),
-          panel: Value(input.panel.name),
+          panel: Value(
+            loaded.convertedToOrdinary
+                ? SubscriptionPanel.generic.name
+                : input.panel.name,
+          ),
           mode: Value(loaded.mode.name),
           ageSecretKey: Value(input.normalizedAgeSecretKey),
           agePublicKey: Value(input.normalizedAgePublicKey),
@@ -393,34 +409,45 @@ class SubscriptionService {
 
   /// Explicit refresh, independent of the automatic-update interval. Keep the
   /// whole batch visible to loading/clear-data without waiting for probes.
-  Future<Map<SubscriptionData, SubscriptionRefreshResult>> refreshAll() =>
-      _refreshAll ??= _downloads
-          .track(
-            () => AppEventBus.instance.trackDownload(() async {
-              final results = <SubscriptionData, SubscriptionRefreshResult>{};
-              for (final source in await _database.subscriptionDao.allRows) {
-                if (_downloads.isPaused) {
-                  throw const AppFailure(FailureCategory.conflict, 'cancelled');
-                }
-                results[source] = await refreshSubscriptionResult(source);
-              }
-              if (_downloads.isPaused) {
-                throw const AppFailure(FailureCategory.conflict, 'cancelled');
-              }
-              return results;
-            }),
-          )
-          .whenComplete(() => _refreshAll = null);
+  Future<Map<SubscriptionData, SubscriptionRefreshResult>> refreshAll({
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) => _refreshAll ??= _downloads
+      .track(
+        () => AppEventBus.instance.trackDownload(() async {
+          final results = <SubscriptionData, SubscriptionRefreshResult>{};
+          for (final source in await _database.subscriptionDao.allRows) {
+            if (_downloads.isPaused) {
+              throw const AppFailure(FailureCategory.conflict, 'cancelled');
+            }
+            results[source] = await refreshSubscriptionResult(
+              source,
+              confirmOrdinary: confirmOrdinary,
+            );
+          }
+          if (_downloads.isPaused) {
+            throw const AppFailure(FailureCategory.conflict, 'cancelled');
+          }
+          return results;
+        }),
+      )
+      .whenComplete(() => _refreshAll = null);
 
   /// Prefer this result for reporting: an obsolete request is not a zero-node
   /// success, and unavailable parse statistics remain null.
   Future<SubscriptionRefreshResult> refreshSubscriptionResult(
-    SubscriptionData subscription,
-  ) => _downloads.track(() => _refreshSubscriptionResult(subscription));
+    SubscriptionData subscription, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) => _downloads.track(
+    () => _refreshSubscriptionResult(
+      subscription,
+      confirmOrdinary: confirmOrdinary,
+    ),
+  );
 
   Future<SubscriptionRefreshResult> _refreshSubscriptionResult(
-    SubscriptionData subscription,
-  ) {
+    SubscriptionData subscription, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) {
     final pending = _refreshes[subscription.id];
     if (pending != null) {
       return pending;
@@ -436,20 +463,26 @@ class SubscriptionService {
     }
     final generation = _beginUpdate(subscription.id);
     late final Future<SubscriptionRefreshResult> task;
-    task = _refreshSubscription(subscription.id, generation).whenComplete(() {
-      if (identical(_refreshes[subscription.id], task)) {
-        _refreshes.remove(subscription.id);
-      }
-      _finishUpdate(subscription.id, generation);
-    });
+    task =
+        _refreshSubscription(
+          subscription.id,
+          generation,
+          confirmOrdinary: confirmOrdinary,
+        ).whenComplete(() {
+          if (identical(_refreshes[subscription.id], task)) {
+            _refreshes.remove(subscription.id);
+          }
+          _finishUpdate(subscription.id, generation);
+        });
     _refreshes[subscription.id] = task;
     return task;
   }
 
   Future<SubscriptionRefreshResult> _refreshSubscription(
     int id,
-    int generation,
-  ) async {
+    int generation, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) async {
     try {
       final subscription = await _database.subscriptionDao.searchRow(id);
       _ensureCurrent(id, generation);
@@ -474,9 +507,12 @@ class SubscriptionService {
               SubscriptionMode.fromString(subscription.mode) ??
               (throw const FormatException('Unsupported subscription mode')),
         ),
+        confirmOrdinary: confirmOrdinary,
       );
       _ensureCurrent(id, generation);
-      if (!loaded.hasUsableRows || loaded.mode.name != subscription.mode) {
+      if (!loaded.hasUsableRows ||
+          (!loaded.convertedToOrdinary &&
+              loaded.mode.name != subscription.mode)) {
         return SubscriptionRefreshResult(
           error: loaded.error,
           status: loaded.status == SubscriptionUpdateResult.success
@@ -538,6 +574,10 @@ class SubscriptionService {
         current.id,
       );
       final updated = current.copyWith(
+        panel: loaded.convertedToOrdinary
+            ? SubscriptionPanel.generic.name
+            : current.panel,
+        mode: loaded.mode.name,
         timestamp: DateTime.now(),
         uploadBytes: Value(loaded.userInfo?.uploadBytes),
         downloadBytes: Value(loaded.userInfo?.downloadBytes),
@@ -576,12 +616,17 @@ class SubscriptionService {
       current.hwidEnabled == expected.hwidEnabled &&
       current.hwid == expected.hwid;
 
-  Future<SubscriptionLoadResult> _loadRows(SubscriptionInput input) =>
-      AppEventBus.instance.trackDownload(() => _readSubscription(input));
+  Future<SubscriptionLoadResult> _loadRows(
+    SubscriptionInput input, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) => AppEventBus.instance.trackDownload(
+    () => _readSubscription(input, confirmOrdinary: confirmOrdinary),
+  );
 
   Future<SubscriptionLoadResult> _readSubscription(
-    SubscriptionInput input,
-  ) async {
+    SubscriptionInput input, {
+    SubscriptionFormatConfirmation? confirmOrdinary,
+  }) async {
     if (input.hasIncompleteAgeKeyPair) {
       return const SubscriptionLoadResult(
         status: SubscriptionUpdateResult.invalidAgeSecretKey,
@@ -624,14 +669,23 @@ class SubscriptionService {
       );
     }
     try {
-      final result = await SubscriptionConfigurationReader().read(text, input);
+      final result = await SubscriptionConfigurationReader().read(
+        text,
+        input,
+        confirmOrdinary: confirmOrdinary,
+      );
       return SubscriptionLoadResult(
         status: result.count == 0
             ? SubscriptionUpdateResult.invalidContent
             : SubscriptionUpdateResult.success,
         rows: result.rows,
         mode: result.mode,
+        convertedToOrdinary: result.convertedToOrdinary,
         userInfo: userInfo,
+      );
+    } on RemnawaveResponseFormatException {
+      return const SubscriptionLoadResult(
+        status: SubscriptionUpdateResult.remnawaveFormatMismatch,
       );
     } on LibXrayInvokeException catch (error) {
       return SubscriptionLoadResult(
@@ -639,7 +693,11 @@ class SubscriptionService {
         error: error,
       );
     } catch (error, stackTrace) {
-      ygLogger('parse subscription failed (${error.runtimeType})\n$stackTrace');
+      if (!failureCancelled(error)) {
+        ygLogger(
+          'parse subscription failed (${error.runtimeType})\n$stackTrace',
+        );
+      }
       return SubscriptionLoadResult(
         status: SubscriptionUpdateResult.invalidContent,
         error: error,
