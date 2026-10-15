@@ -35,12 +35,14 @@ final class OneXraySubscriptionLink extends OneXrayAppLink {
     required super.name,
     required this.url,
     this.ageKeyType,
+    this.userAgent,
     this.panel = SubscriptionPanel.generic,
     this.mode,
   });
 
   final String url;
   final AgeKeyType? ageKeyType;
+  final String? userAgent;
   final SubscriptionPanel panel;
   final SubscriptionMode? mode;
 }

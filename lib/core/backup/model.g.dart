@@ -65,6 +65,7 @@ BackupSubscription _$BackupSubscriptionFromJson(Map<String, dynamic> json) =>
       json['agePublicKey'] as String?,
       json['hwidEnabled'] as bool,
       json['hwid'] as String?,
+      userAgent: json['userAgent'] as String?,
       panel: json['panel'] as String? ?? 'generic',
       mode: json['mode'] as String? ?? 'appManaged',
     );
@@ -73,6 +74,7 @@ Map<String, dynamic> _$BackupSubscriptionToJson(BackupSubscription instance) =>
     <String, dynamic>{
       'name': instance.name,
       'url': instance.url,
+      'userAgent': instance.userAgent,
       'ageSecretKey': instance.ageSecretKey,
       'agePublicKey': instance.agePublicKey,
       'hwidEnabled': instance.hwidEnabled,

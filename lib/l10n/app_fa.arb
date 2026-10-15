@@ -885,5 +885,8 @@
   "subscriptionModeDescription": "گره‌های برنامه از تنظیمات مسیریابی محلی استفاده می‌کنند. حالت ارائه‌دهنده یک پیکربندی کامل را اجرا می‌کند. تغییر حالت از حافظهٔ محلی استفاده می‌کند و دانلود یا اتصال مجدد انجام نمی‌دهد.",
   "subscriptionModeNeedsRefresh": "برای این حالت پیکربندی ذخیره‌شده‌ای وجود ندارد؛ اشتراک را به‌روزرسانی کنید.",
   "subscriptionModeNeedsReselection": "انتخاب فعلی با این حالت سازگار نیست؛ پیش از اتصال، پیکربندی دیگری انتخاب کنید.",
-  "subscriptionModeNoCacheTitle": "برای این حالت پیکربندی ذخیره‌شده‌ای وجود ندارد"
+  "subscriptionModeNoCacheTitle": "برای این حالت پیکربندی ذخیره‌شده‌ای وجود ندارد",
+  "subscriptionUserAgentTitle": "User-Agent (اختیاری)",
+  "subscriptionUserAgentHint": "خالی برای استفاده از مقدار پیش‌فرض",
+  "subscriptionUserAgentInvalid": "برای User-Agent یک خط متن ASCII وارد کنید."
 }

@@ -885,5 +885,8 @@
   "subscriptionModeDescription": "App 管理的節點使用本機路由偏好；提供方模式執行完整設定。切換方式只使用本機快取，不下載或重新連線。",
   "subscriptionModeNeedsRefresh": "此方式沒有快取設定，請更新訂閱。",
   "subscriptionModeNeedsReselection": "目前選擇與此方式不相容，請在連線前重新選擇設定。",
-  "subscriptionModeNoCacheTitle": "此方式沒有快取設定"
+  "subscriptionModeNoCacheTitle": "此方式沒有快取設定",
+  "subscriptionUserAgentTitle": "User-Agent（選填）",
+  "subscriptionUserAgentHint": "留空使用預設值",
+  "subscriptionUserAgentInvalid": "User-Agent 僅支援單行 ASCII 文字。"
 }

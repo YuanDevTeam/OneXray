@@ -324,12 +324,14 @@ void main() {
               mode: mode.name,
               hwidEnabled: true,
               hwid: const Value('private-hwid'),
+              userAgent: const Value('Example/test (compatible)'),
             );
             final uri = OneXrayAppLinkGenerator.subscription(row)!;
             final link =
                 OneXrayAppLinkParser.parse(uri)! as OneXraySubscriptionLink;
             expect(link.panel, panel);
             expect(link.mode, mode);
+            expect(link.userAgent, 'Example/test (compatible)');
             expect(uri.toString(), isNot(contains('private-hwid')));
           }
         }
@@ -345,6 +347,7 @@ void main() {
       expect(link.url, 'https://example.com/sub');
       expect(link.name, 'Provider');
       expect(link.ageKeyType, isNull);
+      expect(link.userAgent, isNull);
     });
 
     test('exports only the X25519 age type', () {

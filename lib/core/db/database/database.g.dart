@@ -522,6 +522,17 @@ class $SubscriptionTable extends Subscription
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _userAgentMeta = const VerificationMeta(
+    'userAgent',
+  );
+  @override
+  late final GeneratedColumn<String> userAgent = GeneratedColumn<String>(
+    'user_agent',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _panelMeta = const VerificationMeta('panel');
   @override
   late final GeneratedColumn<String> panel = GeneratedColumn<String>(
@@ -660,6 +671,7 @@ class $SubscriptionTable extends Subscription
     id,
     name,
     url,
+    userAgent,
     panel,
     mode,
     ageSecretKey,
@@ -703,6 +715,12 @@ class $SubscriptionTable extends Subscription
       );
     } else if (isInserting) {
       context.missing(_urlMeta);
+    }
+    if (data.containsKey('user_agent')) {
+      context.handle(
+        _userAgentMeta,
+        userAgent.isAcceptableOrUnknown(data['user_agent']!, _userAgentMeta),
+      );
     }
     if (data.containsKey('panel')) {
       context.handle(
@@ -820,6 +838,10 @@ class $SubscriptionTable extends Subscription
         DriftSqlType.string,
         data['${effectivePrefix}url'],
       )!,
+      userAgent: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_agent'],
+      ),
       panel: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}panel'],
@@ -882,6 +904,7 @@ class SubscriptionData extends DataClass
   final int id;
   final String name;
   final String url;
+  final String? userAgent;
   final String panel;
   final String mode;
   final String? ageSecretKey;
@@ -898,6 +921,7 @@ class SubscriptionData extends DataClass
     required this.id,
     required this.name,
     required this.url,
+    this.userAgent,
     required this.panel,
     required this.mode,
     this.ageSecretKey,
@@ -917,6 +941,9 @@ class SubscriptionData extends DataClass
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
     map['url'] = Variable<String>(url);
+    if (!nullToAbsent || userAgent != null) {
+      map['user_agent'] = Variable<String>(userAgent);
+    }
     map['panel'] = Variable<String>(panel);
     map['mode'] = Variable<String>(mode);
     if (!nullToAbsent || ageSecretKey != null) {
@@ -953,6 +980,9 @@ class SubscriptionData extends DataClass
       id: Value(id),
       name: Value(name),
       url: Value(url),
+      userAgent: userAgent == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userAgent),
       panel: Value(panel),
       mode: Value(mode),
       ageSecretKey: ageSecretKey == null && nullToAbsent
@@ -991,6 +1021,7 @@ class SubscriptionData extends DataClass
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       url: serializer.fromJson<String>(json['url']),
+      userAgent: serializer.fromJson<String?>(json['userAgent']),
       panel: serializer.fromJson<String>(json['panel']),
       mode: serializer.fromJson<String>(json['mode']),
       ageSecretKey: serializer.fromJson<String?>(json['ageSecretKey']),
@@ -1014,6 +1045,7 @@ class SubscriptionData extends DataClass
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
       'url': serializer.toJson<String>(url),
+      'userAgent': serializer.toJson<String?>(userAgent),
       'panel': serializer.toJson<String>(panel),
       'mode': serializer.toJson<String>(mode),
       'ageSecretKey': serializer.toJson<String?>(ageSecretKey),
@@ -1033,6 +1065,7 @@ class SubscriptionData extends DataClass
     int? id,
     String? name,
     String? url,
+    Value<String?> userAgent = const Value.absent(),
     String? panel,
     String? mode,
     Value<String?> ageSecretKey = const Value.absent(),
@@ -1049,6 +1082,7 @@ class SubscriptionData extends DataClass
     id: id ?? this.id,
     name: name ?? this.name,
     url: url ?? this.url,
+    userAgent: userAgent.present ? userAgent.value : this.userAgent,
     panel: panel ?? this.panel,
     mode: mode ?? this.mode,
     ageSecretKey: ageSecretKey.present ? ageSecretKey.value : this.ageSecretKey,
@@ -1073,6 +1107,7 @@ class SubscriptionData extends DataClass
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       url: data.url.present ? data.url.value : this.url,
+      userAgent: data.userAgent.present ? data.userAgent.value : this.userAgent,
       panel: data.panel.present ? data.panel.value : this.panel,
       mode: data.mode.present ? data.mode.value : this.mode,
       ageSecretKey: data.ageSecretKey.present
@@ -1110,6 +1145,7 @@ class SubscriptionData extends DataClass
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('url: $url, ')
+          ..write('userAgent: $userAgent, ')
           ..write('panel: $panel, ')
           ..write('mode: $mode, ')
           ..write('ageSecretKey: $ageSecretKey, ')
@@ -1131,6 +1167,7 @@ class SubscriptionData extends DataClass
     id,
     name,
     url,
+    userAgent,
     panel,
     mode,
     ageSecretKey,
@@ -1151,6 +1188,7 @@ class SubscriptionData extends DataClass
           other.id == this.id &&
           other.name == this.name &&
           other.url == this.url &&
+          other.userAgent == this.userAgent &&
           other.panel == this.panel &&
           other.mode == this.mode &&
           other.ageSecretKey == this.ageSecretKey &&
@@ -1169,6 +1207,7 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
   final Value<int> id;
   final Value<String> name;
   final Value<String> url;
+  final Value<String?> userAgent;
   final Value<String> panel;
   final Value<String> mode;
   final Value<String?> ageSecretKey;
@@ -1185,6 +1224,7 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.url = const Value.absent(),
+    this.userAgent = const Value.absent(),
     this.panel = const Value.absent(),
     this.mode = const Value.absent(),
     this.ageSecretKey = const Value.absent(),
@@ -1202,6 +1242,7 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
     this.id = const Value.absent(),
     required String name,
     required String url,
+    this.userAgent = const Value.absent(),
     this.panel = const Value.absent(),
     this.mode = const Value.absent(),
     this.ageSecretKey = const Value.absent(),
@@ -1221,6 +1262,7 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
     Expression<int>? id,
     Expression<String>? name,
     Expression<String>? url,
+    Expression<String>? userAgent,
     Expression<String>? panel,
     Expression<String>? mode,
     Expression<String>? ageSecretKey,
@@ -1238,6 +1280,7 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (url != null) 'url': url,
+      if (userAgent != null) 'user_agent': userAgent,
       if (panel != null) 'panel': panel,
       if (mode != null) 'mode': mode,
       if (ageSecretKey != null) 'age_secret_key': ageSecretKey,
@@ -1257,6 +1300,7 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
     Value<int>? id,
     Value<String>? name,
     Value<String>? url,
+    Value<String?>? userAgent,
     Value<String>? panel,
     Value<String>? mode,
     Value<String?>? ageSecretKey,
@@ -1274,6 +1318,7 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
       id: id ?? this.id,
       name: name ?? this.name,
       url: url ?? this.url,
+      userAgent: userAgent ?? this.userAgent,
       panel: panel ?? this.panel,
       mode: mode ?? this.mode,
       ageSecretKey: ageSecretKey ?? this.ageSecretKey,
@@ -1300,6 +1345,9 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
     }
     if (url.present) {
       map['url'] = Variable<String>(url.value);
+    }
+    if (userAgent.present) {
+      map['user_agent'] = Variable<String>(userAgent.value);
     }
     if (panel.present) {
       map['panel'] = Variable<String>(panel.value);
@@ -1346,6 +1394,7 @@ class SubscriptionCompanion extends UpdateCompanion<SubscriptionData> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('url: $url, ')
+          ..write('userAgent: $userAgent, ')
           ..write('panel: $panel, ')
           ..write('mode: $mode, ')
           ..write('ageSecretKey: $ageSecretKey, ')
@@ -2668,6 +2717,7 @@ typedef $$SubscriptionTableCreateCompanionBuilder =
       Value<int> id,
       required String name,
       required String url,
+      Value<String?> userAgent,
       Value<String> panel,
       Value<String> mode,
       Value<String?> ageSecretKey,
@@ -2686,6 +2736,7 @@ typedef $$SubscriptionTableUpdateCompanionBuilder =
       Value<int> id,
       Value<String> name,
       Value<String> url,
+      Value<String?> userAgent,
       Value<String> panel,
       Value<String> mode,
       Value<String?> ageSecretKey,
@@ -2721,6 +2772,11 @@ class $$SubscriptionTableFilterComposer
 
   ColumnFilters<String> get url => $composableBuilder(
     column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userAgent => $composableBuilder(
+    column: $table.userAgent,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2809,6 +2865,11 @@ class $$SubscriptionTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get userAgent => $composableBuilder(
+    column: $table.userAgent,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get panel => $composableBuilder(
     column: $table.panel,
     builder: (column) => ColumnOrderings(column),
@@ -2887,6 +2948,9 @@ class $$SubscriptionTableAnnotationComposer
 
   GeneratedColumn<String> get url =>
       $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<String> get userAgent =>
+      $composableBuilder(column: $table.userAgent, builder: (column) => column);
 
   GeneratedColumn<String> get panel =>
       $composableBuilder(column: $table.panel, builder: (column) => column);
@@ -2975,6 +3039,7 @@ class $$SubscriptionTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<String> url = const Value.absent(),
+                Value<String?> userAgent = const Value.absent(),
                 Value<String> panel = const Value.absent(),
                 Value<String> mode = const Value.absent(),
                 Value<String?> ageSecretKey = const Value.absent(),
@@ -2991,6 +3056,7 @@ class $$SubscriptionTableTableManager
                 id: id,
                 name: name,
                 url: url,
+                userAgent: userAgent,
                 panel: panel,
                 mode: mode,
                 ageSecretKey: ageSecretKey,
@@ -3009,6 +3075,7 @@ class $$SubscriptionTableTableManager
                 Value<int> id = const Value.absent(),
                 required String name,
                 required String url,
+                Value<String?> userAgent = const Value.absent(),
                 Value<String> panel = const Value.absent(),
                 Value<String> mode = const Value.absent(),
                 Value<String?> ageSecretKey = const Value.absent(),
@@ -3025,6 +3092,7 @@ class $$SubscriptionTableTableManager
                 id: id,
                 name: name,
                 url: url,
+                userAgent: userAgent,
                 panel: panel,
                 mode: mode,
                 ageSecretKey: ageSecretKey,

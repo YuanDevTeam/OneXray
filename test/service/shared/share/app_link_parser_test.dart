@@ -131,6 +131,9 @@ void main() {
           'panel=generic&panel=remnawave',
           'mode=appManaged&mode=providerManaged',
           'age=x25519&age=hybrid',
+          'userAgent=Example%2Ftest&userAgent=Another%2Ftest',
+          'userAgent=',
+          'userAgent=Example%0D%0AX-Test%3Avalue',
         ]) {
           expect(
             OneXrayAppLinkParser.parse(Uri.parse('$base&$query')),

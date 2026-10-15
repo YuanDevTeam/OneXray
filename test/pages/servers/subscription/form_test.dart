@@ -45,6 +45,7 @@ void main() {
         nameController: name,
         urlLabel: 'URL',
         urlController: url,
+        userAgentController: controller.userAgent,
         urlHint: 'https://provider.example/subscription',
         urlHelper: 'HTTPS only',
         panel: state.panel,
@@ -116,7 +117,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('HTTPS only'), findsOneWidget);
-    expect(find.byType(ShadInput), findsNWidgets(4));
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is ShadInput && widget.controller == secret,
+      ),
+      findsOneWidget,
+    );
     expect(
       find.ancestor(
         of: find.byType(SubscriptionFormView),
@@ -167,7 +173,9 @@ void main() {
     for (final input in tester.widgetList<ShadInput>(find.byType(ShadInput))) {
       expect(
         input.enabled,
-        input.controller == name || input.controller == url,
+        input.controller == name ||
+            input.controller == url ||
+            input.controller == controller.userAgent,
       );
     }
     await tester.tap(find.byTooltip('Reveal'));
@@ -178,7 +186,12 @@ void main() {
     await tester.pump();
     expect(secret.text, isEmpty);
     expect(public.text, isEmpty);
-    expect(find.byType(ShadInput), findsNWidgets(4));
+    expect(
+      find.byWidgetPredicate(
+        (widget) => widget is ShadInput && widget.controller == secret,
+      ),
+      findsOneWidget,
+    );
     expect(
       tester
           .widget<TextButton>(find.widgetWithText(TextButton, 'Clear'))
@@ -256,7 +269,12 @@ void main() {
         addTearDown(() => tester.binding.setSurfaceSize(null));
         await tester.pumpWidget(app(form(), locale: locale));
         await tester.pumpAndSettle();
-        expect(find.byType(ShadInput), findsNWidgets(2));
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is ShadInput && widget.controller == secret,
+          ),
+          findsNothing,
+        );
         expect(find.text('Provider support required'), findsOneWidget);
         expect(find.text('Age Secret Key'), findsNothing);
         expect(
@@ -272,10 +290,21 @@ void main() {
         expect(controller.state.hasAgeKeys, isTrue);
         expect(controller.state.ageExpanded, isTrue);
         await tester.pumpAndSettle();
-        expect(find.byType(ShadInput), findsNWidgets(4));
-        for (final controller in [url, secret, public]) {
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is ShadInput && widget.controller == secret,
+          ),
+          findsOneWidget,
+        );
+        for (final fieldController in [
+          url,
+          controller.userAgent,
+          secret,
+          public,
+        ]) {
           final input = find.byWidgetPredicate(
-            (widget) => widget is ShadInput && widget.controller == controller,
+            (widget) =>
+                widget is ShadInput && widget.controller == fieldController,
           );
           final editable = find.descendant(
             of: input,
@@ -289,26 +318,51 @@ void main() {
         await tester.ensureVisible(find.text('Clear'));
         await tester.tap(find.text('Clear'));
         await tester.pumpAndSettle();
-        expect(find.byType(ShadInput), findsNWidgets(4));
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is ShadInput && widget.controller == secret,
+          ),
+          findsOneWidget,
+        );
         await tester.ensureVisible(find.text('Encryption'));
         await tester.tap(find.text('Encryption'));
         await tester.pumpAndSettle();
-        expect(find.byType(ShadInput), findsNWidgets(2));
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is ShadInput && widget.controller == secret,
+          ),
+          findsNothing,
+        );
 
         // Either key can reveal a loaded draft; changing a nonempty key does not
         // override a later manual collapse.
         public.text = 'age1loaded';
         await tester.pumpAndSettle();
-        expect(find.byType(ShadInput), findsNWidgets(4));
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is ShadInput && widget.controller == secret,
+          ),
+          findsOneWidget,
+        );
         await tester.tap(find.text('Encryption'));
         await tester.pumpAndSettle();
         public.text = 'age1changed';
         await tester.pumpAndSettle();
-        expect(find.byType(ShadInput), findsNWidgets(2));
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is ShadInput && widget.controller == secret,
+          ),
+          findsNothing,
+        );
         expect(public.text, 'age1changed');
         await tester.tap(find.text('Encryption'));
         await tester.pumpAndSettle();
-        expect(find.byType(ShadInput), findsNWidgets(4));
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is ShadInput && widget.controller == secret,
+          ),
+          findsOneWidget,
+        );
         expect(tester.takeException(), isNull);
       },
     );

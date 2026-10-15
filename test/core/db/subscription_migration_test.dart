@@ -36,7 +36,7 @@ void main() {
       await database.close();
 
       final upgraded = sqlite.sqlite3.open(file.path);
-      expect(upgraded.userVersion, 7);
+      expect(upgraded.userVersion, 8);
       expect(_snapshotV5(upgraded), before);
       upgraded.close();
 
@@ -129,7 +129,7 @@ void main() {
       );
       await database.close();
       final upgraded = sqlite.sqlite3.open(file.path);
-      expect(upgraded.userVersion, 7);
+      expect(upgraded.userVersion, 8);
       expect(_snapshotV3(upgraded), before);
       upgraded.close();
       final reopened = AppDatabase.forTesting(NativeDatabase(file));
@@ -150,7 +150,7 @@ void main() {
     expect(
       (await database.customSelect('PRAGMA user_version').getSingle())
           .read<int>('user_version'),
-      7,
+      8,
     );
   });
 
@@ -210,7 +210,7 @@ void main() {
             .read<String>('name'),
         'WAL-only name',
       );
-      expect(writer.userVersion, 7);
+      expect(writer.userVersion, 8);
       expect(_snapshot(writer, hasAgeKeys: true), _afterUpgrade(before));
       expect(
         file.parent.listSync().where(
@@ -221,7 +221,7 @@ void main() {
     },
   );
 
-  test('new installation creates schema 7 with empty assets and default connection configuration', () async {
+  test('new installation creates schema 8 with empty assets and default connection configuration', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
 
@@ -258,7 +258,7 @@ void main() {
     expect(
       (await database.customSelect('PRAGMA user_version').getSingle())
           .read<int>('user_version'),
-      7,
+      8,
     );
   });
 
@@ -324,7 +324,7 @@ void main() {
           expect(
             (await reopened.customSelect('PRAGMA user_version').getSingle())
                 .read<int>('user_version'),
-            7,
+            8,
           );
           final subId = await reopened.subscriptionDao.insertRow(
             SubscriptionCompanion.insert(
@@ -426,7 +426,7 @@ void main() {
     await database.close();
 
     final upgraded = sqlite.sqlite3.open(file.path);
-    expect(upgraded.userVersion, 7);
+    expect(upgraded.userVersion, 8);
     expect(_snapshotV3(upgraded), before);
     upgraded.close();
 
@@ -467,7 +467,7 @@ void main() {
     await database.close();
 
     final upgraded = sqlite.sqlite3.open(file.path);
-    expect(upgraded.userVersion, 7);
+    expect(upgraded.userVersion, 8);
     expect(_snapshotV6(upgraded), before);
     upgraded.close();
     final reopened = AppDatabase.forTesting(NativeDatabase(file));
@@ -475,12 +475,41 @@ void main() {
     expect((await reopened.subscriptionDao.allRows).single, source);
   });
 
+  test('schema 7 adds an optional UA and preserves provider assets', () async {
+    final file = await _legacyDatabase(7);
+    final old = sqlite.sqlite3.open(file.path);
+    final before = _snapshotV6(old);
+    old.close();
+    final database = AppDatabase.forTesting(NativeDatabase(file));
+    final source = (await database.subscriptionDao.allRows).single;
+    expect(source.userAgent, isNull);
+    expect(source.panel, 'remnawave');
+    expect(source.mode, 'providerManaged');
+    expect(source.ageSecretKey, 'AGE-SECRET-KEY-TEST');
+    expect(source.hwid, 'keep-hwid');
+    await database.subscriptionDao.updateRow(
+      source.copyWith(userAgent: const Value('v2rayN/test')),
+    );
+    await database.close();
+    final upgraded = sqlite.sqlite3.open(file.path);
+    expect(upgraded.userVersion, 8);
+    expect(_snapshotV6(upgraded), before);
+    upgraded.close();
+    final reopened = AppDatabase.forTesting(NativeDatabase(file));
+    addTearDown(reopened.close);
+    final persisted = (await reopened.subscriptionDao.allRows).single;
+    expect(persisted.userAgent, 'v2rayN/test');
+    expect(persisted.id, source.id);
+    expect(persisted.panel, source.panel);
+    expect(persisted.mode, source.mode);
+  });
+
   test(
-    'development schema is rejected without changing the original database',
+    'a future schema is rejected without changing the original database',
     () async {
       final file = await _legacyDatabase(2);
       final legacy = sqlite.sqlite3.open(file.path);
-      legacy.userVersion = 8;
+      legacy.userVersion = 9;
       legacy.close();
       final before = _snapshotFile(file, hasAgeKeys: true);
       final database = AppDatabase.forTesting(NativeDatabase(file));
@@ -489,7 +518,7 @@ void main() {
       expect(await file.exists(), isTrue);
       final check = sqlite.sqlite3.open(file.path);
       try {
-        expect(check.userVersion, 8);
+        expect(check.userVersion, 9);
         expect(_snapshot(check, hasAgeKeys: true), before);
       } finally {
         check.close();
@@ -618,6 +647,17 @@ Future<File> _legacyDatabase(int version) async {
           user_info_updated_at = 1234;
         UPDATE connection_config SET configuration_json =
           '{"connection":{"selection":{"kind":"region","region":"JP"},"smart":{"directRegions":["CN"]}}}';
+      ''');
+    }
+    if (version >= 7) {
+      database.execute('''
+        ALTER TABLE core_config DROP COLUMN country_code;
+        ALTER TABLE subscription ADD COLUMN panel TEXT NOT NULL DEFAULT 'generic';
+        ALTER TABLE subscription ADD COLUMN mode TEXT NOT NULL DEFAULT 'appManaged';
+        UPDATE subscription SET panel = 'remnawave', mode = 'providerManaged';
+        INSERT INTO core_config
+          (id, name, type, tags, data, delay, sub_id, favorite)
+        VALUES (34, 'Provider profile', 'Remnawave', '', 'eyJkbnMiOnt9fQ==', -1, 7, 0);
       ''');
     }
     database.execute('PRAGMA user_version = $version');

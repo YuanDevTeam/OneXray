@@ -134,6 +134,11 @@ void main() {
     final edits = [
       const SubscriptionInput(
         name: 'Renamed',
+        url: 'https://example.com/sub',
+        userAgent: 'Example/test',
+      ),
+      const SubscriptionInput(
+        name: 'Renamed',
         url: 'https://example.com/other',
       ),
       const SubscriptionInput(

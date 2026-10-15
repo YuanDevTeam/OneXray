@@ -46,6 +46,7 @@ class BackupCoreConfig {
 class BackupSubscription {
   final String name;
   final String url;
+  final String? userAgent;
   final String? ageSecretKey;
   final String? agePublicKey;
   final bool hwidEnabled;
@@ -60,6 +61,7 @@ class BackupSubscription {
     this.agePublicKey,
     this.hwidEnabled,
     this.hwid, {
+    this.userAgent,
     this.panel = 'generic',
     this.mode = 'appManaged',
   });

@@ -153,25 +153,33 @@ void main() {
   );
 
   test(
-    'concurrent subscriptions and unrelated downloads do not share HWID',
+    'concurrent downloads keep subscription UA and HWID overrides scoped',
     () async {
       final received = <String, String?>{};
+      final agents = <String, String?>{};
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(() => server.close(force: true));
       server.listen((request) async {
         received[request.uri.path] = request.headers.value('x-hwid');
+        agents[request.uri.path] = request.headers.value(
+          HttpHeaders.userAgentHeader,
+        );
         request.response.write('subscription');
         await request.response.close();
       });
       await Future.wait([
         NetClient().getText(
           '${_serverUrl(server)}/one',
-          requestHeaders: const DownloadRequestHeaders(hwid: hwid),
+          requestHeaders: const DownloadRequestHeaders(
+            hwid: hwid,
+            userAgent: 'v2rayNG/test',
+          ),
         ),
         NetClient().getText(
           '${_serverUrl(server)}/two',
           requestHeaders: const DownloadRequestHeaders(
             hwid: 'second-subscription',
+            userAgent: 'v2rayN/test',
           ),
         ),
         NetClient().getText('${_serverUrl(server)}/geodata'),
@@ -185,6 +193,12 @@ void main() {
         '/two': 'second-subscription',
         '/geodata': null,
         '/age': null,
+      });
+      expect(agents, {
+        '/one': 'v2rayNG/test',
+        '/two': 'v2rayN/test',
+        '/geodata': NetClient().downloadUserAgent,
+        '/age': NetClient().downloadUserAgent,
       });
     },
   );

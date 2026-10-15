@@ -3058,5 +3058,8 @@
   "subscriptionModeDescription": "App-managed nodes use your local routing preferences. Provider mode runs a complete configuration. Switching mode uses local cache and does not download or reconnect.",
   "subscriptionModeNeedsRefresh": "This mode has no cached configurations; refresh the subscription.",
   "subscriptionModeNeedsReselection": "Your selected configuration is incompatible with this mode; choose another configuration before connecting.",
-  "subscriptionModeNoCacheTitle": "No cached configurations for this mode"
+  "subscriptionModeNoCacheTitle": "No cached configurations for this mode",
+  "subscriptionUserAgentTitle": "User-Agent (optional)",
+  "subscriptionUserAgentHint": "Leave blank to use the default",
+  "subscriptionUserAgentInvalid": "Use a single line of ASCII text for User-Agent."
 }

@@ -121,6 +121,18 @@ class SubscriptionService {
   /// An app-generated identity for one subscription, never a hardware ID.
   static String createHwid() => const Uuid().v4();
 
+  static Future<String?> defaultUserAgent(SubscriptionPanel panel) async {
+    if (panel != SubscriptionPanel.remnawave) return null;
+    final appUserAgent = await NetClient.oneXrayUserAgent();
+    final version =
+        RegExp(r'^OneXray/(\d+\.\d+\.\d+)')
+            .firstMatch(appUserAgent)
+            ?.group(1) ??
+        '0.0.0';
+    // Remnawave's JSON fallback matches this leading product/version only.
+    return 'v2rayN/$version $appUserAgent';
+  }
+
   Future<SubscriptionNodeReferences> _storedReferences() async {
     final value = jsonDecode(
       (await _database.connectionConfigDao.read()).configurationJson,
@@ -218,6 +230,7 @@ class SubscriptionService {
         final row = SubscriptionCompanion.insert(
           name: input.name,
           url: input.url,
+          userAgent: Value(input.normalizedUserAgent),
           panel: Value(input.panel.name),
           mode: Value(loaded.mode.name),
           ageSecretKey: Value(input.normalizedAgeSecretKey),
@@ -279,6 +292,7 @@ class SubscriptionService {
         var next = row.copyWith(
           name: input.name,
           url: input.url,
+          userAgent: Value(input.normalizedUserAgent),
           panel: input.panel.name,
           mode: input.mode?.name ?? row.mode,
           ageSecretKey: Value(input.normalizedAgeSecretKey),
@@ -448,6 +462,7 @@ class SubscriptionService {
         SubscriptionInput(
           name: subscription.name,
           url: subscription.url,
+          userAgent: subscription.userAgent,
           ageSecretKey: subscription.ageSecretKey,
           agePublicKey: subscription.agePublicKey,
           hwidEnabled: subscription.hwidEnabled,
@@ -555,6 +570,7 @@ class SubscriptionService {
     SubscriptionData expected,
   ) =>
       current.url == expected.url &&
+      current.userAgent == expected.userAgent &&
       current.ageSecretKey == expected.ageSecretKey &&
       current.agePublicKey == expected.agePublicKey &&
       current.hwidEnabled == expected.hwidEnabled &&
@@ -584,6 +600,8 @@ class SubscriptionService {
         input.url,
         httpsOnly: true,
         requestHeaders: DownloadRequestHeaders(
+          userAgent:
+              input.normalizedUserAgent ?? await defaultUserAgent(input.panel),
           agePublicKey: ageContext?.publicKey,
           hwid: input.hwidEnabled ? input.hwid : null,
         ),

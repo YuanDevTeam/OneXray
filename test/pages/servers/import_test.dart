@@ -25,12 +25,57 @@ import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/connect/raw/validator.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 void main() {
   setUp(() {
     final bus = AppEventBus();
     addTearDown(bus.close);
   });
+
+  test(
+    'Remnawave selection fills the minimal UA and preserves custom input',
+    () async {
+      PackageInfo.setMockInitialValues(
+        appName: 'OneXray',
+        packageName: 'net.yuandev.onexray',
+        version: '26.10.4',
+        buildNumber: '104',
+        buildSignature: '',
+      );
+      final controller = ServerImportController(
+        loadSubscription: (_) async => null,
+      );
+      addTearDown(controller.close);
+
+      await controller.setPanel(SubscriptionPanel.generic);
+      expect(controller.userAgent.text, isEmpty);
+      await controller.setPanel(SubscriptionPanel.remnawave);
+      expect(
+        controller.userAgent.text,
+        'v2rayN/26.10.4 OneXray/26.10.4 '
+        '(net.yuandev.onexray; build:104; ${Platform.operatingSystem})',
+      );
+      expect(controller.state.userAgent, controller.userAgent.text);
+
+      controller.userAgent.text = 'Custom/1.0';
+      await controller.setPanel(SubscriptionPanel.generic);
+      await controller.setPanel(SubscriptionPanel.remnawave);
+      expect(controller.userAgent.text, 'Custom/1.0');
+
+      controller.userAgent.clear();
+      final pending = controller.setPanel(SubscriptionPanel.remnawave);
+      controller.userAgent.text = 'Typed while loading';
+      await pending;
+      expect(controller.userAgent.text, 'Typed while loading');
+
+      controller.userAgent.clear();
+      final closing = controller.setPanel(SubscriptionPanel.remnawave);
+      await controller.close();
+      await closing;
+    },
+  );
+
   testWidgets('file import keeps loading while subscriptions download', (
     tester,
   ) async {
@@ -610,6 +655,7 @@ void main() {
         id: 7,
         name: 'Provider',
         url: 'https://provider.example/list',
+        userAgent: 'Example/old',
         ageSecretKey: 'secret',
         agePublicKey: 'public',
         hwidEnabled: true,
@@ -661,11 +707,13 @@ void main() {
     );
     expect(controller.secretKey.text, 'secret');
     expect(controller.publicKey.text, 'public');
+    expect(controller.userAgent.text, 'Example/old');
     expect(controller.state.hwidEnabled, isTrue);
     controller.toggleSecret();
     expect(controller.state.obscureSecret, false);
     controller.name.text = 'Renamed';
     controller.url.text = 'https://different.example/list';
+    controller.userAgent.text = 'Example/new';
     expect(controller.state.hwidEnabled, isFalse);
     controller.setHwidEnabled(true);
     await _tapVisible(tester, find.text('Save'));
@@ -687,6 +735,7 @@ void main() {
     expect(savedId, 7);
     expect(saved?.name, 'Renamed');
     expect(saved?.url, 'https://different.example/list');
+    expect(saved?.userAgent, 'Example/new');
     expect(saved?.ageSecretKey, 'secret');
     expect(saved?.agePublicKey, 'public');
     expect(saved?.hwidEnabled, isTrue);
@@ -843,6 +892,7 @@ void main() {
         );
         controller.name.text = 'Provider';
         controller.url.text = 'https://example.test/subscription';
+        controller.userAgent.text = 'Example/test';
         controller.setPanel(SubscriptionPanel.remnawave);
         controller.setMode(mode);
         await tester.pumpWidget(
@@ -870,6 +920,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(submitted!.panel, SubscriptionPanel.remnawave);
         expect(submitted!.mode, mode);
+        expect(submitted!.userAgent, 'Example/test');
         expect(find.byType(ServerImportFormPage), findsNothing);
         expect(tester.takeException(), isNull);
         await controller.close();

@@ -18,6 +18,7 @@ String subscriptionFailureMessage(
     SubscriptionUpdateResult.nameRequired => l.validationNameRequired,
     SubscriptionUpdateResult.urlRequired => l.validationUrlRequired,
     SubscriptionUpdateResult.urlInvalid => l.validationUrlInvalid,
+    SubscriptionUpdateResult.userAgentInvalid => l.subscriptionUserAgentInvalid,
     SubscriptionUpdateResult.duplicateUrl => l.validationUrlDuplicate,
     SubscriptionUpdateResult.incompleteAgeKeys =>
       l.prototypeAgeBothKeysRequired,

@@ -50,15 +50,15 @@ class NetClient {
   }
 
   Future<void> _applyUserAgentMode(DownloadUserAgentMode mode) async {
-    final oneXrayUserAgent = await _oneXrayUserAgent();
+    final appUserAgent = await oneXrayUserAgent();
     final userAgent = await DownloadUserAgent.resolve(
       mode: mode,
-      oneXrayUserAgent: oneXrayUserAgent,
+      oneXrayUserAgent: appUserAgent,
     );
     _downloadClient.options.headers['User-Agent'] = userAgent;
   }
 
-  Future<String> _oneXrayUserAgent() async {
+  static Future<String> oneXrayUserAgent() async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       return 'OneXray/${packageInfo.version} '

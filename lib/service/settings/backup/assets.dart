@@ -8,6 +8,7 @@ import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/db/dao/routing_profile.dart';
 import 'package:onexray/core/model/geo_data_type.dart';
+import 'package:onexray/core/network/model.dart';
 import 'package:onexray/service/advanced/xray/geodata/model.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/connect/runtime.dart';
@@ -58,6 +59,7 @@ class BackupAssets {
             _optional(row.hwid),
             panel: row.panel,
             mode: row.mode,
+            userAgent: _optional(row.userAgent),
           ),
       ],
       routingProfiles: [
@@ -123,6 +125,7 @@ class BackupAssets {
                 SubscriptionCompanion.insert(
                   name: row.name,
                   url: row.url,
+                  userAgent: Value(_optional(row.userAgent)),
                   panel: Value(row.panel),
                   mode: Value(row.mode),
                   ageSecretKey: Value(_optional(row.ageSecretKey)),
@@ -173,6 +176,9 @@ void validateBackupAssets(BackupDocument document) {
   for (final row in document.subscriptions) {
     _name(row.name);
     GeoDataInput.httpsUri(row.url);
+    if (!DownloadRequestHeaders.isValidUserAgent(_optional(row.userAgent))) {
+      throw const FormatException('Invalid subscription User-Agent');
+    }
     if (SubscriptionPanel.fromString(row.panel) == null ||
         SubscriptionMode.fromString(row.mode) == null) {
       throw const FormatException('Unsupported subscription panel or mode');

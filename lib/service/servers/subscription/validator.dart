@@ -1,4 +1,5 @@
 import 'package:onexray/core/network/client.dart';
+import 'package:onexray/core/network/model.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 
 abstract final class SubscriptionValidator {
@@ -8,6 +9,9 @@ abstract final class SubscriptionValidator {
     final uri = Uri.tryParse(input.url);
     if (uri == null || !NetClient.isHttpsDownloadUri(uri)) {
       return SubscriptionUpdateResult.urlInvalid;
+    }
+    if (!DownloadRequestHeaders.isValidUserAgent(input.normalizedUserAgent)) {
+      return SubscriptionUpdateResult.userAgentInvalid;
     }
     if (input.hasIncompleteAgeKeyPair) {
       return SubscriptionUpdateResult.incompleteAgeKeys;

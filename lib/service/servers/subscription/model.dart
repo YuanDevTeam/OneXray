@@ -4,6 +4,7 @@ final class SubscriptionInput {
   const SubscriptionInput({
     required this.name,
     required this.url,
+    this.userAgent,
     this.ageSecretKey,
     this.agePublicKey,
     this.hwidEnabled = false,
@@ -14,6 +15,7 @@ final class SubscriptionInput {
 
   final String name;
   final String url;
+  final String? userAgent;
   final String? ageSecretKey;
   final String? agePublicKey;
   final bool hwidEnabled;
@@ -27,6 +29,7 @@ final class SubscriptionInput {
   SubscriptionInput withHwid(String value) => SubscriptionInput(
     name: name,
     url: url,
+    userAgent: userAgent,
     ageSecretKey: ageSecretKey,
     agePublicKey: agePublicKey,
     hwidEnabled: hwidEnabled,
@@ -34,6 +37,11 @@ final class SubscriptionInput {
     panel: panel,
     mode: mode,
   );
+
+  String? get normalizedUserAgent {
+    final value = userAgent?.trim();
+    return value == null || value.isEmpty ? null : value;
+  }
 
   String? get normalizedAgeSecretKey {
     final value = ageSecretKey?.trim();
@@ -135,6 +143,7 @@ enum SubscriptionUpdateResult {
   nameRequired,
   urlRequired,
   urlInvalid,
+  userAgentInvalid,
   duplicateUrl,
   incompleteAgeKeys,
   notFound,

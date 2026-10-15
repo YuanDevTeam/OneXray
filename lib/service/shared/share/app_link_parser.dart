@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:onexray/core/model/geo_data_type.dart';
+import 'package:onexray/core/network/model.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/shared/share/app_link_model.dart';
@@ -66,7 +67,13 @@ abstract final class OneXrayAppLinkParser {
   }
 
   static OneXraySubscriptionLink? _parseSubscription(Uri uri) {
-    if (!_hasOnlyQueryKeys(uri, const {'url', 'age', 'panel', 'mode'})) {
+    if (!_hasOnlyQueryKeys(uri, const {
+      'url',
+      'age',
+      'panel',
+      'mode',
+      'userAgent',
+    })) {
       return null;
     }
     final urlText = _singleQueryValue(uri, 'url');
@@ -79,6 +86,12 @@ abstract final class OneXrayAppLinkParser {
     }
 
     final ageText = _optionalSingleQueryValue(uri, 'age');
+    final userAgent = _optionalSingleQueryValue(uri, 'userAgent');
+    if ((uri.queryParametersAll.containsKey('userAgent') &&
+            userAgent == null) ||
+        !DownloadRequestHeaders.isValidUserAgent(userAgent)) {
+      return null;
+    }
     if (uri.queryParametersAll.containsKey('age') && ageText == null) {
       return null;
     }
@@ -112,6 +125,7 @@ abstract final class OneXrayAppLinkParser {
       name: _fragmentName(uri),
       url: url,
       ageKeyType: ageKeyType,
+      userAgent: userAgent,
       panel: panel,
       mode: mode,
     );

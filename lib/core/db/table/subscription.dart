@@ -6,6 +6,7 @@ class Subscription extends Table {
   TextColumn get name => text()();
 
   TextColumn get url => text()();
+  TextColumn get userAgent => text().nullable()();
 
   TextColumn get panel => text().withDefault(const Constant('generic'))();
   TextColumn get mode => text().withDefault(const Constant('appManaged'))();

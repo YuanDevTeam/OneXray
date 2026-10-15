@@ -279,6 +279,7 @@ class ServerImportService {
       SubscriptionInput(
         name: name,
         url: link.url,
+        userAgent: link.userAgent,
         ageSecretKey: secretKey,
         agePublicKey: publicKey,
         panel: link.panel,

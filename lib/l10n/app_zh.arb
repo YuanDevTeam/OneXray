@@ -885,5 +885,8 @@
   "subscriptionModeDescription": "App 管理的节点使用本地路由偏好；提供方模式执行完整配置。切换方式只使用本地缓存，不下载或重新连接。",
   "subscriptionModeNeedsRefresh": "此方式没有缓存配置，请刷新订阅。",
   "subscriptionModeNeedsReselection": "当前选择与此方式不兼容，请在连接前重新选择配置。",
-  "subscriptionModeNoCacheTitle": "此方式没有缓存配置"
+  "subscriptionModeNoCacheTitle": "此方式没有缓存配置",
+  "subscriptionUserAgentTitle": "User-Agent（可选）",
+  "subscriptionUserAgentHint": "留空使用默认值",
+  "subscriptionUserAgentInvalid": "User-Agent 仅支持单行 ASCII 文本。"
 }

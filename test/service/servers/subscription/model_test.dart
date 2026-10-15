@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
+import 'package:onexray/service/servers/subscription/validator.dart';
 
 void main() {
   test('new source keeps mode unspecified and HWID copies retain policy', () {
@@ -105,4 +106,45 @@ void main() {
       expect(input.normalizedAgeContext, isNull);
     });
   });
+
+  test(
+    'optional subscription UA is normalized and rejects invalid header text',
+    () {
+      for (final value in [null, '', '  ']) {
+        final input = SubscriptionInput(
+          name: 'Provider',
+          url: 'https://example.com/sub',
+          userAgent: value,
+        );
+        expect(input.normalizedUserAgent, isNull);
+        expect(SubscriptionValidator.validate(input), isNull);
+      }
+      const input = SubscriptionInput(
+        name: 'Provider',
+        url: 'https://example.com/sub',
+        userAgent: '  Example/1.0 (compatible)  ',
+      );
+      expect(
+        input.withHwid('device').normalizedUserAgent,
+        'Example/1.0 (compatible)',
+      );
+      expect(SubscriptionValidator.validate(input), isNull);
+      for (final value in [
+        'Example/1.0\r\nX-Test: value',
+        'Example/\u0000',
+        '示例',
+      ]) {
+        expect(
+          SubscriptionValidator.validate(
+            SubscriptionInput(
+              name: 'Provider',
+              url: 'https://example.com/sub',
+              userAgent: value,
+            ),
+          ),
+          SubscriptionUpdateResult.userAgentInvalid,
+        );
+      }
+    },
+  );
 }

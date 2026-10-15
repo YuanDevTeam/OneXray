@@ -47,7 +47,7 @@ void main() {
       expect(
         (await AppDatabase().customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        7,
+        8,
       );
       expect(await AppDatabase().subscriptionDao.allRows, isEmpty);
       expect(StoragePreparation.ensureReady(), same(ready));

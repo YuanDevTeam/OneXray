@@ -31,6 +31,7 @@ class ServerImportPageState {
     this.jsonInput = '',
     this.name = '',
     this.url = '',
+    this.userAgent = '',
     this.secretKey = '',
     this.publicKey = '',
     this.busy = false,
@@ -56,6 +57,7 @@ class ServerImportPageState {
   final String jsonInput;
   final String name;
   final String url;
+  final String userAgent;
   final String secretKey;
   final String publicKey;
   final bool busy;
@@ -92,6 +94,7 @@ class ServerImportPageState {
     String? jsonInput,
     String? name,
     String? url,
+    String? userAgent,
     String? secretKey,
     String? publicKey,
     bool? busy,
@@ -116,6 +119,7 @@ class ServerImportPageState {
     jsonInput: jsonInput ?? this.jsonInput,
     name: name ?? this.name,
     url: url ?? this.url,
+    userAgent: userAgent ?? this.userAgent,
     secretKey: secretKey ?? this.secretKey,
     publicKey: publicKey ?? this.publicKey,
     busy: busy ?? this.busy,
@@ -177,7 +181,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
            modeAvailability ?? SubscriptionService().modeAvailability,
        super(ServerImportPageState()) {
     jsonText.addListener(_changed);
-    for (final field in [text, name, url, secretKey, publicKey]) {
+    for (final field in [text, name, url, userAgent, secretKey, publicKey]) {
       field.addListener(_changed);
     }
   }
@@ -186,6 +190,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   final jsonText = CodeLineEditingController();
   final name = TextEditingController();
   final url = TextEditingController();
+  final userAgent = TextEditingController();
   final secretKey = TextEditingController();
   final publicKey = TextEditingController();
   bool _closingFlow = false;
@@ -205,6 +210,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
             SubscriptionInput(
               name: state.name,
               url: SubscriptionUrl.normalize(state.url),
+              userAgent: state.userAgent,
               ageSecretKey: state.secretKey,
               agePublicKey: state.publicKey,
               panel: state.panel,
@@ -243,6 +249,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         jsonDiagnostic: jsonChanged ? null : state.jsonDiagnostic,
         name: name.text,
         url: url.text,
+        userAgent: userAgent.text,
         secretKey: secretKey.text,
         publicKey: publicKey.text,
         hasAgeKeys: hasAgeKeys,
@@ -281,7 +288,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   Future<void> loadSubscription(BuildContext context) async {
     final id = subscriptionId;
     if (id == null || state.busy) return;
-    final fields = [name, url, secretKey, publicKey];
+    final fields = [name, url, userAgent, secretKey, publicKey];
     final initialValues = fields.map((field) => field.text).toList();
     emit(state.copyWith(busy: true, loadingSubscription: true));
     try {
@@ -291,6 +298,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       final loadedValues = [
         row.name,
         row.url,
+        row.userAgent ?? '',
         row.ageSecretKey ?? '',
         row.agePublicKey ?? '',
       ];
@@ -315,6 +323,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
           mode: mode,
         ),
       );
+      await _fillDefaultUserAgent();
     } catch (error) {
       if (context.mounted) {
         emit(
@@ -443,9 +452,12 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       );
       name.text = link.name;
       url.text = link.url;
+      userAgent.text = link.userAgent ?? '';
       secretKey.clear();
       publicKey.clear();
       _linkAgeType = link.ageKeyType;
+      await _fillDefaultUserAgent();
+      if (!isPageActive || !context.mounted) return null;
       return showAppDialog<ServerImportResult>(
         context,
         (dialogContext) => ServerImportFormPage(
@@ -782,6 +794,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       final input = SubscriptionInput(
         name: state.name.trim(),
         url: SubscriptionUrl.normalize(state.url),
+        userAgent: state.userAgent,
         ageSecretKey: state.secretKey,
         agePublicKey: state.publicKey,
         hwidEnabled: state.hwidEnabled,
@@ -878,9 +891,22 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     Object? error,
   }) => subscriptionFailureMessage(l10n, status, error: error);
 
-  void setPanel(SubscriptionPanel panel) {
+  Future<void> setPanel(SubscriptionPanel panel) async {
     if (state.busy || state.loadFailed || state.generatingAgeKey) return;
     emit(state.copyWith(panel: panel));
+    await _fillDefaultUserAgent();
+  }
+
+  Future<void> _fillDefaultUserAgent() async {
+    if (userAgent.text.trim().isNotEmpty) return;
+    final panel = state.panel;
+    final value = await SubscriptionService.defaultUserAgent(panel);
+    if (isPageActive &&
+        state.panel == panel &&
+        userAgent.text.trim().isEmpty &&
+        value != null) {
+      userAgent.text = value;
+    }
   }
 
   void setMode(SubscriptionMode? mode) {
@@ -956,7 +982,14 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   void disposePageResources() {
     jsonText.removeListener(_changed);
     jsonText.dispose();
-    for (final controller in [text, name, url, secretKey, publicKey]) {
+    for (final controller in [
+      text,
+      name,
+      url,
+      userAgent,
+      secretKey,
+      publicKey,
+    ]) {
       controller.removeListener(_changed);
       controller.dispose();
     }

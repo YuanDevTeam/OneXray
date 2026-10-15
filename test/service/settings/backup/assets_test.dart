@@ -138,6 +138,7 @@ void main() {
       SubscriptionCompanion.insert(
         name: 'Source',
         url: 'https://example.com/sub',
+        userAgent: const Value('Example/test'),
         panel: const Value('remnawave'),
         mode: const Value('providerManaged'),
         ageSecretKey: const Value('secret-fixture'),
@@ -214,11 +215,32 @@ void main() {
       'panel': 'remnawave',
       'mode': 'providerManaged',
       'url': 'https://example.com/sub',
+      'userAgent': 'Example/test',
       'ageSecretKey': 'secret-fixture',
       'agePublicKey': 'public-fixture',
       'hwidEnabled': false,
       'hwid': 'keep',
     });
+    final legacyUserAgent = document.toJson();
+    ((legacyUserAgent['subscriptions'] as List).single as Map).remove(
+      'userAgent',
+    );
+    final decodedLegacy = decodeBackup(
+      Uint8List.fromList(utf8.encode(jsonEncode(legacyUserAgent))),
+    );
+    expect(decodedLegacy.subscriptions.single.userAgent, isNull);
+    validateBackupAssets(decodedLegacy);
+    final invalidUserAgent = document.toJson();
+    ((invalidUserAgent['subscriptions'] as List).single as Map)['userAgent'] =
+        'Example/test\r\nX-Test: value';
+    expect(
+      () => validateBackupAssets(
+        decodeBackup(
+          Uint8List.fromList(utf8.encode(jsonEncode(invalidUserAgent))),
+        ),
+      ),
+      throwsFormatException,
+    );
     for (final key in ['panel', 'mode']) {
       final invalid = document.toJson();
       ((invalid['subscriptions'] as List).single as Map<String, dynamic>)[key] =
@@ -292,6 +314,7 @@ void main() {
     expect((await db.geoDataDao.allRows).single.installed, false);
     final restoredSource = (await db.subscriptionDao.allRows).single;
     expect(restoredSource.panel, 'remnawave');
+    expect(restoredSource.userAgent, 'Example/test');
     expect(restoredSource.mode, 'providerManaged');
     final recaptured = await assets.capture();
     expect(recaptured.geoData.single.name, 'blocked');

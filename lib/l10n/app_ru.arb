@@ -885,5 +885,8 @@
   "subscriptionModeDescription": "Узлы приложения используют локальные настройки маршрутизации. Режим провайдера запускает полную конфигурацию. Смена режима использует локальный кэш без загрузки или переподключения.",
   "subscriptionModeNeedsRefresh": "Для этого режима нет конфигураций в кэше; обновите подписку.",
   "subscriptionModeNeedsReselection": "Текущий выбор несовместим с этим режимом; выберите другую конфигурацию перед подключением.",
-  "subscriptionModeNoCacheTitle": "Нет конфигураций в кэше для этого режима"
+  "subscriptionModeNoCacheTitle": "Нет конфигураций в кэше для этого режима",
+  "subscriptionUserAgentTitle": "User-Agent (необязательно)",
+  "subscriptionUserAgentHint": "Пусто — по умолчанию",
+  "subscriptionUserAgentInvalid": "User-Agent должен содержать одну строку символов ASCII."
 }

@@ -94,6 +94,8 @@ abstract final class OneXrayAppLinkGenerator {
           'age': ?ageType,
           'panel': subscription.panel,
           'mode': subscription.mode,
+          if (subscription.userAgent?.trim().isNotEmpty == true)
+            'userAgent': subscription.userAgent!.trim(),
         },
         fragment: subscription.name,
       ),
