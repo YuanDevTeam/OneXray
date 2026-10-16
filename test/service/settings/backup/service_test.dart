@@ -420,18 +420,44 @@ void main() {
   });
 
   test(
-    'an existing binding ignores the retired confirmation flag and can back up',
+    'legacy unconfirmed targets stay unbound until the file is selected again',
     () async {
       preferences.settings = BackupSettings.fromJson({
         'target': storage.target!.toJson(),
         'confirmed': false,
       });
+      storage.bytes = Uint8List.fromList([1, 2, 3]);
+      final original = storage.bytes;
       await service.checkAutomatic();
-      expect(storage.writes, 1);
-      expect(preferences.settings.lastSuccess, now);
+      expect(service.state.settings.target, null);
+      expect(storage.writes, 0);
+      expect(storage.bytes, original);
+      expect(await service.select(create: false), false);
+      expect(storage.probes, 1);
+      expect(preferences.settings.target, null);
       expect(preferences.settings.toJson(), isNot(contains('confirmed')));
     },
   );
+
+  for (final legacyConfirmed in [true, null]) {
+    test(
+      'confirmed or current bindings retain automatic backup ($legacyConfirmed)',
+      () async {
+        preferences.settings = BackupSettings.fromJson({
+          'target': storage.target!.toJson(),
+          'confirmed': ?legacyConfirmed,
+        });
+        await service.checkAutomatic();
+        expect(
+          preferences.settings.target?.identifier,
+          storage.target!.identifier,
+        );
+        expect(storage.writes, 1);
+        expect(preferences.settings.lastSuccess, now);
+        expect(preferences.settings.toJson(), isNot(contains('confirmed')));
+      },
+    );
+  }
 
   test('interruption before the initial write does not postpone a new empty target', () async {
     preferences.settings = BackupSettings(
@@ -499,6 +525,10 @@ void main() {
   });
 
   test('restoring during binding reuses one preview and preserves the file until the next interval', () async {
+    preferences.settings = BackupSettings(
+      target: const BackupTarget('old', 'Old backup'),
+      lastSuccess: now,
+    );
     await insert('Restored');
     storage.bytes = encodeBackup(await assets.capture());
     final original = storage.bytes;
@@ -519,6 +549,7 @@ void main() {
     expect(storage.bytes, original);
     expect(preferences.settings.boundAt, now);
     expect(preferences.settings.lastSuccess, null);
+    expect(storage.released, ['old']);
     await service.checkAutomatic();
     expect(storage.writes, 0);
     now = now.add(const Duration(days: 3));
@@ -550,6 +581,90 @@ void main() {
     expect(storage.released, ['fixture', 'fixture']);
   });
 
+  test('binding persistence failure cannot commit a restore or release the old target', () async {
+    await insert('Restored');
+    storage.bytes = encodeBackup(await assets.capture());
+    final source = storage.bytes;
+    await db.coreConfigDao.clear();
+    await insert('Current');
+    final previous = BackupSettings(
+      target: const BackupTarget('old', 'Old backup'),
+      lastSuccess: now,
+    );
+    preferences.settings = previous;
+    preferences.beforeSave = (_) async =>
+        throw const FileSystemException('Fixture preferences unavailable');
+    await expectLater(
+      service.select(
+        create: false,
+        onExisting: (_, _) async => BackupExistingAction.restore,
+      ),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect((await db.coreConfigDao.allRawRowsWithData).single.name, 'Current');
+    expect(preferences.settings, previous);
+    expect(service.state.settings, previous);
+    expect((storage.writes, stops), (0, 0));
+    expect(storage.bytes, source);
+    expect(storage.released, ['fixture']);
+  });
+
+  for (final rollbackFails in [false, true]) {
+    test(
+      'failed restore rolls back the binding or retains its grant if rollback fails ($rollbackFails)',
+      () async {
+        await insert('Restored');
+        storage.bytes = encodeBackup(await assets.capture());
+        final source = storage.bytes;
+        await db.coreConfigDao.clear();
+        await insert('Current');
+        final previous = BackupSettings(
+          target: const BackupTarget('old', 'Old backup'),
+          boundAt: now.subtract(const Duration(days: 5)),
+          lastSuccess: now.subtract(const Duration(days: 4)),
+          lastAttempt: now.subtract(const Duration(days: 2)),
+        );
+        preferences.settings = previous;
+        preferences.beforeSave = (value) async {
+          if (rollbackFails && value.target == previous.target) {
+            throw const FileSystemException('Fixture preferences unavailable');
+          }
+        };
+        String? boundDuringRestore;
+        beforeRestore = () async {
+          boundDuringRestore = preferences.settings.target?.identifier;
+          await service.checkAutomatic();
+          throw StateError('Fixture restore failure');
+        };
+        await expectLater(
+          service.select(
+            create: false,
+            onExisting: (_, _) async => BackupExistingAction.restore,
+          ),
+          rollbackFails
+              ? throwsA(isA<FileSystemException>())
+              : throwsStateError,
+        );
+        expect(boundDuringRestore, storage.target!.identifier);
+        expect(
+          (await db.coreConfigDao.allRawRowsWithData).single.name,
+          'Current',
+        );
+        if (rollbackFails) {
+          expect(preferences.settings.target, storage.target);
+          expect(service.state.settings.target, storage.target);
+          expect(storage.released, isEmpty);
+        } else {
+          expect(preferences.settings, previous);
+          expect(service.state.settings, previous);
+          expect(storage.released, ['fixture']);
+        }
+        expect(storage.writes, 0);
+        expect(storage.bytes, source);
+      },
+    );
+  }
+
   test('a failed first write retries after one hour instead of waiting a whole interval', () async {
     storage.onWrite = () async =>
         throw const FileSystemException('Fixture quota exceeded');
@@ -574,10 +689,12 @@ class MemoryBackupPreferences extends BackupPreferences {
   AutoUpdateInterval period = AutoUpdateInterval.threeDays;
   Future<void> Function()? beforeInterval;
   Future<void> Function()? beforeSaveInterval;
+  Future<void> Function(BackupSettings)? beforeSave;
   @override
   Future<BackupSettings> read() async => settings;
   @override
   Future<void> save(BackupSettings value) async {
+    await beforeSave?.call(value);
     settings = value;
   }
 

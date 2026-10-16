@@ -1,16 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/network/client.dart';
-import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
+import 'package:onexray/service/servers/subscription/reader.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 
@@ -61,28 +61,6 @@ void main() {
             },
           ],
         };
-        const channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.onexray.BridgeHostApi.invoke',
-          BridgeHostApi.pigeonChannelCodec,
-        );
-        final messenger =
-            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-        messenger.setMockDecodedMessageHandler(channel, (request) async {
-          final invoke = jsonDecode((request as List).single as String) as Map;
-          expect(invoke['method'], anyOf('decodeSubscriptionText', 'testXray'));
-          return [
-            jsonEncode({
-              'success': true,
-              'error': '',
-              if (invoke['method'] == 'decodeSubscriptionText')
-                'data': {'text': invoke['payload']['text']},
-            }),
-          ];
-        });
-        addTearDown(
-          () => messenger.setMockDecodedMessageHandler(channel, null),
-        );
-
         final defaultUserAgent =
             'v2rayN/26.10.3 OneXray/26.10.3 '
             '(net.yuandev.onexray; build:103; ${Platform.operatingSystem})';
@@ -112,6 +90,11 @@ void main() {
         final service = SubscriptionService.forTesting(
           database: database,
           client: NetClient.forTesting(client),
+          configurationReader: SubscriptionConfigurationReader(
+            decode: (text, {ageSecretKey}) async => text,
+            validate: (_) async => '',
+            withFiles: (action) => action(),
+          ),
           schedulePing: pings.add,
         );
         const url = 'https://provider.example/sub/example?token=test';

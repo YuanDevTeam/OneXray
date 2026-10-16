@@ -71,6 +71,21 @@ final class _SupersededSubscriptionUpdate implements Exception {
   const _SupersededSubscriptionUpdate();
 }
 
+final class _PendingSubscriptionRefresh {
+  _PendingSubscriptionRefresh(this.confirmOrdinary);
+
+  SubscriptionFormatConfirmation? confirmOrdinary;
+  late final Future<SubscriptionRefreshResult> result;
+
+  Future<bool> confirm(String name) {
+    final confirmation = confirmOrdinary;
+    if (confirmation == null) {
+      throw const RemnawaveResponseFormatException();
+    }
+    return confirmation(name);
+  }
+}
+
 class SubscriptionService {
   static final SubscriptionService _singleton = SubscriptionService._internal();
 
@@ -79,6 +94,7 @@ class SubscriptionService {
   SubscriptionService._internal()
     : _databaseOverride = null,
       _loadRowsOverride = null,
+      _configurationReaderOverride = null,
       _client = NetClient(),
       _pingOverride = null {
     referenceReader = _storedReferences;
@@ -89,10 +105,12 @@ class SubscriptionService {
     required AppDatabase database,
     Future<SubscriptionLoadResult> Function(SubscriptionInput)? loadRows,
     NetClient? client,
+    SubscriptionConfigurationReader? configurationReader,
     required void Function(int) schedulePing,
     SubscriptionReferenceReader? readReferences,
   }) : _databaseOverride = database,
        _loadRowsOverride = loadRows,
+       _configurationReaderOverride = configurationReader,
        _client = client ?? NetClient(),
        _pingOverride = schedulePing {
     referenceReader = readReferences ?? _storedReferences;
@@ -102,10 +120,12 @@ class SubscriptionService {
   final NetClient _client;
   final Future<SubscriptionLoadResult> Function(SubscriptionInput)?
   _loadRowsOverride;
+  final SubscriptionConfigurationReader? _configurationReaderOverride;
   final void Function(int)? _pingOverride;
   final _generations = <int, int>{};
-  final _refreshes = <int, Future<SubscriptionRefreshResult>>{};
+  final _refreshes = <int, _PendingSubscriptionRefresh>{};
   Future<Map<SubscriptionData, SubscriptionRefreshResult>>? _refreshAll;
+  SubscriptionFormatConfirmation? _refreshAllConfirmation;
   var _nextGeneration = 0;
   final _downloads = InFlightOperations();
 
@@ -411,26 +431,39 @@ class SubscriptionService {
   /// whole batch visible to loading/clear-data without waiting for probes.
   Future<Map<SubscriptionData, SubscriptionRefreshResult>> refreshAll({
     SubscriptionFormatConfirmation? confirmOrdinary,
-  }) => _refreshAll ??= _downloads
-      .track(
-        () => AppEventBus.instance.trackDownload(() async {
-          final results = <SubscriptionData, SubscriptionRefreshResult>{};
-          for (final source in await _database.subscriptionDao.allRows) {
+  }) {
+    if (confirmOrdinary != null) {
+      _refreshAllConfirmation = confirmOrdinary;
+      if (_refreshAll != null) {
+        for (final pending in _refreshes.values) {
+          pending.confirmOrdinary = confirmOrdinary;
+        }
+      }
+    }
+    return _refreshAll ??= _downloads
+        .track(
+          () => AppEventBus.instance.trackDownload(() async {
+            final results = <SubscriptionData, SubscriptionRefreshResult>{};
+            for (final source in await _database.subscriptionDao.allRows) {
+              if (_downloads.isPaused) {
+                throw const AppFailure(FailureCategory.conflict, 'cancelled');
+              }
+              results[source] = await refreshSubscriptionResult(
+                source,
+                confirmOrdinary: _refreshAllConfirmation,
+              );
+            }
             if (_downloads.isPaused) {
               throw const AppFailure(FailureCategory.conflict, 'cancelled');
             }
-            results[source] = await refreshSubscriptionResult(
-              source,
-              confirmOrdinary: confirmOrdinary,
-            );
-          }
-          if (_downloads.isPaused) {
-            throw const AppFailure(FailureCategory.conflict, 'cancelled');
-          }
-          return results;
-        }),
-      )
-      .whenComplete(() => _refreshAll = null);
+            return results;
+          }),
+        )
+        .whenComplete(() {
+          _refreshAll = null;
+          _refreshAllConfirmation = null;
+        });
+  }
 
   /// Prefer this result for reporting: an obsolete request is not a zero-node
   /// success, and unavailable parse statistics remain null.
@@ -450,7 +483,8 @@ class SubscriptionService {
   }) {
     final pending = _refreshes[subscription.id];
     if (pending != null) {
-      return pending;
+      if (confirmOrdinary != null) pending.confirmOrdinary = confirmOrdinary;
+      return pending.result;
     }
     if (_generations.containsKey(subscription.id)) {
       // A background refresh must not cancel an in-flight user edit/deletion.
@@ -462,20 +496,20 @@ class SubscriptionService {
       );
     }
     final generation = _beginUpdate(subscription.id);
-    late final Future<SubscriptionRefreshResult> task;
-    task =
+    final refresh = _PendingSubscriptionRefresh(confirmOrdinary);
+    refresh.result =
         _refreshSubscription(
           subscription.id,
           generation,
-          confirmOrdinary: confirmOrdinary,
+          confirmOrdinary: refresh.confirm,
         ).whenComplete(() {
-          if (identical(_refreshes[subscription.id], task)) {
+          if (identical(_refreshes[subscription.id], refresh)) {
             _refreshes.remove(subscription.id);
           }
           _finishUpdate(subscription.id, generation);
         });
-    _refreshes[subscription.id] = task;
-    return task;
+    _refreshes[subscription.id] = refresh;
+    return refresh.result;
   }
 
   Future<SubscriptionRefreshResult> _refreshSubscription(
@@ -669,7 +703,9 @@ class SubscriptionService {
       );
     }
     try {
-      final result = await SubscriptionConfigurationReader().read(
+      final reader =
+          _configurationReaderOverride ?? SubscriptionConfigurationReader();
+      final result = await reader.read(
         text,
         input,
         confirmOrdinary: confirmOrdinary,

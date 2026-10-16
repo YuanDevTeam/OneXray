@@ -1,18 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/core/network/client.dart';
-import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
+import 'package:onexray/service/servers/subscription/reader.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
+import 'package:onexray/service/shared/share/xray_share_reader.dart';
 
 const _input = SubscriptionInput(
   name: 'Provider',
@@ -147,6 +148,75 @@ void main() {
     expect(h.pings, [source.id]);
   });
 
+  for (final batch in [false, true]) {
+    test(
+      'foreground confirmation joins a pending ${batch ? 'batch' : 'source'} refresh without downloading again',
+      () async {
+        final h = _Harness()..plain = false;
+        final inserted = await h.service.insertSubscription(_input);
+        final source = (await h.database.subscriptionDao.searchRow(
+          inserted.subId,
+        ))!;
+        if (batch) {
+          await h.service.insertSubscription(
+            const SubscriptionInput(
+              name: 'Later',
+              url: 'https://provider.example/later',
+              panel: SubscriptionPanel.remnawave,
+              mode: SubscriptionMode.providerManaged,
+            ),
+          );
+        }
+        h.requests.clear();
+        h.plain = true;
+        final started = Completer<void>();
+        final release = Completer<void>();
+        h.beforeResponse = () {
+          if (!started.isCompleted) started.complete();
+          return release.future;
+        };
+        final confirmations = <String>[];
+        Future<bool> confirm(String name) async {
+          confirmations.add(name);
+          return true;
+        }
+
+        if (batch) {
+          final background = h.service.refreshAll();
+          await started.future;
+          final foreground = h.service.refreshAll(confirmOrdinary: confirm);
+          expect(identical(background, foreground), isTrue);
+          release.complete();
+          expect(
+            (await foreground).values.every((result) => result.success),
+            isTrue,
+          );
+        } else {
+          final background = h.service.refreshSubscriptionResult(source);
+          await started.future;
+          final foreground = h.service.refreshSubscriptionResult(
+            source,
+            confirmOrdinary: confirm,
+          );
+          release.complete();
+          expect((await foreground).success, isTrue);
+          expect((await background).success, isTrue);
+        }
+        expect(confirmations, batch ? [_input.name, 'Later'] : [_input.name]);
+        expect(h.requests, hasLength(batch ? 2 : 1));
+        expect(h.parsed, List.filled(batch ? 2 : 1, h.ordinaryResponse));
+        expect(
+          (await h.database.subscriptionDao.allRows).every(
+            (row) =>
+                row.panel == SubscriptionPanel.generic.name &&
+                row.mode == SubscriptionMode.appManaged.name,
+          ),
+          isTrue,
+        );
+      },
+    );
+  }
+
   test(
     'an edit made while conversion waits for consent supersedes the refresh',
     () async {
@@ -216,6 +286,7 @@ class _Harness {
   bool plain = true;
   bool failNodes = false;
   int? protectedId;
+  Future<void> Function()? beforeResponse;
   late final SubscriptionService service;
 
   _Harness() {
@@ -223,8 +294,9 @@ class _Harness {
     addTearDown(bus.close);
     addTearDown(database.close);
     addTearDown(client.close);
-    client.httpClientAdapter = _Adapter((request) {
+    client.httpClientAdapter = _Adapter((request) async {
       requests.add(request);
+      await beforeResponse?.call();
       return ResponseBody.fromString(
         plain
             ? ordinaryResponse
@@ -242,40 +314,19 @@ class _Harness {
     service = SubscriptionService.forTesting(
       database: database,
       client: NetClient.forTesting(client),
+      configurationReader: SubscriptionConfigurationReader(
+        decode: (text, {ageSecretKey}) async => text,
+        validate: (_) async => '',
+        readNodes: (text) async {
+          parsed.add(text);
+          if (failNodes) throw const FormatException('No usable nodes');
+          return XrayShareReader().readOutbounds([_outbound]);
+        },
+        withFiles: (action) => action(),
+      ),
       schedulePing: pings.add,
       readReferences: () => SubscriptionNodeReferences(fixedId: protectedId),
     );
-    const channel = BasicMessageChannel<Object?>(
-      'dev.flutter.pigeon.onexray.BridgeHostApi.invoke',
-      BridgeHostApi.pigeonChannelCodec,
-    );
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    messenger.setMockDecodedMessageHandler(channel, (request) async {
-      final invoke = jsonDecode((request as List).single as String) as Map;
-      final method = invoke['method'];
-      Map<String, dynamic>? data;
-      if (method == 'decodeSubscriptionText') {
-        data = {'text': invoke['payload']['text']};
-      } else if (method == 'convertShareLinksToXrayJson') {
-        parsed.add(invoke['payload']['text'] as String);
-        expect(invoke['payload']['age'], isNull);
-        data = {
-          'outbounds': [_outbound],
-        };
-      } else {
-        expect(method, 'testXray');
-      }
-      final failed = method == 'convertShareLinksToXrayJson' && failNodes;
-      return [
-        jsonEncode({
-          'success': !failed,
-          'error': failed ? 'No usable nodes' : '',
-          'data': ?data,
-        }),
-      ];
-    });
-    addTearDown(() => messenger.setMockDecodedMessageHandler(channel, null));
   }
 
   Future<List<CoreConfigData>> rows() =>
@@ -284,7 +335,7 @@ class _Harness {
 
 class _Adapter implements HttpClientAdapter {
   _Adapter(this.respond);
-  final ResponseBody Function(RequestOptions) respond;
+  final FutureOr<ResponseBody> Function(RequestOptions) respond;
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,

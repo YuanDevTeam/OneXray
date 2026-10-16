@@ -38,14 +38,18 @@ class BackupSettings {
 
   bool get usesICloud => target?.identifier == backupContainerId;
 
-  factory BackupSettings.fromJson(Map<String, dynamic> json) => BackupSettings(
-    target: json['target'] == null
-        ? null
-        : BackupTarget.fromJson(json['target'] as Map<String, dynamic>),
-    boundAt: _date(json['boundAt']),
-    lastSuccess: _date(json['lastSuccess']),
-    lastAttempt: _date(json['lastAttempt']),
-  );
+  factory BackupSettings.fromJson(Map<String, dynamic> json) {
+    // A legacy file selection was not a binding until the user confirmed it.
+    if (json['confirmed'] == false) return const BackupSettings();
+    return BackupSettings(
+      target: json['target'] == null
+          ? null
+          : BackupTarget.fromJson(json['target'] as Map<String, dynamic>),
+      boundAt: _date(json['boundAt']),
+      lastSuccess: _date(json['lastSuccess']),
+      lastAttempt: _date(json['lastAttempt']),
+    );
+  }
   Map<String, dynamic> toJson() => {
     'target': target?.toJson(),
     'boundAt': boundAt?.millisecondsSinceEpoch,
@@ -239,7 +243,7 @@ class BackupService extends Cubit<BackupState> {
     await _reload();
     final selected = await _storage.select(create: create, local: local);
     if (selected == null) return false;
-    final previous = state.settings.target;
+    final previous = state.settings;
     var bound = false;
     try {
       if (_paused) return false;
@@ -250,11 +254,10 @@ class BackupService extends Cubit<BackupState> {
           ? await onExisting?.call(selected, prepareRestore)
           : null;
       if (_paused || (hasContents && action == null)) return false;
+      BackupPreview? document;
       if (action == BackupExistingAction.restore) {
-        final document = await prepareRestore();
+        document = await prepareRestore();
         if (_paused) return false;
-        emit(state.copyWith(operation: BackupOperation.restoring));
-        await _restore(document);
       }
       // Only an imported backup starts a cycle without a successful file write.
       final settings = BackupSettings(
@@ -262,10 +265,24 @@ class BackupService extends Cubit<BackupState> {
         boundAt: action == BackupExistingAction.restore ? _now() : null,
       );
       await _preferences.save(settings);
-      emit(state.copyWith(settings: settings));
       bound = true;
-      if (previous != null && previous.identifier != selected.identifier) {
-        await _storage.release(previous);
+      emit(state.copyWith(settings: settings));
+      if (document != null) {
+        emit(state.copyWith(operation: BackupOperation.restoring));
+        try {
+          await _restore(document);
+        } catch (_) {
+          // Keep the new grant if rolling back persisted preferences also fails.
+          await _preferences.save(previous);
+          emit(state.copyWith(settings: previous));
+          bound = false;
+          rethrow;
+        }
+      }
+      final previousTarget = previous.target;
+      if (previousTarget != null &&
+          previousTarget.identifier != selected.identifier) {
+        await _storage.release(previousTarget);
       }
       if (action != BackupExistingAction.restore) {
         emit(state.copyWith(operation: BackupOperation.writing));
@@ -273,7 +290,7 @@ class BackupService extends Cubit<BackupState> {
       }
       return true;
     } finally {
-      if (!bound && previous?.identifier != selected.identifier) {
+      if (!bound && previous.target?.identifier != selected.identifier) {
         await _storage.release(selected);
       }
     }
