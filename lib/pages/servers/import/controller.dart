@@ -198,6 +198,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   AgeKeyType? _linkAgeType;
   String? _hwid;
   String? _hwidUrl;
+  String? _autoFilledUserAgent;
   int _jsonRevision = 0;
 
   bool get supportsScan => AppPlatform.isMobile;
@@ -226,6 +227,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   }
 
   void _changed() {
+    if (userAgent.text != _autoFilledUserAgent) _autoFilledUserAgent = null;
     final jsonChanged = state.jsonInput != jsonText.text;
     if (jsonChanged) _jsonRevision++;
     var hwidEnabled = state.hwidEnabled;
@@ -301,6 +303,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         row.ageSecretKey ?? '',
         row.agePublicKey ?? '',
       ];
+      _autoFilledUserAgent = null;
       for (var index = 0; index < fields.length; index++) {
         if (fields[index].text == initialValues[index]) {
           fields[index].text = loadedValues[index];
@@ -451,6 +454,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       );
       name.text = link.name;
       url.text = link.url;
+      _autoFilledUserAgent = null;
       userAgent.text = link.userAgent ?? '';
       secretKey.clear();
       publicKey.clear();
@@ -906,6 +910,10 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   Future<void> setPanel(SubscriptionPanel panel) async {
     if (state.busy || state.loadFailed || state.generatingAgeKey) return;
     emit(state.copyWith(panel: panel));
+    if (panel != SubscriptionPanel.remnawave &&
+        userAgent.text == _autoFilledUserAgent) {
+      userAgent.clear();
+    }
     await _fillDefaultUserAgent();
   }
 
@@ -917,6 +925,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         state.panel == panel &&
         userAgent.text.trim().isEmpty &&
         value != null) {
+      _autoFilledUserAgent = value;
       userAgent.text = value;
     }
   }

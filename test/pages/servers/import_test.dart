@@ -35,7 +35,7 @@ void main() {
   });
 
   test(
-    'Remnawave selection fills the minimal UA and preserves custom input',
+    'panel changes clear only the unedited auto-filled Remnawave UA',
     () async {
       PackageInfo.setMockInitialValues(
         appName: 'OneXray',
@@ -58,11 +58,24 @@ void main() {
         '(net.yuandev.onexray; build:104; ${Platform.operatingSystem})',
       );
       expect(controller.state.userAgent, controller.userAgent.text);
+      final generated = controller.userAgent.text;
 
-      controller.userAgent.text = 'Custom/1.0';
       await controller.setPanel(SubscriptionPanel.generic);
-      await controller.setPanel(SubscriptionPanel.remnawave);
-      expect(controller.userAgent.text, 'Custom/1.0');
+      expect(controller.userAgent.text, isEmpty);
+      expect(controller.state.userAgent, isEmpty);
+      for (final custom in ['Custom/1.0', generated]) {
+        controller.userAgent.clear();
+        controller.userAgent.text = custom;
+        await controller.setPanel(SubscriptionPanel.remnawave);
+        await controller.setPanel(SubscriptionPanel.generic);
+        expect(controller.userAgent.text, custom);
+      }
+
+      controller.userAgent.clear();
+      final switching = controller.setPanel(SubscriptionPanel.remnawave);
+      await controller.setPanel(SubscriptionPanel.generic);
+      await switching;
+      expect(controller.userAgent.text, isEmpty);
 
       controller.userAgent.clear();
       final pending = controller.setPanel(SubscriptionPanel.remnawave);

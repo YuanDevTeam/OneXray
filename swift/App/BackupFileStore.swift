@@ -35,7 +35,9 @@ final class BackupFileStore {
                     }
                 }
             }
-            let identifier = file.absoluteString
+            // Selection is still a candidate. A moved binding may retain its
+            // old path as a key, so selecting that path must create a new grant.
+            let identifier = UUID().uuidString
             var record: [String: Any] = ["bookmark": try bookmark(grant)]
             if grant != file { record["fileName"] = file.lastPathComponent }
             var saved = bookmarks
