@@ -95,7 +95,7 @@ PowerShell：先执行 `New-Item -ItemType Directory -Force assets/dat`，再执
 ```shell
 flutter pub get
 flutter gen-l10n
-dart run ffigen
+dart run tool/ffigen.dart
 flutter devices
 flutter run -d DEVICE_ID
 ```
@@ -127,7 +127,7 @@ FFI 头文件与配置见 `pubspec.yaml`；已入库的模型、数据库、资�
 | ARB | `flutter gen-l10n` |
 | JSON/Drift 模型或声明的资源 | `dart run build_runner build --delete-conflicting-outputs` |
 | `pigeon/message.dart` | `dart run pigeon --input pigeon/message.dart` |
-| FFI 头文件／配置 | `dart run ffigen` |
+| FFI 头文件／配置 | `dart run tool/ffigen.dart` |
 
 重新构建并替换原生库后完整重启，热重载不能替换它们。隔离测试数据放在工作空间
 `references/`，不要使用主数据库。行为、验证与桥接合同分别见

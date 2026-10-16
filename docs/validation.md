@@ -77,6 +77,7 @@ iOS Simulator 不能通过绕过它来验证刷新。设备验收需要检查 VP
 ```shell
 flutter gen-l10n
 dart run build_runner build
+dart run tool/ffigen.dart
 dart run tool/check_layer_dependencies.dart
 dart format --output=none --set-exit-if-changed <changed Dart files>
 flutter analyze

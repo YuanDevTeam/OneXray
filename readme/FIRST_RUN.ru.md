@@ -98,7 +98,7 @@ cp -R ../libXray/dat/. assets/dat/
 ```shell
 flutter pub get
 flutter gen-l10n
-dart run ffigen
+dart run tool/ffigen.dart
 flutter devices
 flutter run -d DEVICE_ID
 ```
@@ -132,7 +132,7 @@ Apple/Android, поскольку общий Dart-код импортирует 
 | ARB | `flutter gen-l10n` |
 | Модели JSON/Drift или объявленные ресурсы | `dart run build_runner build --delete-conflicting-outputs` |
 | `pigeon/message.dart` | `dart run pigeon --input pigeon/message.dart` |
-| Заголовки/настройки FFI | `dart run ffigen` |
+| Заголовки/настройки FFI | `dart run tool/ffigen.dart` |
 
 После замены нативных библиотек полностью перезапустите приложение: hot reload
 не обновляет их. Изолированные тестовые данные храните в `references/` рабочего

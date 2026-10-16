@@ -98,7 +98,7 @@ Native artifact architecture must match the App.
 ```shell
 flutter pub get
 flutter gen-l10n
-dart run ffigen
+dart run tool/ffigen.dart
 flutter devices
 flutter run -d DEVICE_ID
 ```
@@ -132,7 +132,7 @@ sources change.
 | ARB | `flutter gen-l10n` |
 | JSON/Drift models or declared assets | `dart run build_runner build --delete-conflicting-outputs` |
 | `pigeon/message.dart` | `dart run pigeon --input pigeon/message.dart` |
-| FFI headers/configuration | `dart run ffigen` |
+| FFI headers/configuration | `dart run tool/ffigen.dart` |
 
 Replace rebuilt native libraries and fully relaunch; hot reload cannot replace
 them. Keep isolated test data in workspace `references/`, not your main database.

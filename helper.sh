@@ -2,7 +2,7 @@
 
 dart run build_runner build
 dart run pigeon --input pigeon/message.dart
-dart run ffigen
+dart run tool/ffigen.dart
 flutter pub upgrade --major-versions
 flutter pub upgrade --tighten
 

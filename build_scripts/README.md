@@ -103,6 +103,10 @@ version/pub get → native libraries/Core/Geodata → FFI generation → platfor
 build number through the environment, without rewriting Fastfile. Linux collects
 only the current version's ZIP/DEB.
 
+FFI generation runs `dart run tool/ffigen.dart` after refreshing the native
+headers. Use the same command from the App root after changing `c/include/` or
+the generator configuration; do not edit the generated bindings manually.
+
 Native outputs and Geodata are refreshed. Apple updates Xcode build numbers;
 `macos_se` also replaces `macos/` with `macos_se/`, preserving framework symlinks.
 Use a disposable checkout for those operations.

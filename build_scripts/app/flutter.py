@@ -41,7 +41,7 @@ def build(project: str, target: str, build_scripts_dir: str, *, windows_mode: st
         run_command([flutter_command(), "pub", "get"], cwd=builder.root_dir)
         builder.before_build()
         # Native builds must refresh headers before FFI generation.
-        run_command([dart_command(), "run", "ffigen"], cwd=builder.root_dir)
+        run_command([dart_command(), "run", "tool/ffigen.dart"], cwd=builder.root_dir)
         builder.build_app()
     finally:
         pubspec.write_bytes(original_pubspec)

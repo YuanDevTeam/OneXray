@@ -56,7 +56,7 @@ class BuilderTest(unittest.TestCase):
             events.append("native")
 
         def command(args, **kwargs):
-            if "ffigen" in args:
+            if "tool/ffigen.dart" in args:
                 self.assertEqual(header.read_text(), "fresh native header")
                 self.assertIn(b"26.8.5+401", self.pubspec.read_bytes())
                 events.append("ffi")
