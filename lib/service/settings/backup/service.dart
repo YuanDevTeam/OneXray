@@ -17,29 +17,38 @@ import 'package:onexray/service/shared/event_bus/service.dart';
 
 enum BackupOperation { loading, saving, selecting, writing, reading, restoring }
 
+enum BackupExistingAction { restore, overwrite }
+
+typedef ResolveExistingBackup = Future<BackupExistingAction?> Function(
+  BackupTarget target,
+  Future<BackupPreview> Function() preview,
+);
+
 class BackupSettings {
   final BackupTarget? target;
-  final bool confirmed;
+  final DateTime? boundAt;
   final DateTime? lastSuccess;
   final DateTime? lastAttempt;
   const BackupSettings({
     this.target,
-    this.confirmed = false,
+    this.boundAt,
     this.lastSuccess,
     this.lastAttempt,
   });
+
+  bool get usesICloud => target?.identifier == backupContainerId;
 
   factory BackupSettings.fromJson(Map<String, dynamic> json) => BackupSettings(
     target: json['target'] == null
         ? null
         : BackupTarget.fromJson(json['target'] as Map<String, dynamic>),
-    confirmed: json['confirmed'] == true,
+    boundAt: _date(json['boundAt']),
     lastSuccess: _date(json['lastSuccess']),
     lastAttempt: _date(json['lastAttempt']),
   );
   Map<String, dynamic> toJson() => {
     'target': target?.toJson(),
-    'confirmed': confirmed,
+    'boundAt': boundAt?.millisecondsSinceEpoch,
     'lastSuccess': lastSuccess?.millisecondsSinceEpoch,
     'lastAttempt': lastAttempt?.millisecondsSinceEpoch,
   };
@@ -82,7 +91,7 @@ class BackupState {
   );
 }
 
-/// Device-local consent and schedule. These values never enter a backup file.
+/// Device-local binding and schedule. These values never enter a backup file.
 class BackupPreferences {
   Future<BackupSettings> read() async =>
       BackupSettings.fromJson(await PreferencesKey().readBackup() ?? {});
@@ -179,8 +188,7 @@ class BackupService extends Cubit<BackupState> {
     final settings = await _preferences.read();
     final automatic = await _preferences.automatic();
     final interval =
-        !forAutomaticCheck ||
-            (automatic && settings.confirmed && settings.target != null)
+        !forAutomaticCheck || (automatic && settings.target != null)
         ? await _preferences.interval()
         : state.interval;
     emit(
@@ -223,47 +231,52 @@ class BackupService extends Cubit<BackupState> {
         emit(state.copyWith(interval: value));
       }, clearError: false);
 
-  Future<bool> select({required bool create}) =>
-      _run(BackupOperation.selecting, () async {
-        await _reload();
-        final selected = await _storage.select(create: create);
-        if (selected == null) return false;
-        final previous = state.settings.target;
-        if (_paused) {
-          if (previous?.identifier != selected.identifier) {
-            await _storage.release(selected);
-          }
-          return false;
-        }
-        if (previous?.identifier == selected.identifier) return true;
-        final settings = BackupSettings(target: selected);
-        await _preferences.save(settings);
-        emit(state.copyWith(settings: settings));
-        if (previous != null) await _storage.release(previous);
-        return true;
-      });
-
-  /// Called only after the UI confirms risk and overwrite for this exact target.
-  Future<bool> confirmTarget(
-    String identifier, {
-    bool writeAutomatically = true,
-  }) => _run(BackupOperation.writing, () async {
+  Future<bool> select({
+    required bool create,
+    bool local = false,
+    ResolveExistingBackup? onExisting,
+  }) => _run(BackupOperation.selecting, () async {
     await _reload();
-    final target = _target();
-    if (target.identifier != identifier) {
-      throw StateError('The backup location changed. Confirm it again.');
+    final selected = await _storage.select(create: create, local: local);
+    if (selected == null) return false;
+    final previous = state.settings.target;
+    var bound = false;
+    try {
+      if (_paused) return false;
+      final hasContents = await _storage.hasContents(selected);
+      Future<BackupPreview>? preview;
+      Future<BackupPreview> prepareRestore() => preview ??= _preview(selected);
+      final action = hasContents
+          ? await onExisting?.call(selected, prepareRestore)
+          : null;
+      if (_paused || (hasContents && action == null)) return false;
+      if (action == BackupExistingAction.restore) {
+        final document = await prepareRestore();
+        if (_paused) return false;
+        emit(state.copyWith(operation: BackupOperation.restoring));
+        await _restore(document);
+      }
+      // Only an imported backup starts a cycle without a successful file write.
+      final settings = BackupSettings(
+        target: selected,
+        boundAt: action == BackupExistingAction.restore ? _now() : null,
+      );
+      await _preferences.save(settings);
+      emit(state.copyWith(settings: settings));
+      bound = true;
+      if (previous != null && previous.identifier != selected.identifier) {
+        await _storage.release(previous);
+      }
+      if (action != BackupExistingAction.restore) {
+        emit(state.copyWith(operation: BackupOperation.writing));
+        await _write(automatic: false);
+      }
+      return true;
+    } finally {
+      if (!bound && previous?.identifier != selected.identifier) {
+        await _storage.release(selected);
+      }
     }
-    final settings = BackupSettings(
-      target: target,
-      confirmed: true,
-      lastSuccess: state.settings.lastSuccess,
-      lastAttempt: state.settings.lastAttempt,
-    );
-    await _preferences.save(settings);
-    emit(state.copyWith(settings: settings));
-    return writeAutomatically && state.automatic
-        ? _write(automatic: true)
-        : false;
   });
 
   Future<bool> backupNow() => _run(BackupOperation.writing, () async {
@@ -286,14 +299,15 @@ class BackupService extends Cubit<BackupState> {
       await _run(BackupOperation.writing, () async {
         await _reload(forAutomaticCheck: true);
         final settings = state.settings;
-        if (!state.automatic ||
-            !settings.confirmed ||
-            settings.target == null) {
+        if (!state.automatic || settings.target == null) {
           return;
         }
         final now = _now();
-        if (settings.lastSuccess != null &&
-            now.difference(settings.lastSuccess!) <
+        final lastBackup =
+            settings.lastSuccess ??
+            (settings.lastAttempt == null ? settings.boundAt : null);
+        if (lastBackup != null &&
+            now.difference(lastBackup) <
                 Duration(hours: state.interval.value)) {
           return;
         }
@@ -311,15 +325,10 @@ class BackupService extends Cubit<BackupState> {
 
   Future<bool> _write({required bool automatic}) async {
     final target = _target();
-    if (!state.settings.confirmed) {
-      throw StateError(
-        'Confirm the sensitive-data and overwrite warning first.',
-      );
-    }
     if (_paused || (automatic && !state.automatic)) return false;
     final attempted = BackupSettings(
       target: target,
-      confirmed: true,
+      boundAt: state.settings.boundAt,
       lastSuccess: state.settings.lastSuccess,
       lastAttempt: _now(),
     );
@@ -333,7 +342,7 @@ class BackupService extends Cubit<BackupState> {
     await _storage.write(target, bytes);
     final saved = BackupSettings(
       target: target,
-      confirmed: true,
+      boundAt: attempted.boundAt,
       lastAttempt: attempted.lastAttempt,
       lastSuccess: _now(),
     );
@@ -344,17 +353,22 @@ class BackupService extends Cubit<BackupState> {
 
   Future<BackupPreview> preview() => _run(BackupOperation.reading, () async {
     await _reload();
-    final bytes = await _storage.read(_target());
+    return _preview(_target());
+  });
+
+  Future<BackupPreview> _preview(BackupTarget target) async {
+    final bytes = await _storage.read(target);
     final document = await compute(_decode, bytes);
     return BackupPreview._(
       document,
       await _assets.geodata.previewRestore(backupSources(document)),
     );
-  });
+  }
 
-  Future<int> restore(
-    BackupPreview preview,
-  ) => _run(BackupOperation.restoring, () async {
+  Future<int> restore(BackupPreview preview) =>
+      _run(BackupOperation.restoring, () => _restore(preview));
+
+  Future<int> _restore(BackupPreview preview) async {
     // Backup I/O is already exclusive. The second gate exists only for clear
     // and restore, where all old producers must drain before replacing assets.
     Future<void> commit() =>
@@ -371,7 +385,7 @@ class BackupService extends Cubit<BackupState> {
     return (await _assets.db.geoDataDao.allRows)
         .where((row) => !row.installed)
         .length;
-  });
+  }
 
   BackupTarget _target() =>
       state.settings.target ??

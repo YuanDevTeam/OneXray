@@ -7,6 +7,7 @@ import 'package:intl/intl.dart' show DateFormat;
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/backup/controller.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/menu_picker.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
@@ -36,6 +37,8 @@ class BackupPage extends StatelessWidget {
         final platform = defaultTargetPlatform;
         final android = platform == TargetPlatform.android;
         final windows = platform == TargetPlatform.windows;
+        final apple =
+            platform == TargetPlatform.iOS || platform == TargetPlatform.macOS;
         final supported = {
           TargetPlatform.android,
           TargetPlatform.iOS,
@@ -126,52 +129,57 @@ class BackupPage extends StatelessWidget {
                                       )
                                     else
                                       Text(l.backupNotConfigured),
-                                    if (target != null &&
-                                        !backup.settings.confirmed)
-                                      Text(
-                                        l.backupNotConfirmed,
-                                        style: AppTypography.settingsDetailNote,
-                                      ),
                                     Wrap(
                                       spacing: 8,
                                       runSpacing: 8,
                                       children: [
-                                        OutlinedButton(
-                                          onPressed: busy
-                                              ? null
-                                              : () => controller.select(
-                                                  context,
-                                                  create: false,
-                                                ),
-                                          child: ButtonProgress(
-                                            busy:
-                                                state.action ==
-                                                BackupPageAction.selecting,
-                                            child: Text(
-                                              android
-                                                  ? l.backupChooseExisting
-                                                  : windows
-                                                  ? l.backupChooseFolder
-                                                  : l.backupUseICloud,
+                                        if (target == null) ...[
+                                          if (apple)
+                                            FilledButton(
+                                              onPressed: busy
+                                                  ? null
+                                                  : () => controller.select(
+                                                      context,
+                                                      create: false,
+                                                    ),
+                                              child: Text(l.backupUseICloud),
                                             ),
-                                          ),
-                                        ),
-                                        if (android)
                                           OutlinedButton(
                                             onPressed: busy
                                                 ? null
                                                 : () => controller.select(
                                                     context,
-                                                    create: true,
+                                                    create: false,
+                                                    local: apple,
                                                   ),
                                             child: ButtonProgress(
                                               busy:
                                                   state.action ==
-                                                  BackupPageAction.creating,
-                                              child: Text(l.backupCreateFile),
+                                                  BackupPageAction.selecting,
+                                              child: Text(
+                                                android || apple
+                                                    ? l.backupChooseExisting
+                                                    : l.backupChooseFolder,
+                                              ),
                                             ),
                                           ),
-                                        if (target != null)
+                                          if (android || apple)
+                                            OutlinedButton(
+                                              onPressed: busy
+                                                  ? null
+                                                  : () => controller.select(
+                                                      context,
+                                                      create: true,
+                                                      local: apple,
+                                                    ),
+                                              child: ButtonProgress(
+                                                busy:
+                                                    state.action ==
+                                                    BackupPageAction.creating,
+                                                child: Text(l.backupCreateFile),
+                                              ),
+                                            ),
+                                        ] else ...[
                                           TextButton(
                                             onPressed: busy
                                                 ? null
@@ -185,6 +193,64 @@ class BackupPage extends StatelessWidget {
                                               child: Text(l.backupUnbind),
                                             ),
                                           ),
+                                          if (android ||
+                                              (apple &&
+                                                  backup.settings.usesICloud))
+                                            AppMenuButton<bool>(
+                                              entries: [
+                                                AppMenuEntry.item(
+                                                  value: false,
+                                                  title: l.backupChooseExisting,
+                                                ),
+                                                AppMenuEntry.item(
+                                                  value: true,
+                                                  title: l.backupCreateFile,
+                                                ),
+                                              ],
+                                              onSelected: (create) =>
+                                                  controller.select(
+                                                    context,
+                                                    create: create,
+                                                    local: apple,
+                                                  ),
+                                              triggerBuilder: (open) => OutlinedButton(
+                                                onPressed: busy ? null : open,
+                                                child: ButtonProgress(
+                                                  busy:
+                                                      state.action ==
+                                                          BackupPageAction
+                                                              .selecting ||
+                                                      state.action ==
+                                                          BackupPageAction
+                                                              .creating,
+                                                  child: Text(
+                                                    apple
+                                                        ? l.backupSwitchToLocal
+                                                        : l.backupChangeLocation,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          else
+                                            OutlinedButton(
+                                              onPressed: busy
+                                                  ? null
+                                                  : () => controller.select(
+                                                      context,
+                                                      create: false,
+                                                    ),
+                                              child: ButtonProgress(
+                                                busy:
+                                                    state.action ==
+                                                    BackupPageAction.selecting,
+                                                child: Text(
+                                                  apple
+                                                      ? l.backupSwitchToCloud
+                                                      : l.backupChangeLocation,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
                                       ],
                                     ),
                                   ],
@@ -255,31 +321,6 @@ class BackupPage extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              if (backup.automatic &&
-                                  !backup.settings.confirmed)
-                                Padding(
-                                  padding: const EdgeInsets.all(14),
-                                  child: Text(
-                                    l.backupAutomaticNotReady,
-                                    style: AppTypography.settingsDetailNote,
-                                  ),
-                                ),
-                              if (target != null && !backup.settings.confirmed)
-                                Padding(
-                                  padding: const EdgeInsets.all(14),
-                                  child: OutlinedButton(
-                                    onPressed: busy
-                                        ? null
-                                        : () =>
-                                              controller.allowBackups(context),
-                                    child: ButtonProgress(
-                                      busy:
-                                          state.action ==
-                                          BackupPageAction.allowing,
-                                      child: Text(l.backupAllow),
-                                    ),
-                                  ),
-                                ),
                             ],
                           ),
                           Container(

@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
+import 'package:onexray/pages/settings/backup/existing_file_dialog.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
+import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
 import 'package:onexray/service/settings/backup/service.dart';
 import 'package:onexray/service/shared/failure.dart';
@@ -13,7 +15,6 @@ import 'package:onexray/service/shared/failure.dart';
 enum BackupPageAction {
   selecting,
   creating,
-  allowing,
   savingInterval,
   writing,
   restoring,
@@ -61,64 +62,51 @@ class BackupController extends PageCubit<BackupPageState> {
     );
   }
 
-  Future<void> select(BuildContext context, {required bool create}) => _perform(
+  Future<void> select(
+    BuildContext context, {
+    required bool create,
+    bool local = false,
+  }) => _perform(
     context,
     create ? BackupPageAction.creating : BackupPageAction.selecting,
     () async {
-      await service.select(create: create);
+      await service.select(
+        create: create,
+        local: local,
+        onExisting: (target, preview) async {
+          if (!isPageActive || !context.mounted) return null;
+          final action = await showAppDialog<BackupExistingAction>(
+            context,
+            (_) => ExistingBackupDialog(location: target.label),
+          );
+          if (!isPageActive || !context.mounted) return null;
+          if (action == BackupExistingAction.restore) {
+            final details = await preview();
+            if (!isPageActive || !context.mounted) return null;
+            if (!await _confirmRestore(context, details)) return null;
+          }
+          return isPageActive && context.mounted ? action : null;
+        },
+      );
     },
   );
 
-  Future<void> backup(
-    BuildContext context,
-  ) => _perform(context, BackupPageAction.writing, () async {
-    final l = AppLocalizations.of(context)!;
-    final target = service.state.settings.target;
-    if (target == null) return;
-    if (!service.state.settings.confirmed) {
-      final confirmed = await AppConfirmationDialog(
-        title: l.backupConfirmTitle,
-        subject: target.label,
-        content: '${l.backupSensitiveWarning}\n\n${l.backupOverwriteWarning}',
-        cancelLabel: l.prototypeCancel,
-        confirmLabel: l.backupNow,
-      ).show(context);
-      if (!confirmed || !isPageActive || !context.mounted) return;
-      await service.confirmTarget(target.identifier, writeAutomatically: false);
-    }
-    if (!isPageActive || !context.mounted) return;
-    if (await service.backupNow() && isPageActive && context.mounted) {
-      ContextAlert.showToast(context, l.backupWritten);
-    }
-  });
+  Future<void> backup(BuildContext context) =>
+      _perform(context, BackupPageAction.writing, () async {
+        final l = AppLocalizations.of(context)!;
+        if (service.state.settings.target == null) return;
+        if (!isPageActive || !context.mounted) return;
+        if (await service.backupNow() && isPageActive && context.mounted) {
+          ContextAlert.showToast(context, l.backupWritten);
+        }
+      });
 
   Future<void> restore(BuildContext context) =>
       _perform(context, BackupPageAction.restoring, () async {
         final l = AppLocalizations.of(context)!;
-        final date = DateFormat.yMd(Localizations.localeOf(context).toString())
-            .add_Hm();
         final preview = await service.preview();
         if (!isPageActive || !context.mounted) return;
-        final confirmed = await AppConfirmationDialog(
-          title: l.backupRestoreTitle,
-          content: [
-            l.backupCreatedAt(date.format(preview.createdAt.toLocal())),
-            l.backupSummary(
-              preview.nodes,
-              preview.raw,
-              preview.subscriptions,
-              preview.routes,
-            ),
-            if (preview.pending > 0) l.backupPendingCount(preview.pending),
-            if (preview.conflicts.isNotEmpty)
-              l.backupConflicts(preview.conflicts.join(', ')),
-            if (preview.empty) l.backupEmptyWarning,
-            l.backupRestoreWarning,
-          ].join('\n\n'),
-          cancelLabel: l.prototypeCancel,
-          confirmLabel: l.backupRestore,
-          destructive: true,
-        ).show(context);
+        final confirmed = await _confirmRestore(context, preview);
         if (!confirmed || !isPageActive || !context.mounted) return;
         final pending = await service.restore(preview);
         if (isPageActive && context.mounted) {
@@ -126,27 +114,31 @@ class BackupController extends PageCubit<BackupPageState> {
         }
       });
 
-  Future<void> allowBackups(BuildContext context) =>
-      _perform(context, BackupPageAction.allowing, () async {
-        final l = AppLocalizations.of(context)!;
-        final target = service.state.settings.target;
-        if (target == null) return;
-        final confirmed = await AppConfirmationDialog(
-          title: l.backupConfirmTitle,
-          subject: target.label,
-          content: '${l.backupSensitiveWarning}\n\n${l.backupOverwriteWarning}',
-          cancelLabel: l.prototypeCancel,
-          confirmLabel: l.backupAllow,
-        ).show(context);
-        if (!confirmed || !isPageActive || !context.mounted) return;
-        final written = await service.confirmTarget(target.identifier);
-        if (isPageActive && context.mounted) {
-          ContextAlert.showToast(
-            context,
-            written ? l.backupWritten : l.prototypeSettingsSaved,
-          );
-        }
-      });
+  Future<bool> _confirmRestore(BuildContext context, BackupPreview preview) {
+    final l = AppLocalizations.of(context)!;
+    final date = DateFormat.yMd(Localizations.localeOf(context).toString())
+        .add_Hm();
+    return AppConfirmationDialog(
+      title: l.backupRestoreTitle,
+      content: [
+        l.backupCreatedAt(date.format(preview.createdAt.toLocal())),
+        l.backupSummary(
+          preview.nodes,
+          preview.raw,
+          preview.subscriptions,
+          preview.routes,
+        ),
+        if (preview.pending > 0) l.backupPendingCount(preview.pending),
+        if (preview.conflicts.isNotEmpty)
+          l.backupConflicts(preview.conflicts.join(', ')),
+        if (preview.empty) l.backupEmptyWarning,
+        l.backupRestoreWarning,
+      ].join('\n\n'),
+      cancelLabel: l.prototypeCancel,
+      confirmLabel: l.backupRestore,
+      destructive: true,
+    ).show(context);
+  }
 
   Future<void> setAutomatic(BuildContext context, bool value) async {
     if (state.backup.changingAutomatic) return;

@@ -1071,6 +1071,73 @@ class BackupHostApiSetup {
     }
   }
 }
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol AppleBackupHostApi {
+  func hasBackupFileContents(identifier: String, completion: @escaping (Result<Bool, Error>) -> Void)
+  func readBackupFile(identifier: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  func writeBackupFile(identifier: String, bytes: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class AppleBackupHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `AppleBackupHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: AppleBackupHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    let hasBackupFileContentsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleBackupHostApi.hasBackupFileContents\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      hasBackupFileContentsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let identifierArg = args[0] as! String
+        api.hasBackupFileContents(identifier: identifierArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      hasBackupFileContentsChannel.setMessageHandler(nil)
+    }
+    let readBackupFileChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleBackupHostApi.readBackupFile\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      readBackupFileChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let identifierArg = args[0] as! String
+        api.readBackupFile(identifier: identifierArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      readBackupFileChannel.setMessageHandler(nil)
+    }
+    let writeBackupFileChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleBackupHostApi.writeBackupFile\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      writeBackupFileChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let identifierArg = args[0] as! String
+        let bytesArg = args[1] as! FlutterStandardTypedData
+        api.writeBackupFile(identifier: identifierArg, bytes: bytesArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      writeBackupFileChannel.setMessageHandler(nil)
+    }
+  }
+}
 
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol BridgeFlutterApiProtocol {

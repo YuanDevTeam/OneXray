@@ -9,24 +9,23 @@ import 'package:onexray/pages/shared/widgets/settings_page.dart';
 const _open = Key('open-confirmation');
 const _filename =
     'OneXray-connection-configurations-servers-subscriptions-Age-private-keys-'
-    'custom-routing-and-Raw-JSON.json';
+    'custom-routing-and-Raw-JSON.log';
 
-enum _Action { backup, restore, exportConfiguration, clear }
+enum _Action { exportLog, restore, exportConfiguration, clear }
 
-// The same arguments as the backup, configuration viewer and data-clear pages.
+// The same arguments as restore, log/configuration export and data-clear pages.
 AppConfirmationDialog _dialog(AppLocalizations l, _Action action) =>
     AppConfirmationDialog(
       title: switch (action) {
-        _Action.backup => l.backupConfirmTitle,
+        _Action.exportLog => l.prototypeExport,
         _Action.restore => l.backupRestoreTitle,
         _Action.exportConfiguration =>
           l.prototypeExportOriginalConfigurationQuestion,
         _Action.clear => l.prototypeClearAllDataQuestion,
       },
-      subject: action == _Action.backup ? _filename : null,
+      subject: action == _Action.exportLog ? _filename : null,
       content: switch (action) {
-        _Action.backup =>
-          '${l.backupSensitiveWarning}\n\n${l.backupOverwriteWarning}',
+        _Action.exportLog => l.prototypeLocalLogNotice,
         _Action.restore => [
           l.backupCreatedAt('2026-09-03 09:00'),
           l.backupSummary(3, 1, 1, 1),
@@ -39,7 +38,7 @@ AppConfirmationDialog _dialog(AppLocalizations l, _Action action) =>
       },
       cancelLabel: l.prototypeCancel,
       confirmLabel: switch (action) {
-        _Action.backup => l.backupNow,
+        _Action.exportLog => l.prototypeExport,
         _Action.restore => l.backupRestore,
         _Action.exportConfiguration => l.prototypeExport,
         _Action.clear => l.prototypeConfirmClearData,
@@ -137,14 +136,14 @@ void main() {
   // One representative per App action, plus the RTL long-filename layout.
   for (final (action, locale, width) in [
     (
-      _Action.backup,
+      _Action.exportLog,
       const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
       390.0,
     ),
     (_Action.restore, const Locale('ru'), 390.0),
     (_Action.exportConfiguration, const Locale('en'), 1200.0),
     (_Action.clear, const Locale('zh'), 427.0),
-    (_Action.backup, const Locale('fa'), 390.0),
+    (_Action.exportLog, const Locale('fa'), 390.0),
   ]) {
     testWidgets('$locale $action stays readable and confirms the action', (
       tester,
@@ -170,11 +169,14 @@ void main() {
         if (dialog.subject != null) dialog.subject!,
         dialog.content,
       ]) {
-        final bounds = tester.getRect(find.text(text));
-        expect(bounds.left, greaterThanOrEqualTo(surface.left));
-        expect(bounds.right, lessThanOrEqualTo(surface.right));
-        expect(bounds.top, greaterThanOrEqualTo(surface.top));
-        expect(bounds.bottom, lessThanOrEqualTo(surface.bottom));
+        final matches = find.text(text);
+        for (var i = 0; i < matches.evaluate().length; i++) {
+          final bounds = tester.getRect(matches.at(i));
+          expect(bounds.left, greaterThanOrEqualTo(surface.left));
+          expect(bounds.right, lessThanOrEqualTo(surface.right));
+          expect(bounds.top, greaterThanOrEqualTo(surface.top));
+          expect(bounds.bottom, lessThanOrEqualTo(surface.bottom));
+        }
       }
       for (final type in [OutlinedButton, FilledButton]) {
         final button = find.byType(type);

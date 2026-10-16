@@ -124,26 +124,35 @@ void main() {
   });
 
   Future<BackupPreview> savedPreview() async {
+    preferences.enabled = false;
+    preferences.settings = BackupSettings(target: storage.target);
     await insert('Restored');
     storage.bytes = encodeBackup(await assets.capture());
     await db.coreConfigDao.clear();
     await insert('Current');
-    await service.select(create: false);
+    await service.load();
     return service.preview();
   }
 
-  test('selection and preview do not write or stop; restore works without overwrite consent', () async {
-    final preview = await savedPreview();
-    expect((preview.raw, preview.pending), (1, 0));
-    expect((storage.writes, stops), (0, 0));
-    expect(preferences.settings.confirmed, false);
-    expect((await db.coreConfigDao.allRawRowsWithData).single.name, 'Current');
-    expect(await service.restore(preview), 0);
-    expect(stops, 1);
-    expect((await db.coreConfigDao.allRawRowsWithData).single.name, 'Restored');
-    expect(storage.writes, 0);
-    expect(preferences.settings.confirmed, false);
-  });
+  test(
+    'preview does not write or stop before restoring an existing binding',
+    () async {
+      final preview = await savedPreview();
+      expect((preview.raw, preview.pending), (1, 0));
+      expect((storage.writes, stops), (0, 0));
+      expect(
+        (await db.coreConfigDao.allRawRowsWithData).single.name,
+        'Current',
+      );
+      expect(await service.restore(preview), 0);
+      expect(stops, 1);
+      expect(
+        (await db.coreConfigDao.allRawRowsWithData).single.name,
+        'Restored',
+      );
+      expect(storage.writes, 0);
+    },
+  );
 
   test('failed stop makes no replacement and admits a later retry', () async {
     final preview = await savedPreview();
@@ -176,8 +185,6 @@ void main() {
 
   test('clear waits for accepted provider write, rejects restore, then resets binding', () async {
     final preview = await savedPreview();
-    preferences.enabled = false;
-    await service.confirmTarget(storage.target!.identifier);
     final accepted = Completer<void>();
     final finish = Completer<void>();
     storage.onWrite = () async {
@@ -214,15 +221,15 @@ void main() {
     expect(stops, 1);
   });
 
-  test('auto defaults on, but load, selection and unconfirmed checks never access contents', () async {
+  test('auto defaults on; binding writes immediately and subsequent checks follow the interval', () async {
     expect(await BackupPreferences().automatic(), true);
     await service.load();
     await service.checkAutomatic();
-    await service.select(create: false);
-    await service.checkAutomatic();
     expect((storage.reads, storage.writes), (0, 0));
-    expect(await service.confirmTarget('fixture'), true);
+    await insert('Backed up');
+    expect(await service.select(create: false), true);
     expect(storage.writes, 1);
+    expect(decodeBackup(storage.bytes!).coreConfigs.single.name, 'Backed up');
     expect(preferences.settings.lastSuccess, now);
     await service.checkAutomatic();
     expect(storage.writes, 1);
@@ -237,15 +244,17 @@ void main() {
   });
 
   test('saving the interval stays local, persists after reload and survives unbinding', () async {
+    preferences.enabled = false;
     await service.setInterval(AutoUpdateInterval.oneWeek);
     await service.load();
     expect(service.state.interval, AutoUpdateInterval.oneWeek);
     expect(preferences.period, AutoUpdateInterval.oneWeek);
+    expect((storage.reads, storage.writes), (0, 0));
     await service.select(create: false);
     await service.unbind();
     await service.load();
     expect(service.state.interval, AutoUpdateInterval.oneWeek);
-    expect((storage.reads, storage.writes), (0, 0));
+    expect((storage.reads, storage.writes), (0, 1));
   });
 
   test('a failed interval save preserves the previous choice', () async {
@@ -262,22 +271,20 @@ void main() {
   });
 
   test('disabled automatic backups do not prevent manual writes or advance a separate interval', () async {
-    await service.select(create: false);
     await service.setAutomatic(false);
-    expect(await service.confirmTarget('fixture'), false);
+    await service.select(create: false);
     now = now.add(const Duration(days: 10));
     await service.checkAutomatic();
-    expect(storage.writes, 0);
+    expect(storage.writes, 1);
     expect(await service.backupNow(), true);
     expect(preferences.settings.lastSuccess, now);
     await service.setAutomatic(true);
     await Future<void>.delayed(Duration.zero);
-    expect(storage.writes, 1);
+    expect(storage.writes, 2);
   });
 
   test('failed automatic write keeps success time and retries no sooner than one hour', () async {
     await service.select(create: false);
-    await service.confirmTarget('fixture');
     final lastSuccess = now;
     now = now.add(const Duration(days: 3));
     storage.onWrite = () async =>
@@ -298,29 +305,30 @@ void main() {
   });
 
   test('checks coalesce, target cannot change during write, and accepted write may finish after disabling', () async {
-    await service.select(create: false);
-    await service.confirmTarget('fixture', writeAutomatically: false);
     final accepted = Completer<void>();
     final release = Completer<void>();
     storage.onWrite = () async {
       accepted.complete();
       await release.future;
     };
-    final writing = service.checkAutomatic();
+    final binding = service.select(create: false);
     await accepted.future;
     await service.checkAutomatic();
     await expectLater(service.select(create: false), throwsStateError);
     await service.setAutomatic(false);
     release.complete();
-    await writing;
+    expect(await binding, true);
     expect(storage.writes, 1);
     expect(service.state.automatic, false);
     expect(preferences.settings.lastSuccess, now);
     storage.target = const BackupTarget('new', 'New backup');
+    storage.bytes = null;
+    storage.onWrite = null;
     await service.select(create: false);
-    expect(preferences.settings.confirmed, false);
-    expect(preferences.settings.lastSuccess, null);
+    expect(preferences.settings.target!.identifier, 'new');
+    expect(preferences.settings.lastSuccess, now);
     expect(storage.released, ['fixture']);
+    expect(storage.writes, 2);
   });
 
   test(
@@ -335,8 +343,7 @@ void main() {
         now: () => now,
       );
       addTearDown(service.close);
-      await service.select(create: false);
-      await service.confirmTarget('fixture', writeAutomatically: false);
+      preferences.settings = BackupSettings(target: storage.target);
       final writing = service.checkAutomatic();
       await entered.future;
       await service.setAutomatic(false);
@@ -348,8 +355,7 @@ void main() {
   );
 
   test('a late preference read cannot undo disabling auto backup', () async {
-    await service.select(create: false);
-    await service.confirmTarget('fixture', writeAutomatically: false);
+    preferences.settings = BackupSettings(target: storage.target);
     final reading = Completer<void>();
     final release = Completer<void>();
     preferences.beforeInterval = () async {
@@ -368,13 +374,197 @@ void main() {
   test('cancelled selection keeps the binding and explicit unbind never deletes a file', () async {
     await service.select(create: false);
     final before = preferences.settings;
+    final bytes = storage.bytes;
     storage.target = null;
     expect(await service.select(create: false), false);
     expect(preferences.settings, before);
     await service.unbind();
     expect(preferences.settings.target, null);
     expect(storage.released, ['fixture']);
+    expect(storage.writes, 1);
+    expect(storage.bytes, bytes);
+  });
+
+  test(
+    'existing content requires a choice before rebinding or writing',
+    () async {
+      await service.select(create: false);
+      expect(await service.select(create: false), false);
+      expect(storage.writes, 1);
+      storage.target = const BackupTarget('new', 'New backup');
+      storage.bytes = null;
+      await service.select(create: false);
+      expect(storage.writes, 2);
+      expect(storage.released, ['fixture']);
+      expect(preferences.settings.lastSuccess, now);
+    },
+  );
+
+  test('failed first backup retains the binding, throttles automatic retry and allows manual retry', () async {
+    storage.onWrite = () async =>
+        throw const FileSystemException('Fixture quota exceeded');
+    await expectLater(
+      service.select(create: false),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(preferences.settings.target!.identifier, 'fixture');
+    expect(preferences.settings.lastSuccess, null);
+    expect(service.state.error, isA<FileSystemException>());
+    await service.checkAutomatic();
+    expect(storage.writes, 1);
+    storage.onWrite = null;
+    expect(await service.backupNow(), true);
+    expect(storage.writes, 2);
+    expect(service.state.error, null);
+    expect(preferences.settings.lastSuccess, now);
+  });
+
+  test(
+    'an existing binding ignores the retired confirmation flag and can back up',
+    () async {
+      preferences.settings = BackupSettings.fromJson({
+        'target': storage.target!.toJson(),
+        'confirmed': false,
+      });
+      await service.checkAutomatic();
+      expect(storage.writes, 1);
+      expect(preferences.settings.lastSuccess, now);
+      expect(preferences.settings.toJson(), isNot(contains('confirmed')));
+    },
+  );
+
+  test('interruption before the initial write does not postpone a new empty target', () async {
+    preferences.settings = BackupSettings(
+      target: const BackupTarget('old', 'Old backup'),
+      lastSuccess: now,
+    );
+    storage.onRelease = () async =>
+        throw const FileSystemException('Fixture grant release failed');
+    await expectLater(
+      service.select(create: true),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(preferences.settings.target!.identifier, 'fixture');
     expect(storage.writes, 0);
+    storage.onRelease = null;
+    await service.checkAutomatic();
+    expect(storage.writes, 1);
+    expect(preferences.settings.lastSuccess, now);
+  });
+
+  test('existing-file decisions block other writes and cancel preserves the old binding', () async {
+    final original = BackupSettings(
+      target: const BackupTarget('old', 'Old backup'),
+      lastSuccess: now,
+    );
+    preferences.settings = original;
+    storage.bytes = Uint8List.fromList([1, 2, 3]);
+    final before = storage.bytes;
+    final entered = Completer<void>();
+    final choice = Completer<BackupExistingAction?>();
+    final binding = service.select(
+      create: false,
+      onExisting: (_, _) {
+        entered.complete();
+        return choice.future;
+      },
+    );
+    await entered.future;
+    await service.checkAutomatic();
+    await expectLater(service.backupNow(), throwsStateError);
+    expect(preferences.settings, original);
+    expect((storage.reads, storage.writes), (0, 0));
+    choice.complete(null);
+    expect(await binding, false);
+    expect(preferences.settings, original);
+    expect(storage.bytes, before);
+    expect(storage.released, ['fixture']);
+  });
+
+  test('overwrite works without parsing the existing contents even with automatic backup disabled', () async {
+    preferences.enabled = false;
+    storage.bytes = Uint8List.fromList(utf8.encode('not a backup'));
+    await insert('Current');
+    expect(
+      await service.select(
+        create: false,
+        onExisting: (_, _) async => BackupExistingAction.overwrite,
+      ),
+      true,
+    );
+    expect(storage.reads, 0);
+    expect(storage.writes, 1);
+    expect(decodeBackup(storage.bytes!).coreConfigs.single.name, 'Current');
+    expect(service.state.automatic, false);
+  });
+
+  test('restoring during binding reuses one preview and preserves the file until the next interval', () async {
+    await insert('Restored');
+    storage.bytes = encodeBackup(await assets.capture());
+    final original = storage.bytes;
+    await db.coreConfigDao.clear();
+    await insert('Current');
+    expect(
+      await service.select(
+        create: false,
+        onExisting: (_, preview) async {
+          expect((await preview()).raw, 1);
+          return BackupExistingAction.restore;
+        },
+      ),
+      true,
+    );
+    expect((await db.coreConfigDao.allRawRowsWithData).single.name, 'Restored');
+    expect((storage.reads, storage.writes, stops), (1, 0, 1));
+    expect(storage.bytes, original);
+    expect(preferences.settings.boundAt, now);
+    expect(preferences.settings.lastSuccess, null);
+    await service.checkAutomatic();
+    expect(storage.writes, 0);
+    now = now.add(const Duration(days: 3));
+    await service.checkAutomatic();
+    expect(storage.writes, 1);
+  });
+
+  test('invalid restore and probe failures cannot bind or overwrite the selected file', () async {
+    storage.bytes = Uint8List.fromList([42]);
+    final original = storage.bytes;
+    await expectLater(
+      service.select(
+        create: false,
+        onExisting: (_, _) async => BackupExistingAction.restore,
+      ),
+      throwsFormatException,
+    );
+    expect(preferences.settings.target, null);
+    expect(storage.bytes, original);
+    expect((storage.writes, stops), (0, 0));
+    storage.onProbe = () async =>
+        throw const FileSystemException('Fixture access denied');
+    await expectLater(
+      service.select(create: false),
+      throwsA(isA<FileSystemException>()),
+    );
+    expect(preferences.settings.target, null);
+    expect(storage.writes, 0);
+    expect(storage.released, ['fixture', 'fixture']);
+  });
+
+  test('a failed first write retries after one hour instead of waiting a whole interval', () async {
+    storage.onWrite = () async =>
+        throw const FileSystemException('Fixture quota exceeded');
+    await expectLater(
+      service.select(create: true),
+      throwsA(isA<FileSystemException>()),
+    );
+    now = now.add(const Duration(minutes: 59));
+    await service.checkAutomatic();
+    expect(storage.writes, 1);
+    storage.onWrite = null;
+    now = now.add(const Duration(minutes: 1));
+    await service.checkAutomatic();
+    expect(storage.writes, 2);
+    expect(preferences.settings.lastSuccess, now);
   });
 }
 
@@ -416,14 +606,32 @@ class MemoryBackupStorage implements BackupStorage {
   Uint8List? bytes;
   int writes = 0;
   int reads = 0;
+  int probes = 0;
   final released = <String>[];
+  final selections = <(bool, bool)>[];
   Future<void> Function()? onWrite;
+  Future<void> Function()? onProbe;
+  Future<void> Function()? onRelease;
   @override
-  Future<BackupTarget?> select({required bool create}) async => target;
+  Future<BackupTarget?> select({
+    required bool create,
+    bool local = false,
+  }) async {
+    selections.add((create, local));
+    return target;
+  }
+
   @override
   Future<Uint8List> read(BackupTarget target) async {
     reads++;
     return bytes!;
+  }
+
+  @override
+  Future<bool> hasContents(BackupTarget target) async {
+    probes++;
+    await onProbe?.call();
+    return bytes?.isNotEmpty ?? false;
   }
 
   @override
@@ -435,6 +643,7 @@ class MemoryBackupStorage implements BackupStorage {
 
   @override
   Future<void> release(BackupTarget target) async {
+    await onRelease?.call();
     released.add(target.identifier);
   }
 }

@@ -112,6 +112,18 @@ abstract class BackupHostApi {
   void releaseBackupFile(String identifier);
 }
 
+@HostApi()
+abstract class AppleBackupHostApi {
+  @asyncCallback
+  bool hasBackupFileContents(String identifier);
+
+  @asyncCallback
+  Uint8List readBackupFile(String identifier);
+
+  @asyncCallback
+  void writeBackupFile(String identifier, Uint8List bytes);
+}
+
 class AppleVpnCapabilities {
   AppleVpnCapabilities({
     required this.serviceExclusions,

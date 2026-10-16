@@ -13,6 +13,9 @@ class MainFlutterWindow: NSWindow {
             let binaryMessenger = flutterViewController.engine.binaryMessenger
             let flutterApi = AppFlutterApi(binaryMessenger: binaryMessenger)
             BridgeHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: AppHostApi(flutterApi: flutterApi))
+            let backupApi = AppleBackupApi()
+            BackupHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: backupApi)
+            AppleBackupHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: backupApi)
 
             RegisterGeneratedPlugins(registry: flutterViewController)
 

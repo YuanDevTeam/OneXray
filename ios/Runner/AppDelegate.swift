@@ -16,6 +16,9 @@ import UIKit
         let binaryMessenger = engineBridge.applicationRegistrar.messenger()
         let flutterApi = AppFlutterApi(binaryMessenger: binaryMessenger)
         BridgeHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: AppHostApi(flutterApi: flutterApi))
+        let backupApi = AppleBackupApi()
+        BackupHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: backupApi)
+        AppleBackupHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: backupApi)
         
         GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     }

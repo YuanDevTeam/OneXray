@@ -25,7 +25,8 @@ class BackupTarget {
 }
 
 abstract interface class BackupStorage {
-  Future<BackupTarget?> select({required bool create});
+  Future<BackupTarget?> select({required bool create, bool local = false});
+  Future<bool> hasContents(BackupTarget target);
   Future<Uint8List> read(BackupTarget target);
   Future<void> write(BackupTarget target, Uint8List bytes);
   Future<void> release(BackupTarget target);
@@ -33,6 +34,7 @@ abstract interface class BackupStorage {
 
 class PlatformBackupStorage implements BackupStorage {
   final _native = BackupHostApi();
+  final _appleFiles = AppleBackupHostApi();
   final TargetPlatform _platform;
   PlatformBackupStorage({TargetPlatform? platform})
     : _platform = platform ?? defaultTargetPlatform;
@@ -45,9 +47,12 @@ class PlatformBackupStorage implements BackupStorage {
       Platform.isWindows;
 
   @override
-  Future<BackupTarget?> select({required bool create}) async {
-    if (_apple) {
-      // Binding a fixed container is not consent to overwrite it.
+  Future<BackupTarget?> select({
+    required bool create,
+    bool local = false,
+  }) async {
+    if (_apple && !local) {
+      // The service decides when to write to this fixed container.
       return const BackupTarget(
         backupContainerId,
         'iCloud Drive / $backupFileName',
@@ -59,7 +64,7 @@ class PlatformBackupStorage implements BackupStorage {
           ? null
           : BackupTarget(directory, p.join(directory, backupFileName));
     }
-    if (_platform != TargetPlatform.android) {
+    if (!_apple && _platform != TargetPlatform.android) {
       throw UnsupportedError('Backup storage is not supported');
     }
     final selected = await _native.selectBackupFile(create);
@@ -76,9 +81,44 @@ class PlatformBackupStorage implements BackupStorage {
   }
 
   @override
-  Future<Uint8List> read(BackupTarget target) async {
+  Future<bool> hasContents(BackupTarget target) async {
+    if (_apple && target.identifier != backupContainerId) {
+      return _appleFiles.hasBackupFileContents(target.identifier);
+    }
     if (_apple) {
-      _requireContainer(target);
+      final metadata = await ICloudStorage.getItemMetadata(
+        containerId: backupContainerId,
+        relativePath: backupCloudPath,
+      );
+      return metadata != null && metadata.sizeInBytes != 0;
+    }
+    if (_platform == TargetPlatform.windows) {
+      final file = _file(target);
+      try {
+        return await file.length() != 0;
+      } on PathNotFoundException {
+        if (await file.parent.exists()) return false;
+        rethrow;
+      }
+    }
+    if (_platform == TargetPlatform.android) {
+      await _native.requireBackupAccess(target.identifier);
+      final token = RootIsolateToken.instance!;
+      final identifier = target.identifier;
+      return Isolate.run(() async {
+        BackgroundIsolateBinaryMessenger.ensureInitialized(token);
+        return (await readSafBackup(identifier, probeOnly: true)).isNotEmpty;
+      });
+    }
+    throw UnsupportedError('Backup storage is not supported');
+  }
+
+  @override
+  Future<Uint8List> read(BackupTarget target) async {
+    if (_apple && target.identifier != backupContainerId) {
+      return _appleFiles.readBackupFile(target.identifier);
+    }
+    if (_apple) {
       // Manual read only. The plugin still allocates the complete file; this
       // precheck cannot eliminate size changes between metadata and reading.
       final metadata = await ICloudStorage.getItemMetadata(
@@ -117,8 +157,9 @@ class PlatformBackupStorage implements BackupStorage {
     if (bytes.isEmpty || bytes.length > backupByteLimit) {
       throw const FormatException('Invalid backup size');
     }
-    if (_apple) {
-      _requireContainer(target);
+    if (_apple && target.identifier != backupContainerId) {
+      await _appleFiles.writeBackupFile(target.identifier, bytes);
+    } else if (_apple) {
       await ICloudStorage.writeInPlaceBytes(
         containerId: backupContainerId,
         relativePath: backupCloudPath,
@@ -141,25 +182,23 @@ class PlatformBackupStorage implements BackupStorage {
 
   @override
   Future<void> release(BackupTarget target) async {
-    if (_platform == TargetPlatform.android) {
+    if (_platform == TargetPlatform.android ||
+        (_apple && target.identifier != backupContainerId)) {
       await _native.releaseBackupFile(target.identifier);
-    }
-  }
-
-  void _requireContainer(BackupTarget target) {
-    if (target.identifier != backupContainerId) {
-      throw const FormatException('Select the iCloud backup location again');
     }
   }
 }
 
 /// Pull one chunk at a time; the plugin's automatic stream pumps without
 /// backpressure. JNI reads execute in the caller's worker isolate.
-Future<Uint8List> readSafBackup(String identifier) async {
+Future<Uint8List> readSafBackup(
+  String identifier, {
+  bool probeOnly = false,
+}) async {
   final stream = SafStream();
   final session = await stream.startReadCustomFileStream(
     identifier,
-    bufferSize: 64 * 1024,
+    bufferSize: probeOnly ? 1 : 64 * 1024,
   );
   try {
     final builder = BytesBuilder(copy: false);
@@ -170,6 +209,7 @@ Future<Uint8List> readSafBackup(String identifier) async {
         throw const FormatException('Backup exceeds 64 MiB');
       }
       builder.add(chunk);
+      if (probeOnly) break;
     }
     return builder.takeBytes();
   } finally {

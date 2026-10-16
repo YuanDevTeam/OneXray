@@ -45,6 +45,8 @@
 		EB9A100C2FE60000000000C /* IconOrange.icon in Resources */ = {isa = PBXBuildFile; fileRef = EB9A100B2FE60000000000B /* IconOrange.icon */; };
 		EB9A100E2FE60000000000E /* IconPurple.icon in Resources */ = {isa = PBXBuildFile; fileRef = EB9A100D2FE60000000000D /* IconPurple.icon */; };
 		EB9A10102FE600000000010 /* IconRed.icon in Resources */ = {isa = PBXBuildFile; fileRef = EB9A100F2FE60000000000F /* IconRed.icon */; };
+		D1B9E46DC8CB45DE8C3A2852 /* BackupApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C0E75B86BC41128CD6F654 /* BackupApi.swift */; };
+		B316F8C5899D423CA135969F /* BackupFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B28326E4F2407F9AEDB9C1 /* BackupFileStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -132,6 +134,8 @@
 		EB9A100B2FE60000000000B /* IconOrange.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = IconOrange.icon; path = ../swift/App/AppIcon/IconOrange.icon; sourceTree = SOURCE_ROOT; };
 		EB9A100D2FE60000000000D /* IconPurple.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = IconPurple.icon; path = ../swift/App/AppIcon/IconPurple.icon; sourceTree = SOURCE_ROOT; };
 		EB9A100F2FE60000000000F /* IconRed.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; name = IconRed.icon; path = ../swift/App/AppIcon/IconRed.icon; sourceTree = SOURCE_ROOT; };
+		54C0E75B86BC41128CD6F654 /* BackupApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupApi.swift; sourceTree = "<group>"; };
+		A4B28326E4F2407F9AEDB9C1 /* BackupFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupFileStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -246,6 +250,7 @@
 			children = (
 				EB68C70E2F94D172007C293A /* FlutterApi.swift */,
 				EB68C70F2F94D172007C293A /* HostApi.swift */,
+				54C0E75B86BC41128CD6F654 /* BackupApi.swift */,
 				EB68C7102F94D172007C293A /* Messages.g.swift */,
 			);
 			path = pigeon;
@@ -256,6 +261,7 @@
 			children = (
 				EB68C7112F94D172007C293A /* pigeon */,
 				EB68C7122F94D172007C293A /* Vpn.swift */,
+				A4B28326E4F2407F9AEDB9C1 /* BackupFileStore.swift */,
 				EF6C196001D54A57BBD4AAD2 /* SimulatorProxy.swift */,
 			);
 			name = App;
@@ -450,6 +456,8 @@
 				EB68C7162F94D172007C293A /* Vpn.swift in Sources */,
 				EF6C196001D54A57BBD4AAD1 /* SimulatorProxy.swift in Sources */,
 				EB68C7172F94D172007C293A /* HostApi.swift in Sources */,
+				B316F8C5899D423CA135969F /* BackupFileStore.swift in Sources */,
+				D1B9E46DC8CB45DE8C3A2852 /* BackupApi.swift in Sources */,
 				EB68C7182F94D172007C293A /* FlutterApi.swift in Sources */,
 				EB68C7192F94D172007C293A /* Messages.g.swift in Sources */,
 			);
