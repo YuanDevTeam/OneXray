@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:onexray/core/errors/failure.dart';
-import 'package:onexray/core/constants/preferences.dart';
 import 'package:onexray/core/network/model.dart';
-import 'package:onexray/core/network/user_agent.dart';
 import 'package:onexray/core/tools/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -40,34 +38,24 @@ class NetClient {
   }
 
   Future<void> _initialize() async {
-    final mode = await PreferencesKey().readDownloadUserAgentMode();
-    await _applyUserAgentMode(mode);
+    _downloadClient.options.headers['User-Agent'] = await defaultUserAgent();
   }
 
-  Future<void> updateUserAgentMode(DownloadUserAgentMode mode) async {
-    await asyncInit();
-    await _applyUserAgentMode(mode);
-  }
-
-  Future<void> _applyUserAgentMode(DownloadUserAgentMode mode) async {
-    final appUserAgent = await oneXrayUserAgent();
-    final userAgent = await DownloadUserAgent.resolve(
-      mode: mode,
-      oneXrayUserAgent: appUserAgent,
-    );
-    _downloadClient.options.headers['User-Agent'] = userAgent;
-  }
-
-  static Future<String> oneXrayUserAgent() async {
+  static Future<String> defaultUserAgent() async {
+    var version = '0.0.0';
+    var userAgent = 'OneXray (${Platform.operatingSystem})';
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      return 'OneXray/${packageInfo.version} '
+      version = packageInfo.version;
+      userAgent =
+          'OneXray/$version '
           '(${packageInfo.packageName}; build:${packageInfo.buildNumber}; '
           '${Platform.operatingSystem})';
     } catch (error) {
       ygLogger('Unable to build the OneXray User-Agent: $error');
-      return 'OneXray (${Platform.operatingSystem})';
     }
+    // Providers can select an Xray JSON template by this leading product.
+    return 'v2rayN/$version $userAgent';
   }
 
   static const _maxDownloadRedirects = 8;

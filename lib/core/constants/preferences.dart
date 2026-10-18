@@ -1,4 +1,3 @@
-import 'package:onexray/core/network/user_agent.dart';
 import 'package:onexray/core/tools/json.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -118,17 +117,6 @@ class PreferencesKey {
     await _prefs.setBool(_connectOnAppLaunch, value);
   }
 
-  static const _downloadUserAgentMode = "${_namespace}downloadUserAgentMode";
-
-  Future<DownloadUserAgentMode> readDownloadUserAgentMode() async {
-    final value = await _prefs.getString(_downloadUserAgentMode);
-    return DownloadUserAgentMode.fromString(value);
-  }
-
-  Future<void> saveDownloadUserAgentMode(DownloadUserAgentMode value) async {
-    await _prefs.setString(_downloadUserAgentMode, value.name);
-  }
-
   static const _autoUpdate = "${_namespace}autoUpdate";
 
   Future<Map<String, dynamic>?> readAutoUpdate() async {
@@ -214,7 +202,6 @@ class PreferencesKey {
       _prefs.remove('app2.xraySettingId'),
       _prefs.remove(_desktopStartHidden),
       _prefs.remove(_connectOnAppLaunch),
-      _prefs.remove(_downloadUserAgentMode),
     ]);
   }
 }

@@ -49,7 +49,7 @@ UTF-8 JSON 的 `format=onexray-backup`、`version=1`、`createdAt` 为 Unix 毫�
   保存订阅来源的 panel/mode、可选 userAgent、原 Age 密钥对及关闭发送时仍存在的 HWID，
   排除订阅完整配置及普通派生缓存、本地修改、更新时间与套餐缓存。
   旧备份缺 panel/mode 时恢复 generic/appManaged；显式未知值仍拒绝，未知字段容忍不放宽已知枚举。
-  缺 userAgent 时保留为空，下载使用恢复设备对应面板的默认 UA；自定义 UA 按单行 ASCII 文本验证。
+  缺 userAgent 时保留为空，下载使用恢复设备统一的订阅默认 UA，与面板类型无关；自定义 UA 按单行 ASCII 文本验证。
 - 常规/高级路由保留类型、名称及原文，共用名称唯一和三份上限；
   包含 [Fragment 辅助出站及其参数](xray-configuration.md#fragment)。
   Smart 显式保存连接设置（含 Fragment 开关、可选 dns/sniffing/selection maps），排除最终出口选择。

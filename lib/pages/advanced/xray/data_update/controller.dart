@@ -1,15 +1,11 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
-import 'package:onexray/core/constants/preferences.dart';
-import 'package:onexray/core/network/client.dart';
-import 'package:onexray/core/network/user_agent.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
 
 class AutoUpdatePageState {
   final AutoUpdateState autoUpdateState;
-  final DownloadUserAgentMode userAgent;
   final bool loading;
   final bool loaded;
   final bool saving;
@@ -17,7 +13,6 @@ class AutoUpdatePageState {
   final Object? failure;
   AutoUpdatePageState({
     AutoUpdateState? autoUpdateState,
-    this.userAgent = DownloadUserAgentMode.oneXray,
     this.loading = true,
     this.saving = false,
     this.failed = false,
@@ -26,7 +21,6 @@ class AutoUpdatePageState {
   }) : autoUpdateState = autoUpdateState ?? AutoUpdateState();
 
   AutoUpdatePageState copyWith({
-    DownloadUserAgentMode? userAgent,
     bool? loading,
     bool? loaded,
     bool? saving,
@@ -34,7 +28,6 @@ class AutoUpdatePageState {
     Object? failure,
   }) => AutoUpdatePageState(
     autoUpdateState: autoUpdateState,
-    userAgent: userAgent ?? this.userAgent,
     loading: loading ?? this.loading,
     saving: saving ?? this.saving,
     failed: failed ?? this.failed,
@@ -53,11 +46,9 @@ class AutoUpdateController extends PageCubit<AutoUpdatePageState> {
     try {
       final value = AutoUpdateState();
       await value.readFromPreferences();
-      final mode = await PreferencesKey().readDownloadUserAgentMode();
       emit(
         AutoUpdatePageState(
           autoUpdateState: value,
-          userAgent: mode,
           loading: false,
           loaded: true,
         ),
@@ -89,10 +80,6 @@ class AutoUpdateController extends PageCubit<AutoUpdatePageState> {
     emit(state.copyWith());
   }
 
-  void updateUserAgent(DownloadUserAgentMode? value) {
-    if (value != null) emit(state.copyWith(userAgent: value));
-  }
-
   void cancel(BuildContext context) => context.pop();
 
   Future<void> save(BuildContext context) async {
@@ -100,8 +87,6 @@ class AutoUpdateController extends PageCubit<AutoUpdatePageState> {
     emit(state.copyWith(saving: true, failed: false));
     try {
       await state.autoUpdateState.saveToPreferences();
-      await PreferencesKey().saveDownloadUserAgentMode(state.userAgent);
-      await NetClient().updateUserAgentMode(state.userAgent);
       if (context.mounted) ContextAlert.settingsSaved(context, closePage: true);
     } catch (error) {
       emit(state.copyWith(failed: true, failure: error));

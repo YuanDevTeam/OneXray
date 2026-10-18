@@ -143,17 +143,6 @@ class SubscriptionService {
   /// An app-generated identity for one subscription, never a hardware ID.
   static String createHwid() => const Uuid().v4();
 
-  static Future<String> defaultUserAgent() async {
-    final appUserAgent = await NetClient.oneXrayUserAgent();
-    final version =
-        RegExp(r'^OneXray/(\d+\.\d+\.\d+)')
-            .firstMatch(appUserAgent)
-            ?.group(1) ??
-        '0.0.0';
-    // Providers can select an Xray JSON template by this leading product.
-    return 'v2rayN/$version $appUserAgent';
-  }
-
   Future<SubscriptionNodeReferences> _storedReferences() async {
     final value = jsonDecode(
       (await _database.connectionConfigDao.read()).configurationJson,
@@ -678,7 +667,8 @@ class SubscriptionService {
         input.url,
         httpsOnly: true,
         requestHeaders: DownloadRequestHeaders(
-          userAgent: input.normalizedUserAgent ?? await defaultUserAgent(),
+          userAgent:
+              input.normalizedUserAgent ?? await NetClient.defaultUserAgent(),
           agePublicKey: ageContext?.publicKey,
           hwid: input.hwidEnabled ? input.hwid : null,
         ),

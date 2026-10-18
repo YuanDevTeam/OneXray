@@ -5,8 +5,6 @@ import 'package:onexray/core/errors/failure.dart';
 import 'package:flutter/foundation.dart';
 import 'package:onexray/core/constants/preferences.dart';
 import 'package:onexray/core/db/database/database.dart';
-import 'package:onexray/core/network/client.dart';
-import 'package:onexray/core/network/user_agent.dart';
 import 'package:onexray/core/pigeon/constants.dart';
 import 'package:onexray/core/tools/logger.dart';
 import 'package:onexray/service/launch/app_startup.dart';
@@ -164,7 +162,6 @@ final class AppDataCleanupService {
     await AppStartupService().unregisterForDataCleanup();
     await PreferencesKey().clearUserDataPreferences();
     await LocalApiService.instance.clearAfterDataClear();
-    await NetClient().updateUserAgentMode(DownloadUserAgentMode.defaultMode);
     await _clearDatabase();
     await _clearRuntimeFiles();
     _coordinator.clearTrafficView();

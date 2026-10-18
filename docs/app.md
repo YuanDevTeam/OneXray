@@ -123,6 +123,9 @@ FakeDNS 开启时不能关闭嗅探，先关闭 FakeDNS 才能停用。
   桌面端另有本地 HTTP API；移动端不注册该入口或路由。
   System Extension 隐藏整个日志区和对应保存/恢复按钮，不提供原生日志读取；其他入口不受影响。
 
+数据更新页仅管理订阅与 Geodata 的自动更新开关和周期。User-Agent 在每个订阅表单单独管理，默认填入兼容 UA，
+用户可自定义；清空后仍使用订阅默认值，规则见 [订阅合同](subscriptions-and-sharing.md)。
+
 高级页没有 iOS Debug Proxy 开关；模拟器适配属于 Swift，见 [Raw 运行边界](xray-configuration.md#raw-json)。
 测速设置只提供延迟 URL 和超时，并说明 VPN 运行时结果可能不准确、建议关闭 VPN 后测速。
 保存影响后续手动和自动任务，无需重连；取消不保存，正在执行的任务使用开始时的快照。

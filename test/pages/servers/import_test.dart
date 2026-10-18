@@ -89,6 +89,135 @@ void main() {
     },
   );
 
+  testWidgets('adding an ordinary subscription displays the default UA', (
+    tester,
+  ) async {
+    PackageInfo.setMockInitialValues(
+      appName: 'OneXray',
+      packageName: 'net.yuandev.onexray',
+      version: '26.10.4',
+      buildNumber: '104',
+      buildSignature: '',
+    );
+    final expectedUserAgent =
+        'v2rayN/26.10.4 OneXray/26.10.4 '
+        '(net.yuandev.onexray; build:104; ${Platform.operatingSystem})';
+    final controller = ServerImportController(
+      loadSubscription: (_) async => null,
+    );
+    addTearDown(controller.close);
+    await tester.pumpWidget(
+      _app(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => showAppDialog<ServerImportResult>(
+              context,
+              (_) => ServersImportPage(controller: controller),
+            ),
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Add subscription'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SubscriptionFormView), findsOneWidget);
+    expect(controller.state.panel, SubscriptionPanel.generic);
+    expect(controller.userAgent.text, expectedUserAgent);
+    expect(controller.state.userAgent, expectedUserAgent);
+    expect(
+      find.descendant(
+        of: find.byType(SubscriptionFormView),
+        matching: find.text(expectedUserAgent),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final panel in SubscriptionPanel.values) {
+    for (final storedUserAgent in <String?>[null, ' \t ']) {
+      final storedLabel = storedUserAgent == null ? 'missing' : 'blank';
+      testWidgets(
+        'editing $panel subscription displays the default for $storedLabel UA without saving',
+        (tester) async {
+          PackageInfo.setMockInitialValues(
+            appName: 'OneXray',
+            packageName: 'net.yuandev.onexray',
+            version: '26.10.4',
+            buildNumber: '104',
+            buildSignature: '',
+          );
+          final expectedUserAgent =
+              'v2rayN/26.10.4 OneXray/26.10.4 '
+              '(net.yuandev.onexray; build:104; ${Platform.operatingSystem})';
+          var saves = 0;
+          final controller = ServerImportController(
+            subscriptionId: 7,
+            loadSubscription: (_) async => SubscriptionData(
+              id: 7,
+              name: 'Provider',
+              url: 'https://provider.example/list',
+              userAgent: storedUserAgent,
+              panel: panel.name,
+              mode: 'appManaged',
+              hwidEnabled: false,
+              timestamp: DateTime(2026),
+            ),
+            saveSubscriptionInput: (_, _) async {
+              saves++;
+              return SubscriptionUpdateResult.success;
+            },
+          );
+          addTearDown(controller.close);
+          await tester.pumpWidget(
+            _app(
+              Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    await controller.loadSubscription(context);
+                    if (!context.mounted) return;
+                    await showAppDialog<int>(
+                      context,
+                      (_) => ServerImportFormPage(
+                        controller: controller,
+                        action: ServerImportAction.subscription,
+                      ),
+                    );
+                  },
+                  child: const Text('Edit source'),
+                ),
+              ),
+            ),
+          );
+          await tester.tap(find.text('Edit source'));
+          await tester.pumpAndSettle();
+
+          expect(find.byType(SubscriptionFormView), findsOneWidget);
+          expect(controller.state.panel, panel);
+          expect(controller.userAgent.text, expectedUserAgent);
+          expect(controller.state.userAgent, expectedUserAgent);
+          expect(
+            find.descendant(
+              of: find.byType(SubscriptionFormView),
+              matching: find.text(expectedUserAgent),
+            ),
+            findsOneWidget,
+          );
+          expect(saves, 0);
+          await _tapVisible(tester, find.text('Cancel'));
+          await tester.pumpAndSettle();
+          expect(find.byType(SubscriptionFormView), findsNothing);
+          expect(saves, 0);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
   testWidgets('file import keeps loading while subscriptions download', (
     tester,
   ) async {

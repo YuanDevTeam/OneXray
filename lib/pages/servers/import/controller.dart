@@ -378,6 +378,10 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         emit(state.copyWith(busy: false, openingAction: null));
       }
     } else {
+      if (action == ServerImportAction.subscription) {
+        await _fillDefaultUserAgent();
+        if (!isPageActive || !context.mounted) return;
+      }
       if (action == ServerImportAction.json && jsonText.text.isEmpty) {
         jsonText.text = '{\n  "outbounds": []\n}';
       }
@@ -911,7 +915,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
 
   Future<void> _fillDefaultUserAgent() async {
     if (userAgent.text.trim().isNotEmpty) return;
-    final value = await SubscriptionService.defaultUserAgent();
+    final value = await NetClient.defaultUserAgent();
     if (isPageActive && userAgent.text.trim().isEmpty) {
       userAgent.text = value;
     }

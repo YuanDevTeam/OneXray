@@ -4,18 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/network/client.dart';
 import 'package:onexray/core/network/model.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-// ignore: depend_on_referenced_packages
-import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
-// ignore: depend_on_referenced_packages
-import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
   const publicKey = 'age1testpublickey';
   const hwid = 'd621fc3f-1b45-4b2b-93c7-17efb4c5c963';
 
   setUpAll(() {
-    SharedPreferencesAsyncPlatform.instance =
-        InMemorySharedPreferencesAsync.empty();
     PackageInfo.setMockInitialValues(
       appName: 'OneXray',
       packageName: 'net.yuandev.onexray',
@@ -25,7 +19,7 @@ void main() {
     );
   });
 
-  test('uses the default OneXray UA for an unrelated download', () async {
+  test('uses the shared compatibility UA for an unrelated download', () async {
     String? receivedAgeHeader;
     String? receivedUserAgent;
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -43,7 +37,7 @@ void main() {
     expect(receivedAgeHeader, isNull);
     expect(
       receivedUserAgent,
-      'OneXray/1.0.0 '
+      'v2rayN/1.0.0 OneXray/1.0.0 '
       '(net.yuandev.onexray; build:1; ${Platform.operatingSystem})',
     );
     expect(NetClient().downloadUserAgent, receivedUserAgent);

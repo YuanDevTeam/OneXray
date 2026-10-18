@@ -2161,18 +2161,6 @@
   "@prototypeErrorsOnly": {
     "description": "Approved prototype copy: Errors only"
   },
-  "prototypeDownloadCompatibility": "Download compatibility",
-  "@prototypeDownloadCompatibility": {
-    "description": "Approved prototype copy: Download compatibility"
-  },
-  "prototypeDownloadCompatibilityHint": "Choose the User-Agent sent when downloading subscriptions and routing data.",
-  "@prototypeDownloadCompatibilityHint": {
-    "description": "Approved prototype copy: Choose the User-Agent sent when downloading subscriptions and routing data."
-  },
-  "prototypeSystemBrowser": "System browser",
-  "@prototypeSystemBrowser": {
-    "description": "Approved prototype copy: System browser"
-  },
   "prototypeDueUpdatesRetryNotice": "Failed updates keep the current data and remain due. After the VPN connects, due automatic updates are retried; there is no separate retry switch.",
   "@prototypeDueUpdatesRetryNotice": {
     "description": "Approved prototype copy: Failed updates keep the current data and remain due. After the VPN connects, due automatic updates are retried; there is no separate retry switch."
@@ -3061,7 +3049,7 @@
   "subscriptionModeNeedsReselection": "Your selected configuration is incompatible with this mode; choose another configuration before connecting.",
   "subscriptionModeNoCacheTitle": "No cached configurations for this mode",
   "subscriptionUserAgentTitle": "User-Agent (optional)",
-  "subscriptionUserAgentHint": "Leave blank to use the default",
+  "subscriptionUserAgentHint": "Uses a compatible UA by default; enter a custom value if needed.",
   "subscriptionUserAgentInvalid": "Use a single line of ASCII text for User-Agent.",
   "subscriptionRemnawaveFormatTitle": "Remnawave did not return JSON",
   "subscriptionConvertToOrdinaryMessage": "Switch “{name}” to a regular subscription managed by OneXray?",
