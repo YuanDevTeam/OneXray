@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/core/db/database/database.dart';
@@ -370,13 +371,7 @@ void main() {
   test(
     'invalid JSON envelopes fail before Core or ordinary node parsing',
     () async {
-      for (final text in [
-        '[]',
-        '[1]',
-        jsonEncode([_config('Valid'), 1]),
-        '{"outbounds":',
-        '[{"outbounds":[]},',
-      ]) {
+      for (final text in ['[]', '[1]', '{"outbounds":', '[{"outbounds":[]},']) {
         await expectLater(
           _reader(
             validate: (_) async =>
@@ -457,48 +452,122 @@ void main() {
     },
   );
 
+  for (final mode in SubscriptionMode.values) {
+    test(
+      'mixed Core results retain only valid configurations in $mode',
+      () async {
+        final validated = <String>[];
+        const coreError = 'Core rejected the second configuration';
+        final configs = [
+          _config('First'),
+          _config('Second')
+            ..['outbounds'] = [
+              {'tag': 'invalid-proxy', 'protocol': ''},
+            ],
+          _config('Third'),
+        ];
+        final result =
+            await _reader(
+              validate: (text) async {
+                final value = jsonDecode(text) as Map<String, dynamic>;
+                final name = value['remarks'] as String;
+                validated.add(name);
+                return name == 'Second' ? coreError : '';
+              },
+            ).read(
+              jsonEncode(configs),
+              SubscriptionInput(name: _input.name, url: _input.url, mode: mode),
+            );
+        expect(validated, ['First', 'Second', 'Third']);
+        expect(result.mode, mode);
+        expect(result.count, 2);
+        expect(result.rows, hasLength(4));
+        expect(
+          result.rows
+              .where((row) => row.type.value == CoreConfigType.Remnawave.name)
+              .map(_saved),
+          [configs.first, configs.last],
+        );
+        expect(
+          result.rows.any((row) => row.name.value == 'invalid-proxy'),
+          isFalse,
+        );
+      },
+    );
+  }
+
   test(
-    'a later Core error rejects the entire array without a partial result',
+    'malformed members do not reject valid configurations or renumber names',
     () async {
-      final validated = <String>[];
-      const coreError = 'Core rejected the second configuration';
-      final configs = [
-        _config('First'),
-        _config('Second')
-          ..['outbounds'] = [
-            {'tag': 'invalid-proxy', 'protocol': ''},
-          ],
-        _config('Third'),
-      ];
-      await expectLater(
-        _reader(
-          validate: (text) async {
-            final value = jsonDecode(text) as Map<String, dynamic>;
-            final name = value['remarks'] as String;
-            validated.add(name);
-            return name == 'Second' ? coreError : '';
-          },
-        ).read(jsonEncode(configs), _input),
-        throwsA(
-          isA<FormatException>().having(
-            (error) => error.message,
-            'message',
-            coreError,
-          ),
-        ),
+      final first = _config('First')..remove('remarks');
+      final second = _config('Second')..remove('remarks');
+      final result = await _reader().read(
+        jsonEncode([
+          1,
+          first,
+          null,
+          {'routing': []},
+          second,
+        ]),
+        _input,
       );
-      expect(validated, ['First', 'Second']);
+      expect(result.count, 2);
+      expect(
+        result.rows
+            .where((row) => row.type.value == CoreConfigType.Remnawave.name)
+            .map((row) => row.name.value),
+        ['Source 2', 'Source 5'],
+      );
     },
   );
 
-  test('native validation failures propagate through the reader', () async {
-    final failure = StateError('Native validation unavailable');
+  test('all failed configurations retain the first Core error after checking every item', () async {
+    final validated = <String>[];
     await expectLater(
-      _reader(validate: (_) async => throw failure)
-          .read(jsonEncode(_config('Native failure')), _input),
-      throwsA(same(failure)),
+      _reader(
+        validate: (text) async {
+          final name =
+              (jsonDecode(text) as Map<String, dynamic>)['remarks'] as String;
+          validated.add(name);
+          return 'Core rejected $name';
+        },
+      ).read(jsonEncode([_config('First'), _config('Second')]), _input),
+      throwsA(
+        isA<FormatException>().having(
+          (error) => error.message,
+          'message',
+          'Core rejected First',
+        ),
+      ),
     );
+    expect(validated, ['First', 'Second']);
   });
+
+  for (final failure in [
+    StateError('Native validation unavailable'),
+    const FormatException('Native response unavailable'),
+    PlatformException(code: 'unavailable'),
+  ]) {
+    test(
+      'native ${failure.runtimeType} aborts even after a valid configuration',
+      () async {
+        await expectLater(
+          _reader(
+            validate: (text) async {
+              final name =
+                  (jsonDecode(text) as Map<String, dynamic>)['remarks'];
+              if (name == 'Native failure') throw failure;
+              return '';
+            },
+          ).read(
+            jsonEncode([_config('Valid'), _config('Native failure')]),
+            _input,
+          ),
+          throwsA(same(failure)),
+        );
+      },
+    );
+  }
 
   for (final outbounds in [null, <Map<String, dynamic>>[]]) {
     test(

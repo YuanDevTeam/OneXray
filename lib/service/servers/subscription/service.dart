@@ -143,15 +143,14 @@ class SubscriptionService {
   /// An app-generated identity for one subscription, never a hardware ID.
   static String createHwid() => const Uuid().v4();
 
-  static Future<String?> defaultUserAgent(SubscriptionPanel panel) async {
-    if (panel != SubscriptionPanel.remnawave) return null;
+  static Future<String> defaultUserAgent() async {
     final appUserAgent = await NetClient.oneXrayUserAgent();
     final version =
         RegExp(r'^OneXray/(\d+\.\d+\.\d+)')
             .firstMatch(appUserAgent)
             ?.group(1) ??
         '0.0.0';
-    // Remnawave's JSON fallback matches this leading product/version only.
+    // Providers can select an Xray JSON template by this leading product.
     return 'v2rayN/$version $appUserAgent';
   }
 
@@ -679,8 +678,7 @@ class SubscriptionService {
         input.url,
         httpsOnly: true,
         requestHeaders: DownloadRequestHeaders(
-          userAgent:
-              input.normalizedUserAgent ?? await defaultUserAgent(input.panel),
+          userAgent: input.normalizedUserAgent ?? await defaultUserAgent(),
           agePublicKey: ageContext?.publicKey,
           hwid: input.hwidEnabled ? input.hwid : null,
         ),

@@ -35,7 +35,7 @@ void main() {
   });
 
   test(
-    'panel changes clear only the unedited auto-filled Remnawave UA',
+    'panels share the default UA and preserve manual input while loading',
     () async {
       PackageInfo.setMockInitialValues(
         appName: 'OneXray',
@@ -50,8 +50,6 @@ void main() {
       addTearDown(controller.close);
 
       await controller.setPanel(SubscriptionPanel.generic);
-      expect(controller.userAgent.text, isEmpty);
-      await controller.setPanel(SubscriptionPanel.remnawave);
       expect(
         controller.userAgent.text,
         'v2rayN/26.10.4 OneXray/26.10.4 '
@@ -60,9 +58,10 @@ void main() {
       expect(controller.state.userAgent, controller.userAgent.text);
       final generated = controller.userAgent.text;
 
+      await controller.setPanel(SubscriptionPanel.remnawave);
       await controller.setPanel(SubscriptionPanel.generic);
-      expect(controller.userAgent.text, isEmpty);
-      expect(controller.state.userAgent, isEmpty);
+      expect(controller.userAgent.text, generated);
+      expect(controller.state.userAgent, generated);
       for (final custom in ['Custom/1.0', generated]) {
         controller.userAgent.clear();
         controller.userAgent.text = custom;
@@ -75,7 +74,7 @@ void main() {
       final switching = controller.setPanel(SubscriptionPanel.remnawave);
       await controller.setPanel(SubscriptionPanel.generic);
       await switching;
-      expect(controller.userAgent.text, isEmpty);
+      expect(controller.userAgent.text, generated);
 
       controller.userAgent.clear();
       final pending = controller.setPanel(SubscriptionPanel.remnawave);

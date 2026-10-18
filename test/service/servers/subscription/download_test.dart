@@ -27,9 +27,12 @@ void main() {
     );
   });
 
-  for (final customUserAgent in [null, '  v2rayNG/2.2.6  ']) {
+  for (final (panel, customUserAgent) in [
+    for (final panel in SubscriptionPanel.values)
+      for (final userAgent in [null, '  v2rayNG/2.2.6  ']) (panel, userAgent),
+  ]) {
     test(
-      'Remnawave ${customUserAgent == null ? "default" : "custom"} UA selects JSON at the original URL',
+      '${panel.name} ${customUserAgent == null ? "default" : "custom"} UA selects JSON at the original URL',
       () async {
         final bus = AppEventBus();
         addTearDown(bus.close);
@@ -87,9 +90,10 @@ void main() {
               });
         addTearDown(client.close);
         final pings = <int>[];
+        final netClient = NetClient.forTesting(client);
         final service = SubscriptionService.forTesting(
           database: database,
-          client: NetClient.forTesting(client),
+          client: netClient,
           configurationReader: SubscriptionConfigurationReader(
             decode: (text, {ageSecretKey}) async => text,
             validate: (_) async => '',
@@ -98,24 +102,13 @@ void main() {
           schedulePing: pings.add,
         );
         const url = 'https://provider.example/sub/example?token=test';
-        final generic = await service.insertSubscription(
-          const SubscriptionInput(
-            name: 'Provider',
-            url: url,
-            mode: SubscriptionMode.providerManaged,
-          ),
-        );
-        expect(generic.status, SubscriptionUpdateResult.invalidContent);
-        expect(await database.subscriptionDao.allRows, isEmpty);
-        expect(requests.single.headers['User-Agent'], 'System/browser');
-        requests.clear();
-
         final inserted = await service.insertSubscription(
           SubscriptionInput(
             name: 'Provider',
             url: url,
             userAgent: customUserAgent,
-            panel: SubscriptionPanel.remnawave,
+            panel: panel,
+            mode: SubscriptionMode.providerManaged,
             ageSecretKey: 'test-secret',
             agePublicKey: 'test-public',
             hwidEnabled: true,
@@ -130,6 +123,7 @@ void main() {
         ))!;
         expect(source.url, url);
         expect(source.userAgent, customUserAgent?.trim());
+        expect(source.panel, panel.name);
         expect(source.mode, SubscriptionMode.providerManaged.name);
         expect(source.uploadBytes, 10);
         final saved = (await database.select(database.coreConfig).get())
@@ -158,7 +152,8 @@ void main() {
               name: source.name,
               url: source.url,
               userAgent: 'Unsupported/1.0',
-              panel: SubscriptionPanel.remnawave,
+              panel: panel,
+              mode: SubscriptionMode.providerManaged,
             ),
           ),
           SubscriptionUpdateResult.success,
@@ -167,7 +162,12 @@ void main() {
         expect(cleared.userAgent, 'Unsupported/1.0');
         expect(cleared.userInfoUpdatedAt, isNull);
         final failed = await service.refreshSubscriptionResult(cleared);
-        expect(failed.status, SubscriptionUpdateResult.remnawaveFormatMismatch);
+        expect(
+          failed.status,
+          panel == SubscriptionPanel.remnawave
+              ? SubscriptionUpdateResult.remnawaveFormatMismatch
+              : SubscriptionUpdateResult.invalidContent,
+        );
         expect(await database.subscriptionDao.searchRow(source.id), cleared);
         expect(await database.select(database.coreConfig).get(), before);
         expect(requests, hasLength(3));
@@ -180,7 +180,8 @@ void main() {
             SubscriptionInput(
               name: source.name,
               url: source.url,
-              panel: SubscriptionPanel.remnawave,
+              panel: panel,
+              mode: SubscriptionMode.providerManaged,
             ),
           ),
           SubscriptionUpdateResult.success,
@@ -192,6 +193,12 @@ void main() {
         expect(requests.last.uri.toString(), url);
         expect(requests.last.headers['User-Agent'], defaultUserAgent);
         expect(client.options.headers['User-Agent'], 'System/browser');
+
+        await netClient.getText(
+          'https://data.example/geosite.dat',
+          httpsOnly: true,
+        );
+        expect(requests.last.headers['User-Agent'], 'System/browser');
       },
     );
   }
