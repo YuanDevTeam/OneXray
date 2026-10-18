@@ -446,8 +446,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
 
 
 private func killProcess() {
-    Task {
-        try await Task.sleep(nanoseconds: 1000000000)
+    DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
         exit(0)
     }
 }
