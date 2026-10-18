@@ -379,7 +379,12 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       }
     } else {
       if (action == ServerImportAction.subscription) {
-        await _fillDefaultUserAgent();
+        emit(state.copyWith(busy: true, openingAction: action));
+        try {
+          await _fillDefaultUserAgent();
+        } finally {
+          emit(state.copyWith(busy: false, openingAction: null));
+        }
         if (!isPageActive || !context.mounted) return;
       }
       if (action == ServerImportAction.json && jsonText.text.isEmpty) {
