@@ -122,6 +122,8 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Add subscription'));
+    // The shared client was initialized outside this widget's fake clock.
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
 
     expect(find.byType(SubscriptionFormView), findsOneWidget);
@@ -194,6 +196,7 @@ void main() {
             ),
           );
           await tester.tap(find.text('Edit source'));
+          await tester.runAsync(() => Future<void>.delayed(Duration.zero));
           await tester.pumpAndSettle();
 
           expect(find.byType(SubscriptionFormView), findsOneWidget);
@@ -923,6 +926,8 @@ void main() {
           timestamp: DateTime(2026),
         ),
       );
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await pending;
       await tester.pumpAndSettle();
       expect(controller.name.text, 'Typed while loading');
@@ -1204,6 +1209,7 @@ void main() {
         ),
       );
       await tester.tap(find.text('Edit source'));
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pumpAndSettle();
       final l = AppLocalizations.of(
         tester.element(find.byType(ServerImportFormPage)),

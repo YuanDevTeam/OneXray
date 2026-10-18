@@ -343,7 +343,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   }
 
   Future<void> open(BuildContext context, ServerImportAction action) async {
-    if (state.busy) return;
+    if (state.busy || state.activeAction != null) return;
     _closingFlow = false;
     emit(
       state.copyWith(error: null, committedResult: null, activeAction: action),
@@ -354,11 +354,14 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       String? input;
       emit(state.copyWith(busy: true, openingAction: action));
       try {
-        input = action == ServerImportAction.file
-            ? await ServerImportService.pickTextFile()
-            : await _scan(context);
-        emit(state.copyWith(busy: false, openingAction: null));
-        if (input != null && isPageActive && context.mounted) {
+        try {
+          input = action == ServerImportAction.file
+              ? await ServerImportService.pickTextFile()
+              : await _scan(context);
+        } finally {
+          emit(state.copyWith(busy: false, openingAction: null));
+        }
+        if (input != null && isPageActive && context.mounted && !_closingFlow) {
           result = await _importText(context, input);
         }
       } catch (error) {
@@ -374,8 +377,6 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
             ),
           );
         }
-      } finally {
-        emit(state.copyWith(busy: false, openingAction: null));
       }
     } else {
       if (action == ServerImportAction.subscription) {
@@ -385,7 +386,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         } finally {
           emit(state.copyWith(busy: false, openingAction: null));
         }
-        if (!isPageActive || !context.mounted) return;
+        if (!isPageActive || !context.mounted || _closingFlow) return;
       }
       if (action == ServerImportAction.json && jsonText.text.isEmpty) {
         jsonText.text = '{\n  "outbounds": []\n}';
@@ -409,6 +410,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   }
 
   Future<void> openText(BuildContext context, String input) async {
+    if (state.busy || state.activeAction != null) return;
     _closingFlow = false;
     emit(state.copyWith(activeAction: ServerImportAction.paste));
     try {
@@ -448,24 +450,30 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     if (detection.subscriptions.length == 1 &&
         detection.localText.trim().isEmpty) {
       final link = detection.subscriptions.single;
-      _hwid = null;
-      _hwidUrl = null;
       emit(
         state.copyWith(
+          busy: true,
+          openingAction: state.activeAction ?? ServerImportAction.subscription,
           subscriptionImports: const [],
           hwidEnabled: false,
           panel: link.panel,
           mode: link.mode,
         ),
       );
-      name.text = link.name;
-      url.text = link.url;
-      userAgent.text = link.userAgent ?? '';
-      secretKey.clear();
-      publicKey.clear();
-      _linkAgeType = link.ageKeyType;
-      await _fillDefaultUserAgent();
-      if (!isPageActive || !context.mounted) return null;
+      try {
+        _hwid = null;
+        _hwidUrl = null;
+        name.text = link.name;
+        url.text = link.url;
+        userAgent.text = link.userAgent ?? '';
+        secretKey.clear();
+        publicKey.clear();
+        _linkAgeType = link.ageKeyType;
+        await _fillDefaultUserAgent();
+      } finally {
+        emit(state.copyWith(busy: false, openingAction: null));
+      }
+      if (!isPageActive || !context.mounted || _closingFlow) return null;
       return showAppDialog<ServerImportResult>(
         context,
         (dialogContext) => ServerImportFormPage(
@@ -920,9 +928,10 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
 
   Future<void> _fillDefaultUserAgent() async {
     if (userAgent.text.trim().isNotEmpty) return;
-    final value = await NetClient.defaultUserAgent();
+    final client = NetClient();
+    await client.asyncInit();
     if (isPageActive && userAgent.text.trim().isEmpty) {
-      userAgent.text = value;
+      userAgent.text = client.downloadUserAgent;
     }
   }
 

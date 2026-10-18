@@ -70,7 +70,7 @@ void main() {
         final expectedUserAgent = customUserAgent?.trim() ?? defaultUserAgent;
         final requests = <RequestOptions>[];
         final client =
-            Dio(BaseOptions(headers: {'User-Agent': 'System/browser'}))
+            Dio(BaseOptions(headers: {'User-Agent': defaultUserAgent}))
               ..httpClientAdapter = _SubscriptionResponse((request) {
                 requests.add(request);
                 return ResponseBody.fromString(
@@ -142,7 +142,7 @@ void main() {
           expect(request.headers['x-hwid'], 'test-device');
         }
         expect(pings, isEmpty);
-        expect(client.options.headers['User-Agent'], 'System/browser');
+        expect(client.options.headers['User-Agent'], defaultUserAgent);
 
         final before = await database.select(database.coreConfig).get();
         expect(
@@ -192,13 +192,13 @@ void main() {
         expect(fallback.success, isTrue);
         expect(requests.last.uri.toString(), url);
         expect(requests.last.headers['User-Agent'], defaultUserAgent);
-        expect(client.options.headers['User-Agent'], 'System/browser');
+        expect(client.options.headers['User-Agent'], defaultUserAgent);
 
         await netClient.getText(
           'https://data.example/geosite.dat',
           httpsOnly: true,
         );
-        expect(requests.last.headers['User-Agent'], 'System/browser');
+        expect(requests.last.headers['User-Agent'], defaultUserAgent);
       },
     );
   }

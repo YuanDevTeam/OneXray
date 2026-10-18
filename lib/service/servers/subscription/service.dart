@@ -667,8 +667,7 @@ class SubscriptionService {
         input.url,
         httpsOnly: true,
         requestHeaders: DownloadRequestHeaders(
-          userAgent:
-              input.normalizedUserAgent ?? await NetClient.defaultUserAgent(),
+          userAgent: input.normalizedUserAgent,
           agePublicKey: ageContext?.publicKey,
           hwid: input.hwidEnabled ? input.hwid : null,
         ),
