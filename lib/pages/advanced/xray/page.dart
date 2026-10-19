@@ -30,6 +30,7 @@ class XrayRuntimePage extends StatelessWidget {
     required this.onConfig,
     this.onLocalApi,
     this.onLanProxy,
+    this.onServerDialing,
     this.createController,
   });
   final void Function(BuildContext) onGeodata;
@@ -39,6 +40,7 @@ class XrayRuntimePage extends StatelessWidget {
   final void Function(BuildContext, ConfigFileViewerParams) onConfig;
   final void Function(BuildContext)? onLocalApi;
   final Future<void> Function(BuildContext)? onLanProxy;
+  final void Function(BuildContext)? onServerDialing;
   final XrayRuntimeController Function()? createController;
   @override
   Widget build(BuildContext context) => BlocProvider(
@@ -201,6 +203,21 @@ class XrayRuntimePage extends StatelessWidget {
                               ),
                             ],
                           ),
+                          if (onServerDialing != null)
+                            _section(
+                              icon: LucideIcons.network,
+                              title: l.serverDialingTitle,
+                              children: [
+                                _pushRow(
+                                  context,
+                                  mobile: mobile,
+                                  title: l.serverDialingTitle,
+                                  icon: LucideIcons.network,
+                                  enabled: !disabled,
+                                  onTap: () => onServerDialing!(context),
+                                ),
+                              ],
+                            ),
                           if (!state.systemExtension)
                             _section(
                               icon: LucideIcons.fileText,

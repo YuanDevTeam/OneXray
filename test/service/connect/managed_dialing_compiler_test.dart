@@ -432,7 +432,7 @@ Map<String, dynamic> _xhttp({
     'network': 'xhttp',
     'security': 'tls',
     'tlsSettings': {'serverName': 'certificate.example'},
-    if (sockopt != null) 'sockopt': sockopt,
+    'sockopt': ?sockopt,
     'xhttpSettings': settings,
   },
 };

@@ -26,6 +26,8 @@ class AdvancedRootPage extends StatelessWidget {
       onLanProxy: (context) async {
         await context.pushScoped(AppPageDestination.lanProxy);
       },
+      onServerDialing: (context) =>
+          context.pushScoped(AppPageDestination.serverDialing),
       onLog: (context, params) =>
           context.pushScoped(AppPageDestination.logFile, extra: params),
       onConfig: (context, params) => context.pushScoped(

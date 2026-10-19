@@ -108,7 +108,7 @@ void main() {
           source('"streamSettings":{"sockopt":{"domainStrategy":"UseIPv|"}}'),
           kind,
         ),
-        ['UseIPv4', 'UseIPv6'],
+        ['UseIPv4', 'UseIPv6', 'UseIPv4v6', 'UseIPv6v4'],
       );
     }
     expect(
@@ -116,7 +116,101 @@ void main() {
         '{"protocol":"freedom","settings":{"domainStrategy":"UseIPv|"}}',
         JsonEditorKind.outbound,
       ),
-      ['UseIPv4', 'UseIPv6'],
+      ['UseIPv4', 'UseIPv6', 'UseIPv4v6', 'UseIPv6v4'],
+    );
+  });
+
+  test('dialing suggestions follow socket, DNS and routing contexts', () {
+    for (final kind in [JsonEditorKind.outbound, JsonEditorKind.raw]) {
+      String outbound(String body) => kind == JsonEditorKind.outbound
+          ? '{$body}'
+          : '{"outbounds":[{$body}]}';
+      String socket(String body) =>
+          outbound('"streamSettings":{"sockopt":{$body}}');
+      expect(labels(socket('"hap|"'), kind), ['happyEyeballs']);
+      expect(labels(socket('"happyEyeballs":{"|"}'), kind), [
+        'prioritizeIPv6',
+        'tryDelayMs',
+        'interleave',
+        'maxConcurrentTry',
+      ]);
+      expect(labels(socket('"domainStrategy":"Use|"'), kind), [
+        'UseIP',
+        'UseIPv4',
+        'UseIPv6',
+        'UseIPv4v6',
+        'UseIPv6v4',
+      ]);
+      expect(labels(socket('"domainStrategy":"Force|"'), kind), [
+        'ForceIP',
+        'ForceIPv4',
+        'ForceIPv6',
+        'ForceIPv4v6',
+        'ForceIPv6v4',
+      ]);
+      expect(labels(outbound('"tar|"'), kind), ['targetStrategy']);
+      expect(labels(outbound('"targetStrategy":"ForceIPv6v|"'), kind), [
+        'ForceIPv6v4',
+      ]);
+      expect(
+        labels(outbound('"protocol":"freedom","settings":{"tar|"}'), kind),
+        ['targetStrategy'],
+      );
+    }
+    expect(labels('{"dns":{"queryStrategy":"Use|"}}', JsonEditorKind.raw), [
+      'UseIP',
+      'UseIPv4',
+      'UseIPv6',
+      'UseSystem',
+    ]);
+    expect(
+      labels(
+        '{"dns":{"servers":[{"queryStrategy":"UseS|"}]}}',
+        JsonEditorKind.raw,
+      ),
+      ['UseSystem'],
+    );
+    expect(labels('{"routing":{"domainStrategy":"|"}}', JsonEditorKind.raw), [
+      'AsIs',
+      'IPIfNonMatch',
+      'IPOnDemand',
+    ]);
+    for (final marked in [
+      '{"future":{"sockopt":{"hap|"}}}',
+      '{"future":{"happyEyeballs":{"in|"}}}',
+      '{"future":{"domainStrategy":"Use|"}}',
+      '{"future":{"targetStrategy":"Use|"}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.raw), isEmpty);
+    }
+  });
+
+  test('advanced templates only suggest supported dialing fields', () {
+    String outbound(String body) => '{"outbounds":[{},{$body}]}';
+    for (final body in [
+      '"tar|"',
+      '"targetStrategy":"Use|"',
+      '"streamSettings":{"sockopt":{"hap|"}}',
+      '"streamSettings":{"sockopt":{"domainStrategy":"Use|"}}',
+      '"streamSettings":{"sockopt":{"happyEyeballs":{"in|"}}}',
+    ]) {
+      expect(labels(outbound(body), JsonEditorKind.advancedRouting), isEmpty);
+    }
+    expect(
+      labels(
+        outbound('"streamSettings":{"sockopt":{"dia|"}}'),
+        JsonEditorKind.advancedRouting,
+      ),
+      ['dialerProxy'],
+    );
+    expect(
+      labels(
+        outbound(
+          '"protocol":"freedom","settings":{"targetStrategy":"ForceIPv6v|"}}',
+        ),
+        JsonEditorKind.advancedRouting,
+      ),
+      ['ForceIPv6v4'],
     );
   });
 

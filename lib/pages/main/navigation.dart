@@ -59,6 +59,7 @@ enum AppPageDestination {
   logFile("log-file"),
   configFileViewer("config-file-viewer"),
   lanProxy("lan-proxy"),
+  serverDialing("server-dialing"),
   autoUpdate("auto-update"),
   localApi("local-api"),
   backup("backup"),

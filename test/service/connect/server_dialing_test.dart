@@ -476,7 +476,7 @@ Map<String, dynamic> _node(String address, {Map<String, dynamic>? sockopt}) => {
   'tag': 'entry',
   'protocol': 'socks',
   'settings': <String, dynamic>{'address': address, 'port': 1080},
-  'streamSettings': <String, dynamic>{if (sockopt != null) 'sockopt': sockopt},
+  'streamSettings': <String, dynamic>{'sockopt': ?sockopt},
 };
 
 Map<String, dynamic> _fragment({Map<String, dynamic>? sockopt}) => {
@@ -500,7 +500,7 @@ Map<String, dynamic> _download(
   'port': 443,
   'network': 'xhttp',
   'xhttpSettings': <String, dynamic>{'path': '/test/'},
-  if (sockopt != null) 'sockopt': sockopt,
+  'sockopt': ?sockopt,
 };
 
 Map<String, dynamic> _xhttp(

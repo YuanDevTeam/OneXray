@@ -373,7 +373,20 @@ class JsonEditing {
         return const [];
       }
     }
-    if (tail == 'sockopt') {
+    if (tail == 'happyEyeballs' &&
+        !custom &&
+        !advanced &&
+        _endsWith(path, ['sockopt', 'happyEyeballs']) &&
+        _streamSettingsPath(path.sublist(0, path.length - 2), kind)) {
+      return const [
+        'prioritizeIPv6',
+        'tryDelayMs',
+        'interleave',
+        'maxConcurrentTry',
+      ];
+    }
+    if (tail == 'sockopt' &&
+        _streamSettingsPath(path.sublist(0, path.length - 1), kind)) {
       return advanced
           ? const ['dialerProxy']
           : const [
@@ -383,6 +396,7 @@ class JsonEditing {
               'tcpKeepAliveIdle',
               'tcpNoDelay',
               'domainStrategy',
+              'happyEyeballs',
               'interface',
             ];
     }
@@ -473,6 +487,7 @@ class JsonEditing {
         'trojan' || 'shadowsocks' || 'socks' || 'http' => const ['servers'],
         'freedom' => const [
           'domainStrategy',
+          'targetStrategy',
           'redirect',
           'userLevel',
           'fragment',
@@ -678,18 +693,39 @@ class JsonEditing {
       return const ['auto', 'aes-128-gcm', 'chacha20-poly1305', 'none', 'zero'];
     }
     if (field == 'domainStrategy') {
+      if (_matches(parent, ['routing'])) {
+        return kind == JsonEditorKind.customRouting
+            ? const ['IPIfNonMatch']
+            : const ['AsIs', 'IPIfNonMatch', 'IPOnDemand'];
+      }
+      if (kind == JsonEditorKind.customRouting) return const [];
       if (parent.lastOrNull == 'settings' &&
           shape.value([...parent.sublist(0, parent.length - 1), 'protocol']) ==
-              'wireguard') {
-        return const [];
+              'freedom') {
+        return _dialingStrategies;
       }
-      if (kind == JsonEditorKind.customRouting) return const ['IPIfNonMatch'];
-      return parent.length == 1 && parent.single == 'routing'
-          ? const ['AsIs', 'IPIfNonMatch', 'IPOnDemand']
-          : const ['AsIs', 'UseIP', 'UseIPv4', 'UseIPv6'];
+      return !managed &&
+              parent.lastOrNull == 'sockopt' &&
+              _streamSettingsPath(parent.sublist(0, parent.length - 1), kind)
+          ? _dialingStrategies
+          : const [];
+    }
+    if (field == 'targetStrategy' && kind != JsonEditorKind.customRouting) {
+      if (parent.lastOrNull == 'settings' &&
+          shape.value([...parent.sublist(0, parent.length - 1), 'protocol']) ==
+              'freedom') {
+        return _dialingStrategies;
+      }
+      return !managed &&
+              (kind == JsonEditorKind.outbound && parent.isEmpty ||
+                  _matches(parent, ['outbounds', '*']))
+          ? _dialingStrategies
+          : const [];
     }
     if (field == 'queryStrategy') {
-      return managed ? const [] : const ['UseIP', 'UseIPv4', 'UseIPv6'];
+      return managed
+          ? const []
+          : const ['UseIP', 'UseIPv4', 'UseIPv6', 'UseSystem'];
     }
     if (field == 'localOS' && rule) {
       return const ['ios', 'android', 'darwin', 'windows', 'linux'];
@@ -738,6 +774,21 @@ class JsonEditing {
     'mux',
     'sendThrough',
     'proxySettings',
+    'targetStrategy',
+  ];
+
+  static const _dialingStrategies = [
+    'AsIs',
+    'UseIP',
+    'UseIPv4',
+    'UseIPv6',
+    'UseIPv4v6',
+    'UseIPv6v4',
+    'ForceIP',
+    'ForceIPv4',
+    'ForceIPv6',
+    'ForceIPv4v6',
+    'ForceIPv6v4',
   ];
 }
 
