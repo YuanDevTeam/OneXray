@@ -59,6 +59,7 @@ void main() {
     testWidgets('dialing settings fit ${locale.toLanguageTag()}', (
       tester,
     ) async {
+      final semantics = tester.ensureSemantics();
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 844);
       addTearDown(tester.view.resetDevicePixelRatio);
@@ -81,6 +82,10 @@ void main() {
       expect(find.text(l.serverDialingSystem), findsOneWidget);
       expect(find.byType(SettingSelect<ServerDomainStrategy>), findsOneWidget);
       expect(find.byType(ShadSwitch), findsOneWidget);
+      expect(
+        tester.getSemantics(find.byType(ShadSwitch)).label,
+        'Happy Eyeballs',
+      );
       expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isFalse);
       expect(find.text(l.serverDialingScopeHelp), findsNothing);
       await tester.tap(
@@ -103,6 +108,7 @@ void main() {
       await tester.runAsync(controller.close);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
+      semantics.dispose();
     });
   }
 

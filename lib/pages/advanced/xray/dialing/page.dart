@@ -95,13 +95,21 @@ class ServerDialingPage extends StatelessWidget {
                         enabled:
                             !controller.blocked &&
                             controller.happyEyeballsAvailable,
-                        trailing: ShadSwitch(
-                          key: const ValueKey('server-dialing-happy-eyeballs'),
-                          value: controller.dialing.happyEyeballs,
+                        trailing: Semantics(
+                          label: 'Happy Eyeballs',
                           enabled:
                               !controller.blocked &&
                               controller.happyEyeballsAvailable,
-                          onChanged: controller.setHappyEyeballs,
+                          child: ShadSwitch(
+                            key: const ValueKey(
+                              'server-dialing-happy-eyeballs',
+                            ),
+                            value: controller.dialing.happyEyeballs,
+                            enabled:
+                                !controller.blocked &&
+                                controller.happyEyeballsAvailable,
+                            onChanged: controller.setHappyEyeballs,
+                          ),
                         ),
                       ),
                     ],
