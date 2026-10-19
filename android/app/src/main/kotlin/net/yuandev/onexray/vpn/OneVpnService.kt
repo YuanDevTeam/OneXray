@@ -43,6 +43,7 @@ import net.yuandev.onexray.pigeon.TunJson
 import net.yuandev.onexray.pigeon.VpnStatus
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 
 class OneVpnService : VpnService() {
@@ -63,6 +64,18 @@ class OneVpnService : VpnService() {
         const val NOTIFICATION_OPEN_REQUEST_CODE = 1
         const val NOTIFICATION_STOP_REQUEST_CODE = 2
         const val NOTIFICATION_ID = 1
+
+        // Core retains protection callbacks for the lifetime of :native.
+        private val controller = VPNController()
+        private var controllerInit = false
+
+        @Synchronized
+        private fun initController() {
+            if (controllerInit) return
+            LibXray.registerDialerController(controller)
+            LibXray.registerListenerController(controller)
+            controllerInit = true
+        }
     }
 
     @Volatile
@@ -147,16 +160,22 @@ class OneVpnService : VpnService() {
         stopTun()
     }
 
-    class VPNController : DialerController {
-        var vpn: OneVpnService? = null
+    private class VPNController : DialerController {
+        private val vpn = AtomicReference<OneVpnService?>()
+
+        fun attach(service: OneVpnService) {
+            vpn.set(service)
+        }
+
+        fun release(service: OneVpnService) {
+            vpn.compareAndSet(service, null)
+        }
+
         override fun protectFd(p0: Long): Boolean {
             val socket = p0.toInt()
-            return vpn?.protect(socket) == true
+            return vpn.get()?.protect(socket) == true
         }
     }
-
-    private var controllerInit = false
-    private val controller = VPNController()
 
     override fun onCreate() {
         super.onCreate()
@@ -300,7 +319,7 @@ class OneVpnService : VpnService() {
             XLog.d(e)
         }
         tunnel = null
-        controller.vpn = null
+        controller.release(this)
         running = false
         updateWidget(VpnStatus.DISCONNECTED)
         sendStatusBroadcast(false, error)
@@ -412,7 +431,7 @@ class OneVpnService : VpnService() {
         val coreInvokeText = requireNotNull(request.coreInvokeText) {
             "missing Xray run request"
         }
-        controller.vpn = this
+        controller.attach(this)
         configureDNS(tun)
         runXray(coreInvokeText, establishedTunnel, generation, request.metricsPort)
     }
@@ -477,15 +496,6 @@ class OneVpnService : VpnService() {
                 }
             }
         }
-    }
-
-    private fun initController() {
-        if (controllerInit) {
-            return
-        }
-        LibXray.registerDialerController(controller)
-        LibXray.registerListenerController(controller)
-        controllerInit = true
     }
 
     private fun runXray(
