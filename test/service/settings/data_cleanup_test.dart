@@ -5,6 +5,7 @@ import 'package:onexray/core/errors/failure.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onexray/core/constants/preferences.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
@@ -15,6 +16,7 @@ import 'package:onexray/service/servers/import.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
+import 'package:onexray/service/servers/sort.dart';
 import 'package:onexray/service/settings/data_cleanup.dart';
 import 'package:onexray/service/advanced/tunnel/android/automation/service.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
@@ -200,6 +202,7 @@ void main() {
   );
 
   test('failed stop preserves data and resumes paused modules', () async {
+    await AppEventBus.instance.setServerSort(ServerSortOrder.name);
     final id = await db.coreConfigDao.insertRow(_node('Existing'));
     final ping = PingService.forTesting(
       database: db,
@@ -240,6 +243,8 @@ void main() {
       ),
     );
     expect(clears, 0);
+    expect(AppEventBus.instance.state.serverSort, ServerSortOrder.name);
+    expect(await PreferencesKey().readServerSort(), 'name');
     expect(await db.coreConfigDao.searchRow(id), isNotNull);
     await ping.pingConfigIds([id]);
     expect((await db.coreConfigDao.searchRow(id))!.delay, 20);
@@ -259,6 +264,7 @@ void main() {
   });
 
   test('native admission is blocked before data writes; restore preserves authorization', () async {
+    await AppEventBus.instance.setServerSort(ServerSortOrder.delay);
     final native = _AutomationHost();
     final cleanup = AppDataCleanupService.forTesting(
       coordinator: coordinator,
@@ -280,6 +286,8 @@ void main() {
     });
     expect(native.clears, 0);
     expect(native.blocked, isFalse);
+    expect(AppEventBus.instance.state.serverSort, ServerSortOrder.delay);
+    expect(await PreferencesKey().readServerSort(), 'delay');
     await expectLater(
       cleanup.runForRestore(() async => throw StateError('restore failed')),
       throwsStateError,

@@ -1,4 +1,5 @@
 import 'package:onexray/service/settings/app_update/service.dart';
+import 'package:onexray/service/servers/sort.dart';
 import 'package:onexray/service/shared/event_bus/enum.dart';
 import 'package:onexray/service/shared/ping/batch.dart';
 
@@ -11,6 +12,7 @@ class AppEventBusState {
   final AppUpdateInfo? appUpdateInfo;
   final ThemeCode themeCode;
   final LanguageCode languageCode;
+  final ServerSortOrder serverSort;
 
   /// Latest failed probe per node, in memory only; a successful retry clears it.
   final Map<int, PingBatchResult> pingFailures;
@@ -21,6 +23,7 @@ class AppEventBusState {
     required this.appUpdateInfo,
     required this.themeCode,
     required this.languageCode,
+    this.serverSort = ServerSortOrder.defaultOrder,
     this.pingFailures = const {},
   });
 
@@ -39,6 +42,7 @@ class AppEventBusState {
     bool clearAppUpdateInfo = false,
     ThemeCode? themeCode,
     LanguageCode? languageCode,
+    ServerSortOrder? serverSort,
     Map<int, PingBatchResult>? pingFailures,
   }) {
     return AppEventBusState(
@@ -49,6 +53,7 @@ class AppEventBusState {
           : appUpdateInfo ?? this.appUpdateInfo,
       themeCode: themeCode ?? this.themeCode,
       languageCode: languageCode ?? this.languageCode,
+      serverSort: serverSort ?? this.serverSort,
       pingFailures: pingFailures ?? this.pingFailures,
     );
   }

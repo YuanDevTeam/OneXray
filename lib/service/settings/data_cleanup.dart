@@ -161,6 +161,7 @@ final class AppDataCleanupService {
   Future<void> _clear() async {
     await AppStartupService().unregisterForDataCleanup();
     await PreferencesKey().clearUserDataPreferences();
+    AppEventBus.instance.resetServerSort();
     await LocalApiService.instance.clearAfterDataClear();
     await _clearDatabase();
     await _clearRuntimeFiles();

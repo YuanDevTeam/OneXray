@@ -186,6 +186,13 @@ class PreferencesKey {
     await _prefs.setString(_languageCode, value);
   }
 
+  static const _serverSort = '${_namespace}serverSort';
+
+  Future<String?> readServerSort() => _prefs.getString(_serverSort);
+
+  Future<void> saveServerSort(String value) =>
+      _prefs.setString(_serverSort, value);
+
   Future<void> clearUserDataPreferences() async {
     await Future.wait([
       _prefs.remove('app2.runningConfigId'),
@@ -199,6 +206,7 @@ class PreferencesKey {
       _prefs.remove(_localApi),
       _prefs.remove(_automaticBackup),
       _prefs.remove(_backupInterval),
+      _prefs.remove(_serverSort),
       _prefs.remove('app2.xraySettingId'),
       _prefs.remove(_desktopStartHidden),
       _prefs.remove(_connectOnAppLaunch),

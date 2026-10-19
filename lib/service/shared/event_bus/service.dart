@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/core/constants/preferences.dart';
 import 'package:onexray/service/settings/app_update/service.dart';
+import 'package:onexray/service/servers/sort.dart';
 import 'package:onexray/service/shared/event_bus/enum.dart';
 import 'package:onexray/service/shared/event_bus/state.dart';
 import 'package:onexray/service/manager.dart';
@@ -21,6 +22,7 @@ class AppEventBus extends Cubit<AppEventBusState> {
   Future<void> asyncInitTheme() async {
     final themeCode = await PreferencesKey().readThemeCode();
     final languageCode = await PreferencesKey().readLanguageCode();
+    final serverSort = await PreferencesKey().readServerSort();
     if (!_isActive) {
       return;
     }
@@ -28,6 +30,7 @@ class AppEventBus extends Cubit<AppEventBusState> {
       state.copyWith(
         themeCode: ThemeCode.fromString(themeCode),
         languageCode: LanguageCode.fromString(languageCode),
+        serverSort: ServerSortOrder.fromString(serverSort),
       ),
     );
   }
@@ -49,6 +52,15 @@ class AppEventBus extends Cubit<AppEventBusState> {
   }
 
   void clearPingFailures() => emit(state.copyWith(pingFailures: const {}));
+
+  void resetServerSort() =>
+      emit(state.copyWith(serverSort: ServerSortOrder.defaultOrder));
+
+  Future<void> setServerSort(ServerSortOrder value) async {
+    await PreferencesKey().saveServerSort(value.preferenceValue);
+    if (!_isActive) return;
+    emit(state.copyWith(serverSort: value));
+  }
 
   Future<T> trackDownload<T>(Future<T> Function() action) async {
     if (_downloads++ == 0) emit(state.copyWith(downloading: true));

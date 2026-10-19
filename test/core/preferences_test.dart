@@ -9,11 +9,25 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 
 void main() {
+  final storage = InMemorySharedPreferencesAsync.empty();
+  setUpAll(() => SharedPreferencesAsyncPlatform.instance = storage);
+  setUp(() async => SharedPreferencesAsync().clear());
+
+  test(
+    'server display order persists independently and clears with local data',
+    () async {
+      final preferences = PreferencesKey();
+      expect(await preferences.readServerSort(), isNull);
+      await preferences.saveServerSort('name');
+      expect(await preferences.readServerSort(), 'name');
+      await preferences.clearUserDataPreferences();
+      expect(await preferences.readServerSort(), isNull);
+    },
+  );
+
   test(
     'backup interval is independent of data updates and clears with local data',
     () async {
-      SharedPreferencesAsyncPlatform.instance =
-          InMemorySharedPreferencesAsync.empty();
       final preferences = PreferencesKey();
       final backup = BackupPreferences();
       final updates = AutoUpdateState()
@@ -38,8 +52,6 @@ void main() {
   test(
     'automatic updates persist only global switches and intervals',
     () async {
-      SharedPreferencesAsyncPlatform.instance =
-          InMemorySharedPreferencesAsync.empty();
       const settings = {
         'subscriptionEnabled': false,
         'subscriptionInterval': 24,
@@ -58,8 +70,6 @@ void main() {
   test(
     'new product ignores legacy preferences without clearing platform state',
     () async {
-      SharedPreferencesAsyncPlatform.instance =
-          InMemorySharedPreferencesAsync.empty();
       final storage = SharedPreferencesAsync();
       await storage.setBool('privacyAccepted04', true);
       await storage.setBool('firstRun03', false);
