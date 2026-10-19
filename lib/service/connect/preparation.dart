@@ -354,6 +354,7 @@ class ConnectionPreparation {
         lanProxyEnabled: shareLanProxy,
         lanProxyPort: policy.lanProxyPort,
         ipv6: policy.ipv6Enabled,
+        dialing: policy.dialing,
         tunDnsIpv4Address: policy.dnsIpv4Address,
         tunDnsIpv6Address: policy.dnsIpv6Address,
         interfaceName: policy.xrayOutboundInterfaceName,
