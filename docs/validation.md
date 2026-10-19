@@ -73,6 +73,26 @@
 Android :native、Apple 真机 extension 与桌面 Core 的 UI 校验通道有进程隔离；同进程 managed Core 防线仍保留，
 iOS Simulator 不能通过绕过它来验证刷新。设备验收需要检查 VPN 持续运行、native Invoke 新入口、真实 DNS/路由/代理请求。
 
+## 显示排序与服务器拨号
+
+显示顺序验证默认顺序在延迟更新后稳定、名称与延迟顺序的确定性、混合普通节点/完整配置，
+以及浏览、分组、筛选、最终出口和托盘的一致性。保存/重启/未知值/清理覆盖本机偏好；
+自动接入仍按真实成功延迟选取，不能用当前显示顺序替代连接候选。刷新继续沿用资产替换与保护流程。
+
+拨号验证旧 JSON 的 AsIs 缺省、策略往返、IPv6 关闭后的有效值与偏好保留、有效变更的确认/取消、
+同效或停用配置只保存、备份排除，以及等待连接队列后再次核对配置与重连授权。
+配置编译覆盖普通三种模式、代理链/Fragment、XHTTP 有效下载与继承、实际物理域名和字面 IP，
+并验证 Raw/高级/提供方配置不被全局拨号覆盖、原节点与业务规则不被改写。
+bootstrap 精确域名规则需先于业务 DNS/FakeDNS，固定独立直连且截止通用备用；
+同名 App 查询也会命中该规则，不能将其断言为只对内核自身的查询生效。
+页面验证帮助、策略选择、停用但保留的开关、保存反馈与 macOS SE 可编辑，长文案及 RTL 沿用共享尺寸检查。
+JSON 提示分别验证 socket、DNS、routing 和高级模板合同，不把顺序或 Force 拨号值加入 DNS 查询策略。
+
+定向测试位于 `test/service/servers/catalog_test.dart`、`test/service/connect/*dialing*`、
+`test/service/advanced/policy_editor_test.dart`、`test/pages/advanced/xray/dialing_test.dart` 和相关页面/托盘测试。
+这些测试与 `testXray` 只验证值转换、保存和构造；实际 DNS 路径、双栈可达/黑洞、竞速时延和回退行为
+需通过可控 Core 网络环境或对应平台 VPN 验收，编译成功、模拟器表单和 Mock 不替代网络证据。
+
 ## 自动验证
 
 按改动选择生成、格式化、分析和测试，命令从 App 根目录执行：

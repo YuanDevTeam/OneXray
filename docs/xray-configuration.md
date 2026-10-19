@@ -23,7 +23,8 @@ App 保留自身名称、资产数量/交换格式、文件链接安全、事务
 
 自动、App 管理的订阅或手工分组按路由要求选择 1–3 个可用接入节点；固定节点及全部使用 VPN 使用一个。
 提供方方式的来源和完整配置不参与这些普通候选、最终出口或单 outbound 测速。
-已运行节点不因后台测速或订阅更新热替换；节点命名与排序见 [服务器及分享](subscriptions-and-sharing.md)。
+已运行节点不因后台测速或订阅更新热替换；节点命名见 [服务器及分享](subscriptions-and-sharing.md)，
+显示排序独立于自动候选选择，见 [数据管理](data-management.md#数据显示顺序)。
 
 代理规则固定使用 `balancerTag: proxy`，单节点同样使用 balancer。selector 填完整运行 tag，
 默认轮询使用 `roundRobin`、`fallbackTag: direct`，未命中走第一个 outbound。
@@ -34,7 +35,8 @@ App 保留自身名称、资产数量/交换格式、文件链接安全、事务
 副本的 `dialerProxy` 指向对应接入，出口副本按顺序置顶，接入节点随后。
 balancer 选择这些完整链路，接入选择排除最终出口；自定义路由不绑定具体节点或最终出口。
 系统出站随后追加，固定 tag 为 `direct`、`block`、`dnsOut`。
-普通出站不输出 settings/sockopt 的 `domainStrategy`，Raw 用户字段不适用此删减。
+普通出站先移除原 settings/sockopt 的 `domainStrategy`，再按有效 [服务器拨号](#服务器拨号) 策略生成物理连接设置；
+Raw 用户字段不适用此删减。
 
 智能/常规自定义固定 `routing.domainStrategy: IPIfNonMatch`：域名首轮未命中再解析 IP 重匹配。
 全部使用 VPN 为 `AsIs`，高级/Raw 保留用户值。App 生成规则省略可选 `type: field`。
@@ -61,9 +63,38 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 已保存的普通数据库配置在内部读取时剔除旧字段；外部普通导入仍明确拒绝这些超出边界的字段，
 避免静默丢失用户配置。Geodata 资源引用仍沿用依赖扫描与分享附件。
 
-全部使用 VPN 只生成代理 DNS，非 A/AAAA 的 `dnsOut` 转发也走代理，不产生第二个直连服务器。
+全部使用 VPN 的业务 DNS 只走代理，非 A/AAAA 的 `dnsOut` 转发同样走代理；
+按需生成的服务器域名引导 DNS 独立直连，见 [服务器拨号](#服务器拨号)。
 普通模式的查询地址族仍由 App IPv6 设置管理，不额外生成根级 hosts/queryStrategy。
 高级模板和 Raw 不应用这些普通 DNS 设置；模板 DNS 保持其原有管理边界。
+
+### 服务器拨号
+
+服务器拨号为本机平台策略，统一用于智能、常规自定义和全部使用 VPN，不按路由配置另存一份。
+默认系统解析且 Happy Eyeballs 关闭，保留原 `AsIs` 拨号路径，不新增引导 resolver；
+未保存过新设置的用户不会因此改变服务器地址解析。Raw、Remnawave 完整配置与高级模板不应用此全局设置，
+保留各自编译边界，也不因保存停用偏好而重连。
+
+显式策略使用 Core DNS 解析服务器，可选择地址族或地址族优先次序；`Use` 策略解析失败仍可能回退系统解析，
+不承诺严格禁止另一地址族。拨号策略、`dns.queryStrategy` 与路由匹配的 `routing.domainStrategy` 是不同层次，
+不互相替代。Happy Eyeballs 只在 IPv6 开启且选择系统默认或双栈解析时应用，系统默认同时开启它会使用 `UseIP`。
+App 设置 250 ms 竞速延迟，其余竞速参数由 Core 管理；关闭开关不移除系统拨号器自身的双栈回退。
+单地址族与有先后顺序的解析不应用此开关，但保留保存值，IPv6 交互见 [IPv6 策略](#ipv6-策略)。
+
+运行副本只修改实际打开物理 socket 的代理出站，不改 TLS SNI、HTTP Host 或存储中的节点原文。
+代理链的后续节点继续由上游代理解析，策略落在物理接入；使用 Fragment 时落到最终辅助出站。
+XHTTP 独立下载按实际生效的配置对象处理自己的地址与 socket，`extra` 替换和 `penetrate` 继承沿用 Core 语义；
+XDrive fronting 使用实际物理地址。普通 direct 出站和无物理拨号的中间链不统一覆盖。
+
+显式拨号需要解析域名时，App 从实际物理端点收集去重后的精确域名，前置专用 bootstrap resolver，
+复用隧道 DNS 的 IPv4 地址和启用时的 IPv6 地址，并用独立 tag 的前置规则固定直连。
+这些精确匹配不成为通用备用，最后一个引导 resolver 截止普通代理/FakeDNS 回退，
+避免连接代理前又经该代理解析其地址。匹配按域名而非请求调用者区分，App 查询恰好相同域名时也使用引导 DNS；
+这会优先于该域名原有的业务 DNS 规则。仅 IP 字面端点不增加引导 resolver 或规则。
+
+设置保存在现有连接配置 JSON，无需改变数据库结构；运行使用启动时快照。
+未连接时保存不启动 VPN；已连接且有效值变化才确认并先停后启，取消不保存。
+不同偏好产生相同有效值时仅保存，下次切回适用条件再使用原选择；其它平台策略仍独立按原规则比较并重连。
 
 ### FakeDNS
 
@@ -298,8 +329,10 @@ iOS/iPadOS 隐藏图标默认关闭，仅非全流量时生效：运行副本追
 ### IPv6 策略
 
 关闭时 Apple/Android/Linux/EXE 不配置隧道 IPv6 地址、路由和 DNS；MSIX/Vole 保留自身处理。
-Dart 只把 DNS 查询设为 UseIPv4，开启 UseIP；普通按 server，Raw 同时根级和对象 server。
-不额外屏蔽 IPv6 流量、不加 ForceIPv4/hosts/预解析，也不拒绝 IPv6 节点；Raw 用户其他 IPv6 字段保留。
+DNS 查询关闭时设为 UseIPv4，开启 UseIP；普通按 server，Raw 同时根级和对象 server。
+全局服务器拨号的显式非系统策略在关闭 IPv6 时按 UseIPv4 生效，Happy Eyeballs 停用，保存的策略与开关不变；
+系统默认仍保留原 AsIs 路径，不因关闭 IPv6 额外强制 Core 解析。
+不额外屏蔽 IPv6 流量、不加 ForceIPv4/hosts，也不拒绝 IPv6 字面节点；Raw 用户其他 IPv6 字段保留。
 
 ## JSON 编辑辅助
 
@@ -311,7 +344,8 @@ libXray 原始原因完整可复制，不猜字段，不把投影行号当原文
 补全按类型/位置过滤常用字段、枚举、tag 和安装的 Geodata，不作白名单、不猜凭据。
 保留引用与撤销历史，组字/非折叠选区不补全；候选支持点击与键盘，内容 LTR、文案跟随语言。
 文件/剪贴板错误完整展示，仅原 JSON 语法错误提供原文位置，不把链接/下载失败伪装成编辑位置。
-提示与 Core v26.10.10 的 XDNS names/addrs、MASQUE WARP、TLS useSystemCA 和 DNS/嗅探结构保持一致。
+提示按字段所在模块区分 DNS 查询、路由匹配与拨号策略，支持 Core 的地址族优先次序、Force 策略和 Happy Eyeballs 对象；
+DNS 查询不提示拨号的地址族顺序，保留 UseSystem。XDNS、MASQUE WARP、TLS 和 DNS/嗅探仍按原生结构提示。
 高级模板只提示其可保存的策略/探测字段，不提示运行 selector/fallback/subjectSelector；Raw 保留完整模块提示。
 Lua 不属于 JSON 编辑提示、普通模型或资源管理范围。
 
