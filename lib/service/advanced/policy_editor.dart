@@ -112,13 +112,14 @@ class PolicyEditorService {
     if ((await coordinator.configuration).encode() != draft.original.encode()) {
       throw const ConnectionHostException('configurationChanged');
     }
-    final changed = !const DeepCollectionEquality().equals(
-      _effectiveRuntime(
-        draft.original.policy,
-        platform,
-        windowsMode: windowsMode,
+    final changed = !sameRuntime(
+      draft.original.policy,
+      policy,
+      platform,
+      windowsMode: windowsMode,
+      applyServerDialing: await _usesManagedServerDialing(
+        draft.original.connection,
       ),
-      prepared.runtime,
     );
     final disconnect =
         platform == ConnectionPlatform.android && emptyAndroidScope(policy);
@@ -140,6 +141,22 @@ class PolicyEditorService {
       allowReconnect: allowed,
     );
     return true;
+  }
+
+  Future<bool> _usesManagedServerDialing(ConnectionSettings settings) async {
+    if (settings.expert ||
+        await usesProviderConfiguration(
+          coordinator.db,
+          settings,
+          runtime: coordinator.state.value.runtime,
+        )) {
+      return false;
+    }
+    if (settings.trafficMode != TrafficMode.custom) return true;
+    final id = settings.customId;
+    return id != null &&
+        (await coordinator.db.routingProfileDao.searchRow(id))?.advanced ==
+            false;
   }
 
   Future<void> _validateLanProxy(
@@ -185,9 +202,20 @@ class PolicyEditorService {
     PlatformPolicy b,
     ConnectionPlatform platform, {
     WindowsMode? windowsMode,
+    bool applyServerDialing = true,
   }) => const DeepCollectionEquality().equals(
-    _effectiveRuntime(a, platform, windowsMode: windowsMode),
-    _effectiveRuntime(b, platform, windowsMode: windowsMode),
+    _effectiveRuntime(
+      a,
+      platform,
+      windowsMode: windowsMode,
+      applyServerDialing: applyServerDialing,
+    ),
+    _effectiveRuntime(
+      b,
+      platform,
+      windowsMode: windowsMode,
+      applyServerDialing: applyServerDialing,
+    ),
   );
 
   static Object _effectiveRuntime(
@@ -195,10 +223,13 @@ class PolicyEditorService {
     ConnectionPlatform platform, {
     WindowsMode? windowsMode,
     Map<String, dynamic>? appleTun,
+    bool applyServerDialing = true,
   }) {
     final json = policy.toJson();
     final result = <String, dynamic>{
       'ipv6': policy.ipv6Enabled,
+      if (applyServerDialing)
+        'dialing': policy.dialing.effective(ipv6: policy.ipv6Enabled).toJson(),
       'dnsIpv4Address': policy.dnsIpv4Address,
       if (policy.ipv6Enabled ||
           (platform == ConnectionPlatform.windows &&

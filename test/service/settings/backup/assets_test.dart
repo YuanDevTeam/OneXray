@@ -186,7 +186,10 @@ void main() {
           ),
         ),
       ),
-      policy: PlatformPolicy.fromJson({'ipv6Enabled': false}),
+      policy: PlatformPolicy.fromJson({
+        'ipv6Enabled': false,
+        'dialing': {'domainStrategy': 'ipv6First', 'happyEyeballs': true},
+      }),
     );
     final legacySettings = original.toJson();
     final legacySmartDns = legacySettings['connection']['smart']['dns'] as Map;
@@ -210,6 +213,8 @@ void main() {
       original.connection.smart.sniffing.toJson(),
     );
     expect(jsonEncode(document.toJson()), isNot(contains('finalExitId')));
+    expect(document.toJson(), isNot(contains('dialing')));
+    expect(document.smartRouting.toJson(), isNot(contains('dialing')));
     expect(document.subscriptions.single.toJson(), {
       'name': 'Source',
       'panel': 'remnawave',
@@ -290,6 +295,10 @@ void main() {
     );
     expect(document.smartRouting.directDnsAddress, isNull);
     expect(connection.policy.toJson(), original.policy.toJson());
+    expect(
+      connection.policy.dialing.toJson(),
+      original.policy.dialing.toJson(),
+    );
     final subscription = (await db.subscriptionDao.allRows).single;
     expect(subscription.hwid, 'keep');
     expect(subscription.ageSecretKey, 'secret-fixture');

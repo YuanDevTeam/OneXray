@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:onexray/core/ffi/windows/model.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
 import 'package:onexray/core/model/tun_json.dart';
+import 'package:onexray/service/connect/dialing.dart';
 import 'package:onexray/service/connect/settings.dart';
 
 ConnectionPlatform get connectionPlatform => switch (Platform.operatingSystem) {
@@ -25,6 +26,9 @@ final class PlatformPolicy {
 
   factory PlatformPolicy.fromJson(Map<String, dynamic> value) {
     final policy = _readPolicyObject(_defaults, value);
+    policy['dialing'] = ServerDialingSettings.fromJson(
+      policy['dialing'] as Map<String, dynamic>,
+    ).toJson();
     for (final key in ['dnsIpv4Address', 'dnsIpv6Address', 'dnsServerName']) {
       policy[key] = (policy[key] as String).trim();
     }
@@ -73,6 +77,9 @@ final class PlatformPolicy {
   Map<String, dynamic> toJson() => jsonDecode(_json) as Map<String, dynamic>;
 
   bool get ipv6Enabled => toJson()['ipv6Enabled'] as bool;
+  ServerDialingSettings get dialing => ServerDialingSettings.fromJson(
+    toJson()['dialing'] as Map<String, dynamic>,
+  );
   String get xrayOutboundInterfaceName =>
       toJson()['xrayOutboundInterfaceName'] as String;
   bool get logEnabled => toJson()['log']['enabled'] as bool;
@@ -227,6 +234,7 @@ final class PlatformPolicy {
 
 const _defaults = <String, dynamic>{
   'ipv6Enabled': true,
+  'dialing': {'domainStrategy': 'system', 'happyEyeballs': false},
   'dnsIpv4Address': '8.8.8.8',
   'dnsIpv6Address': '2001:4860:4860::8888',
   'dnsServerName': 'dns.google',

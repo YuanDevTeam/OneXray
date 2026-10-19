@@ -11,6 +11,7 @@ import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/service/connect/compiler.dart';
+import 'package:onexray/service/connect/dialing.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
@@ -18,6 +19,8 @@ import 'package:onexray/service/advanced/policy_editor.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/raw/db.dart';
+import 'package:onexray/service/connect/routing/custom/advanced.dart';
+import 'package:onexray/service/connect/routing/custom/state.dart';
 
 void main() {
   test('reconnect comparisons include only effective DNS settings', () {
@@ -90,16 +93,24 @@ void main() {
   late ConnectionCoordinator coordinator;
   late HostConnection host;
   late int stops;
+  late bool allowRestart;
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     host = const HostConnection(VpnStatus.disconnected);
     stops = 0;
+    allowRestart = false;
     coordinator = ConnectionCoordinator(
       database: db,
       inspect: (_, {observedStatus}) async => host,
-      prepare: (_, _) async => throw StateError('Must not prepare'),
-      start: (_) async => throw StateError('Must not start'),
+      prepare: (configuration, _) async {
+        if (!allowRestart) throw StateError('Must not prepare');
+        return _runtime(configuration);
+      },
+      start: (runtime) async {
+        if (!allowRestart) throw StateError('Must not start');
+        return host = HostConnection(VpnStatus.connected, runtime: runtime);
+      },
       stop: () async {
         stops++;
         return host = const HostConnection(VpnStatus.disconnected);
@@ -110,6 +121,204 @@ void main() {
       coordinator.dispose();
       await db.close();
     });
+  });
+
+  test('offline dialing saves without connecting', () async {
+    final service = PolicyEditorService(
+      coordinator: coordinator,
+      platform: ConnectionPlatform.android,
+    );
+    final draft = await service.load();
+    draft.policy['dialing'] = {
+      'domainStrategy': 'ipv6First',
+      'happyEyeballs': true,
+    };
+    expect(
+      await service.save(
+        draft: draft,
+        confirm: (_) async => throw StateError('Must not confirm'),
+      ),
+      isTrue,
+    );
+    final saved = (await service.load()).original.policy.dialing;
+    expect(saved.domainStrategy, ServerDomainStrategy.ipv6First);
+    expect(saved.happyEyeballs, isTrue);
+    expect(stops, 0);
+    expect(host.status, VpnStatus.disconnected);
+  });
+
+  for (final mode in TrafficMode.values) {
+    test(
+      'managed $mode dialing confirms before saving and reconnecting',
+      () async {
+        final customId = mode == TrafficMode.custom
+            ? await db.routingProfileDao.insertRow(
+                RoutingProfileCompanion.insert(
+                  name: 'Ordinary route',
+                  data: base64Encode(
+                    utf8.encode(
+                      jsonEncode(
+                        RoutingProfileState(name: 'Ordinary route').toJson(),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            : null;
+        final configuration = ConnectionConfiguration(
+          connection: ConnectionSettings(trafficMode: mode, customId: customId),
+        );
+        await db.connectionConfigDao.commit(
+          configurationJson: configuration.encode(),
+        );
+        host = HostConnection(
+          VpnStatus.connected,
+          runtime: _runtime(configuration),
+        );
+        final service = PolicyEditorService(
+          coordinator: coordinator,
+          platform: ConnectionPlatform.android,
+        );
+        final draft = await service.load();
+        draft.policy['dialing']['happyEyeballs'] = true;
+        var confirmations = 0;
+        expect(
+          await service.save(
+            draft: draft,
+            confirm: (disconnect) async {
+              confirmations++;
+              expect(disconnect, isFalse);
+              return false;
+            },
+          ),
+          isFalse,
+        );
+        expect(confirmations, 1);
+        expect(stops, 0);
+        expect(
+          (await coordinator.configuration).encode(),
+          configuration.encode(),
+        );
+
+        allowRestart = true;
+        expect(
+          await service.save(
+            draft: draft,
+            confirm: (disconnect) async {
+              confirmations++;
+              expect(disconnect, isFalse);
+              return true;
+            },
+          ),
+          isTrue,
+        );
+        expect(confirmations, 2);
+        expect(stops, 1);
+        expect(
+          host.runtime!.configuration.policy.dialing.happyEyeballs,
+          isTrue,
+        );
+        expect(
+          (await coordinator.configuration).policy.dialing.happyEyeballs,
+          isTrue,
+        );
+      },
+    );
+  }
+
+  test(
+    'IPv6-off same effective dialing saves preference without reconnect',
+    () async {
+      final configuration = ConnectionConfiguration(
+        policy: PlatformPolicy.fromJson({
+          'ipv6Enabled': false,
+          'dialing': {'domainStrategy': 'ipv4First'},
+        }),
+      );
+      await db.connectionConfigDao.commit(
+        configurationJson: configuration.encode(),
+      );
+      final active = _runtime(configuration);
+      host = HostConnection(VpnStatus.connected, runtime: active);
+      final service = PolicyEditorService(
+        coordinator: coordinator,
+        platform: ConnectionPlatform.android,
+      );
+      final draft = await service.load();
+      draft.policy['dialing'] = {
+        'domainStrategy': 'ipv6First',
+        'happyEyeballs': true,
+      };
+      expect(
+        await service.save(
+          draft: draft,
+          confirm: (_) async => throw StateError('No effective change'),
+        ),
+        isTrue,
+      );
+      final saved = (await coordinator.configuration).policy;
+      expect(saved.dialing.domainStrategy, ServerDomainStrategy.ipv6First);
+      expect(saved.dialing.happyEyeballs, isTrue);
+      expect(saved.dialing.effective(ipv6: false).domainStrategy, 'UseIPv4');
+      expect(stops, 0);
+      expect(host.runtime, same(active));
+    },
+  );
+
+  test('advanced templates retain inactive dialing preferences', () async {
+    final routeId = await db.routingProfileDao.insertRow(
+      RoutingProfileCompanion.insert(
+        name: 'Advanced route',
+        advanced: const Value(true),
+        data: base64Encode(utf8.encode(AdvancedRoutingProfile.defaultText)),
+      ),
+    );
+    final configuration = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        trafficMode: TrafficMode.custom,
+        customId: routeId,
+      ),
+    );
+    await db.connectionConfigDao.commit(
+      configurationJson: configuration.encode(),
+    );
+    final active = _runtime(configuration);
+    host = HostConnection(VpnStatus.connected, runtime: active);
+    final service = PolicyEditorService(
+      coordinator: coordinator,
+      platform: ConnectionPlatform.android,
+    );
+    final draft = await service.load();
+    draft.policy['dialing']['happyEyeballs'] = true;
+    expect(
+      await service.save(
+        draft: draft,
+        confirm: (_) async => throw StateError('Advanced must not restart'),
+      ),
+      isTrue,
+    );
+    expect(
+      (await coordinator.configuration).policy.dialing.happyEyeballs,
+      isTrue,
+    );
+    expect(stops, 0);
+    expect(host.runtime, same(active));
+
+    final dnsDraft = await service.load();
+    dnsDraft.policy['dnsIpv4Address'] = '1.1.1.1';
+    var confirmations = 0;
+    expect(
+      await service.save(
+        draft: dnsDraft,
+        confirm: (_) async {
+          confirmations++;
+          return false;
+        },
+      ),
+      isFalse,
+    );
+    expect(confirmations, 1);
+    expect((await coordinator.configuration).policy.dnsIpv4Address, '8.8.8.8');
   });
 
   test('LAN sharing changes apply only on the next App start', () {
@@ -254,6 +463,10 @@ void main() {
         );
         var draft = await service.load();
         draft.policy['lanProxy']['enabled'] = true;
+        draft.policy['dialing'] = {
+          'domainStrategy': 'ipv6First',
+          'happyEyeballs': true,
+        };
         expect(
           await service.save(
             draft: draft,
@@ -275,6 +488,14 @@ void main() {
           isTrue,
         );
         expect((await coordinator.configuration).policy.lanProxyPort, 11026);
+        expect(
+          (await coordinator.configuration).policy.dialing.domainStrategy,
+          ServerDomainStrategy.ipv6First,
+        );
+        expect(
+          (await coordinator.configuration).policy.dialing.happyEyeballs,
+          isTrue,
+        );
         expect(stops, 0);
         expect(
           host.status,
@@ -367,6 +588,10 @@ void main() {
         );
         final draft = await service.load();
         draft.policy['lanProxy'] = {'enabled': true, 'port': 11024};
+        draft.policy['dialing'] = {
+          'domainStrategy': 'ipv6First',
+          'happyEyeballs': true,
+        };
         expect(
           await service.save(
             draft: draft,
@@ -380,6 +605,11 @@ void main() {
         final saved = await coordinator.configuration;
         expect(saved.policy.lanProxyEnabled, isTrue);
         expect(saved.policy.lanProxyPort, 11024);
+        expect(
+          saved.policy.dialing.domainStrategy,
+          ServerDomainStrategy.ipv6First,
+        );
+        expect(saved.policy.dialing.happyEyeballs, isTrue);
         expect(saved.connection.toJson(), configuration.connection.toJson());
         expect(
           (await db.routingProfileDao.searchRow(customId))!.data,

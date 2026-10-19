@@ -1,9 +1,34 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
+import 'package:onexray/service/connect/dialing.dart';
 import 'package:onexray/service/connect/settings.dart';
 
 void main() {
+  test('dialing defaults and saved preferences survive platform storage', () {
+    final defaults = PlatformPolicy.fromJson({});
+    expect(defaults.dialing.toJson(), const ServerDialingSettings().toJson());
+    final unknown = PlatformPolicy.fromJson({
+      'dialing': {'domainStrategy': 'future-strategy', 'happyEyeballs': true},
+    });
+    expect(unknown.dialing.domainStrategy, ServerDomainStrategy.system);
+    expect(unknown.dialing.happyEyeballs, isTrue);
+    expect(unknown.toJson()['dialing']['domainStrategy'], 'system');
+
+    final saved = PlatformPolicy.fromJson({
+      'ipv6Enabled': false,
+      'dialing': {'domainStrategy': 'ipv6First', 'happyEyeballs': true},
+    });
+    final restored = PlatformPolicy.fromJson(saved.toJson());
+    expect(restored.dialing.domainStrategy, ServerDomainStrategy.ipv6First);
+    expect(restored.dialing.happyEyeballs, isTrue);
+    expect(restored.dialing.effective(ipv6: restored.ipv6Enabled).toJson(), {
+      'domainStrategy': 'UseIPv4',
+      'happyEyeballs': false,
+    });
+    expect(restored.toJson(), saved.toJson());
+  });
+
   test(
     'configured tunnel DNS survives storage and reaches native parameters',
     () {
