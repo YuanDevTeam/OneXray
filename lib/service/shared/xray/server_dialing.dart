@@ -9,22 +9,27 @@ abstract final class ManagedServerDialing {
   static const dnsTag = 'app-dns-bootstrap';
 
   /// [outbounds] must already be runtime copies. Intermediate proxy hops keep
-  /// their domains; only streams that open physical sockets are changed.
+  /// their domains, except WireGuard peers which Core always resolves locally.
   static List<String> apply({
     required List<Map<String, dynamic>> outbounds,
     required EffectiveServerDialing settings,
     String? interfaceName,
   }) {
-    if (!settings.enabled) return const [];
-
     final domains = <String>{};
     final fragment = outbounds.where(XrayFragment.matches).firstOrNull;
+    // A Fragment helper can serve both TCP and WireGuard UDP entries. Keep
+    // its TCP racing capability independent of their traversal order.
+    final managedStreams = <Map<String, dynamic>, bool>{};
 
-    void configure(Map<String, dynamic> stream) {
+    void configure(Map<String, dynamic> stream, bool supportsHappyEyeballs) {
+      if (!settings.enabled) {
+        _map(stream['sockopt'])?.remove('happyEyeballs');
+        return;
+      }
       final sockopt = _object(stream, 'sockopt');
       if (sockopt == null) return;
       sockopt['domainStrategy'] = settings.domainStrategy;
-      if (settings.happyEyeballs) {
+      if (settings.happyEyeballs && supportsHappyEyeballs) {
         sockopt['happyEyeballs'] = {'tryDelayMs': 250};
       } else {
         sockopt.remove('happyEyeballs');
@@ -32,29 +37,43 @@ abstract final class ManagedServerDialing {
       if (interfaceName != null) sockopt['interface'] = interfaceName;
     }
 
-    void route(Map<String, dynamic> stream, List<String> addresses) {
-      if (addresses.isEmpty) return;
-      final sockopt = _map(stream['sockopt']);
-      final dialer = sockopt?['dialerProxy'];
-      if (dialer is String && dialer.isNotEmpty) {
-        if (fragment == null || dialer != XrayFragment.tag) return;
-        final physical = _object(fragment, 'streamSettings');
-        if (physical == null) return;
-        final helperDialer = _map(physical['sockopt'])?['dialerProxy'];
-        if (helperDialer is String && helperDialer.isNotEmpty) return;
-        // Core migrates these freedom aliases over sockopt.domainStrategy;
-        // the explicit managed preference must own the final physical dial.
-        final legacy = _map(fragment['settings']);
-        legacy?.remove('domainStrategy');
-        legacy?.remove('targetStrategy');
-        configure(physical);
-      } else {
-        configure(stream);
-      }
+    void collect(List<String> addresses) {
+      if (!settings.enabled) return;
       for (final address in addresses) {
         final domain = _domain(address);
         if (domain != null) domains.add(domain);
       }
+    }
+
+    void route(
+      Map<String, dynamic> stream,
+      List<String> addresses, {
+      bool supportsHappyEyeballs = true,
+    }) {
+      if (addresses.isEmpty) return;
+      final sockopt = _map(stream['sockopt']);
+      final dialer = sockopt?['dialerProxy'];
+      var physical = stream;
+      if (dialer is String && dialer.isNotEmpty) {
+        if (fragment == null || dialer != XrayFragment.tag) return;
+        final helper = settings.enabled
+            ? _object(fragment, 'streamSettings')
+            : _map(fragment['streamSettings']);
+        if (helper == null) return;
+        physical = helper;
+        final helperDialer = _map(physical['sockopt'])?['dialerProxy'];
+        if (helperDialer is String && helperDialer.isNotEmpty) return;
+        // Core migrates these freedom aliases over sockopt.domainStrategy;
+        // the explicit managed preference must own the final physical dial.
+        if (settings.enabled) {
+          final legacy = _map(fragment['settings']);
+          legacy?.remove('domainStrategy');
+          legacy?.remove('targetStrategy');
+        }
+      }
+      managedStreams[physical] =
+          supportsHappyEyeballs || managedStreams[physical] == true;
+      collect(addresses);
     }
 
     for (final outbound in outbounds) {
@@ -68,10 +87,18 @@ abstract final class ManagedServerDialing {
       }
       var addresses = _serverAddresses(outbound);
       var stream = _map(outbound['streamSettings']);
-      if (stream == null && addresses.isNotEmpty) {
+      if (stream == null && addresses.isNotEmpty && settings.enabled) {
         stream = _object(outbound, 'streamSettings');
       }
       if (stream == null) continue;
+      if (outbound['protocol'] == 'wireguard') {
+        // WireGuard resolves peers locally with its own socket strategy,
+        // even before sending UDP through a dialerProxy. It cannot TCP-race.
+        managedStreams[stream] = false;
+        collect(addresses);
+        route(stream, addresses, supportsHappyEyeballs: false);
+        continue;
+      }
       final streamAddress = stream['address'];
       if (_network(stream) == 'xdrive' &&
           streamAddress is String &&
@@ -90,6 +117,9 @@ abstract final class ManagedServerDialing {
       // is true. Otherwise the independent stream owns its routing/socket.
       final penetrates = _map(stream['sockopt'])?['penetrate'] == true;
       route(penetrates ? stream : download, [downloadAddress]);
+    }
+    for (final entry in managedStreams.entries) {
+      configure(entry.key, entry.value);
     }
     return domains.toList();
   }
@@ -121,6 +151,15 @@ abstract final class ManagedServerDialing {
   static List<String> _serverAddresses(Map<String, dynamic> outbound) {
     final settings = _map(outbound['settings']);
     if (settings == null) return [];
+    if (outbound['protocol'] == 'wireguard') {
+      return [
+        if (settings['peers'] case List peers)
+          for (final peer in peers)
+            if (_map(peer)?['endpoint'] case String endpoint)
+              if (Uri.tryParse('//$endpoint')?.host case String host)
+                if (host.isNotEmpty) host,
+      ];
+    }
     final address = settings['address'];
     if (address is String && address.isNotEmpty) return [address];
     return [

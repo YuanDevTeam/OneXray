@@ -9,11 +9,13 @@ const dualStack = EffectiveServerDialing(
 );
 
 void main() {
-  test('system default leaves the complete runtime payload unchanged', () {
+  test('system default clears only physical HE without enabling DNS', () {
     final values = [
       _node(
         'entry.example',
         sockopt: {
+          'domainStrategy': 'UseIPv6',
+          'interface': 'kept0',
           'happyEyeballs': {'tryDelayMs': 99},
         },
       ),
@@ -29,7 +31,86 @@ void main() {
       ),
       isEmpty,
     );
+    _sockopt(before.first).remove('happyEyeballs');
     expect(values, before);
+  });
+
+  test('system default leaves a plain endpoint unchanged', () {
+    final value = _node('entry.example')..remove('streamSettings');
+    final before = JsonTool.copyMap(value);
+    expect(
+      ManagedServerDialing.apply(
+        outbounds: [value],
+        settings: const EffectiveServerDialing(domainStrategy: 'AsIs'),
+      ),
+      isEmpty,
+    );
+    expect(value, before);
+  });
+
+  test('WireGuard peers use endpoint hosts without TCP Happy Eyeballs', () {
+    final value = _wireguard([
+      'Peer.Example.:51820',
+      'peer.example:51821',
+      '192.0.2.1:51820',
+      '[2001:db8::1]:51820',
+    ]);
+    value['streamSettings'] = <String, dynamic>{
+      'sockopt': <String, dynamic>{
+        'happyEyeballs': {'tryDelayMs': 99},
+        'mark': 3,
+      },
+    };
+    final originalSettings = JsonTool.copyMap(value['settings']);
+    expect(
+      ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
+      ['peer.example'],
+    );
+    expect(_sockopt(value), {'domainStrategy': 'UseIP', 'mark': 3});
+    expect(value['settings'], originalSettings);
+
+    final literal = _wireguard(['[2001:db8::2]:51820']);
+    expect(
+      ManagedServerDialing.apply(outbounds: [literal], settings: dualStack),
+      isEmpty,
+    );
+    expect(_sockopt(literal), {'domainStrategy': 'UseIP'});
+  });
+
+  test('shared Fragment keeps TCP HE regardless of WireGuard entry order', () {
+    for (final reverse in [false, true]) {
+      final tcp = _node('entry.example', sockopt: {'dialerProxy': 'fragment'});
+      final wg = _wireguard(['peer.example:51820']);
+      wg['streamSettings'] = <String, dynamic>{
+        'sockopt': <String, dynamic>{'dialerProxy': 'fragment'},
+      };
+      final helper = _fragment();
+      final entries = reverse ? [wg, tcp] : [tcp, wg];
+      expect(
+        ManagedServerDialing.apply(
+          outbounds: [...entries, helper],
+          settings: dualStack,
+        ),
+        unorderedEquals(['entry.example', 'peer.example']),
+      );
+      expect(_sockopt(wg), {
+        'dialerProxy': 'fragment',
+        'domainStrategy': 'UseIP',
+      });
+      expect(_sockopt(helper)['happyEyeballs'], {'tryDelayMs': 250});
+    }
+
+    final wg = _wireguard(['peer.example:51820']);
+    wg['streamSettings'] = <String, dynamic>{
+      'sockopt': <String, dynamic>{'dialerProxy': 'fragment'},
+    };
+    final helper = _fragment(
+      sockopt: {
+        'happyEyeballs': {'tryDelayMs': 99},
+      },
+    );
+    ManagedServerDialing.apply(outbounds: [wg, helper], settings: dualStack);
+    expect(_sockopt(helper), {'domainStrategy': 'UseIP'});
   });
 
   test(
@@ -490,6 +571,22 @@ Map<String, dynamic> _fragment({Map<String, dynamic>? sockopt}) => {
     },
   },
   if (sockopt != null) 'streamSettings': <String, dynamic>{'sockopt': sockopt},
+};
+
+Map<String, dynamic> _wireguard(List<String> endpoints) => {
+  'tag': 'wireguard',
+  'protocol': 'wireguard',
+  'settings': <String, dynamic>{
+    'secretKey': 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=',
+    'address': ['10.0.0.2/32', 'fd00::2/128'],
+    'peers': [
+      for (final endpoint in endpoints)
+        {
+          'publicKey': 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=',
+          'endpoint': endpoint,
+        },
+    ],
+  },
 };
 
 Map<String, dynamic> _download(

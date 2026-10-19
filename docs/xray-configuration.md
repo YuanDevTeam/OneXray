@@ -79,12 +79,17 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 不承诺严格禁止另一地址族。拨号策略、`dns.queryStrategy` 与路由匹配的 `routing.domainStrategy` 是不同层次，
 不互相替代。Happy Eyeballs 只在 IPv6 开启且选择系统默认或双栈解析时应用，系统默认同时开启它会使用 `UseIP`。
 App 设置 250 ms 竞速延迟，其余竞速参数由 Core 管理；关闭开关不移除系统拨号器自身的双栈回退。
+关闭时清理托管物理连接中原有的 HE 设置，包括 XHTTP 实际下载连接和 Fragment 辅助出站；
+系统默认策略仍不新增引导 DNS，也不因此覆盖其它 socket 字段。
 单地址族与有先后顺序的解析不应用此开关，但保留保存值，IPv6 交互见 [IPv6 策略](#ipv6-策略)。
 
 运行副本只修改实际打开物理 socket 的代理出站，不改 TLS SNI、HTTP Host 或存储中的节点原文。
 代理链的后续节点继续由上游代理解析，策略落在物理接入；使用 Fragment 时落到最终辅助出站。
 XHTTP 独立下载按实际生效的配置对象处理自己的地址与 socket，`extra` 替换和 `penetrate` 继承沿用 Core 语义；
 XDrive fronting 使用实际物理地址。普通 direct 出站和无物理拨号的中间链不统一覆盖。
+WireGuard 使用 `peers[].endpoint` 的 host，保留其端口、本机隧道地址与 `remoteDNS`。
+Core 在发送 UDP 前使用 WireGuard 自身的 socket 策略本地解析 peer，即使通过代理链也应用地址族策略与引导 DNS；
+其 UDP 连接不应用仅适用于 TCP 的 HE 竞速，共享 Fragment 的 TCP 连接仍可使用 HE。
 
 显式拨号需要解析域名时，App 从实际物理端点收集去重后的精确域名，前置专用 bootstrap resolver，
 复用隧道 DNS 的 IPv4 地址和启用时的 IPv6 地址，并用独立 tag 的前置规则固定直连。

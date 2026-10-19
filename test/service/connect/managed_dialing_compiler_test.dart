@@ -84,7 +84,11 @@ void main() {
       'protocol': 'socks',
       'settings': {'address': 'entry.example', 'port': 1080},
       'streamSettings': {
-        'sockopt': {'domainStrategy': 'UseIPv6', 'tcpFastOpen': true},
+        'sockopt': {
+          'domainStrategy': 'UseIPv6',
+          'happyEyeballs': {'tryDelayMs': 80},
+          'tcpFastOpen': true,
+        },
       },
     };
     final before = jsonEncode(source);
@@ -118,6 +122,112 @@ void main() {
     expect(entry.outbound, source);
   });
 
+  test('system default disables imported XHTTP download racing without imposing DNS policy', () {
+    final source = _xhttp(
+      settings: {
+        'path': '/upload',
+        'mode': 'packet-up',
+        'downloadSettings': {'address': 'shadowed.example'},
+        'extra': {
+          'downloadSettings': {
+            'address': 'download.example',
+            'port': 443,
+            'network': 'xhttp',
+            'xhttpSettings': {'path': '/download'},
+            'sockopt': {
+              'domainStrategy': 'UseIP',
+              'happyEyeballs': {'tryDelayMs': 80},
+              'tcpFastOpen': true,
+            },
+          },
+        },
+      },
+      sockopt: {
+        'domainStrategy': 'UseIP',
+        'happyEyeballs': {'tryDelayMs': 80},
+        'tcpFastOpen': true,
+      },
+    );
+    final before = jsonEncode(source);
+    final entry = ResolvedServer(id: 1, sourceId: 0, outbound: source);
+    final config = ConnectionCompiler.compile(
+      settings: ConnectionSettings(),
+      entries: [entry],
+      regions: catalog,
+      options: _options(),
+    ).config;
+    final outbound = _outbound(config, 'app-entry-0');
+    expect(_socket(outbound), {'tcpFastOpen': true});
+    final xhttp = outbound['streamSettings']['xhttpSettings'];
+    final download = xhttp['extra']['downloadSettings'];
+    expect(download['address'], 'download.example');
+    expect(download['port'], 443);
+    expect(download['xhttpSettings'], {'path': '/download'});
+    expect(download['sockopt'], {
+      'domainStrategy': 'UseIP',
+      'tcpFastOpen': true,
+    });
+    expect(xhttp['downloadSettings'], {'address': 'shadowed.example'});
+    expect(
+      _dnsServers(config)
+          .where((server) => server['tag'] == 'app-dns-bootstrap'),
+      isEmpty,
+    );
+    expect(
+      (config['routing']['rules'] as List).where(
+        (rule) => rule['ruleTag'] == 'app-dns-bootstrap',
+      ),
+      isEmpty,
+    );
+    expect(jsonEncode(source), before);
+    expect(entry.outbound, source);
+  });
+
+  test(
+    'system default disables imported Fragment racing on the physical helper',
+    () {
+      final helper = <String, dynamic>{
+        'tag': 'fragment',
+        'protocol': 'freedom',
+        'settings': {
+          'fragment': {'packets': 'tlshello', 'length': '100-200'},
+        },
+        'streamSettings': {
+          'sockopt': {
+            'domainStrategy': 'UseIP',
+            'happyEyeballs': {'tryDelayMs': 80},
+            'tcpFastOpen': true,
+          },
+        },
+      };
+      final before = jsonEncode(helper);
+      final custom = RoutingProfileState(
+        name: 'Custom',
+        fragmentOutbound: helper,
+      );
+      final config = ConnectionCompiler.compile(
+        settings: ConnectionSettings(trafficMode: TrafficMode.custom),
+        custom: custom,
+        entries: [_node(1, 'entry.example')],
+        regions: catalog,
+        options: _options(),
+      ).config;
+      expect(
+        _socket(_outbound(config, 'app-entry-0'))['dialerProxy'],
+        'fragment',
+      );
+      expect(_socket(_outbound(config, 'fragment')), {'tcpFastOpen': true});
+      expect(_outbound(config, 'fragment')['settings'], helper['settings']);
+      expect(
+        _dnsServers(config)
+            .where((server) => server['tag'] == 'app-dns-bootstrap'),
+        isEmpty,
+      );
+      expect(jsonEncode(helper), before);
+      expect(custom.fragmentOutbound, helper);
+    },
+  );
+
   test('Raw and provider graphs retain their own dialing independently of the global preference', () {
     final source = <String, dynamic>{
       'dns': {
@@ -134,6 +244,42 @@ void main() {
               'happyEyeballs': {'tryDelayMs': 80, 'maxConcurrentTry': 2},
             },
           },
+        },
+        {
+          'tag': 'wireguard-proxy',
+          'protocol': 'wireguard',
+          'settings': {
+            'secretKey': 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=',
+            'address': ['10.0.0.2/32'],
+            'peers': [
+              {
+                'publicKey': 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=',
+                'endpoint': 'provider-wg.example:51820',
+              },
+            ],
+          },
+          'streamSettings': {
+            'sockopt': {
+              'domainStrategy': 'UseIPv6',
+              'happyEyeballs': {'tryDelayMs': 80},
+            },
+          },
+        },
+        {
+          ..._xhttp(
+            settings: {
+              'mode': 'packet-up',
+              'downloadSettings': {
+                'address': 'provider-download.example',
+                'port': 443,
+                'sockopt': {
+                  'domainStrategy': 'UseIP',
+                  'happyEyeballs': {'tryDelayMs': 80},
+                },
+              },
+            },
+          ),
+          'tag': 'xhttp-proxy',
         },
       ],
     };
@@ -160,10 +306,9 @@ void main() {
       final baseline = compile(const ServerDialingSettings()).config;
       final config = compile(_happyEyeballs).config;
       expect(config, baseline);
-      expect(
-        _socket(_outbound(config, 'personal-proxy')),
-        source['outbounds'][0]['streamSettings']['sockopt'],
-      );
+      for (final outbound in source['outbounds'] as List) {
+        expect(_outbound(config, outbound['tag'] as String), outbound);
+      }
     }
     expect(jsonEncode(source), before);
     expect(profile.config, source);
@@ -391,6 +536,105 @@ void main() {
       'app-entry-0',
       'app-entry-1',
     ]);
+  });
+
+  test(
+    'WireGuard resolves only peer endpoint hosts without enabling TCP racing',
+    () {
+      final source = <String, dynamic>{
+        'tag': 'WireGuard entry',
+        'protocol': 'wireguard',
+        'settings': {
+          'address': ['10.0.0.2/32', 'fd00::2/128'],
+          'secretKey': 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=',
+          'peers': [
+            {
+              'publicKey': 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=',
+              'endpoint': 'peer.example:51820',
+              'keepAlive': 25,
+            },
+            {
+              'publicKey': 'AwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwM=',
+              'endpoint': '192.0.2.10:51820',
+            },
+            {
+              'publicKey': 'BAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ=',
+              'endpoint': '[2001:db8::10]:51820',
+            },
+          ],
+          'reserved': [0, 0, 0],
+          'remoteDNS': ['192.0.2.53'],
+        },
+        'streamSettings': {
+          'sockopt': {
+            'domainStrategy': 'UseIPv6',
+            'happyEyeballs': {'tryDelayMs': 80},
+            'mark': 7,
+          },
+        },
+      };
+      final before = jsonEncode(source);
+      final entry = ResolvedServer(id: 1, sourceId: 0, outbound: source);
+      final config = ConnectionCompiler.compile(
+        settings: ConnectionSettings(),
+        entries: [entry],
+        regions: catalog,
+        options: _options(dialing: _happyEyeballs),
+      ).config;
+      final outbound = _outbound(config, 'app-entry-0');
+      expect(_socket(outbound), {'domainStrategy': 'UseIP', 'mark': 7});
+      expect(outbound['settings'], source['settings']);
+      _expectBootstrap(config, ['peer.example']);
+      expect(jsonEncode(source), before);
+      expect(entry.outbound, source);
+    },
+  );
+
+  test('chained WireGuard exits resolve peers locally while retaining their proxy hop', () {
+    final entry = _node(1, 'entry.example');
+    final exit = ResolvedServer(
+      id: 9,
+      sourceId: 0,
+      outbound: {
+        'tag': 'WireGuard exit',
+        'protocol': 'wireguard',
+        'settings': {
+          'secretKey': 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=',
+          'address': ['10.0.0.2/32'],
+          'peers': [
+            {
+              'publicKey': 'AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=',
+              'endpoint': 'exit-peer.example:51820',
+            },
+          ],
+        },
+        'streamSettings': {
+          'sockopt': {
+            'domainStrategy': 'UseIPv6',
+            'happyEyeballs': {'tryDelayMs': 80},
+          },
+        },
+      },
+    );
+    final before = [entry.outbound, exit.outbound];
+    final config = ConnectionCompiler.compile(
+      settings: ConnectionSettings(smart: SmartRoutingSettings(finalExitId: 9)),
+      entries: [entry],
+      finalExit: exit,
+      regions: catalog,
+      options: _options(dialing: _happyEyeballs),
+    ).config;
+    final outbound = _outbound(config, 'app-exit-0');
+    expect(_socket(outbound), {
+      'domainStrategy': 'UseIP',
+      'dialerProxy': 'app-entry-0',
+    });
+    expect(outbound['settings'], exit.outbound['settings']);
+    expect(_socket(_outbound(config, 'app-entry-0'))['happyEyeballs'], {
+      'tryDelayMs': 250,
+    });
+    _expectBootstrap(config, ['entry.example', 'exit-peer.example']);
+    expect([entry.outbound, exit.outbound], before);
   });
 }
 
