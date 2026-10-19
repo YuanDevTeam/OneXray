@@ -1,4 +1,8 @@
 {
+  "serverSortTitle": "Сортировка серверов",
+  "serverSortDefault": "По умолчанию",
+  "serverSortName": "По имени",
+  "serverSortLatency": "По задержке",
   "pageHelp": "Справка",
   "lanProxyConfiguration": "Настройки Xray",
   "lanProxyTitle": "Прокси для локальной сети",

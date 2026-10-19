@@ -253,7 +253,7 @@ void main() {
 
   for (final count in [0, 10, 12]) {
     test(
-      'tray renders the first ten data rows in input order ($count rows)',
+      'tray limits sorted servers and other data to ten choices ($count rows)',
       () {
         final data = _menuData(count);
         final expectedIds = count == 0
@@ -273,7 +273,14 @@ void main() {
               .where((item) => item.key?.startsWith(prefix) ?? false);
           expect(items.map((item) => item.key), [
             if (prefix == 'source:' && count == 12) 'source:0',
-            for (final id in expectedIds) '$prefix$id',
+            for (final id
+                in prefix == 'server:'
+                    ? (count == 12
+                            ? List<int>.generate(10, (index) => index + 1)
+                            : [...expectedIds]
+                        ..sort())
+                    : expectedIds)
+              '$prefix$id',
           ], reason: prefix);
         }
         expect(_item(selections, 'automatic').checked, isTrue);
@@ -310,7 +317,7 @@ void main() {
       );
       for (final configuration in [
         ConnectionSettings(selection: const ServerSelection.source(1)),
-        ConnectionSettings(selection: const ServerSelection.server(1)),
+        ConnectionSettings(selection: const ServerSelection.server(12)),
         ConnectionSettings(expert: true, rawId: 1),
         ConnectionSettings(trafficMode: TrafficMode.custom, customId: 1),
       ]) {
@@ -319,7 +326,11 @@ void main() {
         for (final prefix in ['source:', 'server:', 'raw:', 'custom:']) {
           final choices = _descendants(items)
               .where((item) => item.key?.startsWith(prefix) ?? false);
-          expect(choices.any((item) => item.key == '${prefix}1'), isFalse);
+          final excludedId = prefix == 'server:' ? 12 : 1;
+          expect(
+            choices.any((item) => item.key == '$prefix$excludedId'),
+            isFalse,
+          );
           expect(choices.any((item) => item.checked == true), isFalse);
         }
         expect(data.configuration, same(configuration));
@@ -330,7 +341,7 @@ void main() {
       final items = data.selectionItems(l, busy: false);
       expect(_item(items, 'server:3').checked, isTrue);
       expect(_item(items, 'server:3').disabled, isFalse);
-      expect(_item(items, 'server:12').disabled, isTrue);
+      expect(_item(items, 'server:1').disabled, isTrue);
       expect(
         _descendants(data.selectionItems(l, busy: true))
             .every((item) => item.disabled),
@@ -464,7 +475,7 @@ void main() {
   });
 
   test(
-    'database changes update tray names, delay order and active configuration',
+    'database changes keep stable tray order and update active configuration',
     () async {
       final snapshots =
           <({List<int> ids, String? firstName, bool expert, int? rawId})>[];
@@ -485,8 +496,8 @@ void main() {
         ).encode(),
       );
       await pumpEventQueue();
-      expect(snapshots.last.ids, [fast, slow]);
-      expect(snapshots.last.firstName, 'Fast');
+      expect(snapshots.last.ids, [slow, fast]);
+      expect(snapshots.last.firstName, 'Slow');
       expect((snapshots.last.expert, snapshots.last.rawId), (true, 99));
       await db.coreConfigDao.deleteRow(
         (await db.coreConfigDao.searchRow(fast))!,

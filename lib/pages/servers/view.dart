@@ -9,6 +9,7 @@ import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/menus.dart';
+import 'package:onexray/pages/servers/sort.dart';
 import 'package:onexray/pages/servers/subscription/user_info.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
@@ -139,36 +140,46 @@ class ServerBrowser extends StatelessWidget {
     );
     return SizedBox(
       height: 43,
-      child: TextField(
-        controller: controller.search,
-        onChanged: controller.searchChanged,
-        textAlignVertical: TextAlignVertical.center,
-        style: AppTypography.serverBody.copyWith(color: palette.foreground),
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding: const EdgeInsetsDirectional.only(end: 13),
-          hintText: l.prototypeSearchSubscriptionsServers,
-          hintStyle: AppTypography.serverBody.copyWith(
-            color: palette.mutedForeground,
-          ),
-          prefixIconConstraints: const BoxConstraints.tightFor(
-            width: 41,
-            height: 43,
-          ),
-          prefixIcon: Padding(
-            padding: const EdgeInsetsDirectional.only(start: 13, end: 10),
-            child: Icon(
-              LucideIcons.search,
-              size: 18,
-              color: palette.mutedForeground,
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: controller.search,
+              onChanged: controller.searchChanged,
+              textAlignVertical: TextAlignVertical.center,
+              style: AppTypography.serverBody.copyWith(
+                color: palette.foreground,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsetsDirectional.only(end: 13),
+                hintText: l.prototypeSearchSubscriptionsServers,
+                hintStyle: AppTypography.serverBody.copyWith(
+                  color: palette.mutedForeground,
+                ),
+                prefixIconConstraints: const BoxConstraints.tightFor(
+                  width: 41,
+                  height: 43,
+                ),
+                prefixIcon: Padding(
+                  padding: const EdgeInsetsDirectional.only(start: 13, end: 10),
+                  child: Icon(
+                    LucideIcons.search,
+                    size: 18,
+                    color: palette.mutedForeground,
+                  ),
+                ),
+                border: border,
+                enabledBorder: border,
+                focusedBorder: border.copyWith(
+                  borderSide: BorderSide(color: palette.primary),
+                ),
+              ),
             ),
           ),
-          border: border,
-          enabledBorder: border,
-          focusedBorder: border.copyWith(
-            borderSide: BorderSide(color: palette.primary),
-          ),
-        ),
+          const SizedBox(width: 8),
+          ServerSortButton(controller: controller),
+        ],
       ),
     );
   }

@@ -1,4 +1,8 @@
 {
+  "serverSortTitle": "節點排序",
+  "serverSortDefault": "預設順序",
+  "serverSortName": "名稱",
+  "serverSortLatency": "延遲",
   "pageHelp": "說明",
   "lanProxyConfiguration": "Xray 設定",
   "lanProxyTitle": "區域網路代理共享",

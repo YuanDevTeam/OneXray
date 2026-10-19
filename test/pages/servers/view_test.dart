@@ -22,11 +22,13 @@ import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/service/connect/coordinator.dart';
+import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/settings/backup/service.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/ping/batch.dart';
 import 'package:onexray/service/shared/ping/service.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
+import 'package:onexray/service/servers/sort.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 // ignore: depend_on_referenced_packages
@@ -66,24 +68,25 @@ class _Controller extends ServersController {
   }
 }
 
-CoreConfigData _server(int id, {bool favorite = false}) => CoreConfigData(
-  id: id,
-  name: 'Node $id',
-  type: 'outbound',
-  tags: 'vless,xhttp,tls',
-  data: base64Encode(
-    utf8.encode(
-      jsonEncode({
-        'tag': 'Node $id',
-        'protocol': 'vless',
-        'streamSettings': {'network': 'xhttp', 'security': 'tls'},
-      }),
-    ),
-  ),
-  delay: id * 20,
-  subId: 0,
-  favorite: favorite,
-);
+CoreConfigData _server(int id, {bool favorite = false, String? name}) =>
+    CoreConfigData(
+      id: id,
+      name: name ?? 'Node $id',
+      type: 'outbound',
+      tags: 'vless,xhttp,tls',
+      data: base64Encode(
+        utf8.encode(
+          jsonEncode({
+            'tag': name ?? 'Node $id',
+            'protocol': 'vless',
+            'streamSettings': {'network': 'xhttp', 'security': 'tls'},
+          }),
+        ),
+      ),
+      delay: id * 20,
+      subId: 0,
+      favorite: favorite,
+    );
 
 void main() {
   late AppDatabase db;
@@ -198,6 +201,60 @@ void main() {
     });
     return batches;
   }
+
+  testWidgets(
+    'sorting changes display order without selecting or testing nodes',
+    (tester) async {
+      controller.servers = [
+        _server(2, name: 'Alpha'),
+        _server(1, name: 'Zulu'),
+      ];
+      await pumpBrowser(tester, 1280);
+      expect(controller.servers.map((row) => row.id), [1, 2]);
+
+      await tester.tap(find.byTooltip('Sort servers'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Name').last);
+      await tester.pumpAndSettle();
+      expect(controller.catalog.sortOrder, ServerSortOrder.name);
+      expect(controller.servers.map((row) => row.id), [2, 1]);
+      expect(AppEventBus.instance.state.serverSort, ServerSortOrder.name);
+
+      controller.servers = [
+        _server(1, name: 'Zulu').copyWith(delay: 1),
+        _server(2, name: 'Alpha').copyWith(delay: 900),
+      ];
+      await tester.pumpAndSettle();
+      expect(controller.servers.map((row) => row.id), [2, 1]);
+      await tester.enterText(find.byType(TextField).first, 'Alpha');
+      await tester.pumpAndSettle();
+      final labels = AppLocalizations.of(
+        tester.element(find.byType(ServerBrowser)),
+      )!;
+      expect(
+        controller.groups(labels).single.visibleRows.map((row) => row.id),
+        [2],
+      );
+      await tester.enterText(find.byType(TextField).first, '');
+      await tester.pumpAndSettle();
+      expect(
+        controller.groups(labels).single.visibleRows.map((row) => row.id),
+        [2, 1],
+      );
+
+      await tester.tap(find.byTooltip('Sort servers'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Latency').last);
+      await tester.pumpAndSettle();
+      expect(controller.servers.map((row) => row.id), [1, 2]);
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(
+        controller.configuration.connection.selection.kind,
+        SelectionKind.automatic,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final phase in [
     ConnectionPhase.disconnected,

@@ -10,6 +10,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/view.dart';
+import 'package:onexray/pages/servers/sort.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -134,7 +135,10 @@ class ServerGroupPage extends StatelessWidget {
           return Scaffold(
             appBar: PageAppBar(
               title: Text(group?.name ?? l.prototypeServers),
-              actions: const [AppActivityIndicator(pinging: false)],
+              actions: [
+                ServerSortButton(controller: controller),
+                const AppActivityIndicator(pinging: false),
+              ],
             ),
             body: SafeArea(
               child: ResponsiveContent(

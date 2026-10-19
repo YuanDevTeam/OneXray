@@ -1,4 +1,8 @@
 {
+  "serverSortTitle": "节点排序",
+  "serverSortDefault": "默认顺序",
+  "serverSortName": "名称",
+  "serverSortLatency": "延迟",
   "pageHelp": "说明",
   "lanProxyConfiguration": "Xray 配置",
   "lanProxyTitle": "局域网代理共享",

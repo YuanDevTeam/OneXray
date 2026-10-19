@@ -12,6 +12,9 @@ import 'package:onexray/pages/advanced/xray/config/params.dart';
 import 'package:onexray/pages/shared/connection_action.dart';
 import 'package:onexray/pages/servers/catalog.dart';
 import 'package:onexray/service/servers/catalog.dart';
+import 'package:onexray/service/servers/sort.dart';
+import 'package:onexray/service/shared/event_bus/service.dart';
+import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
 
@@ -66,6 +69,7 @@ class ServersPageState {
     Map<Object, PendingServerTest> serverTests = const {},
     Set<int> favoritingServerIds = const {},
     this.selectingServers,
+    this.sortSaving = false,
     Map<int, String> sourceErrors = const {},
   }) : configuration = configuration ?? ConnectionConfiguration(),
        catalog = catalog ?? ServerCatalog(),
@@ -91,6 +95,7 @@ class ServersPageState {
   final Map<Object, PendingServerTest> serverTests;
   final Set<int> favoritingServerIds;
   final ServerSelection? selectingServers;
+  final bool sortSaving;
   final Map<int, String> sourceErrors;
 
   ServersPageState copyWith({
@@ -107,6 +112,7 @@ class ServersPageState {
     Map<Object, PendingServerTest>? serverTests,
     Set<int>? favoritingServerIds,
     Object? selectingServers = _unchanged,
+    bool? sortSaving,
     Map<int, String>? sourceErrors,
   }) => ServersPageState(
     configuration: configuration ?? this.configuration,
@@ -126,6 +132,7 @@ class ServersPageState {
     selectingServers: identical(selectingServers, _unchanged)
         ? this.selectingServers
         : selectingServers as ServerSelection?,
+    sortSaving: sortSaving ?? this.sortSaving,
     sourceErrors: sourceErrors ?? this.sourceErrors,
   );
 }
@@ -217,6 +224,25 @@ class ServersController extends PageCubit<ServersPageState>
 
   void _readFailed(Object error) =>
       emit(state.copyWith(failed: true, failure: error));
+
+  Future<void> setSortOrder(BuildContext context, ServerSortOrder order) async {
+    if (state.sortSaving || order == catalog.sortOrder) return;
+    emit(state.copyWith(sortSaving: true));
+    try {
+      await AppEventBus.instance.setServerSort(order);
+      emit(state.copyWith(catalog: catalog.copyWith(sortOrder: order)));
+    } catch (error) {
+      if (isPageActive && context.mounted) {
+        ContextAlert.showToast(
+          context,
+          appFailureMessage(AppLocalizations.of(context)!, error),
+        );
+      }
+    } finally {
+      emit(state.copyWith(sortSaving: false));
+    }
+  }
+
   Future<void> addServers(BuildContext context) =>
       context.pushScoped(AppPageDestination.serversImport);
   Future<void> run(BuildContext context, Future<void> Function() action) async {

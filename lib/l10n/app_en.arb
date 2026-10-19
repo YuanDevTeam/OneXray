@@ -1,4 +1,8 @@
 {
+  "serverSortTitle": "Sort servers",
+  "serverSortDefault": "Default order",
+  "serverSortName": "Name",
+  "serverSortLatency": "Latency",
   "pageHelp": "Help",
   "lanProxyConfiguration": "Xray configuration",
   "lanProxyTitle": "LAN proxy sharing",

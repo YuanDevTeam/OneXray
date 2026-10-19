@@ -1,4 +1,8 @@
 {
+  "serverSortTitle": "مرتب‌سازی سرورها",
+  "serverSortDefault": "ترتیب پیش‌فرض",
+  "serverSortName": "نام",
+  "serverSortLatency": "تأخیر",
   "pageHelp": "راهنما",
   "lanProxyConfiguration": "تنظیمات Xray",
   "lanProxyTitle": "اشتراک‌گذاری پراکسی در شبکهٔ محلی",
