@@ -28,9 +28,24 @@ import 'package:onexray/service/shared/share/configuration_transfer.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/servers/sort.dart';
+import 'package:onexray/service/shared/event_bus/service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// ignore: depend_on_referenced_packages
+import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
+// ignore: depend_on_referenced_packages
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 void main() {
+  final preferences = InMemorySharedPreferencesAsync.empty();
+  setUpAll(() => SharedPreferencesAsyncPlatform.instance = preferences);
+  setUp(() async {
+    await SharedPreferencesAsync().clear();
+    final bus = AppEventBus();
+    addTearDown(bus.close);
+  });
+
   testWidgets(
     'provider selection and runtime snapshot use provider explanations without traffic changes',
     (tester) async {
@@ -193,7 +208,7 @@ void main() {
   });
 
   test(
-    'all node-list controllers react to database changes in delay order',
+    'all node-list controllers share stable defaults and explicit delay order',
     () async {
       final coordinator = _Coordinator();
       final db = coordinator.db;
@@ -226,6 +241,19 @@ void main() {
         }
       });
       await inserted;
+      for (final controller in controllers) {
+        expect(controller.servers.map((row) => row.delay), [300, 10]);
+      }
+      final sorted = Future.wait([
+        for (final controller in controllers)
+          controller.stream.firstWhere(
+            (state) =>
+                state.sortOrder == ServerSortOrder.delay &&
+                state.servers.first.delay == 10,
+          ),
+      ]);
+      await AppEventBus.instance.setServerSort(ServerSortOrder.delay);
+      await sorted;
       for (final controller in controllers) {
         expect(controller.servers.map((row) => row.delay), [10, 300]);
       }
