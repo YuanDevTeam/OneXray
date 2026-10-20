@@ -6,6 +6,9 @@ platform :android do
         aab: "../build/app/outputs/bundle/release/app-release.aab",
         release_status: "draft",
         track: "internal",
+        # Keep pending store changes out of review until the new build is verified.
+        changes_not_sent_for_review: true,
+        rescue_changes_not_sent_for_review: false,
         timeout: 1200,
     )
     download_universal_apk_from_google_play(
