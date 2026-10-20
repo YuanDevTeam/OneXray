@@ -6,12 +6,14 @@ import 'package:flutter/foundation.dart';
 import 'package:onexray/core/db/dao/connection_config.dart';
 import 'package:onexray/core/db/dao/core_config.dart';
 import 'package:onexray/core/db/dao/geo_data.dart';
+import 'package:onexray/core/db/dao/manual_server_group.dart';
 import 'package:onexray/core/db/dao/routing_profile.dart';
 import 'package:onexray/core/db/dao/subscription.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/table/connection_config.dart';
 import 'package:onexray/core/db/table/core_config.dart';
 import 'package:onexray/core/db/table/geo_data.dart';
+import 'package:onexray/core/db/table/manual_server_group.dart';
 import 'package:onexray/core/db/table/routing_profile.dart';
 import 'package:onexray/core/db/table/subscription.dart';
 import 'package:path_provider/path_provider.dart';
@@ -21,9 +23,17 @@ import 'package:path/path.dart' as p;
 part 'database.g.dart';
 
 @DriftDatabase(
-  tables: [CoreConfig, Subscription, GeoData, RoutingProfile, ConnectionConfig],
+  tables: [
+    CoreConfig,
+    Subscription,
+    GeoData,
+    RoutingProfile,
+    ConnectionConfig,
+    ManualServerGroup,
+  ],
   daos: [
     CoreConfigDao,
+    ManualServerGroupDao,
     SubscriptionDao,
     GeoDataDao,
     RoutingProfileDao,
@@ -56,7 +66,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -71,7 +81,7 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA user_version = $schemaVersion');
     }),
     onUpgrade: (migrator, from, to) => transaction(() async {
-      if (from < 1 || from > 7 || to != 8) {
+      if (from < 1 || from > 8 || to != 9) {
         throw StateError('Unsupported database schema upgrade');
       }
 
@@ -117,7 +127,12 @@ class AppDatabase extends _$AppDatabase {
         await migrator.addColumn(subscription, subscription.panel);
         await migrator.addColumn(subscription, subscription.mode);
       }
-      await migrator.addColumn(subscription, subscription.userAgent);
+      if (from < 8) {
+        await migrator.addColumn(subscription, subscription.userAgent);
+      }
+      await migrator.createTable(manualServerGroup);
+      await migrator.addColumn(coreConfig, coreConfig.manualGroupId);
+      await migrator.addColumn(coreConfig, coreConfig.manualSortOrder);
 
       // Drift writes this again after beforeOpen. Commit it with the DDL so an
       // interruption between those callbacks cannot leave the old version.

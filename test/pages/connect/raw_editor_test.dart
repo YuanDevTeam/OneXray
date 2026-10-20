@@ -413,6 +413,7 @@ void main() {
         controller.text.text = newer;
         fixture.raw.current = const RawEditorDraft(
           original: CoreConfigData(
+            manualSortOrder: 0,
             id: 7,
             name: 'Submitted',
             type: 'raw',

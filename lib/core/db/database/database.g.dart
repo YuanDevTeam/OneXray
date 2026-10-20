@@ -76,6 +76,29 @@ class $CoreConfigTable extends CoreConfig
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _manualGroupIdMeta = const VerificationMeta(
+    'manualGroupId',
+  );
+  @override
+  late final GeneratedColumn<int> manualGroupId = GeneratedColumn<int>(
+    'manual_group_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _manualSortOrderMeta = const VerificationMeta(
+    'manualSortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> manualSortOrder = GeneratedColumn<int>(
+    'manual_sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _favoriteMeta = const VerificationMeta(
     'favorite',
   );
@@ -100,6 +123,8 @@ class $CoreConfigTable extends CoreConfig
     data,
     delay,
     subId,
+    manualGroupId,
+    manualSortOrder,
     favorite,
   ];
   @override
@@ -163,6 +188,24 @@ class $CoreConfigTable extends CoreConfig
     } else if (isInserting) {
       context.missing(_subIdMeta);
     }
+    if (data.containsKey('manual_group_id')) {
+      context.handle(
+        _manualGroupIdMeta,
+        manualGroupId.isAcceptableOrUnknown(
+          data['manual_group_id']!,
+          _manualGroupIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('manual_sort_order')) {
+      context.handle(
+        _manualSortOrderMeta,
+        manualSortOrder.isAcceptableOrUnknown(
+          data['manual_sort_order']!,
+          _manualSortOrderMeta,
+        ),
+      );
+    }
     if (data.containsKey('favorite')) {
       context.handle(
         _favoriteMeta,
@@ -206,6 +249,14 @@ class $CoreConfigTable extends CoreConfig
         DriftSqlType.int,
         data['${effectivePrefix}sub_id'],
       )!,
+      manualGroupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}manual_group_id'],
+      ),
+      manualSortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}manual_sort_order'],
+      )!,
       favorite: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}favorite'],
@@ -227,6 +278,8 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
   final String? data;
   final int delay;
   final int subId;
+  final int? manualGroupId;
+  final int manualSortOrder;
   final bool favorite;
   const CoreConfigData({
     required this.id,
@@ -236,6 +289,8 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     this.data,
     required this.delay,
     required this.subId,
+    this.manualGroupId,
+    required this.manualSortOrder,
     required this.favorite,
   });
   @override
@@ -250,6 +305,10 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     }
     map['delay'] = Variable<int>(delay);
     map['sub_id'] = Variable<int>(subId);
+    if (!nullToAbsent || manualGroupId != null) {
+      map['manual_group_id'] = Variable<int>(manualGroupId);
+    }
+    map['manual_sort_order'] = Variable<int>(manualSortOrder);
     map['favorite'] = Variable<bool>(favorite);
     return map;
   }
@@ -263,6 +322,10 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
       data: data == null && nullToAbsent ? const Value.absent() : Value(data),
       delay: Value(delay),
       subId: Value(subId),
+      manualGroupId: manualGroupId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(manualGroupId),
+      manualSortOrder: Value(manualSortOrder),
       favorite: Value(favorite),
     );
   }
@@ -280,6 +343,8 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
       data: serializer.fromJson<String?>(json['data']),
       delay: serializer.fromJson<int>(json['delay']),
       subId: serializer.fromJson<int>(json['subId']),
+      manualGroupId: serializer.fromJson<int?>(json['manualGroupId']),
+      manualSortOrder: serializer.fromJson<int>(json['manualSortOrder']),
       favorite: serializer.fromJson<bool>(json['favorite']),
     );
   }
@@ -294,6 +359,8 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
       'data': serializer.toJson<String?>(data),
       'delay': serializer.toJson<int>(delay),
       'subId': serializer.toJson<int>(subId),
+      'manualGroupId': serializer.toJson<int?>(manualGroupId),
+      'manualSortOrder': serializer.toJson<int>(manualSortOrder),
       'favorite': serializer.toJson<bool>(favorite),
     };
   }
@@ -306,6 +373,8 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     Value<String?> data = const Value.absent(),
     int? delay,
     int? subId,
+    Value<int?> manualGroupId = const Value.absent(),
+    int? manualSortOrder,
     bool? favorite,
   }) => CoreConfigData(
     id: id ?? this.id,
@@ -315,6 +384,10 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     data: data.present ? data.value : this.data,
     delay: delay ?? this.delay,
     subId: subId ?? this.subId,
+    manualGroupId: manualGroupId.present
+        ? manualGroupId.value
+        : this.manualGroupId,
+    manualSortOrder: manualSortOrder ?? this.manualSortOrder,
     favorite: favorite ?? this.favorite,
   );
   CoreConfigData copyWithCompanion(CoreConfigCompanion data) {
@@ -326,6 +399,12 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
       data: data.data.present ? data.data.value : this.data,
       delay: data.delay.present ? data.delay.value : this.delay,
       subId: data.subId.present ? data.subId.value : this.subId,
+      manualGroupId: data.manualGroupId.present
+          ? data.manualGroupId.value
+          : this.manualGroupId,
+      manualSortOrder: data.manualSortOrder.present
+          ? data.manualSortOrder.value
+          : this.manualSortOrder,
       favorite: data.favorite.present ? data.favorite.value : this.favorite,
     );
   }
@@ -340,14 +419,26 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
           ..write('data: $data, ')
           ..write('delay: $delay, ')
           ..write('subId: $subId, ')
+          ..write('manualGroupId: $manualGroupId, ')
+          ..write('manualSortOrder: $manualSortOrder, ')
           ..write('favorite: $favorite')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, type, tags, data, delay, subId, favorite);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    type,
+    tags,
+    data,
+    delay,
+    subId,
+    manualGroupId,
+    manualSortOrder,
+    favorite,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -359,6 +450,8 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
           other.data == this.data &&
           other.delay == this.delay &&
           other.subId == this.subId &&
+          other.manualGroupId == this.manualGroupId &&
+          other.manualSortOrder == this.manualSortOrder &&
           other.favorite == this.favorite);
 }
 
@@ -370,6 +463,8 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
   final Value<String?> data;
   final Value<int> delay;
   final Value<int> subId;
+  final Value<int?> manualGroupId;
+  final Value<int> manualSortOrder;
   final Value<bool> favorite;
   const CoreConfigCompanion({
     this.id = const Value.absent(),
@@ -379,6 +474,8 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     this.data = const Value.absent(),
     this.delay = const Value.absent(),
     this.subId = const Value.absent(),
+    this.manualGroupId = const Value.absent(),
+    this.manualSortOrder = const Value.absent(),
     this.favorite = const Value.absent(),
   });
   CoreConfigCompanion.insert({
@@ -389,6 +486,8 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     this.data = const Value.absent(),
     required int delay,
     required int subId,
+    this.manualGroupId = const Value.absent(),
+    this.manualSortOrder = const Value.absent(),
     this.favorite = const Value.absent(),
   }) : name = Value(name),
        type = Value(type),
@@ -403,6 +502,8 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     Expression<String>? data,
     Expression<int>? delay,
     Expression<int>? subId,
+    Expression<int>? manualGroupId,
+    Expression<int>? manualSortOrder,
     Expression<bool>? favorite,
   }) {
     return RawValuesInsertable({
@@ -413,6 +514,8 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
       if (data != null) 'data': data,
       if (delay != null) 'delay': delay,
       if (subId != null) 'sub_id': subId,
+      if (manualGroupId != null) 'manual_group_id': manualGroupId,
+      if (manualSortOrder != null) 'manual_sort_order': manualSortOrder,
       if (favorite != null) 'favorite': favorite,
     });
   }
@@ -425,6 +528,8 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     Value<String?>? data,
     Value<int>? delay,
     Value<int>? subId,
+    Value<int?>? manualGroupId,
+    Value<int>? manualSortOrder,
     Value<bool>? favorite,
   }) {
     return CoreConfigCompanion(
@@ -435,6 +540,8 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
       data: data ?? this.data,
       delay: delay ?? this.delay,
       subId: subId ?? this.subId,
+      manualGroupId: manualGroupId ?? this.manualGroupId,
+      manualSortOrder: manualSortOrder ?? this.manualSortOrder,
       favorite: favorite ?? this.favorite,
     );
   }
@@ -463,6 +570,12 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     if (subId.present) {
       map['sub_id'] = Variable<int>(subId.value);
     }
+    if (manualGroupId.present) {
+      map['manual_group_id'] = Variable<int>(manualGroupId.value);
+    }
+    if (manualSortOrder.present) {
+      map['manual_sort_order'] = Variable<int>(manualSortOrder.value);
+    }
     if (favorite.present) {
       map['favorite'] = Variable<bool>(favorite.value);
     }
@@ -479,6 +592,8 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
           ..write('data: $data, ')
           ..write('delay: $delay, ')
           ..write('subId: $subId, ')
+          ..write('manualGroupId: $manualGroupId, ')
+          ..write('manualSortOrder: $manualSortOrder, ')
           ..write('favorite: $favorite')
           ..write(')'))
         .toString();
@@ -2420,6 +2535,255 @@ class ConnectionConfigCompanion extends UpdateCompanion<ConnectionConfigData> {
   }
 }
 
+class $ManualServerGroupTable extends ManualServerGroup
+    with TableInfo<$ManualServerGroupTable, ManualServerGroupData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ManualServerGroupTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, sortOrder];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'manual_server_group';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ManualServerGroupData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ManualServerGroupData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ManualServerGroupData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+    );
+  }
+
+  @override
+  $ManualServerGroupTable createAlias(String alias) {
+    return $ManualServerGroupTable(attachedDatabase, alias);
+  }
+}
+
+class ManualServerGroupData extends DataClass
+    implements Insertable<ManualServerGroupData> {
+  final int id;
+  final String name;
+  final int sortOrder;
+  const ManualServerGroupData({
+    required this.id,
+    required this.name,
+    required this.sortOrder,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  ManualServerGroupCompanion toCompanion(bool nullToAbsent) {
+    return ManualServerGroupCompanion(
+      id: Value(id),
+      name: Value(name),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory ManualServerGroupData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ManualServerGroupData(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  ManualServerGroupData copyWith({int? id, String? name, int? sortOrder}) =>
+      ManualServerGroupData(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        sortOrder: sortOrder ?? this.sortOrder,
+      );
+  ManualServerGroupData copyWithCompanion(ManualServerGroupCompanion data) {
+    return ManualServerGroupData(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManualServerGroupData(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ManualServerGroupData &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.sortOrder == this.sortOrder);
+}
+
+class ManualServerGroupCompanion
+    extends UpdateCompanion<ManualServerGroupData> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<int> sortOrder;
+  const ManualServerGroupCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+  });
+  ManualServerGroupCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    this.sortOrder = const Value.absent(),
+  }) : name = Value(name);
+  static Insertable<ManualServerGroupData> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<int>? sortOrder,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (sortOrder != null) 'sort_order': sortOrder,
+    });
+  }
+
+  ManualServerGroupCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<int>? sortOrder,
+  }) {
+    return ManualServerGroupCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      sortOrder: sortOrder ?? this.sortOrder,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ManualServerGroupCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2430,7 +2794,12 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ConnectionConfigTable connectionConfig = $ConnectionConfigTable(
     this,
   );
+  late final $ManualServerGroupTable manualServerGroup =
+      $ManualServerGroupTable(this);
   late final CoreConfigDao coreConfigDao = CoreConfigDao(this as AppDatabase);
+  late final ManualServerGroupDao manualServerGroupDao = ManualServerGroupDao(
+    this as AppDatabase,
+  );
   late final SubscriptionDao subscriptionDao = SubscriptionDao(
     this as AppDatabase,
   );
@@ -2451,6 +2820,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     geoData,
     routingProfile,
     connectionConfig,
+    manualServerGroup,
   ];
 }
 
@@ -2462,6 +2832,8 @@ typedef $$CoreConfigTableCreateCompanionBuilder = CoreConfigCompanion Function({
   Value<String?> data,
   required int delay,
   required int subId,
+  Value<int?> manualGroupId,
+  Value<int> manualSortOrder,
   Value<bool> favorite,
 });
 typedef $$CoreConfigTableUpdateCompanionBuilder = CoreConfigCompanion Function({
@@ -2472,6 +2844,8 @@ typedef $$CoreConfigTableUpdateCompanionBuilder = CoreConfigCompanion Function({
   Value<String?> data,
   Value<int> delay,
   Value<int> subId,
+  Value<int?> manualGroupId,
+  Value<int> manualSortOrder,
   Value<bool> favorite,
 });
 
@@ -2516,6 +2890,16 @@ class $$CoreConfigTableFilterComposer
 
   ColumnFilters<int> get subId => $composableBuilder(
     column: $table.subId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get manualGroupId => $composableBuilder(
+    column: $table.manualGroupId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get manualSortOrder => $composableBuilder(
+    column: $table.manualSortOrder,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2569,6 +2953,16 @@ class $$CoreConfigTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get manualGroupId => $composableBuilder(
+    column: $table.manualGroupId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get manualSortOrder => $composableBuilder(
+    column: $table.manualSortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get favorite => $composableBuilder(
     column: $table.favorite,
     builder: (column) => ColumnOrderings(column),
@@ -2604,6 +2998,16 @@ class $$CoreConfigTableAnnotationComposer
 
   GeneratedColumn<int> get subId =>
       $composableBuilder(column: $table.subId, builder: (column) => column);
+
+  GeneratedColumn<int> get manualGroupId => $composableBuilder(
+    column: $table.manualGroupId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get manualSortOrder => $composableBuilder(
+    column: $table.manualSortOrder,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get favorite =>
       $composableBuilder(column: $table.favorite, builder: (column) => column);
@@ -2647,6 +3051,8 @@ class $$CoreConfigTableTableManager
                 Value<String?> data = const Value.absent(),
                 Value<int> delay = const Value.absent(),
                 Value<int> subId = const Value.absent(),
+                Value<int?> manualGroupId = const Value.absent(),
+                Value<int> manualSortOrder = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
               }) => CoreConfigCompanion(
                 id: id,
@@ -2656,6 +3062,8 @@ class $$CoreConfigTableTableManager
                 data: data,
                 delay: delay,
                 subId: subId,
+                manualGroupId: manualGroupId,
+                manualSortOrder: manualSortOrder,
                 favorite: favorite,
               ),
           createCompanionCallback:
@@ -2667,6 +3075,8 @@ class $$CoreConfigTableTableManager
                 Value<String?> data = const Value.absent(),
                 required int delay,
                 required int subId,
+                Value<int?> manualGroupId = const Value.absent(),
+                Value<int> manualSortOrder = const Value.absent(),
                 Value<bool> favorite = const Value.absent(),
               }) => CoreConfigCompanion.insert(
                 id: id,
@@ -2676,6 +3086,8 @@ class $$CoreConfigTableTableManager
                 data: data,
                 delay: delay,
                 subId: subId,
+                manualGroupId: manualGroupId,
+                manualSortOrder: manualSortOrder,
                 favorite: favorite,
               ),
           withReferenceMapper: (p0) => p0
@@ -3747,6 +4159,186 @@ typedef $$ConnectionConfigTableProcessedTableManager =
       ConnectionConfigData,
       PrefetchHooks Function()
     >;
+typedef $$ManualServerGroupTableCreateCompanionBuilder =
+    ManualServerGroupCompanion Function({
+      Value<int> id,
+      required String name,
+      Value<int> sortOrder,
+    });
+typedef $$ManualServerGroupTableUpdateCompanionBuilder =
+    ManualServerGroupCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<int> sortOrder,
+    });
+
+class $$ManualServerGroupTableFilterComposer
+    extends Composer<_$AppDatabase, $ManualServerGroupTable> {
+  $$ManualServerGroupTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ManualServerGroupTableOrderingComposer
+    extends Composer<_$AppDatabase, $ManualServerGroupTable> {
+  $$ManualServerGroupTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ManualServerGroupTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ManualServerGroupTable> {
+  $$ManualServerGroupTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+}
+
+class $$ManualServerGroupTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ManualServerGroupTable,
+          ManualServerGroupData,
+          $$ManualServerGroupTableFilterComposer,
+          $$ManualServerGroupTableOrderingComposer,
+          $$ManualServerGroupTableAnnotationComposer,
+          $$ManualServerGroupTableCreateCompanionBuilder,
+          $$ManualServerGroupTableUpdateCompanionBuilder,
+          (
+            ManualServerGroupData,
+            BaseReferences<
+              _$AppDatabase,
+              $ManualServerGroupTable,
+              ManualServerGroupData
+            >,
+          ),
+          ManualServerGroupData,
+          PrefetchHooks Function()
+        > {
+  $$ManualServerGroupTableTableManager(
+    _$AppDatabase db,
+    $ManualServerGroupTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ManualServerGroupTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ManualServerGroupTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ManualServerGroupTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+              }) => ManualServerGroupCompanion(
+                id: id,
+                name: name,
+                sortOrder: sortOrder,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                Value<int> sortOrder = const Value.absent(),
+              }) => ManualServerGroupCompanion.insert(
+                id: id,
+                name: name,
+                sortOrder: sortOrder,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$ManualServerGroupTable, ManualServerGroupData>(
+                    table,
+                  ),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $ManualServerGroupTable,
+                    ManualServerGroupData
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ManualServerGroupTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ManualServerGroupTable,
+      ManualServerGroupData,
+      $$ManualServerGroupTableFilterComposer,
+      $$ManualServerGroupTableOrderingComposer,
+      $$ManualServerGroupTableAnnotationComposer,
+      $$ManualServerGroupTableCreateCompanionBuilder,
+      $$ManualServerGroupTableUpdateCompanionBuilder,
+      (
+        ManualServerGroupData,
+        BaseReferences<
+          _$AppDatabase,
+          $ManualServerGroupTable,
+          ManualServerGroupData
+        >,
+      ),
+      ManualServerGroupData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3761,4 +4353,6 @@ class $AppDatabaseManager {
       $$RoutingProfileTableTableManager(_db, _db.routingProfile);
   $$ConnectionConfigTableTableManager get connectionConfig =>
       $$ConnectionConfigTableTableManager(_db, _db.connectionConfig);
+  $$ManualServerGroupTableTableManager get manualServerGroup =>
+      $$ManualServerGroupTableTableManager(_db, _db.manualServerGroup);
 }

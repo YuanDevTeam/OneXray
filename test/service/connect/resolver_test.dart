@@ -313,6 +313,7 @@ CoreConfigData _row(
   String type = 'outbound',
   String name = 'Same name',
 }) => CoreConfigData(
+  manualSortOrder: 0,
   id: id,
   name: name,
   type: type,

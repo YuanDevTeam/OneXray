@@ -269,6 +269,7 @@ CoreConfigData _provider({
   int subId = 7,
   int delay = PingDelayConstants.unknown,
 }) => CoreConfigData(
+  manualSortOrder: 0,
   id: id,
   name: name,
   type: 'Remnawave',
@@ -304,6 +305,7 @@ CoreConfigData _outbound({
   int subId = 0,
   int delay = PingDelayConstants.unknown,
 }) => CoreConfigData(
+  manualSortOrder: 0,
   id: id,
   name: databaseName ?? name,
   type: 'outbound',

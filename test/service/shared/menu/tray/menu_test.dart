@@ -58,6 +58,7 @@ TrayMenuData _menuData(int count) {
   final nodes = [
     for (final id in ids)
       CoreConfigData(
+        manualSortOrder: 0,
         id: id,
         name: 'Node $id',
         type: 'outbound',

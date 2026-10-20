@@ -15,5 +15,9 @@ class CoreConfig extends Table {
 
   IntColumn get subId => integer()();
 
+  IntColumn get manualGroupId => integer().nullable()();
+
+  IntColumn get manualSortOrder => integer().withDefault(const Constant(0))();
+
   BoolColumn get favorite => boolean().withDefault(const Constant(false))();
 }

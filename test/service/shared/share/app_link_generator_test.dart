@@ -425,6 +425,7 @@ GeoDataData _geoData(String name, {String? url}) {
 
 CoreConfigData _config({required String type, String data = 'e30='}) {
   return CoreConfigData(
+    manualSortOrder: 0,
     id: 1,
     name: 'Shared Config',
     type: type,

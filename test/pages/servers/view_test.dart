@@ -70,6 +70,7 @@ class _Controller extends ServersController {
 
 CoreConfigData _server(int id, {bool favorite = false, String? name}) =>
     CoreConfigData(
+  manualSortOrder: 0,
       id: id,
       name: name ?? 'Node $id',
       type: 'outbound',

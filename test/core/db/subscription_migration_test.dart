@@ -36,7 +36,7 @@ void main() {
       await database.close();
 
       final upgraded = sqlite.sqlite3.open(file.path);
-      expect(upgraded.userVersion, 8);
+      expect(upgraded.userVersion, 9);
       expect(_snapshotV5(upgraded), before);
       upgraded.close();
 
@@ -129,7 +129,7 @@ void main() {
       );
       await database.close();
       final upgraded = sqlite.sqlite3.open(file.path);
-      expect(upgraded.userVersion, 8);
+      expect(upgraded.userVersion, 9);
       expect(_snapshotV3(upgraded), before);
       upgraded.close();
       final reopened = AppDatabase.forTesting(NativeDatabase(file));
@@ -150,7 +150,7 @@ void main() {
     expect(
       (await database.customSelect('PRAGMA user_version').getSingle())
           .read<int>('user_version'),
-      8,
+      9,
     );
   });
 
@@ -210,7 +210,7 @@ void main() {
             .read<String>('name'),
         'WAL-only name',
       );
-      expect(writer.userVersion, 8);
+      expect(writer.userVersion, 9);
       expect(_snapshot(writer, hasAgeKeys: true), _afterUpgrade(before));
       expect(
         file.parent.listSync().where(
@@ -221,7 +221,7 @@ void main() {
     },
   );
 
-  test('new installation creates schema 8 with empty assets and default connection configuration', () async {
+  test('new installation creates schema 9 with empty assets and default connection configuration', () async {
     final database = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(database.close);
 
@@ -258,7 +258,7 @@ void main() {
     expect(
       (await database.customSelect('PRAGMA user_version').getSingle())
           .read<int>('user_version'),
-      8,
+      9,
     );
   });
 
@@ -324,7 +324,7 @@ void main() {
           expect(
             (await reopened.customSelect('PRAGMA user_version').getSingle())
                 .read<int>('user_version'),
-            8,
+            9,
           );
           final subId = await reopened.subscriptionDao.insertRow(
             SubscriptionCompanion.insert(
@@ -426,7 +426,7 @@ void main() {
     await database.close();
 
     final upgraded = sqlite.sqlite3.open(file.path);
-    expect(upgraded.userVersion, 8);
+    expect(upgraded.userVersion, 9);
     expect(_snapshotV3(upgraded), before);
     upgraded.close();
 
@@ -467,7 +467,7 @@ void main() {
     await database.close();
 
     final upgraded = sqlite.sqlite3.open(file.path);
-    expect(upgraded.userVersion, 8);
+    expect(upgraded.userVersion, 9);
     expect(_snapshotV6(upgraded), before);
     upgraded.close();
     final reopened = AppDatabase.forTesting(NativeDatabase(file));
@@ -492,7 +492,7 @@ void main() {
     );
     await database.close();
     final upgraded = sqlite.sqlite3.open(file.path);
-    expect(upgraded.userVersion, 8);
+    expect(upgraded.userVersion, 9);
     expect(_snapshotV6(upgraded), before);
     upgraded.close();
     final reopened = AppDatabase.forTesting(NativeDatabase(file));
@@ -505,11 +505,42 @@ void main() {
   });
 
   test(
+    'schema 8 adds manual groups without touching existing assets',
+    () async {
+      final file = await _legacyDatabase(8);
+      final old = sqlite.sqlite3.open(file.path);
+      final before = _snapshotV6(old);
+      old.close();
+      final database = AppDatabase.forTesting(NativeDatabase(file));
+      expect(await database.manualServerGroupDao.allRows, isEmpty);
+      expect(
+        (await database.subscriptionDao.allRows).single.userAgent,
+        'Saved custom UA',
+      );
+      final rows = await database.select(database.coreConfig).get();
+      expect(rows.every((row) => row.manualGroupId == null), isTrue);
+      expect(rows.every((row) => row.manualSortOrder == 0), isTrue);
+      await database.close();
+      final upgraded = sqlite.sqlite3.open(file.path);
+      expect(upgraded.userVersion, 9);
+      expect(_snapshotV6(upgraded), before);
+      upgraded.close();
+      final reopened = AppDatabase.forTesting(NativeDatabase(file));
+      addTearDown(reopened.close);
+      expect(await reopened.manualServerGroupDao.allRows, isEmpty);
+      expect(
+        (await reopened.subscriptionDao.allRows).single.userAgent,
+        'Saved custom UA',
+      );
+    },
+  );
+
+  test(
     'a future schema is rejected without changing the original database',
     () async {
       final file = await _legacyDatabase(2);
       final legacy = sqlite.sqlite3.open(file.path);
-      legacy.userVersion = 9;
+      legacy.userVersion = 10;
       legacy.close();
       final before = _snapshotFile(file, hasAgeKeys: true);
       final database = AppDatabase.forTesting(NativeDatabase(file));
@@ -518,7 +549,7 @@ void main() {
       expect(await file.exists(), isTrue);
       final check = sqlite.sqlite3.open(file.path);
       try {
-        expect(check.userVersion, 9);
+        expect(check.userVersion, 10);
         expect(_snapshot(check, hasAgeKeys: true), before);
       } finally {
         check.close();
@@ -659,6 +690,12 @@ Future<File> _legacyDatabase(int version) async {
           (id, name, type, tags, data, delay, sub_id, favorite)
         VALUES (34, 'Provider profile', 'Remnawave', '', 'eyJkbnMiOnt9fQ==', -1, 7, 0);
       ''');
+    }
+    if (version >= 8) {
+      database.execute('ALTER TABLE subscription ADD COLUMN user_agent TEXT');
+      database.execute(
+        "UPDATE subscription SET user_agent = 'Saved custom UA'",
+      );
     }
     database.execute('PRAGMA user_version = $version');
   } finally {

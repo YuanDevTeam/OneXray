@@ -20,6 +20,7 @@ import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/outbound/map.dart';
 
 CoreConfigData _server(int id, {int delay = 20}) => CoreConfigData(
+  manualSortOrder: 0,
   id: id,
   name: 'Server $id',
   type: 'outbound',
