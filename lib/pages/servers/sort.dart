@@ -47,3 +47,22 @@ class ServerSortButton extends StatelessWidget {
     );
   }
 }
+
+class ManualGroupOrderButton extends StatelessWidget {
+  const ManualGroupOrderButton({super.key, required this.controller});
+  final ServersController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final searching = controller.query.trim().isNotEmpty;
+    return IconButton(
+      key: const ValueKey('manual-group-order'),
+      tooltip: searching ? l.manualOrderClearSearch : l.manualGroupOrder,
+      onPressed: searching || controller.catalog.manualGroups.length < 2
+          ? null
+          : () => controller.openGroupOrder(context),
+      icon: const Icon(LucideIcons.listOrdered, size: 20),
+    );
+  }
+}

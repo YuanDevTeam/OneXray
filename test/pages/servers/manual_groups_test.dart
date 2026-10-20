@@ -7,6 +7,7 @@ import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/manual_group_dialogs.dart';
+import 'package:onexray/pages/servers/page.dart';
 import 'package:onexray/pages/servers/view.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
@@ -223,6 +224,36 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('a searched folder detail follows its identity after renaming', (
+    tester,
+  ) async {
+    await pump(tester);
+    controller.manualGroups = const [
+      ManualServerGroupData(id: 9, name: 'Cloud', sortOrder: 0),
+    ];
+    controller.search.text = 'Cloud';
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.material(Brightness.light, mobile: true),
+        localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: ServerGroupPage(
+          params: ServerGroupParams(controller, 'manual:9'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ServerGroupView), findsOneWidget);
+    controller.manualGroups = const [
+      ManualServerGroupData(id: 9, name: 'Home', sortOrder: 0),
+    ];
+    await tester.pumpAndSettle();
+    expect(find.text('Home'), findsWidgets);
+    expect(find.byType(ServerGroupView), findsOneWidget);
+    expect(controller.query, 'Cloud');
+    expect(tester.takeException(), isNull);
+  });
 
   for (final locale in const [Locale('ru'), Locale('fa')]) {
     testWidgets('group actions fit a compact $locale display', (tester) async {

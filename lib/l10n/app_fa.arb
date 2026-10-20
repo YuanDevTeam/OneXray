@@ -938,5 +938,13 @@
         "type": "int"
       }
     }
-  }
+  },
+  "manualGroupOrder": "ترتیب گروه‌ها",
+  "manualServerOrder": "ترتیب سرورها",
+  "manualOrderDrag": "برای مرتب‌سازی بکشید",
+  "manualOrderMoveUp": "انتقال به بالا",
+  "manualOrderMoveDown": "انتقال به پایین",
+  "manualOrderChanged": "فهرست تغییر کرد. پیش از مرتب‌سازی دوباره بارگیری کنید.",
+  "manualOrderReload": "بارگیری دوباره",
+  "manualOrderClearSearch": "برای مرتب‌سازی، جستجو را پاک کنید."
 }

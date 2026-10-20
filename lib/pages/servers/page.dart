@@ -115,7 +115,7 @@ class ServerGroupPage extends StatelessWidget {
         builder: (context, _) {
           final l = AppLocalizations.of(context)!;
           var group = controller
-              .groups(l)
+              .groups(l, filter: false)
               .where((row) => row.id == params.groupId)
               .firstOrNull;
           if (group == null) {
@@ -139,7 +139,11 @@ class ServerGroupPage extends StatelessWidget {
           }
           return Scaffold(
             appBar: PageAppBar(
-              title: Text(group?.name ?? l.prototypeServers),
+              title: Text(
+                group?.name ?? l.prototypeServers,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
               actions: [
                 ServerSortButton(controller: controller),
                 const AppActivityIndicator(pinging: false),

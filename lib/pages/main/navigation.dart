@@ -36,6 +36,7 @@ enum AppPageDestination {
   settings("settings"),
   serversImport("servers-import"),
   serverGroup("server-group"),
+  manualServerOrder("manual-server-order"),
   serverEditor("server-editor"),
   serverFinalExitPicker("server-final-exit-picker"),
   rawEditor("raw-editor"),

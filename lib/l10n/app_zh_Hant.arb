@@ -938,5 +938,13 @@
         "type": "int"
       }
     }
-  }
+  },
+  "manualGroupOrder": "群組排序",
+  "manualServerOrder": "整理節點順序",
+  "manualOrderDrag": "拖曳以排序",
+  "manualOrderMoveUp": "上移",
+  "manualOrderMoveDown": "下移",
+  "manualOrderChanged": "清單已變更，請重新載入後整理。",
+  "manualOrderReload": "重新載入",
+  "manualOrderClearSearch": "清空搜尋後可整理順序。"
 }

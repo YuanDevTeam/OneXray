@@ -3107,5 +3107,13 @@
         "type": "int"
       }
     }
-  }
+  },
+  "manualGroupOrder": "Arrange groups",
+  "manualServerOrder": "Arrange servers",
+  "manualOrderDrag": "Drag to reorder",
+  "manualOrderMoveUp": "Move up",
+  "manualOrderMoveDown": "Move down",
+  "manualOrderChanged": "The list changed. Reload it before arranging again.",
+  "manualOrderReload": "Reload order",
+  "manualOrderClearSearch": "Clear search to arrange."
 }

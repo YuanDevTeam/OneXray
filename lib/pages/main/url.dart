@@ -38,6 +38,8 @@ import 'package:onexray/pages/launch/setup/page.dart';
 import 'package:onexray/pages/launch/setup/selectors.dart';
 import 'package:onexray/pages/servers/import/page.dart';
 import 'package:onexray/pages/servers/page.dart';
+import 'package:onexray/pages/servers/order/controller.dart';
+import 'package:onexray/pages/servers/order/page.dart';
 import 'package:onexray/pages/connect/page.dart';
 import 'package:onexray/pages/settings/page.dart';
 import 'package:onexray/pages/connect/routing/smart/exit_picker.dart';
@@ -286,6 +288,13 @@ final _pageRoutes = <_PageRoute>[
     (_, state) => _withExtra<ServerGroupParams>(
       state,
       (params) => ServerGroupPage(params: params),
+    ),
+  ),
+  _route(
+    AppPageDestination.manualServerOrder,
+    (_, state) => _withExtra<ManualOrderParams>(
+      state,
+      (params) => ManualOrderPage(params: params),
     ),
   ),
   _route(

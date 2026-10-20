@@ -633,6 +633,15 @@ void main() {
           );
           final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
           for (final (index, (delay, color)) in samples.indexed) {
+            final rowFinder = find.byKey(ValueKey(index + 1));
+            await tester.scrollUntilVisible(
+              rowFinder,
+              120,
+              scrollable: find.descendant(
+                of: find.byType(ServerGroupView),
+                matching: find.byType(Scrollable),
+              ),
+            );
             final label = controller.health(l, controller.servers[index]);
             final prefix = '${l.manualGroupUngrouped} · ';
             final text = tester.widget<Text>(

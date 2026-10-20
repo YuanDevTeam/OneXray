@@ -180,6 +180,8 @@ class ServerBrowser extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           ServerSortButton(controller: controller),
+          if (controller.catalog.manualGroups.length > 1)
+            ManualGroupOrderButton(controller: controller),
         ],
       ),
     );
@@ -866,6 +868,21 @@ class ServerGroupView extends StatelessWidget {
                       : l.prototypeTestServers,
                 ),
               ],
+            ),
+          ),
+        if (group.manual && group.rows.length > 1)
+          Tooltip(
+            message: controller.query.trim().isNotEmpty
+                ? l.manualOrderClearSearch
+                : l.manualServerOrder,
+            child: OutlinedButton.icon(
+              onPressed:
+                  controller.query.trim().isNotEmpty ||
+                      controller.manualGroupBusy(group)
+                  ? null
+                  : () => controller.openServerOrder(context, group),
+              icon: const Icon(LucideIcons.listOrdered, size: 16),
+              label: Text(l.manualServerOrder),
             ),
           ),
         if (!controller.providerGroup(group) && group.selection != null)

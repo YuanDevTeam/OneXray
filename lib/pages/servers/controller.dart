@@ -14,6 +14,7 @@ import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/service/servers/manual_groups.dart';
 import 'package:onexray/pages/servers/manual_group_dialogs.dart';
 import 'package:onexray/service/servers/sort.dart';
+import 'package:onexray/pages/servers/order/controller.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/service/connect/routing/custom/service.dart';
@@ -750,6 +751,67 @@ class ServersController extends PageCubit<ServersPageState>
     }
   }
 
+  Future<void> openGroupOrder(BuildContext context) async {
+    if (query.trim().isNotEmpty || catalog.manualGroups.length < 2) return;
+    Future<List<ManualOrderItem>> load() async =>
+        (await db.manualServerGroupDao.allRows)
+            .map((group) => ManualOrderItem(group.id, group.name))
+            .toList();
+    await context.pushScoped(
+      AppPageDestination.manualServerOrder,
+      extra: ManualOrderParams(
+        title: AppLocalizations.of(context)!.manualGroupOrder,
+        items: catalog.orderedManualGroups
+            .map((group) => ManualOrderItem(group.id, group.name))
+            .toList(),
+        reload: load,
+        save: (expected, ordered) => manualGroupService.reorderGroups(
+          expectedIds: expected,
+          orderedIds: ordered,
+        ),
+      ),
+    );
+  }
+
+  Future<void> openServerOrder(BuildContext context, ServerGroup group) async {
+    if (!group.manual ||
+        query.trim().isNotEmpty ||
+        group.rows.length < 2 ||
+        manualGroupBusy(group)) {
+      return;
+    }
+    List<ManualOrderItem> items(ServerCatalog value) => value
+        .copyWith(sortOrder: ServerSortOrder.defaultOrder)
+        .servers
+        .where(
+          (row) =>
+              ServerCatalog.isManual(row) &&
+              row.manualGroupId == group.manualGroupId,
+        )
+        .map((row) => ManualOrderItem(row.id, value.display(row).name))
+        .toList();
+    Future<List<ManualOrderItem>> load() async => items(
+      ServerCatalog(
+        servers: await db.coreConfigDao.allActiveServerRows(),
+        manualGroups: await db.manualServerGroupDao.allRows,
+      ),
+    );
+    await context.pushScoped(
+      AppPageDestination.manualServerOrder,
+      extra: ManualOrderParams(
+        title:
+            '${AppLocalizations.of(context)!.manualServerOrder} · ${group.name}',
+        items: items(catalog),
+        reload: load,
+        save: (expected, ordered) => manualGroupService.reorderServers(
+          groupId: group.manualGroupId,
+          expectedIds: expected,
+          orderedIds: ordered,
+        ),
+      ),
+    );
+  }
+
   bool manualGroupBusy(ServerGroup group) =>
       _pending.contains('manual-group:${group.manualGroupId}') ||
       group.rows.any(serverBusy);
@@ -779,8 +841,9 @@ class ServersController extends PageCubit<ServersPageState>
     if (target == null ||
         target.id == row.manualGroupId ||
         !context.mounted ||
-        !isPageActive)
+        !isPageActive) {
       return;
+    }
     await perform(context, () async {
       await manualGroupService.move({row.id}, targetGroupId: target.id);
       if (context.mounted) ContextAlert.settingsSaved(context);
@@ -808,8 +871,9 @@ class ServersController extends PageCubit<ServersPageState>
         if (name == null ||
             name == group.name ||
             !context.mounted ||
-            !isPageActive)
+            !isPageActive) {
           return;
+        }
         await _manualGroupAction(context, group, () async {
           await manualGroupService.rename(id, name);
           if (context.mounted) ContextAlert.settingsSaved(context);
@@ -823,10 +887,13 @@ class ServersController extends PageCubit<ServersPageState>
             subtitle: group.name,
             warning: l.manualGroupDissolveWarning(group.rows.length),
             confirmLabel: l.manualGroupDissolve,
-          ))
+          )) {
             return;
+          }
           await manualGroupService.dissolve(id);
-          _manualGroupRemoved(context, group, closeAfterDeletion);
+          if (context.mounted && isPageActive) {
+            _manualGroupRemoved(context, group, closeAfterDeletion);
+          }
         });
       case ManualGroupAction.delete:
         await _manualGroupAction(context, group, () async {
@@ -847,10 +914,13 @@ class ServersController extends PageCubit<ServersPageState>
                 : reconnect
                 ? l.prototypeDeleteAndReconnect
                 : l.prototypeDelete,
-          ))
+          )) {
             return;
+          }
           await assets.remove(preview);
-          _manualGroupRemoved(context, group, closeAfterDeletion);
+          if (context.mounted && isPageActive) {
+            _manualGroupRemoved(context, group, closeAfterDeletion);
+          }
         });
     }
   }
