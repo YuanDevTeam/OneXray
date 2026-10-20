@@ -8,6 +8,7 @@ import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/region_catalog.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/shared/xray/vpn_config.dart';
+import 'package:onexray/service/shared/xray/validation.dart';
 
 const _ipv4 = '192.0.2.53';
 const _ipv6 = '2001:db8::53';
@@ -359,5 +360,10 @@ void _fixture(String name, CompiledConnection compiled) {
   const target = String.fromEnvironment('FULL_CONFIG_FIXTURES');
   if (target.isEmpty) return;
   Directory(target).createSync(recursive: true);
-  File('$target/$name.json').writeAsStringSync(compiled.xrayJson);
+  File('$target/$name.json').writeAsStringSync(
+    jsonEncode({
+      'runtime': compiled.config,
+      'validation': jsonDecode(XrayValidation.raw(compiled.config)),
+    }),
+  );
 }

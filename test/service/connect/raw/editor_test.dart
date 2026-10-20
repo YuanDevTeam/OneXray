@@ -15,6 +15,7 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/shared/share/configuration_transfer.dart';
 import 'package:onexray/service/shared/share/configuration_source.dart';
+import 'package:onexray/service/shared/xray/vpn_config.dart';
 
 import '../../../support/fake_geodata_import.dart';
 
@@ -180,6 +181,59 @@ void main() {
         );
       }
       expect(validated, hasLength(2));
+    },
+  );
+
+  test(
+    'running Raw compares DNS supplements using the current tunnel settings',
+    () async {
+      final rawId = await db.coreConfigDao.insertAssetRow(
+        XrayRawDb.configCompanion('original', _text),
+      );
+      final configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(expert: true, rawId: rawId),
+        policy: PlatformPolicy.fromJson({
+          'ipv6Enabled': false,
+          'dnsIpv4Address': '192.0.2.53',
+        }),
+      );
+      await db.connectionConfigDao.commit(
+        configurationJson: configuration.encode(),
+      );
+      final coordinator = await _initialize(
+        ConnectionCoordinator(
+          database: db,
+          inspect: (_, {observedStatus}) async => HostConnection(
+            VpnStatus.connected,
+            runtime: _runtime('raw', configuration, _text),
+          ),
+          start: (_) async =>
+              throw StateError('Equivalent edit must not start'),
+          stop: () async => throw StateError('Equivalent edit must not stop'),
+        ),
+      );
+      final service = RawEditorService(
+        database: db,
+        coordinator: coordinator,
+        validate: (_) async {},
+      );
+      final draft = await service.load(rawId);
+      final equivalent = VpnConfigAdapter.withDefaultDns(
+        VpnConfigAdapter.adapt(jsonDecode(_text) as Map<String, dynamic>),
+        ipv4Address: '192.0.2.53',
+      );
+      expect(
+        await service.save(
+          RawEditorDraft(
+            original: draft.original,
+            name: draft.name,
+            text: jsonEncode(equivalent),
+          ),
+          confirmReconnect: () async =>
+              throw StateError('Equivalent edit must not confirm'),
+        ),
+        rawId,
+      );
     },
   );
 

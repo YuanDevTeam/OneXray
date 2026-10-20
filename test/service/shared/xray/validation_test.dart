@@ -9,6 +9,57 @@ import 'package:onexray/service/shared/xray/validation.dart';
 import 'package:onexray/service/shared/xray/remnawave.dart';
 
 void main() {
+  test(
+    'full validation supplements portable ingress without device defaults',
+    () {
+      final source = <String, dynamic>{
+        'outbounds': [
+          {'protocol': 'freedom'},
+        ],
+        'dns': {
+          'hosts': {'example.test': '192.0.2.1'},
+        },
+      };
+      final before = jsonEncode(source);
+      final config = jsonDecode(XrayValidation.full(source));
+      expect(config['inbounds'].single['protocol'], 'socks');
+      expect(config['routing']['rules'].single['inboundTag'], ['tunIn']);
+      expect(config['outbounds'].first, source['outbounds'][0]);
+      expect(config['dns'], source['dns']);
+      expect(config.containsKey('metrics'), false);
+      expect(jsonEncode(source), before);
+    },
+  );
+
+  test('full validation leaves malformed native containers for Core', () {
+    for (final source in <Map<String, dynamic>>[
+      {'inbounds': false},
+      {'outbounds': 'invalid'},
+      {'routing': false},
+      {
+        'routing': {'rules': false},
+      },
+      {'dns': false},
+      {
+        'dns': {'servers': 'invalid'},
+      },
+      {
+        'inbounds': [false],
+        'outbounds': [false],
+      },
+    ]) {
+      final config = jsonDecode(XrayValidation.full(source));
+      for (final key in source.keys) {
+        final actual = config[key];
+        if (source[key] is List) {
+          expect(actual, containsAll(source[key] as List));
+        } else {
+          expect(actual, source[key]);
+        }
+      }
+    }
+  });
+
   test('provider validation retains adapted graph and replaces only the disposable tunnel', () {
     final source = <String, dynamic>{
       'inbounds': [

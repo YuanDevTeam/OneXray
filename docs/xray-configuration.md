@@ -11,7 +11,7 @@
 普通运行直接构造 `XrayJson` 及嵌套模型，最终一次序列化；不先拼完整 Map 再 `fromJson → toJson`。
 模型只定义必要字段及标准序列化，不承担构造或协议解析。节点 outbound 保持完整 Map。
 高级模板/Raw 使用独立 Map 编译路径，分别按模板边界或完整配置保留用户字段，不经普通模型裁剪。
-提供方完整配置使用 Map 与共享 Raw 运行注入，加上独立入口适配；保存原图不写入运行字段。
+Raw 与提供方完整配置共用 VPN 必要配置补充和 Raw 运行注入，提供方另有入口适配；保存原图不写入运行字段。
 编译器是纯值转换：不读库、分配端口、写文件或启动 Core；App 运行字段只由对应编译路径生成。
 
 Xray 字段有效性以 libXray 为准，App 不重复维护协议、算法、网络、端口或重复 tag 等内核校验。
@@ -67,6 +67,7 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 按需生成的服务器域名引导 DNS 独立直连，见 [服务器拨号](#服务器拨号)。
 普通模式的查询地址族仍由 App IPv6 设置管理，不额外生成根级 hosts/queryStrategy。
 高级模板和 Raw 不应用这些普通 DNS 设置；模板 DNS 保持其原有管理边界。
+Raw 与提供方完整配置缺少 Core DNS 服务器时，使用[完整配置的 VPN 适配](#完整配置的-vpn-适配)中的隧道 DNS 缺省策略。
 
 ### 服务器拨号
 
@@ -202,20 +203,46 @@ App 管理日志、metrics、统计、policy、env、运行 balancer/observatory
 不测速、不 Start、不加启动预检；保存、依赖发布、回滚与普通路由共享。
 导出只含槽和用户配置，依赖声明仍仅为交换元数据。
 
+## 完整配置的 VPN 适配
+
+个人 Raw 与提供方完整配置在深副本上共用 `VpnConfigAdapter`，补齐 VPN 入口与 DNS 链路。
+高级模板不使用这套补充；普通模式继续按自身 DNS 与路由设置编译。
+已有节点、首出站、代理链、业务规则、balancer、observatory 和显式 DNS 保持原有语义，新增辅助出站追加到末尾。
+
+可移植适配按需补充 `tunIn`，新建时使用现有默认嗅探及 FakeDNS 识别；已有入口的 sniffing 保留。
+若已有显式单值 `port: 53` 的规则，且 `inboundTag` 缺省、为空列表或包含 `tunIn`，即尊重该 DNS 声明。
+判断接受数字或字符串 53，不推断 network、domain/IP 条件、端口范围、规则优先级或目标协议是否覆盖全部 DNS。
+缺少声明时复用第一个 DNS 出站，或新增一个，再前置限定 `tunIn + TCP/UDP 53` 的规则。
+已有 DNS 出站的设置与目标不改写；新建 DNS 出站劫持 A/AAAA，其它查询类型直连转发，
+通过专属 `app-vpn-dns-direct` freedom 出站拨号，不依赖用户代理链。
+Raw 新建 DNS 出站使用 `app-vpn-dns`，提供方沿用 `app-remna-dns`；复用无 tag 的 DNS 出站时补上对应 tag。
+这些补充不增加通用代理、DoT 或 TUN catch-all 规则。
+
+运行编译时，`dns` 缺失或为 `null`，以及 `dns.servers` 缺失、为 `null` 或空列表时，
+使用本次隧道 IPv4 DNS 和启用 IPv6 时的隧道 IPv6 DNS 补齐服务器，保留同一对象的 hosts、缓存及其它字段。
+新增服务器使用 `app-vpn-default-dns` tag，并用限定该 tag 的前置规则直连 `app-vpn-dns-direct`，
+避免连接域名代理前又通过该代理解析地址。仅 App 新增的缺省 DNS 采用此出口；
+已有非空列表完整保留，包括显式 `localhost`、DoH 和 FakeDNS，查询地址族仍由 App 平台策略管理。
+错误类型不转换成缺省配置，继续交给 libXray 验证。
+
+保存校验和复制/分享复用可移植适配，不写入本机 DNS、TUN FD、运行端口、资源路径或网卡。
+运行注入只改副本；`app-vpn-dns-direct` 与 `app-vpn-default-dns` 为 App 补充 DNS 使用的保留 tag。
+系统 DNS、Core DNS 与 Go resolver 属于不同层次，补齐 Core DNS 不表示接管应用自带 DoH/DoT。
+
 ## 提供方完整配置
 
 `CoreConfigType.Remnawave` 归属于订阅，每项数组对象是一条完整配置。名称与来源身份在行元数据保存，
 选择固定配置即编译一份完整图，不按 App 接入数量拆分、测速或拼节点；缺行、来源或 mode 不兼容明确失败。
 来源组只能浏览和逐项选择，不能把完整配置来源当作自动节点池。导入和双缓存合同见 [订阅](subscriptions-and-sharing.md#完整-xray-json)。
 
-运行顺序为提供方原始配置 → `RemnawaveAdapter` → 共享 Raw 编译。适配和编译只修改深副本，
+运行顺序为提供方原始配置 → `RemnawaveAdapter`（包含共享 VPN 适配）→ 共享 Raw 编译。适配和编译只修改深副本，
 Raw 管理资源路径、Geodata、日志、metrics、stats/policy、IPv6 DNS 查询策略、物理网卡、端口与平台 TUN 字段。
 不叠加 Smart/Custom 业务规则、地区直连、App Fragment 或 LAN 共享。
 已有入站/出站的相对顺序、原 routing 规则顺序/domainStrategy、DNS、balancers、observatory 和链式引用保留，
 仅调整接入 TUN 的 tag 与直接相关的入口规则，按需增加系统入口、出站及 DNS 规则；
 共享 Raw 的 App 托管字段仍按下节覆盖，不能把运行称为原文逐字透传。
 
-`RemnawaveAdapter` 负责入口与必要系统出站适配，保存校验、运行、复制个人 Raw 和完整分享使用同一适配：
+`RemnawaveAdapter` 在共享 VPN 适配前处理提供方入口与必要系统出站，保存校验、运行、复制个人 Raw 和完整分享使用同一适配：
 
 - 已有 `protocol=tun` 时优先复用 `tag=tunIn` 的入站，否则复用第一个 TUN。保留其位置、设置和 sniffing，
   将选中入口的 tag 统一为 `tunIn`，只在 `routing.rules.inboundTag` 中同步原 tag。
@@ -224,13 +251,7 @@ Raw 管理资源路径、Geodata、日志、metrics、stats/policy、IPv6 DNS �
   将该对象完整深复制到新 TUN，保留显式关闭等设置。已有 TUN 不从其它入口复制或补充 sniffing。
   原 SOCKS/HTTP 入站保留，限定这些入口的规则向 `inboundTag` 补 `tunIn`，其它条件与原 tag 保留。
 - 按 tag 检查 `direct` 和 `block`；已有定义保留，缺少时分别在末尾补 `protocol=freedom` 和 `protocol=blackhole` 出站。
-- 先检查已有显式单值 `port: 53` 的规则，接受数字或字符串。若 `inboundTag` 缺省、为空列表或包含 `tunIn`，即视为提供方已声明 DNS 策略，
-  保留规则及目标，不额外添加 DNS 规则或出站。这不证明其覆盖全部 DNS 流量，不分析 network、domain/IP 条件、
-  端口范围、规则优先级或目标协议的等价性。
-- 缺少上述规则时，复用第一个 `protocol=dns` 出站的 tag 与设置；tag 缺省或为空字符串时补 `app-remna-dns`。
-  没有 DNS 出站才在末尾添加 `tag=app-remna-dns / protocol=dns / settings={}`，不设置 dialerProxy。
-  随后前置 `tunIn + TCP/UDP 53` 规则，指向实际复用或新增的 DNS 出站。
-  不删除已有 DNS 出站，不重写其规则目标；DNS servers/hosts/tag 及 FakeDNS 池保留，查询地址族仍由共享 Raw 管理。
+- 随后复用[完整配置的 VPN 适配](#完整配置的-vpn-适配)，按需补充 DNS 出站和入口规则；设备 DNS 缺省在运行编译时补齐。
 - 适配后的配置交由既有 libXray 校验与启动流程处理。除接入 TUN 的入口规则外，不重写其余图的 tag、
   链式引用、balancer selector 或观察 subjectSelector，不增加第二套内核合法性校验或通用补全。
 
@@ -245,7 +266,8 @@ Smart/Custom 保存只更新未应用偏好，不为提供方会话重连；平�
 ## Raw JSON
 
 Raw 保存原文，不经过 `XrayJson` 或常规 State，运行只改深副本。
-App 接管 tunIn 的有限平台设置、metrics、统计、日志、DNS 查询策略、资源路径及出口网卡；其余内容保留。
+App 共用[完整配置的 VPN 适配](#完整配置的-vpn-适配)，接管 tunIn 的有限平台设置、metrics、统计、日志、
+DNS 查询策略、资源路径及出口网卡；其余内容保留。Raw 只补新增配置实际引用的辅助出站，不统一补 direct/block。
 不允许额外 TUN、重复 tunIn 或占用 App 保留端口。运行端口分配避开用户入站及本地 HTTP API 的保存端口；
 完整 Raw 不应用局域网共享设置，也不为共享预留端口或限制其入站 tag。
 
@@ -253,13 +275,15 @@ App 接管 tunIn 的有限平台设置、metrics、统计、日志、DNS 查询�
 autoSystemRoutingTable、autoOutboundsInterface。原生 TUN 平台生成六项，Apple/Android 仅 name/mtu，移除其余托管项。
 无 tunIn 才新建。MSIX 转为私有 loopback SOCKS，保留不需转换的内容。
 Windows EXE 默认补 autoSystemWfpBlockLeak，显式列表保留；Linux autoSystemDnsToGateway 保留用户值。
+来源 `env` 中的 `xray.tun.fd` 和 `XRAY_TUN_FD` 在校验与运行副本中删除，Apple/Android 原生启动时注入本次真实 FD；
+其它未知 env 保留，桌面配置不携带来源中的旧 FD。
 系统 DNS/TUN 特定要求见 [隧道与平台策略](#隧道与平台策略)。
 
 iOS 模拟器完全由 Swift 判断，将 tunIn 转为 SOCKS，原子写回 run/start.json，再用同一 coreInvokeText 调用 libXray。
 写入失败不启动，数据库/编译输入不变；状态使用 getXrayState 和原生通知，启停直接调用 libXray。
 真机和 macOS 使用系统 VPN，Dart 无 debug 模式分支。
 
-保存校验投影仅裁剪 App 托管项：去除下载任务/metrics，关闭日志与采集，tunIn 转最小 SOCKS 但保留待检 sniffing。
+保存校验先应用同一可移植 VPN 适配，再裁剪 App 托管项：去除下载任务/metrics，关闭日志与采集，tunIn 转最小 SOCKS 但保留待检 sniffing。
 保留用户节点、路由、DNS 和必要模块依赖，stats 使用最小对象避免 API 假错误；不删除整个 policy/DNS/streamSettings。
 原文及运行配置不受投影影响。
 `testXray` 执行 LoadConfig → New → Close，不 Start；允许进程级副作用，不做环境快照恢复。

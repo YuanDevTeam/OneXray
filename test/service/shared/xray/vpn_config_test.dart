@@ -4,6 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/service/shared/xray/vpn_config.dart';
 
 void main() {
+  test('an untagged DNS outbound cannot take an existing reserved tag', () {
+    expect(
+      () => VpnConfigAdapter.adapt({
+        'outbounds': [
+          {'tag': VpnConfigAdapter.dnsTag, 'protocol': 'freedom'},
+          {'protocol': 'dns'},
+        ],
+      }),
+      throwsFormatException,
+    );
+  });
+
   test(
     'Raw receives a bounded DNS ingress without changing its default exit',
     () {

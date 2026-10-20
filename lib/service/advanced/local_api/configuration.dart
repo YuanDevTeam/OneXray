@@ -236,7 +236,7 @@ final class _Configuration {
     if (routing case final state?) {
       return CustomRoutingService.validationJson(state);
     }
-    if (raw case final config?) return XrayValidation.raw(config);
+    if (raw case final config?) return XrayValidation.full(config);
     return XrayValidation.nodes([outbound!]);
   }
 }

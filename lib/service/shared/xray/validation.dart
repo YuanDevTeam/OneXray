@@ -1,10 +1,16 @@
 import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/core/pigeon/constants.dart';
 import 'package:onexray/core/tools/json.dart';
+import 'package:onexray/service/shared/xray/vpn_config.dart';
 
 /// Projects App configurations for libXray instance construction, not startup.
 /// Only disposable copies are changed; persisted and runtime JSON stay intact.
 abstract final class XrayValidation {
+  /// Complete configurations share portable VPN supplements with runtime.
+  /// Advanced templates call [raw] directly to retain their own DNS policy.
+  static String full(Map<String, dynamic> source) =>
+      raw(VpnConfigAdapter.adapt(source));
+
   static XrayEnv _env() => XrayEnv(
     assetLocation: VpnConstants.datDir,
     certLocation: VpnConstants.datDir,

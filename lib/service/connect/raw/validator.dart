@@ -71,7 +71,7 @@ class XrayRawValidator {
     Future<String> Function(String)? testXray,
   }) => GeoDataService().withFiles(() async {
     final res = await (testXray ?? AppHostApi().testXray)(
-      XrayValidation.raw(parsed.json),
+      XrayValidation.full(parsed.json),
     );
     if (res.isNotEmpty) {
       throw AppFailure(

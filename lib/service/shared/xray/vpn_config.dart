@@ -16,9 +16,18 @@ abstract final class VpnConfigAdapter {
     String dnsOutboundTag = dnsTag,
   }) {
     final config = JsonTool.copyMap(source);
+    // Leave malformed containers intact for Core validation. This adapter only
+    // supplements absent containers; it does not repair invalid native JSON.
+    if ((config['inbounds'] != null && config['inbounds'] is! List) ||
+        (config['outbounds'] != null && config['outbounds'] is! List) ||
+        (config['routing'] != null &&
+            config['routing'] is! Map<String, dynamic>)) {
+      return config;
+    }
     final inbounds = config['inbounds'] as List? ?? <dynamic>[];
     final outbounds = config['outbounds'] as List? ?? <dynamic>[];
     final routing = config['routing'] as Map<String, dynamic>? ?? {};
+    if (routing['rules'] != null && routing['rules'] is! List) return config;
     final rules = routing['rules'] as List? ?? <dynamic>[];
     if (!inbounds.whereType<Map>().any((value) => value['tag'] == tunnelTag)) {
       inbounds.insert(
@@ -43,7 +52,9 @@ abstract final class VpnConfigAdapter {
           break;
         }
       }
-      if (dnsOutbound == null) {
+      if (dnsOutbound == null ||
+          dnsOutbound['tag'] == null ||
+          dnsOutbound['tag'] == '') {
         if (outbounds.whereType<Map>().any(
           (outbound) => outbound['tag'] == dnsOutboundTag,
         )) {
@@ -51,6 +62,8 @@ abstract final class VpnConfigAdapter {
             'The $dnsOutboundTag outbound tag is App-managed',
           );
         }
+      }
+      if (dnsOutbound == null) {
         _ensureDnsDirect(outbounds);
         dnsOutbound = createDnsOutbound(
           tag: dnsOutboundTag,

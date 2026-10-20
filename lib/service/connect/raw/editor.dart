@@ -254,6 +254,8 @@ class RawEditorService {
       metricsPort: metricsPort ?? comparisonPorts.removeAt(0),
       socksPort: socksPort ?? comparisonPorts.removeAt(0),
       ipv6: policy.ipv6Enabled,
+      tunDnsIpv4Address: policy.dnsIpv4Address,
+      tunDnsIpv6Address: policy.dnsIpv6Address,
       interfaceName: policy.xrayOutboundInterfaceName,
       logEnabled: policy.logEnabled,
       logLevel: policy.logLevel,

@@ -109,7 +109,7 @@ class SubscriptionConfigurationReader {
         final String validation;
         final List<CoreConfigCompanion> configRows;
         try {
-          validation = XrayValidation.raw(RemnawaveAdapter.adapt(config));
+          validation = XrayValidation.full(RemnawaveAdapter.adapt(config));
           configRows = _configurationRows(config, '${input.name} ${index + 1}');
         } on FormatException catch (error) {
           firstFailure ??= error;

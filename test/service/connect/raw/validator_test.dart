@@ -142,6 +142,16 @@ void main() {
           };
           expected.remove('metrics');
           expected['policy']['system'] = {};
+          expect(actual['inbounds'].first['tag'], 'tunIn');
+          expect(actual['inbounds'].first['protocol'], 'socks');
+          expect(actual['routing']['rules'].first['port'], '53');
+          expect(actual['outbounds'].last['protocol'], 'dns');
+          // Check the user graph after excluding the bounded VPN supplements.
+          actual['inbounds'] = (actual['inbounds'] as List).skip(1).toList();
+          actual['outbounds'] = (actual['outbounds'] as List).take(1).toList();
+          actual['routing']['rules'] = (actual['routing']['rules'] as List)
+              .skip(1)
+              .toList();
           expect(actual, expected);
           return '';
         },

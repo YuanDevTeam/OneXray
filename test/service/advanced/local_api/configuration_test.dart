@@ -70,7 +70,7 @@ void main() {
               .state,
         ),
       ),
-      (kind: 'raw', text: raw, expected: XrayValidation.raw(jsonDecode(raw))),
+      (kind: 'raw', text: raw, expected: XrayValidation.full(jsonDecode(raw))),
     ];
     for (final input in inputs) {
       var calls = 0;
@@ -339,7 +339,7 @@ void main() {
         expect(jsonDecode(config)['name'], 'API raw');
         expect(
           config,
-          XrayValidation.raw(
+          XrayValidation.full(
             jsonDecode(
               XrayRawValidator.normalize(text, nameOverride: 'API raw').text,
             ),
