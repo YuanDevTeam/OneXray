@@ -401,6 +401,13 @@ jobs:
       - name: Setup Flutter
         uses: ./OneXray/.github/actions/setup-flutter
 
+      - name: Install native build dependencies
+        # Dart generation runs cnativeapi's Linux host hook before the Android build.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang pkg-config libgtk-3-dev libx11-dev libxi-dev
+
       - name: Setup Android NDK
         id: ndk
         # libXray's Android builder invokes `gomobile bind`, which needs an NDK.

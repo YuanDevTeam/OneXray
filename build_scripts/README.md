@@ -21,6 +21,10 @@ Platform tools and CI versions are defined in the [Build workflow](../.github/wo
 | Windows | Native x64/ARM64 host, Visual Studio C++, Windows SDK, Rust and matching Go/C tools. EXE/ZIP also need Dart Fastforge; EXE needs Inno Setup (`INNO_SETUP_PATH`). |
 | Linux | Native Linux toolchain, GTK/plugin dependencies and Dart Fastforge. |
 
+Linux hosts also need `clang`, `pkg-config`, `libgtk-3-dev`, `libx11-dev` and
+`libxi-dev` when building Android: Dart-based FFI generation runs the
+`cnativeapi` native hook for the build host before compiling the Android app.
+
 From the App root:
 
 ```shell
