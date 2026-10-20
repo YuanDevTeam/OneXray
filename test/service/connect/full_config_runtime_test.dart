@@ -118,7 +118,9 @@ void main() {
             };
         }
         final before = jsonEncode(source);
-        final runtime = _compile(source, provider: provider).config;
+        final compiled = _compile(source, provider: provider);
+        final runtime = compiled.config;
+        _fixture('${provider ? 'provider' : 'raw'}-$dnsCase', compiled);
         expect(runtime['dns']['servers'], [
           for (final address in [_ipv4, _ipv6])
             {
@@ -159,6 +161,53 @@ void main() {
       });
     }
   }
+
+  test('existing provider DNS ingress and resolver routing stay complete', () {
+    final source = _source()
+      ..['dns'] = {
+        'servers': [
+          {'address': _ipv4, 'tag': 'provider-resolver'},
+        ],
+      };
+    source['outbounds'].addAll([
+      {'tag': 'provider-direct', 'protocol': 'freedom'},
+      {
+        'tag': 'provider-dns',
+        'protocol': 'dns',
+        'settings': {
+          'rules': [
+            {'action': 'hijack', 'qType': '1,28'},
+            {'action': 'direct'},
+          ],
+        },
+        'streamSettings': {
+          'sockopt': {'dialerProxy': 'provider-direct'},
+        },
+      },
+    ]);
+    source['routing']['rules'].insertAll(0, [
+      {
+        'inboundTag': ['provider-resolver'],
+        'outboundTag': 'provider-direct',
+      },
+      {
+        'inboundTag': ['tunIn'],
+        'port': 53,
+        'outboundTag': 'provider-dns',
+      },
+    ]);
+    for (final provider in [false, true]) {
+      final compiled = _compile(source, provider: provider);
+      expect(compiled.config['routing'], source['routing']);
+      expect(
+        (compiled.config['outbounds'] as List).any(
+          (outbound) => outbound['tag'] == VpnConfigAdapter.defaultDnsDirectTag,
+        ),
+        false,
+      );
+      _fixture('${provider ? 'provider' : 'raw'}-explicit-dns', compiled);
+    }
+  });
 
   test('fallback does not coerce explicit or malformed DNS values', () {
     for (final dns in <dynamic>[

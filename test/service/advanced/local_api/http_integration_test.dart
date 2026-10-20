@@ -125,7 +125,11 @@ void main() {
         compiled.body['compiledConfig'] as String,
       ) as Map<String, dynamic>;
       expect(preview['inbounds'].single['protocol'], 'tun');
-      expect(preview['outbounds'].single['protocol'], 'freedom');
+      expect(preview['outbounds'].first, {
+        'tag': 'direct',
+        'protocol': 'freedom',
+      });
+      expect(preview['dns']['servers'], isNotEmpty);
       expect(preview['metrics']['listen'], '127.0.0.1:19021');
       expect(kernelCalls, 1);
     },

@@ -87,8 +87,16 @@ void main() {
     final disabled = compileRaw(source).config;
     final enabled = compileRaw(source, ipv6: true).config;
 
-    expect(disabled['outbounds'], source['outbounds']);
-    expect(disabled['routing'], source['routing']);
+    expect(
+      (disabled['outbounds'] as List)
+          .take((source['outbounds'] as List).length)
+          .toList(),
+      source['outbounds'],
+    );
+    expect(
+      (disabled['routing']['rules'] as List).skip(1).toList(),
+      source['routing']['rules'],
+    );
     expect(disabled['dns']['hosts'], source['dns']['hosts']);
     expect(disabled['dns']['queryStrategy'], 'UseIPv4');
     expect(disabled['dns']['servers'], [
@@ -101,7 +109,7 @@ void main() {
     expect(jsonEncode(source), original);
   });
 
-  test('IPv6-off Raw needs no bootstrap hosts or synthetic routing', () {
+  test('IPv6-off Raw preserves its proxy and supplements DNS without bootstrap hosts', () {
     final source = {
       'outbounds': [
         {
@@ -116,9 +124,11 @@ void main() {
       ],
     };
     final config = compileRaw(source).config;
-    expect(config['outbounds'], source['outbounds']);
-    expect(config['dns'], {'queryStrategy': 'UseIPv4'});
-    expect(config, isNot(contains('routing')));
+    expect(config['outbounds'].first, source['outbounds']!.single);
+    expect(config['dns']['hosts'], isNull);
+    expect(config['dns']['queryStrategy'], 'UseIPv4');
+    expect(config['dns']['servers'].single['address'], '8.8.8.8');
+    expect(config['routing']['rules'], everyElement(contains('inboundTag')));
   });
 
   test(

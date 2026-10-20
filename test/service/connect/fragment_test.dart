@@ -282,8 +282,17 @@ void main() {
       regions: catalog,
       options: options(),
     ).config;
-    expect(raw['outbounds'], source['outbounds']);
-    expect(raw['routing'], source['routing']);
+    expect(
+      (raw['outbounds'] as List)
+          .take((source['outbounds'] as List).length)
+          .toList(),
+      source['outbounds'],
+    );
+    expect(raw['routing']['rules'].last, source['routing']['rules'].single);
+    expect(
+      raw['routing']['domainStrategy'],
+      source['routing']['domainStrategy'],
+    );
     expect(_outbounds(raw).first['tag'], 'user-entry');
     expect(_dialer(_outbound(raw, 'user-entry')), 'manual');
     expect(_dialer(_outbound(raw, 'plain-entry')), isNull);
