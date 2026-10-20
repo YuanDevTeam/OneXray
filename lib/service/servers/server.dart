@@ -24,6 +24,7 @@ import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/servers/outbound/map.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/servers/catalog.dart';
+import 'package:onexray/service/servers/manual_groups.dart';
 
 class ServerEditDraft {
   final CoreConfigData original;
@@ -34,6 +35,7 @@ class ServerEditDraft {
 class ServerRemoval {
   final Set<int> ids;
   final int? sourceId;
+  final int? manualGroupId;
   final ConnectionConfiguration configuration;
   final String expectedConfiguration;
   final bool affectsRuntime;
@@ -41,6 +43,7 @@ class ServerRemoval {
   const ServerRemoval({
     required this.ids,
     this.sourceId,
+    this.manualGroupId,
     required this.configuration,
     required this.expectedConfiguration,
     required this.affectsRuntime,
@@ -302,10 +305,27 @@ class ServerAssetService {
   Future<ServerRemoval> previewRemoval({
     Set<int> ids = const {},
     int? sourceId,
+    int? manualGroupId,
   }) async {
+    if (manualGroupId != null && sourceId != null) {
+      throw ArgumentError('Choose a subscription or a manual group');
+    }
+    if (manualGroupId != null &&
+        await db.manualServerGroupDao.searchRow(manualGroupId) == null) {
+      throw const FormatException('Manual group no longer exists');
+    }
     final current = await coordinator.readForEditing();
     final all = await rows();
-    final removed = sourceId == null
+    final removed = manualGroupId != null
+        ? all
+              .where(
+                (row) =>
+                    ManualServerGroupService.isManual(row) &&
+                    row.manualGroupId == manualGroupId,
+              )
+              .map((row) => row.id)
+              .toSet()
+        : sourceId == null
         ? ids
         : all
               .where((row) => row.subId == sourceId)
@@ -353,6 +373,7 @@ class ServerAssetService {
     return ServerRemoval(
       ids: Set.unmodifiable(removed),
       sourceId: sourceId,
+      manualGroupId: manualGroupId,
       configuration: next,
       expectedConfiguration: current.encode(),
       affectsRuntime: active,
@@ -373,6 +394,7 @@ class ServerAssetService {
     final refreshed = await previewRemoval(
       ids: preview.ids,
       sourceId: preview.sourceId,
+      manualGroupId: preview.manualGroupId,
     );
     if (!const SetEquality<int>().equals(preview.ids, refreshed.ids) ||
         refreshed.configuration.encode() != preview.configuration.encode() ||
@@ -412,6 +434,24 @@ class ServerAssetService {
             prepareDeletion: (_) async => true,
           );
         } else {
+          if (preview.manualGroupId case final groupId?) {
+            final group = await db.manualServerGroupDao.searchRow(groupId);
+            final currentIds = (await rows())
+                .where(
+                  (row) =>
+                      ManualServerGroupService.isManual(row) &&
+                      row.manualGroupId == groupId,
+                )
+                .map((row) => row.id)
+                .toSet();
+            if (group == null ||
+                !const SetEquality<int>().equals(currentIds, preview.ids)) {
+              throw const FormatException(
+                'Manual group changed before deletion',
+              );
+            }
+            await db.manualServerGroupDao.deleteRow(groupId);
+          }
           await (db.delete(db.coreConfig)..where(
                 (row) =>
                     row.id.isIn(preview.ids) &

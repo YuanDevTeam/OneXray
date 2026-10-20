@@ -10,6 +10,7 @@ import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/service/servers/server.dart';
+import 'package:onexray/service/servers/manual_groups.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
@@ -63,6 +64,186 @@ void main() {
     addTearDown(coordinator.dispose);
     return coordinator;
   }
+
+  test('manual group deletion removes only confirmed members and clears fixed references', () async {
+    final groups = ManualServerGroupService(database: db);
+    final group = await groups.create('AWS');
+    final selected = await server();
+    final ungrouped = await server();
+    final subscriptionNode = await server(subId: 7);
+    await groups.move({selected.id}, targetGroupId: group);
+    final configuration = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        selection: ServerSelection.server(selected.id),
+        smart: SmartRoutingSettings(finalExitId: selected.id),
+      ),
+    );
+    await db.connectionConfigDao.commit(
+      configurationJson: configuration.encode(),
+    );
+    final coordinator = await initialize(
+      ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => null,
+        inspect: (_, {observedStatus}) async =>
+            const HostConnection(VpnStatus.disconnected),
+        start: (_) async => throw StateError('No implicit start'),
+        stop: () async => throw StateError('No implicit stop'),
+      ),
+    );
+    final service = ServerAssetService(database: db, coordinator: coordinator);
+    final preview = await service.previewRemoval(manualGroupId: group);
+    expect(preview.ids, {selected.id});
+    expect(preview.sourceId, isNull);
+    expect(preview.affectsRuntime, isFalse);
+    await service.remove(preview);
+    expect(await db.manualServerGroupDao.searchRow(group), isNull);
+    expect(await db.coreConfigDao.searchRow(selected.id), isNull);
+    expect(await db.coreConfigDao.searchRow(ungrouped.id), ungrouped);
+    expect(
+      await db.coreConfigDao.searchRow(subscriptionNode.id),
+      subscriptionNode,
+    );
+    expect(
+      (await coordinator.configuration).connection.selection.kind,
+      SelectionKind.automatic,
+    );
+    expect(
+      (await coordinator.configuration).connection.smart.finalExitId,
+      isNull,
+    );
+  });
+
+  test('moving a running node keeps its session, deleting its last group disconnects', () async {
+    final groups = ManualServerGroupService(database: db);
+    final group = await groups.create('AWS');
+    final selected = await server();
+    final configuration = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        selection: ServerSelection.server(selected.id),
+      ),
+    );
+    await db.connectionConfigDao.commit(
+      configurationJson: configuration.encode(),
+    );
+    final runtime = _runtime('group-session', configuration, [
+      ResolvedServer.fromRow(selected),
+    ]);
+    var host = HostConnection(VpnStatus.connected, runtime: runtime);
+    var stopped = 0;
+    final coordinator = await initialize(
+      ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => host.runtime,
+        inspect: (_, {observedStatus}) async => host,
+        start: (_) async => throw StateError('No remaining candidate to start'),
+        stop: () async {
+          stopped++;
+          return host = const HostConnection(VpnStatus.disconnected);
+        },
+      ),
+    );
+    final service = ServerAssetService(database: db, coordinator: coordinator);
+    await groups.move({selected.id}, targetGroupId: group);
+    await groups.reorderServers(
+      groupId: group,
+      expectedIds: [selected.id],
+      orderedIds: [selected.id],
+    );
+    expect(stopped, 0);
+    expect(coordinator.state.value.runtime, same(runtime));
+    expect((await coordinator.configuration).encode(), configuration.encode());
+    final preview = await service.previewRemoval(manualGroupId: group);
+    expect(preview.affectsRuntime, isTrue);
+    expect(preview.disconnect, isTrue);
+    await service.remove(preview);
+    expect(stopped, 1);
+    expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+    expect(await db.manualServerGroupDao.searchRow(group), isNull);
+    expect(await db.coreConfigDao.searchRow(selected.id), isNull);
+  });
+
+  test(
+    'manual group deletion rejects a member added after confirmation',
+    () async {
+      final groups = ManualServerGroupService(database: db);
+      final group = await groups.create('AWS');
+      final a = await server();
+      final b = await server();
+      await groups.move({a.id}, targetGroupId: group);
+      final coordinator = selectionCoordinator();
+      await coordinator.initialize(observe: false, registerReferences: false);
+      final service = ServerAssetService(
+        database: db,
+        coordinator: coordinator,
+      );
+      final preview = await service.previewRemoval(manualGroupId: group);
+      await groups.move({b.id}, targetGroupId: group);
+      await expectLater(service.remove(preview), throwsFormatException);
+      expect(await db.manualServerGroupDao.searchRow(group), isNotNull);
+      expect(await db.coreConfigDao.searchRow(a.id), isNotNull);
+      expect(await db.coreConfigDao.searchRow(b.id), isNotNull);
+    },
+  );
+
+  test(
+    'empty manual groups can be deleted without touching ungrouped nodes',
+    () async {
+      final groups = ManualServerGroupService(database: db);
+      final group = await groups.create('Empty');
+      final retained = await server();
+      final coordinator = selectionCoordinator();
+      await coordinator.initialize(observe: false, registerReferences: false);
+      final service = ServerAssetService(
+        database: db,
+        coordinator: coordinator,
+      );
+      final preview = await service.previewRemoval(manualGroupId: group);
+      expect(preview.ids, isEmpty);
+      await service.remove(preview);
+      expect(await db.manualServerGroupDao.searchRow(group), isNull);
+      expect(await db.coreConfigDao.searchRow(retained.id), retained);
+    },
+  );
+
+  test(
+    'editing a stale content draft preserves a concurrent move and measurement',
+    () async {
+      final groups = ManualServerGroupService(database: db);
+      final group = await groups.create('AWS');
+      final selected = await server();
+      final coordinator = selectionCoordinator();
+      await coordinator.initialize(observe: false, registerReferences: false);
+      final service = ServerAssetService(
+        database: db,
+        coordinator: coordinator,
+        validate: (_) async => '',
+        schedule: (_) {},
+      );
+      final draft = await service.load(selected.id);
+      await groups.move({selected.id}, targetGroupId: group);
+      final moved = (await db.coreConfigDao.searchRow(selected.id))!;
+      await db.coreConfigDao.updateRow(
+        moved.copyWith(delay: 5, favorite: true),
+      );
+      expect(
+        await service.save(
+          ServerEditDraft(
+            draft.original,
+            draft.text.replaceFirst('original', 'renamed'),
+          ),
+          confirmReconnect: () async => throw StateError('No semantic change'),
+        ),
+        isTrue,
+      );
+      final saved = (await db.coreConfigDao.searchRow(selected.id))!;
+      expect(saved.name, 'renamed');
+      expect(saved.manualGroupId, group);
+      expect(saved.manualSortOrder, moved.manualSortOrder);
+      expect(saved.delay, 5);
+      expect(saved.favorite, isTrue);
+    },
+  );
 
   for (final change in ['entry', 'exit', 'unused', 'rename', 'live-unused']) {
     test(

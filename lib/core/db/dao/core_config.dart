@@ -147,14 +147,48 @@ class CoreConfigDao extends DatabaseAccessor<AppDatabase>
   Future<int> insertAssetRow(CoreConfigCompanion entry) =>
       attachedDatabase.transaction(() async {
         await _checkNewAssets([entry]);
-        return insertRow(entry);
+        return insertRow((await _appendManualAssets([entry])).single);
       });
 
   Future<int> insertAssetRows(List<CoreConfigCompanion> entries) =>
       attachedDatabase.transaction(() async {
         await _checkNewAssets(entries);
-        return insertRows(entries);
+        return insertRows(await _appendManualAssets(entries));
       });
+
+  /// Ordinary additions always append to the virtual ungrouped collection.
+  /// Full restore uses insertRow(s) and keeps its explicitly restored positions.
+  Future<List<CoreConfigCompanion>> _appendManualAssets(
+    List<CoreConfigCompanion> entries,
+  ) async {
+    bool manual(CoreConfigCompanion entry) =>
+        entry.type.present &&
+        entry.type.value == CoreConfigType.outbound.name &&
+        entry.subId.present &&
+        entry.subId.value == 0;
+    if (!entries.any(manual)) return entries;
+    final maximum = coreConfig.manualSortOrder.max();
+    final result =
+        await (selectOnly(coreConfig)
+              ..addColumns([maximum])
+              ..where(
+                coreConfig.type.equals(CoreConfigType.outbound.name) &
+                    coreConfig.subId.equals(0) &
+                    coreConfig.manualGroupId.isNull(),
+              ))
+            .getSingle();
+    var next = (result.read(maximum) ?? -1) + 1;
+    return [
+      for (final entry in entries)
+        if (manual(entry))
+          entry.copyWith(
+            manualGroupId: const Value(null),
+            manualSortOrder: Value(next++),
+          )
+        else
+          entry,
+    ];
+  }
 
   Future<void> _checkNewAssets(List<CoreConfigCompanion> entries) async {
     var addedRaw = 0;

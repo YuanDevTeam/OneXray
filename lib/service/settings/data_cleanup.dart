@@ -13,6 +13,7 @@ import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/advanced/local_api/service.dart';
 import 'package:onexray/service/advanced/xray/data_update/service.dart';
 import 'package:onexray/service/servers/import.dart';
+import 'package:onexray/service/servers/manual_groups.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/shared/ping/service.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
@@ -141,6 +142,7 @@ final class AppDataCleanupService {
     if (pauseBackup && _backup != null) _backup.pauseForDataClear(),
     DataUpdateService().pauseForDataClear(),
     ServerImportService.pauseForDataClear(),
+    ManualServerGroupService.pauseForDataClear(),
     _subscriptions.pauseForDataClear(),
     _ping.pauseForDataClear(),
     _coordinator.pauseForDataClear(),
@@ -154,6 +156,7 @@ final class AppDataCleanupService {
     _ping.resumeAfterDataClear();
     _subscriptions.resumeAfterDataClear();
     ServerImportService.resumeAfterDataClear();
+    ManualServerGroupService.resumeAfterDataClear();
     DataUpdateService().resumeAfterDataClear();
     if (resumeBackup) _backup?.resumeAfterDataClear();
   }
@@ -176,6 +179,7 @@ final class AppDataCleanupService {
     await db.transaction(() async {
       await db.geoDataDao.clear();
       await db.coreConfigDao.clear();
+      await db.manualServerGroupDao.clear();
       await db.subscriptionDao.clear();
       await db.routingProfileDao.clear();
       await db.connectionConfigDao.reset();
