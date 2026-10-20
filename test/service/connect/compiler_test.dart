@@ -210,6 +210,7 @@ void main() {
         'last',
         'direct',
         'block',
+        'app-vpn-dns-direct',
         'app-remna-dns',
       ]);
       expect(
@@ -1004,7 +1005,10 @@ void main() {
     );
     expect(plan.config['inbounds'].last, source['inbounds'].single);
     expect(plan.config['outbounds'].first, source['outbounds'].single);
-    expect(plan.config['routing']['rules'].last, source['routing']['rules'].single);
+    expect(
+      plan.config['routing']['rules'].last,
+      source['routing']['rules'].single,
+    );
     expect(plan.config['inbounds'].first['tag'], 'tunIn');
     expect(plan.config['metrics']['listen'], '127.0.0.1:18186');
     expect(jsonEncode(source), before);
@@ -1803,11 +1807,8 @@ void main() {
     );
 
     expect(plan.config['outbounds'].first.containsKey('tag'), false);
-    expect(plan.config['routing']['rules'].single['inboundTag'], ['tunIn']);
-    expect(
-      plan.config['routing']['rules'].single['outboundTag'],
-      'app-vpn-dns',
-    );
+    expect(plan.config['routing']['rules'].last['inboundTag'], ['tunIn']);
+    expect(plan.config['routing']['rules'].last['outboundTag'], 'app-vpn-dns');
   });
 
   test('Raw reserved tags/ports conflict clearly, rather than renaming user references', () {

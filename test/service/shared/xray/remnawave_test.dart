@@ -95,7 +95,15 @@ void main() {
       expect((adapted['outbounds'] as List).last, {
         'tag': 'app-remna-dns',
         'protocol': 'dns',
-        'settings': {},
+        'streamSettings': {
+          'sockopt': {'dialerProxy': 'app-vpn-dns-direct'},
+        },
+        'settings': {
+          'rules': [
+            {'action': 'hijack', 'qType': '1,28'},
+            {'action': 'direct'},
+          ],
+        },
       });
       expect(adapted['dns'], source['dns']);
       expect(adapted.containsKey('metrics'), isFalse);
@@ -129,6 +137,9 @@ void main() {
       {
         'tag': 'provider-query',
         'protocol': 'dns',
+        'streamSettings': {
+          'sockopt': {'dialerProxy': 'app-vpn-dns-direct'},
+        },
         'settings': {'address': '9.9.9.9'},
         'proxySettings': {'tag': 'entry'},
       },
@@ -172,6 +183,9 @@ void main() {
       (source['outbounds'] as List).add({
         'tag': 'provider-query',
         'protocol': 'dns',
+        'streamSettings': {
+          'sockopt': {'dialerProxy': 'app-vpn-dns-direct'},
+        },
         'settings': {'address': '9.9.9.9'},
       });
       final result = RemnawaveAdapter.adapt(source);

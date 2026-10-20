@@ -194,7 +194,7 @@ class ConnectionCompiler {
     RuntimeOptions options,
   ) {
     final value = JsonTool.copyMap(source)..remove('name');
-    return _rawRuntimeMap(VpnConfigAdapter.adapt(value), options);
+    return _fullRuntimeMap(VpnConfigAdapter.adapt(value), options);
   }
 
   static const dnsProxy = RoutingDns.proxyTag;
@@ -284,14 +284,14 @@ class ConnectionCompiler {
         );
       }
       final adapted = RemnawaveAdapter.adapt(profile.config);
-      config = _rawRuntimeMap(adapted, options);
+      config = _fullRuntimeMap(adapted, options);
     } else if (settings.expert) {
       if (raw == null || entries.isNotEmpty || finalExit != null) {
         throw const FormatException(
           'Raw configuration is required without normal nodes',
         );
       }
-      config = _rawRuntimeMap(VpnConfigAdapter.adapt(raw), options);
+      config = _fullRuntimeMap(VpnConfigAdapter.adapt(raw), options);
     } else {
       final required = settings.requiredEntries(
         customEntryCount: custom?.entryCount,
@@ -629,6 +629,18 @@ class ConnectionCompiler {
     statsInboundDownlink: true,
     statsOutboundUplink: false,
     statsOutboundDownlink: false,
+  );
+
+  static Map<String, dynamic> _fullRuntimeMap(
+    Map<String, dynamic> source,
+    RuntimeOptions options,
+  ) => _rawRuntimeMap(
+    VpnConfigAdapter.withDefaultDns(
+      source,
+      ipv4Address: options.tunDnsIpv4Address,
+      ipv6Address: options.ipv6 ? options.tunDnsIpv6Address : null,
+    ),
+    options,
   );
 
   static Map<String, dynamic> _rawRuntimeMap(
