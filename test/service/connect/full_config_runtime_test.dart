@@ -69,6 +69,29 @@ CompiledConnection _compile(
 );
 
 void main() {
+  test('only the native session may supply a TUN descriptor', () {
+    for (final provider in [false, true]) {
+      for (final platform in ConnectionPlatform.values) {
+        final source = _source()
+          ..['env'] = {
+            'xray.tun.fd': '77',
+            'XRAY_TUN_FD': '88',
+            'provider.custom': 'preserved',
+          };
+        final runtime = _compile(
+          source,
+          provider: provider,
+          options: _options(platform: platform),
+        ).config;
+        expect(runtime['env'].containsKey('xray.tun.fd'), false);
+        expect(runtime['env'].containsKey('XRAY_TUN_FD'), false);
+        expect(runtime['env']['provider.custom'], 'preserved');
+        expect(source['env']['xray.tun.fd'], '77');
+        expect(source['env']['XRAY_TUN_FD'], '88');
+      }
+    }
+  });
+
   for (final provider in [false, true]) {
     final kind = provider ? 'Provider' : 'Raw';
     for (final dnsCase in [

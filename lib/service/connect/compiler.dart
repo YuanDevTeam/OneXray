@@ -734,6 +734,9 @@ class ConnectionCompiler {
     }
     config['inbounds'] = inbounds;
     final env = _object(config, 'env');
+    // File descriptors belong to this native session, never an imported graph.
+    env.remove('xray.tun.fd');
+    env.remove('XRAY_TUN_FD');
     env['xray.location.asset'] = VpnConstants.datDir;
     env['xray.location.cert'] = VpnConstants.datDir;
     config.remove(
