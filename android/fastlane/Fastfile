@@ -6,6 +6,7 @@ platform :android do
         aab: "../build/app/outputs/bundle/release/app-release.aab",
         release_status: "draft",
         track: "internal",
+        rescue_changes_not_sent_for_review: false,
         timeout: 1200,
     )
     download_universal_apk_from_google_play(
