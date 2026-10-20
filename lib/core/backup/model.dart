@@ -7,6 +7,7 @@ class BackupDocument {
   final String format;
   final int version;
   final int createdAt;
+  final List<BackupManualGroup> manualGroups;
   final List<BackupCoreConfig> coreConfigs;
   final List<BackupSubscription> subscriptions;
   final List<BackupRoutingProfile> routingProfiles;
@@ -17,6 +18,7 @@ class BackupDocument {
     this.format = 'onexray-backup',
     this.version = 1,
     required this.createdAt,
+    this.manualGroups = const [],
     required this.coreConfigs,
     required this.subscriptions,
     required this.routingProfiles,
@@ -30,13 +32,35 @@ class BackupDocument {
 }
 
 @JsonSerializable()
+class BackupManualGroup {
+  final String key;
+  final String name;
+  final int sortOrder;
+
+  const BackupManualGroup(this.key, this.name, this.sortOrder);
+  factory BackupManualGroup.fromJson(Map<String, dynamic> json) =>
+      _$BackupManualGroupFromJson(json);
+  Map<String, dynamic> toJson() => _$BackupManualGroupToJson(this);
+}
+
+@JsonSerializable()
 class BackupCoreConfig {
   final String name;
   final String type;
   final String tags;
   final String data;
+  @JsonKey(includeIfNull: false)
+  final String? manualGroupKey;
+  final int manualSortOrder;
 
-  const BackupCoreConfig(this.name, this.type, this.tags, this.data);
+  const BackupCoreConfig(
+    this.name,
+    this.type,
+    this.tags,
+    this.data, {
+    this.manualGroupKey,
+    this.manualSortOrder = 0,
+  });
   factory BackupCoreConfig.fromJson(Map<String, dynamic> json) =>
       _$BackupCoreConfigFromJson(json);
   Map<String, dynamic> toJson() => _$BackupCoreConfigToJson(this);

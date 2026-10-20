@@ -128,6 +128,7 @@ class BackupController extends PageCubit<BackupPageState> {
           preview.subscriptions,
           preview.routes,
         ),
+        if (preview.groups > 0) l.manualGroupCount(preview.groups),
         if (preview.pending > 0) l.backupPendingCount(preview.pending),
         if (preview.conflicts.isNotEmpty)
           l.backupConflicts(preview.conflicts.join(', ')),

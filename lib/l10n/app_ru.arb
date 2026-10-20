@@ -905,5 +905,13 @@
   "subscriptionUserAgentInvalid": "User-Agent должен содержать одну строку символов ASCII.",
   "subscriptionRemnawaveFormatTitle": "Remnawave не вернул JSON",
   "subscriptionConvertToOrdinaryMessage": "Преобразовать «{name}» в обычную подписку с узлами под управлением OneXray?",
-  "subscriptionConvertToOrdinary": "Преобразовать в обычную подписку"
+  "subscriptionConvertToOrdinary": "Преобразовать в обычную подписку",
+  "manualGroupCount": "Групп вручную: {count}",
+  "@manualGroupCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

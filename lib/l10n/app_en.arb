@@ -3074,5 +3074,13 @@
     "placeholders": {
       "name": {"type": "String"}
     }
+  },
+  "manualGroupCount": "{count} manual groups",
+  "@manualGroupCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

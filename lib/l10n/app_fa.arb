@@ -905,5 +905,13 @@
   "subscriptionUserAgentInvalid": "برای User-Agent یک خط متن ASCII وارد کنید.",
   "subscriptionRemnawaveFormatTitle": "Remnawave پاسخ JSON برنگرداند",
   "subscriptionConvertToOrdinaryMessage": "«{name}» به اشتراک معمولی با مدیریت گره‌ها توسط OneXray تبدیل شود؟",
-  "subscriptionConvertToOrdinary": "تبدیل به اشتراک معمولی"
+  "subscriptionConvertToOrdinary": "تبدیل به اشتراک معمولی",
+  "manualGroupCount": "{count} گروه دستی",
+  "@manualGroupCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

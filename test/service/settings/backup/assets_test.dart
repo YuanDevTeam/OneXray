@@ -17,6 +17,116 @@ import 'package:onexray/service/connect/routing/custom/state_db.dart';
 import 'package:onexray/service/settings/backup/assets.dart';
 
 void main() {
+  test(
+    'manual grouping survives capture and restore with new database identities',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final parent = await Directory('../references/onexray-tests').absolute
+          .create(recursive: true);
+      final root = await parent.createTemp('backup-manual-groups-');
+      addTearDown(() => root.delete(recursive: true));
+      final geodata = GeoDataService.forTesting(
+        database: db,
+        directory: '${root.path}/dat',
+        download: (_, _) async => fail('Restore must stay offline'),
+        count: (_, _, _) async => fail('Restore must not index resources'),
+        copyBundled: (_) async => fail('No resource replacement'),
+      );
+      final assets = BackupAssets(db, geodata);
+      final home = await db.manualServerGroupDao.insertRow(
+        ManualServerGroupCompanion.insert(
+          name: 'Home',
+          sortOrder: const Value(2),
+        ),
+      );
+      final empty = await db.manualServerGroupDao.insertRow(
+        ManualServerGroupCompanion.insert(
+          name: 'Empty',
+          sortOrder: const Value(1),
+        ),
+      );
+      final originalNodes = <int>[];
+      for (final (name, group, order) in [
+        ('Second', home, 2),
+        ('First', home, 1),
+        ('Ungrouped', null, 4),
+      ]) {
+        originalNodes.add(
+          await db.coreConfigDao.insertRow(
+            CoreConfigCompanion.insert(
+              name: name,
+              type: 'outbound',
+              tags: '',
+              data: const Value('e30='),
+              delay: 100,
+              subId: 0,
+              favorite: const Value(true),
+              manualGroupId: Value(group),
+              manualSortOrder: Value(order),
+            ),
+          ),
+        );
+      }
+      final document = decodeBackup(encodeBackup(await assets.capture()));
+      expect(document.manualGroups.map((row) => row.name), ['Empty', 'Home']);
+      expect(document.manualGroups.map((row) => row.key), ['g1', 'g2']);
+      expect(document.coreConfigs.map((row) => row.manualGroupKey), [
+        'g2',
+        'g2',
+        null,
+      ]);
+      expect(document.coreConfigs.map((row) => row.manualSortOrder), [2, 1, 4]);
+      expect(document.manualGroups.first.toJson(), isNot(contains('id')));
+      validateBackupAssets(document);
+      await assets.restore(document, await geodata.previewRestore([]));
+      final groups = await db.manualServerGroupDao.allRows;
+      expect(groups.map((row) => row.name), ['Empty', 'Home']);
+      expect(groups.map((row) => row.sortOrder), [1, 2]);
+      expect(groups.every((row) => row.id > home && row.id > empty), true);
+      final nodes = await db.coreConfigDao.allActiveServerRows();
+      expect(nodes.every((row) => !originalNodes.contains(row.id)), true);
+      expect(nodes.take(2).map((row) => row.manualGroupId), [
+        groups.last.id,
+        groups.last.id,
+      ]);
+      expect(nodes.last.manualGroupId, isNull);
+      expect(nodes.map((row) => row.manualSortOrder), [2, 1, 4]);
+      expect(nodes.every((row) => !row.favorite), true);
+      final recaptured = await assets.capture();
+      expect(
+        recaptured.manualGroups.map((row) => row.toJson()),
+        document.manualGroups.map((row) => row.toJson()),
+      );
+      expect(
+        recaptured.coreConfigs.map((row) => row.toJson()),
+        document.coreConfigs.map((row) => row.toJson()),
+      );
+      final legacyJson = document.toJson()..remove('manualGroups');
+      for (final node in legacyJson['coreConfigs'] as List) {
+        (node as Map).remove('manualGroupKey');
+        node.remove('manualSortOrder');
+      }
+      final legacy = decodeBackup(
+        Uint8List.fromList(utf8.encode(jsonEncode(legacyJson))),
+      );
+      await assets.restore(legacy, await geodata.previewRestore([]));
+      expect(await db.manualServerGroupDao.allRows, isEmpty);
+      final legacyNodes = await db.coreConfigDao.allActiveServerRows();
+      expect(legacyNodes.map((row) => row.name), [
+        'Second',
+        'First',
+        'Ungrouped',
+      ]);
+      expect(
+        legacyNodes.every(
+          (row) => row.manualGroupId == null && row.manualSortOrder == 0,
+        ),
+        true,
+      );
+    },
+  );
+
   test('captures only configured assets and restores without IDs, files or network', () async {
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);

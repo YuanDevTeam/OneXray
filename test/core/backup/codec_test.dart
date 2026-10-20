@@ -70,6 +70,126 @@ void main() {
     expect(document.smartRouting.toJson()['fragment'], false);
   });
 
+  test('previous v1 backups have ungrouped nodes in their original order', () {
+    final json = sample().toJson()..remove('manualGroups');
+    for (final row in json['coreConfigs'] as List) {
+      (row as Map).remove('manualSortOrder');
+      row.remove('manualGroupKey');
+    }
+    final document = decodeBackup(
+      Uint8List.fromList(utf8.encode(jsonEncode(json))),
+    );
+    expect(document.manualGroups, isEmpty);
+    expect(document.coreConfigs.map((row) => row.name), [
+      '配置 0',
+      '配置 1',
+      '配置 2',
+      '配置 3',
+    ]);
+    expect(
+      document.coreConfigs.every(
+        (row) => row.manualGroupKey == null && row.manualSortOrder == 0,
+      ),
+      true,
+    );
+  });
+
+  test('v1 manual groups preserve empty groups and saved node order', () {
+    final json = sample().toJson();
+    json['manualGroups'] = [
+      {'key': 'g1', 'name': 'Empty', 'sortOrder': 1, 'futureField': true},
+      {'key': 'g2', 'name': 'Home', 'sortOrder': 2},
+    ];
+    final row = (json['coreConfigs'] as List).first as Map;
+    row['type'] = 'outbound';
+    row['manualGroupKey'] = 'g2';
+    row['manualSortOrder'] = 3;
+    final document = decodeBackup(
+      Uint8List.fromList(utf8.encode(jsonEncode(json))),
+    );
+    final restored = decodeBackup(encodeBackup(document));
+    expect(restored.version, 1);
+    expect(restored.manualGroups.map((row) => row.name), ['Empty', 'Home']);
+    expect(restored.manualGroups.map((row) => row.sortOrder), [1, 2]);
+    expect(
+      restored.manualGroups.first.toJson(),
+      isNot(contains('futureField')),
+    );
+    expect(restored.coreConfigs.first.manualGroupKey, 'g2');
+    expect(restored.coreConfigs.first.manualSortOrder, 3);
+  });
+
+  test(
+    'rejects invalid grouping fields, duplicate keys and missing references',
+    () {
+      final group = {'key': 'g1', 'name': 'Home', 'sortOrder': 0};
+      for (final patch in <Map<String, dynamic>>[
+        {'manualGroups': null},
+        {
+          'manualGroups': [group, group],
+        },
+        {
+          'manualGroups': [
+            {...group, 'sortOrder': 1.5},
+          ],
+        },
+        {
+          'manualGroups': [
+            {...group, 'sortOrder': -1},
+          ],
+        },
+        {
+          'manualGroups': [
+            {...group, 'name': ' '},
+          ],
+        },
+        {
+          'manualGroups': [group],
+          'coreConfigs': [
+            const BackupCoreConfig(
+              'Node',
+              'outbound',
+              '',
+              'e30=',
+              manualGroupKey: 'missing',
+            ).toJson(),
+          ],
+        },
+        {
+          'manualGroups': [group],
+          'coreConfigs': [
+            const BackupCoreConfig(
+              'Raw',
+              'raw',
+              '',
+              'e30=',
+              manualGroupKey: 'g1',
+            ).toJson(),
+          ],
+        },
+        {
+          'coreConfigs': [
+            {
+              ...const BackupCoreConfig(
+                'Node',
+                'outbound',
+                '',
+                'e30=',
+              ).toJson(),
+              'manualSortOrder': '1',
+            },
+          ],
+        },
+      ]) {
+        final json = sample().toJson()..addAll(patch);
+        expect(
+          () => decodeBackup(Uint8List.fromList(utf8.encode(jsonEncode(json)))),
+          throwsFormatException,
+        );
+      }
+    },
+  );
+
   test('previous subscriptions default to generic App management', () {
     final json = sample().toJson();
     final source =

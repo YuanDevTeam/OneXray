@@ -122,12 +122,13 @@ class BackupPreview {
       _document.coreConfigs.where((row) => row.type == 'outbound').length;
   int get raw => _document.coreConfigs.where((row) => row.type == 'raw').length;
   int get subscriptions => _document.subscriptions.length;
+  int get groups => _document.manualGroups.length;
   int get routes => _document.routingProfiles.length;
   int get pending => _resources.pendingCount;
   List<String> get conflicts => [
     for (final row in _resources.conflicts) '${row.name}.dat',
   ];
-  bool get empty => nodes + raw + subscriptions + routes == 0;
+  bool get empty => nodes + raw + subscriptions + routes + groups == 0;
 }
 
 /// Only backup operations are mutually exclusive. Ordinary save/probe/download

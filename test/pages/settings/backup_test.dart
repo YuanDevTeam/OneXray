@@ -309,6 +309,38 @@ void main() {
   );
 
   testWidgets(
+    'restore preview shows empty manual groups without the empty-backup warning',
+    (tester) async {
+      preferences.enabled = false;
+      preferences.settings = BackupSettings(target: storage.target);
+      await tester.runAsync(() async {
+        await assets.db.manualServerGroupDao.insertRow(
+          ManualServerGroupCompanion.insert(name: 'Empty group'),
+        );
+        storage.bytes = encodeBackup(await assets.capture());
+      });
+      await tester.pumpWidget(app(const Locale('en')));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(PageActionBar)),
+      )!;
+      await tester.tap(find.text(l.backupRestore));
+      await pumpUntil(
+        tester,
+        () => find.byType(AppConfirmationDialog).evaluate().isNotEmpty,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.textContaining(l.manualGroupCount(1)), findsOneWidget);
+      expect(find.textContaining(l.backupEmptyWarning), findsNothing);
+      expect(restored, 0);
+      await tester.tap(find.text(l.prototypeCancel));
+      await tester.pumpAndSettle();
+      expect(restored, 0);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
     'manual backup writes directly; offline restore still requires confirmation',
     (tester) async {
       preferences.enabled = false;

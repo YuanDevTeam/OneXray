@@ -905,5 +905,13 @@
   "subscriptionUserAgentInvalid": "User-Agent 僅支援單行 ASCII 文字。",
   "subscriptionRemnawaveFormatTitle": "Remnawave 未回傳 JSON",
   "subscriptionConvertToOrdinaryMessage": "是否將「{name}」轉為普通訂閱，由 OneXray 管理節點？",
-  "subscriptionConvertToOrdinary": "轉為普通訂閱"
+  "subscriptionConvertToOrdinary": "轉為普通訂閱",
+  "manualGroupCount": "{count} 個手動群組",
+  "@manualGroupCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

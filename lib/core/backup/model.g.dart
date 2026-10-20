@@ -11,6 +11,13 @@ BackupDocument _$BackupDocumentFromJson(Map<String, dynamic> json) =>
       format: json['format'] as String? ?? 'onexray-backup',
       version: (json['version'] as num?)?.toInt() ?? 1,
       createdAt: (json['createdAt'] as num).toInt(),
+      manualGroups:
+          (json['manualGroups'] as List<dynamic>?)
+              ?.map(
+                (e) => BackupManualGroup.fromJson(e as Map<String, dynamic>),
+              )
+              .toList() ??
+          const [],
       coreConfigs: (json['coreConfigs'] as List<dynamic>)
           .map((e) => BackupCoreConfig.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -34,6 +41,7 @@ Map<String, dynamic> _$BackupDocumentToJson(
   'format': instance.format,
   'version': instance.version,
   'createdAt': instance.createdAt,
+  'manualGroups': instance.manualGroups.map((e) => e.toJson()).toList(),
   'coreConfigs': instance.coreConfigs.map((e) => e.toJson()).toList(),
   'subscriptions': instance.subscriptions.map((e) => e.toJson()).toList(),
   'routingProfiles': instance.routingProfiles.map((e) => e.toJson()).toList(),
@@ -41,12 +49,28 @@ Map<String, dynamic> _$BackupDocumentToJson(
   'geoData': instance.geoData.map((e) => e.toJson()).toList(),
 };
 
+BackupManualGroup _$BackupManualGroupFromJson(Map<String, dynamic> json) =>
+    BackupManualGroup(
+      json['key'] as String,
+      json['name'] as String,
+      (json['sortOrder'] as num).toInt(),
+    );
+
+Map<String, dynamic> _$BackupManualGroupToJson(BackupManualGroup instance) =>
+    <String, dynamic>{
+      'key': instance.key,
+      'name': instance.name,
+      'sortOrder': instance.sortOrder,
+    };
+
 BackupCoreConfig _$BackupCoreConfigFromJson(Map<String, dynamic> json) =>
     BackupCoreConfig(
       json['name'] as String,
       json['type'] as String,
       json['tags'] as String,
       json['data'] as String,
+      manualGroupKey: json['manualGroupKey'] as String?,
+      manualSortOrder: (json['manualSortOrder'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$BackupCoreConfigToJson(BackupCoreConfig instance) =>
@@ -55,6 +79,8 @@ Map<String, dynamic> _$BackupCoreConfigToJson(BackupCoreConfig instance) =>
       'type': instance.type,
       'tags': instance.tags,
       'data': instance.data,
+      'manualGroupKey': ?instance.manualGroupKey,
+      'manualSortOrder': instance.manualSortOrder,
     };
 
 BackupSubscription _$BackupSubscriptionFromJson(Map<String, dynamic> json) =>

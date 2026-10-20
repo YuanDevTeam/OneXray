@@ -25,11 +25,19 @@ class BackupAssets {
 
   Future<BackupDocument> capture() => db.transaction(() async {
     final nodes =
-        await (db.select(db.coreConfig)..where(
-              (row) => row.subId.equals(0) & row.type.isIn(['outbound', 'raw']),
-            ))
+        await (db.select(db.coreConfig)
+              ..where(
+                (row) =>
+                    row.subId.equals(0) & row.type.isIn(['outbound', 'raw']),
+              )
+              ..orderBy([(row) => OrderingTerm.asc(row.id)]))
             .get();
     final subscriptions = await db.subscriptionDao.allRows;
+    final groups = await db.manualServerGroupDao.allRows;
+    final groupKeys = <int, String>{
+      for (var index = 0; index < groups.length; index++)
+        groups[index].id: 'g${index + 1}',
+    };
     final routes = await db.routingProfileDao.allRows;
     final sources = await db.geoDataDao.allRows;
     final settings = ConnectionConfiguration.fromJson(
@@ -38,6 +46,10 @@ class BackupAssets {
     ).connection.smart;
     return BackupDocument(
       createdAt: DateTime.now().millisecondsSinceEpoch,
+      manualGroups: [
+        for (final group in groups)
+          BackupManualGroup(groupKeys[group.id]!, group.name, group.sortOrder),
+      ],
       coreConfigs: [
         for (final row in nodes)
           BackupCoreConfig(
@@ -46,6 +58,10 @@ class BackupAssets {
             row.tags,
             row.data ??
                 (throw const FormatException('A configuration has no data')),
+            manualGroupKey: row.type == 'outbound'
+                ? groupKeys[row.manualGroupId]
+                : null,
+            manualSortOrder: row.type == 'outbound' ? row.manualSortOrder : 0,
           ),
       ],
       subscriptions: [
@@ -106,8 +122,18 @@ class BackupAssets {
           configurationJson: restored.encode(),
           writeAssets: () async {
             await db.coreConfigDao.clear();
+            await db.manualServerGroupDao.clear();
             await db.subscriptionDao.clear();
             await db.routingProfileDao.clear();
+            final groupIds = <String, int>{};
+            for (final group in document.manualGroups) {
+              groupIds[group.key] = await db.manualServerGroupDao.insertRow(
+                ManualServerGroupCompanion.insert(
+                  name: group.name,
+                  sortOrder: Value(group.sortOrder),
+                ),
+              );
+            }
             for (final row in document.coreConfigs) {
               await db.coreConfigDao.insertRow(
                 CoreConfigCompanion.insert(
@@ -117,6 +143,8 @@ class BackupAssets {
                   data: Value(row.data),
                   delay: PingDelayConstants.unknown,
                   subId: 0,
+                  manualGroupId: Value(groupIds[row.manualGroupKey]),
+                  manualSortOrder: Value(row.manualSortOrder),
                 ),
               );
             }
@@ -163,6 +191,7 @@ List<GeoDataInput> backupSources(BackupDocument document) => [
 /// Structural/import checks only; missing files do not prevent restoration.
 /// Xray semantics are left to the existing editor/runtime validation paths.
 void validateBackupAssets(BackupDocument document) {
+  validateBackupManualGroups(document);
   for (final row in document.coreConfigs) {
     _name(row.name);
     if (row.type != 'outbound' && row.type != 'raw') {

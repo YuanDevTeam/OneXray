@@ -169,16 +169,77 @@ void main() {
     expect((await db.coreConfigDao.allRawRowsWithData).single.name, 'Restored');
   });
 
+  test('empty manual groups count as assets and replace previous groups on restore', () async {
+    final originalId = await db.manualServerGroupDao.insertRow(
+      ManualServerGroupCompanion.insert(name: 'Empty group'),
+    );
+    preferences.enabled = false;
+    preferences.settings = BackupSettings(target: storage.target);
+    storage.bytes = encodeBackup(await assets.capture());
+    await db.manualServerGroupDao.clear();
+    await db.manualServerGroupDao.insertRow(
+      ManualServerGroupCompanion.insert(name: 'Current group'),
+    );
+    await service.load();
+    final preview = await service.preview();
+    expect(
+      (preview.nodes, preview.raw, preview.groups, preview.empty),
+      (0, 0, 1, false),
+    );
+    expect(stops, 0);
+    await service.restore(preview);
+    final group = (await db.manualServerGroupDao.allRows).single;
+    expect(group.name, 'Empty group');
+    expect(group.id, greaterThan(originalId));
+    expect(stops, 1);
+  });
+
+  test(
+    'a missing manual group reference fails preview without replacing assets',
+    () async {
+      await insert('Current');
+      final groupId = await db.manualServerGroupDao.insertRow(
+        ManualServerGroupCompanion.insert(name: 'Current group'),
+      );
+      final json = (await assets.capture()).toJson();
+      json['coreConfigs'] = [
+        const BackupCoreConfig(
+          'Imported',
+          'outbound',
+          '',
+          'e30=',
+          manualGroupKey: 'missing',
+        ).toJson(),
+      ];
+      storage.bytes = Uint8List.fromList(utf8.encode(jsonEncode(json)));
+      preferences.enabled = false;
+      preferences.settings = BackupSettings(target: storage.target);
+      await service.load();
+      await expectLater(service.preview(), throwsFormatException);
+      expect(
+        (await db.coreConfigDao.allRawRowsWithData).single.name,
+        'Current',
+      );
+      expect((await db.manualServerGroupDao.allRows).single.id, groupId);
+      expect((stops, storage.writes), (0, 0));
+    },
+  );
+
   test(
     'a transaction failure restores original rows and does not start VPN',
     () async {
+      await db.manualServerGroupDao.insertRow(
+        ManualServerGroupCompanion.insert(name: 'Group'),
+      );
       final preview = await savedPreview();
       final original = await db.coreConfigDao.allRawRowsWithData;
+      final groups = await db.manualServerGroupDao.allRows;
       await db.customStatement(
         "CREATE TRIGGER reject_restore BEFORE INSERT ON core_config WHEN NEW.name = 'Restored' BEGIN SELECT RAISE(ABORT, 'fixture insert failure'); END;",
       );
       await expectLater(service.restore(preview), throwsA(anything));
       expect(await db.coreConfigDao.allRawRowsWithData, original);
+      expect(await db.manualServerGroupDao.allRows, groups);
       expect(stops, 1);
     },
   );
