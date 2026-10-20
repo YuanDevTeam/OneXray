@@ -22,6 +22,7 @@ import 'package:onexray/service/shared/xray/runtime_outbounds.dart';
 import 'package:onexray/service/shared/xray/fake_dns.dart';
 import 'package:onexray/service/shared/xray/fragment.dart';
 import 'package:onexray/service/shared/xray/remnawave.dart';
+import 'package:onexray/service/shared/xray/vpn_config.dart';
 import 'package:onexray/service/shared/xray/server_dialing.dart';
 
 /// A complete provider graph selected as one subscription asset.
@@ -193,7 +194,7 @@ class ConnectionCompiler {
     RuntimeOptions options,
   ) {
     final value = JsonTool.copyMap(source)..remove('name');
-    return _rawRuntimeMap(value, options);
+    return _rawRuntimeMap(VpnConfigAdapter.adapt(value), options);
   }
 
   static const dnsProxy = RoutingDns.proxyTag;
@@ -290,7 +291,7 @@ class ConnectionCompiler {
           'Raw configuration is required without normal nodes',
         );
       }
-      config = _rawRuntimeMap(raw, options);
+      config = _rawRuntimeMap(VpnConfigAdapter.adapt(raw), options);
     } else {
       final required = settings.requiredEntries(
         customEntryCount: custom?.entryCount,

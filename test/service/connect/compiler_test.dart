@@ -1003,8 +1003,8 @@ void main() {
       options: options(),
     );
     expect(plan.config['inbounds'].last, source['inbounds'].single);
-    expect(plan.config['outbounds'], source['outbounds']);
-    expect(plan.config['routing'], source['routing']);
+    expect(plan.config['outbounds'].first, source['outbounds'].single);
+    expect(plan.config['routing']['rules'].last, source['routing']['rules'].single);
     expect(plan.config['inbounds'].first['tag'], 'tunIn');
     expect(plan.config['metrics']['listen'], '127.0.0.1:18186');
     expect(jsonEncode(source), before);
@@ -1789,7 +1789,7 @@ void main() {
     expect(advanced.toJson()['inbounds'].single['sniffing'], sniffing);
   });
 
-  test('Raw keeps the default outbound and routing untouched', () {
+  test('Raw keeps the default outbound and supplements tunnel DNS routing', () {
     final plan = ConnectionCompiler.compile(
       settings: ConnectionSettings(expert: true),
       entries: [],
@@ -1803,7 +1803,11 @@ void main() {
     );
 
     expect(plan.config['outbounds'].first.containsKey('tag'), false);
-    expect(plan.config, isNot(contains('routing')));
+    expect(plan.config['routing']['rules'].single['inboundTag'], ['tunIn']);
+    expect(
+      plan.config['routing']['rules'].single['outboundTag'],
+      'app-vpn-dns',
+    );
   });
 
   test('Raw reserved tags/ports conflict clearly, rather than renaming user references', () {
