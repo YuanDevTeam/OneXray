@@ -3083,5 +3083,29 @@
         "type": "int"
       }
     }
+  },
+  "manualGroupsTitle": "Manual groups",
+  "manualGroupNew": "New group",
+  "manualGroupRename": "Rename group",
+  "manualGroupName": "Group name",
+  "manualGroupMove": "Move to group",
+  "manualGroupDissolve": "Dissolve group",
+  "manualGroupDelete": "Delete group and servers",
+  "manualGroupDissolveWarning": "Move {count} servers to Ungrouped and remove this group?",
+  "manualGroupDeleteWarning": "Delete this group and its {count} servers?",
+  "manualGroupEmpty": "Add a server or move one into this group.",
+  "@manualGroupDissolveWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@manualGroupDeleteWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

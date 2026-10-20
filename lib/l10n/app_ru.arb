@@ -914,5 +914,29 @@
         "type": "int"
       }
     }
+  },
+  "manualGroupsTitle": "Группы вручную",
+  "manualGroupNew": "Новая группа",
+  "manualGroupRename": "Переименовать группу",
+  "manualGroupName": "Название группы",
+  "manualGroupMove": "Переместить в группу",
+  "manualGroupDissolve": "Расформировать группу",
+  "manualGroupDelete": "Удалить группу и серверы",
+  "manualGroupDissolveWarning": "Переместить серверы ({count}) в «Без группы» и удалить группу?",
+  "manualGroupDeleteWarning": "Удалить группу и все её серверы ({count})?",
+  "manualGroupEmpty": "Добавьте сервер или переместите его в эту группу.",
+  "@manualGroupDissolveWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@manualGroupDeleteWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

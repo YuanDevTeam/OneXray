@@ -43,6 +43,7 @@ Future<void> _pumpMenu(
               final action = await showServerActionsMenu(
                 context,
                 name: 'Singapore 03',
+                canMove: true,
                 source: AppLocalizations.of(context)!.prototypeManualAdditions,
               );
               onResult?.call(action);
@@ -62,6 +63,7 @@ String _label(AppLocalizations l, ServerAction action) => switch (action) {
   ServerAction.test => l.prototypeTestAgain,
   ServerAction.copy => l.prototypeSaveAsLocalServer,
   ServerAction.share => l.prototypeShareServer,
+  ServerAction.move => l.manualGroupMove,
   ServerAction.delete => l.prototypeDelete,
 };
 

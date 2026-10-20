@@ -53,6 +53,11 @@ class _ServersPageState extends State<ServersPage> {
           appBar: PageAppBar(
             title: Text(l.prototypeServers),
             actions: [
+              IconButton(
+                tooltip: l.manualGroupNew,
+                onPressed: () => controller.createManualGroup(context),
+                icon: const Icon(LucideIcons.folderPlus),
+              ),
               if (!mobileRoot && !empty) ...[
                 OutlinedButton.icon(
                   onPressed: () => controller.openSources(context),

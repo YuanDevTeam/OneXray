@@ -263,8 +263,13 @@ class ServerBrowser extends StatelessWidget {
           ],
           if (controller.servers.any(ServerCatalog.isManual))
             _allManualRow(context),
-          _listHeading(context, l.prototypeBySubscription),
-          for (final group in groups)
+          if (groups.any((group) => group.manual))
+            _listHeading(context, l.manualGroupsTitle),
+          for (final group in groups.where((group) => group.manual))
+            _groupRow(context, group, active: group.id == activeGroup?.id),
+          if (groups.any((group) => !group.manual))
+            _listHeading(context, l.prototypeBySubscription),
+          for (final group in groups.where((group) => !group.manual))
             _groupRow(context, group, active: group.id == activeGroup?.id),
           if (groups.isEmpty && controller.search.text.isNotEmpty)
             Padding(
@@ -322,6 +327,15 @@ class ServerBrowser extends StatelessWidget {
         color: ColorManager.palette(context).mutedForeground,
       ),
     ),
+  );
+
+  Widget _manualMenu(BuildContext context, ServerGroup group) => IconButton(
+    tooltip:
+        '${AppLocalizations.of(context)!.prototypeMoreActions}: ${group.name}',
+    onPressed: controller.manualGroupBusy(group)
+        ? null
+        : () => controller.openManualGroupMenu(context, group),
+    icon: const Icon(LucideIcons.ellipsis, size: 18),
   );
 
   Widget _allManualRow(BuildContext context) {
@@ -553,6 +567,7 @@ class ServerBrowser extends StatelessWidget {
                   inline: true,
                 ),
               ),
+            if (group.manualGroupId != null) _manualMenu(context, group),
             if (group.source != null)
               SizedBox(
                 width: 42,
@@ -701,6 +716,22 @@ class ServerGroupView extends StatelessWidget {
                           ),
                         ],
                       )
+                    : group.manual && group.rows.isEmpty
+                    ? Column(
+                        children: [
+                          Text(
+                            l.manualGroupEmpty,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.rowValue,
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: () => controller.addServers(context),
+                            icon: const Icon(LucideIcons.plus, size: 16),
+                            label: Text(l.prototypeAddServer),
+                          ),
+                        ],
+                      )
                     : Text(
                         l.prototypeNoServersYet,
                         textAlign: TextAlign.center,
@@ -839,6 +870,18 @@ class ServerGroupView extends StatelessWidget {
           ),
         if (!controller.providerGroup(group) && group.selection != null)
           ServerUseButton(controller: controller, group: group),
+        if (group.manualGroupId != null)
+          IconButton(
+            tooltip: '${l.prototypeMoreActions}: ${group.name}',
+            onPressed: controller.manualGroupBusy(group)
+                ? null
+                : () => controller.openManualGroupMenu(
+                    context,
+                    group,
+                    closeAfterDeletion: groupPage,
+                  ),
+            icon: const Icon(LucideIcons.ellipsis, size: 18),
+          ),
         if (group.source != null)
           SizedBox(
             width: 36,
@@ -1285,6 +1328,7 @@ class ServerMenu extends StatelessWidget {
       name: controller.serverName(row),
       source: controller.sourceName(l, row),
       provider: controller.providerRow(row),
+      canMove: ServerCatalog.isManual(row),
     );
     if (context.mounted && action != null) {
       await controller.serverAction(context, row, action);

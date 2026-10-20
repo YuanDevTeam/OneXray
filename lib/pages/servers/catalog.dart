@@ -10,7 +10,7 @@ class ServerGroup {
   final SubscriptionData? source;
   final ServerSelection? selection;
   final int? manualGroupId;
-  bool get manual => source == null;
+  bool get manual => id.startsWith('manual:');
   final List<CoreConfigData> rows;
   final List<CoreConfigData> visibleRows;
   const ServerGroup({

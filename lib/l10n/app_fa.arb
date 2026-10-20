@@ -914,5 +914,29 @@
         "type": "int"
       }
     }
+  },
+  "manualGroupsTitle": "گروه‌های دستی",
+  "manualGroupNew": "گروه جدید",
+  "manualGroupRename": "تغییر نام گروه",
+  "manualGroupName": "نام گروه",
+  "manualGroupMove": "انتقال به گروه",
+  "manualGroupDissolve": "منحل کردن گروه",
+  "manualGroupDelete": "حذف گروه و سرورها",
+  "manualGroupDissolveWarning": "{count} سرور به «بدون گروه» منتقل و این گروه حذف شود؟",
+  "manualGroupDeleteWarning": "این گروه و {count} سرور آن حذف شوند؟",
+  "manualGroupEmpty": "یک سرور اضافه کنید یا به این گروه منتقل کنید.",
+  "@manualGroupDissolveWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@manualGroupDeleteWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

@@ -914,5 +914,29 @@
         "type": "int"
       }
     }
+  },
+  "manualGroupsTitle": "手動群組",
+  "manualGroupNew": "新增群組",
+  "manualGroupRename": "重新命名群組",
+  "manualGroupName": "群組名稱",
+  "manualGroupMove": "移動至群組",
+  "manualGroupDissolve": "解散群組",
+  "manualGroupDelete": "刪除群組及節點",
+  "manualGroupDissolveWarning": "將 {count} 個節點移至未分組並解散此群組？",
+  "manualGroupDeleteWarning": "刪除此群組及其中的 {count} 個節點？",
+  "manualGroupEmpty": "新增節點，或將節點移入此群組。",
+  "@manualGroupDissolveWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@manualGroupDeleteWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

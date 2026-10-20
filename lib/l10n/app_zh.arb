@@ -914,5 +914,29 @@
         "type": "int"
       }
     }
+  },
+  "manualGroupsTitle": "手动分组",
+  "manualGroupNew": "新建分组",
+  "manualGroupRename": "重命名分组",
+  "manualGroupName": "分组名称",
+  "manualGroupMove": "移动到分组",
+  "manualGroupDissolve": "解散分组",
+  "manualGroupDelete": "删除分组及节点",
+  "manualGroupDissolveWarning": "将 {count} 个节点移至未分组并解散此组？",
+  "manualGroupDeleteWarning": "删除此分组及其中的 {count} 个节点？",
+  "manualGroupEmpty": "添加节点，或将节点移入此组。",
+  "@manualGroupDissolveWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "@manualGroupDeleteWarning": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

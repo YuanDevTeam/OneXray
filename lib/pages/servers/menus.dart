@@ -11,9 +11,15 @@ Future<ServerAction?> showServerActionsMenu(
   required String name,
   required String source,
   bool provider = false,
+  bool canMove = false,
 }) => showAppDialog<ServerAction>(
   context,
-  (_) => ServerActionsMenu(name: name, source: source, provider: provider),
+  (_) => ServerActionsMenu(
+    name: name,
+    source: source,
+    provider: provider,
+    canMove: canMove,
+  ),
 );
 
 Future<SourceAction?> showSourceActionsMenu(
@@ -33,11 +39,13 @@ class ServerActionsMenu extends StatelessWidget {
     required this.name,
     required this.source,
     this.provider = false,
+    this.canMove = false,
   });
 
   final String name;
   final String source;
   final bool provider;
+  final bool canMove;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +75,13 @@ class ServerActionsMenu extends StatelessWidget {
             provider ? l.providerCopyAsRaw : l.prototypeSaveAsLocalServer,
             hint: provider ? l.providerCopyAsRawHint : l.prototypeLocalCopyHint,
           ),
+          if (canMove)
+            _menuRow(
+              context,
+              ServerAction.move,
+              LucideIcons.folderInput,
+              l.manualGroupMove,
+            ),
           _menuRow(
             context,
             ServerAction.share,
