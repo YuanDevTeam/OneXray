@@ -45,6 +45,42 @@ void main() {
     expect(catalog.servers.last.delay, 0);
   });
 
+  test('saved manual order keeps subscription slots and survives name and delay sorting', () {
+    final catalog = ServerCatalog(
+      servers: [
+        _outbound(
+          id: 1,
+          name: 'Zulu',
+          delay: 100,
+        ).copyWith(manualGroupId: const Value(3), manualSortOrder: 1),
+        _outbound(id: 2, subId: 7),
+        _outbound(
+          id: 3,
+          name: 'Alpha',
+          delay: 10,
+        ).copyWith(manualGroupId: const Value(3), manualSortOrder: 0),
+        _outbound(id: 4, subId: 7),
+        _outbound(id: 5, name: 'Default'),
+      ],
+      manualGroups: const [
+        ManualServerGroupData(id: 3, name: 'Cloud', sortOrder: 0),
+      ],
+    );
+    expect(catalog.servers.map((row) => row.id), [5, 2, 3, 4, 1]);
+    for (final order in [ServerSortOrder.name, ServerSortOrder.delay]) {
+      final sorted = catalog.copyWith(sortOrder: order);
+      expect(
+        sorted
+            .copyWith(sortOrder: ServerSortOrder.defaultOrder)
+            .servers
+            .map((row) => row.id),
+        [5, 2, 3, 4, 1],
+      );
+    }
+    final regrouped = catalog.copyWith(manualGroups: []);
+    expect(regrouped.servers.map((row) => row.id), [3, 2, 5, 4, 1]);
+  });
+
   test(
     'name order uses displayed names across types with stable same-name IDs',
     () {
@@ -269,13 +305,13 @@ CoreConfigData _provider({
   int subId = 7,
   int delay = PingDelayConstants.unknown,
 }) => CoreConfigData(
-  manualSortOrder: 0,
   id: id,
   name: name,
   type: 'Remnawave',
   tags: '',
   delay: delay,
   subId: subId,
+  manualSortOrder: 0,
   favorite: false,
   data: base64Encode(
     utf8.encode(
@@ -305,13 +341,13 @@ CoreConfigData _outbound({
   int subId = 0,
   int delay = PingDelayConstants.unknown,
 }) => CoreConfigData(
-  manualSortOrder: 0,
   id: id,
   name: databaseName ?? name,
   type: 'outbound',
   tags: '',
   delay: delay,
   subId: subId,
+  manualSortOrder: 0,
   favorite: false,
   data: base64Encode(
     utf8.encode(

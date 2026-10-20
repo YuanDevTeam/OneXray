@@ -8,14 +8,17 @@ class ServerGroup {
   final String id;
   final String name;
   final SubscriptionData? source;
-  final ServerSelection selection;
+  final ServerSelection? selection;
+  final int? manualGroupId;
+  bool get manual => source == null;
   final List<CoreConfigData> rows;
   final List<CoreConfigData> visibleRows;
   const ServerGroup({
     required this.id,
     required this.name,
     this.source,
-    required this.selection,
+    this.selection,
+    this.manualGroupId,
     required this.rows,
     required this.visibleRows,
   });
@@ -58,7 +61,13 @@ mixin ServerGroups on ServerLabels {
   List<CoreConfigData> get servers => catalog.servers;
   List<SubscriptionData> get sources => catalog.sources;
   String sourceName(AppLocalizations l, CoreConfigData row) =>
-      catalog.sourcesById[row.subId]?.name ?? l.prototypeManualAdditions;
+      ServerCatalog.isManual(row)
+      ? catalog.manualGroups
+                .where((group) => group.id == row.manualGroupId)
+                .firstOrNull
+                ?.name ??
+            l.manualGroupUngrouped
+      : catalog.sourcesById[row.subId]?.name ?? l.prototypeManualAdditions;
 
   int sourceCount(int id) => servers.where((row) => row.subId == id).length;
 
@@ -75,35 +84,70 @@ mixin ServerGroups on ServerLabels {
       servers.where((row) => row.favorite && matches(l, row)).toList();
 
   List<ServerGroup> groups(AppLocalizations l, {bool filter = true}) {
-    final buckets = <String, List<CoreConfigData>>{};
-    for (final row in servers) {
-      final key = '${row.subId}';
-      buckets.putIfAbsent(key, () => []).add(row);
-    }
+    final query = filter ? this.query.trim().toLowerCase() : '';
     final result = <ServerGroup>[];
-    for (final entry in buckets.entries) {
-      final source = catalog.sourcesById[int.parse(entry.key)];
-      final name = source?.name ?? l.prototypeManualAdditions;
-      final query = this.query.trim().toLowerCase();
-      final wholeGroup = !filter || name.toLowerCase().contains(query);
+    void add({
+      required String id,
+      required String name,
+      SubscriptionData? source,
+      ServerSelection? selection,
+      int? manualGroupId,
+      required List<CoreConfigData> rows,
+    }) {
+      final wholeGroup = query.isEmpty || name.toLowerCase().contains(query);
       final visible = wholeGroup
-          ? entry.value
-          : entry.value.where((row) => matches(l, row)).toList();
-      if (filter && query.isNotEmpty && visible.isEmpty && !wholeGroup) {
-        continue;
-      }
+          ? rows
+          : rows.where((row) => matches(l, row)).toList();
+      if (!wholeGroup && visible.isEmpty) return;
       result.add(
         ServerGroup(
-          id: 'subscription:${entry.key}',
+          id: id,
           name: name,
           source: source,
-          selection: ServerSelection.source(int.parse(entry.key)),
-          rows: entry.value,
+          selection: selection,
+          manualGroupId: manualGroupId,
+          rows: rows,
           visibleRows: visible,
         ),
       );
     }
-    result.sort((a, b) => a.selection.id!.compareTo(b.selection.id!));
+
+    final manual = servers.where(ServerCatalog.isManual).toList();
+    final knownIds = catalog.manualGroups.map((group) => group.id).toSet();
+    if (manual.isNotEmpty || catalog.manualGroups.isNotEmpty) {
+      add(
+        id: 'manual:ungrouped',
+        name: l.manualGroupUngrouped,
+        rows: manual
+            .where((row) => !knownIds.contains(row.manualGroupId))
+            .toList(),
+      );
+    }
+    for (final group in catalog.orderedManualGroups) {
+      add(
+        id: 'manual:${group.id}',
+        name: group.name,
+        manualGroupId: group.id,
+        rows: manual.where((row) => row.manualGroupId == group.id).toList(),
+      );
+    }
+    final sourceIds =
+        servers
+            .where((row) => !ServerCatalog.isManual(row))
+            .map((row) => row.subId)
+            .toSet()
+            .toList()
+          ..sort();
+    for (final sourceId in sourceIds) {
+      final source = catalog.sourcesById[sourceId];
+      add(
+        id: 'subscription:$sourceId',
+        name: source?.name ?? l.prototypeManualAdditions,
+        source: source,
+        selection: ServerSelection.source(sourceId),
+        rows: servers.where((row) => row.subId == sourceId).toList(),
+      );
+    }
     return result;
   }
 }

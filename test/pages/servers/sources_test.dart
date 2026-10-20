@@ -25,13 +25,13 @@ final _source = SubscriptionData(
 );
 
 CoreConfigData _server(int id, {int source = 0}) => CoreConfigData(
-  manualSortOrder: 0,
   id: id,
   name: 'Server $id',
   type: 'outbound',
   tags: '',
   delay: 20,
   subId: source,
+  manualSortOrder: 0,
   favorite: false,
 );
 

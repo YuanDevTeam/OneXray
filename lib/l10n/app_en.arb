@@ -3075,6 +3075,7 @@
       "name": {"type": "String"}
     }
   },
+  "manualGroupUngrouped": "Ungrouped",
   "manualGroupCount": "{count} manual groups",
   "@manualGroupCount": {
     "placeholders": {

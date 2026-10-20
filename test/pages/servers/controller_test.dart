@@ -87,7 +87,7 @@ void main() {
     expect(controller.groups(l).single.visibleRows, [one]);
     expect(controller.favorites(l), [one]);
     expect(controller.groups(l).single.rows, [one, two]);
-    expect(controller.groups(l).single.selection.id, 4);
+    expect(controller.groups(l).single.selection?.id, 4);
     expect(controller.configuration.encode(), before);
     expect(controller.protocol(one), 'VLESS | XHTTP | TLS');
   });
@@ -128,24 +128,50 @@ void main() {
       ];
 
       final groups = controller.groups(l);
-      expect(groups.map((group) => group.selection.id), [0, 2, 10]);
-      expect(groups.first.name, l.prototypeManualAdditions);
+      expect(groups.map((group) => group.selection?.id), [null, 2, 10]);
+      expect(groups.first.name, l.manualGroupUngrouped);
       expect(groups[1].rows, [olderFast, olderSlow]);
 
       controller.servers = [local, olderFast, olderSlow, newer];
-      expect(controller.groups(l).map((group) => group.selection.id), [
-        0,
+      expect(controller.groups(l).map((group) => group.selection?.id), [
+        null,
         2,
         10,
       ]);
       controller.search.text = 'source';
-      expect(controller.groups(l).map((group) => group.selection.id), [2, 10]);
+      expect(controller.groups(l).map((group) => group.selection?.id), [2, 10]);
       controller.search.clear();
 
       controller.servers = [newer, olderFast, olderSlow];
-      expect(controller.groups(l).map((group) => group.selection.id), [2, 10]);
+      expect(controller.groups(l).map((group) => group.selection?.id), [2, 10]);
       controller.servers = [];
       expect(controller.groups(l), isEmpty);
+    },
+  );
+
+  test(
+    'manual folders include empty groups and never carry connection selections',
+    () async {
+      final local = await server('Local');
+      controller.manualGroups = [
+        const ManualServerGroupData(id: 3, name: 'Cloud', sortOrder: 1),
+        const ManualServerGroupData(id: 8, name: 'Home', sortOrder: 0),
+      ];
+      controller.servers = [local.copyWith(manualGroupId: const Value(3))];
+      final groups = controller.groups(l);
+      expect(groups.map((group) => group.id), [
+        'manual:ungrouped',
+        'manual:8',
+        'manual:3',
+      ]);
+      expect(groups.every((group) => group.selection == null), isTrue);
+      expect(groups[1].rows, isEmpty);
+      expect(controller.canUse(groups.last), isFalse);
+      controller.search.text = 'Home';
+      expect(controller.groups(l).single.id, 'manual:8');
+      controller.servers = [];
+      controller.search.clear();
+      expect(controller.groups(l), hasLength(3));
     },
   );
 
@@ -236,21 +262,27 @@ void main() {
       ),
     );
     final group = controller.groups(l).single;
-    expect(controller.entryCount(group.selection), 2);
+    expect(controller.entryCount(const ServerSelection.source(0)), 2);
     expect(
-      controller.canUse(group),
+      controller.canUseSelection(const ServerSelection.source(0), group.rows),
       true,
     ); // Unmeasured candidates are eligible.
     expect(controller.canChoose(exit), false);
     controller.servers = [one, exit];
-    expect(controller.canUse(controller.groups(l).single), false);
+    expect(
+      controller.canUseSelection(
+        const ServerSelection.source(0),
+        controller.groups(l).single.rows,
+      ),
+      false,
+    );
     controller.configuration = ConnectionConfiguration(
       connection: ConnectionSettings(
         trafficMode: TrafficMode.allVpn,
         smart: SmartRoutingSettings(entryCount: 3),
       ),
     );
-    expect(controller.entryCount(group.selection), 1);
+    expect(controller.entryCount(const ServerSelection.source(0)), 1);
   });
 
   test('delay alone distinguishes untested, successful, failed and timed-out nodes', () async {
@@ -308,8 +340,11 @@ void main() {
     );
     controller.servers = [one, two.copyWith(delay: PingDelayConstants.error)];
     final group = controller.groups(l).single;
-    expect(controller.entryCount(group.selection), 2);
-    expect(controller.canUse(group), false);
+    expect(controller.entryCount(const ServerSelection.source(0)), 2);
+    expect(
+      controller.canUseSelection(const ServerSelection.source(0), group.rows),
+      false,
+    );
     expect(controller.health(l, one), l.prototypeNotTested);
     expect(
       controller.health(l, controller.servers.last),

@@ -18,13 +18,13 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 const _initialText = '{"tag":"Original","protocol":"freedom"}';
 const _original = CoreConfigData(
-  manualSortOrder: 0,
   id: 7,
   name: 'Original',
   type: 'outbound',
   tags: '',
   delay: 0,
   subId: 0,
+  manualSortOrder: 0,
   favorite: false,
 );
 

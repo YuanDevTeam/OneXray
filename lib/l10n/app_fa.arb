@@ -906,6 +906,7 @@
   "subscriptionRemnawaveFormatTitle": "Remnawave پاسخ JSON برنگرداند",
   "subscriptionConvertToOrdinaryMessage": "«{name}» به اشتراک معمولی با مدیریت گره‌ها توسط OneXray تبدیل شود؟",
   "subscriptionConvertToOrdinary": "تبدیل به اشتراک معمولی",
+  "manualGroupUngrouped": "بدون گروه",
   "manualGroupCount": "{count} گروه دستی",
   "@manualGroupCount": {
     "placeholders": {

@@ -165,6 +165,8 @@ class ServersController extends PageCubit<ServersPageState>
       emit(state.copyWith(catalog: catalog.copyWith(servers: rows)));
   set sources(List<SubscriptionData> rows) =>
       emit(state.copyWith(catalog: catalog.copyWith(sources: rows)));
+  set manualGroups(List<ManualServerGroupData> rows) =>
+      emit(state.copyWith(catalog: catalog.copyWith(manualGroups: rows)));
   ConnectionConfiguration get configuration => state.configuration;
   set configuration(ConnectionConfiguration value) =>
       emit(state.copyWith(configuration: value));
@@ -326,13 +328,21 @@ class ServersController extends PageCubit<ServersPageState>
   bool canTest(CoreConfigData row) => catalog.outboundEligible(row);
 
   bool canUse(ServerGroup group) {
-    if (providerGroup(group)) return false;
-    final count = entryCount(group.selection);
+    final selection = group.selection;
+    if (providerGroup(group) || selection == null) return false;
+    return canUseSelection(selection, group.rows);
+  }
+
+  bool canUseSelection(
+    ServerSelection selection,
+    Iterable<CoreConfigData> rows,
+  ) {
+    final count = entryCount(selection);
     final finalExit = configuration.connection.trafficMode == TrafficMode.smart
         ? configuration.connection.smart.finalExitId
         : null;
     return count > 0 &&
-        group.rows
+        rows
                 .where((row) => row.id != finalExit && catalog.selectable(row))
                 .take(count)
                 .length >=
@@ -456,7 +466,12 @@ class ServersController extends PageCubit<ServersPageState>
     final id = selection.kind == SelectionKind.source
         ? selection.id
         : first?.subId ?? connectionView.runtime?.profile?.sourceId;
-    return id == null ? null : 'subscription:$id';
+    if (id == 0 && first != null) {
+      return first.manualGroupId == null
+          ? 'manual:ungrouped'
+          : 'manual:${first.manualGroupId}';
+    }
+    return id == null || id == 0 ? null : 'subscription:$id';
   }
 
   bool canChoose(CoreConfigData row) =>
