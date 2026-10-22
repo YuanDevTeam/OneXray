@@ -332,6 +332,129 @@ void main() {
     }
   });
 
+  test('XDrive template keys and enums follow their exact storage owner', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
+      (JsonEditorKind.outbound, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"inbounds":[{"streamSettings":{BODY}}]}'),
+    ]) {
+      String source(String body) =>
+          wrapper.replaceFirst('BODY', '"xdriveSettings":{"template":{$body}}');
+      expect(labels(source('"|"'), kind), [
+        'flatten',
+        'concurrency',
+        'auth',
+        'put',
+        'get',
+        'delete',
+        'list',
+        'retry',
+      ]);
+      expect(labels(source('"auth":{"|"}'), kind), [
+        'type',
+        'header',
+        'username',
+        'password',
+        'tokenUrl',
+        'form',
+        'tokenPath',
+        'expiryPath',
+      ]);
+      expect(labels(source('"auth":{"type":"|"}'), kind), [
+        'none',
+        'static',
+        'oauth2',
+        'basic',
+      ]);
+      expect(labels(source('"retry":{"|"}'), kind), ['status', 'rateReason']);
+      for (final operation in ['put', 'get', 'delete', 'list']) {
+        expect(labels(source('"$operation":{"|"}'), kind), [
+          'method',
+          'url',
+          'headers',
+          'body',
+          'namesRegex',
+          'hrefPath',
+          'hrefMethod',
+        ]);
+        for (final field in ['method', 'hrefMethod']) {
+          expect(labels(source('"$operation":{"$field":"P|"}'), kind), [
+            'POST',
+            'PUT',
+            'PATCH',
+          ]);
+        }
+      }
+      expect(labels(source('"get":{"hrefPath":"reply.url","href|"}'), kind), [
+        'hrefMethod',
+      ]);
+    }
+  });
+
+  test(
+    'template hints avoid lookalike owners and leave free text unconstrained',
+    () {
+      String source(String body) =>
+          '{"streamSettings":{"xdriveSettings":{"template":{$body}}}}';
+      for (final body in [
+        '"href|"',
+        '"auth":{"href|"}',
+        '"retry":{"href|"}',
+        '"future":{"href|"}',
+        '"future":{"get":{"href|"}}',
+        '"get":{"headers":{"href|"}}',
+        '"auth":{"header":{"ty|"}}',
+        '"auth":{"form":{"ty|"}}',
+        '"auth":{"username":"|"}',
+        '"auth":{"password":"|"}',
+        '"auth":{"tokenPath":"|"}',
+        '"get":{"url":"|"}',
+        '"get":{"body":"|"}',
+        '"list":{"namesRegex":"|"}',
+        '"get":{"hrefPath":"|"}',
+        '"get":{"headers":{"method":"P|"}}',
+        '"auth":{"form":{"type":"o|"}}',
+        '"get":{"method":"CUSTOM|"}',
+      ]) {
+        expect(labels(source(body), JsonEditorKind.outbound), isEmpty);
+      }
+      for (final kind in [
+        JsonEditorKind.customRouting,
+        JsonEditorKind.advancedRouting,
+      ]) {
+        for (final body in [
+          '"con|"',
+          '"auth":{"type":"o|"}',
+          '"get":{"href|"}',
+          '"get":{"method":"G|"}',
+        ]) {
+          expect(labels('{"outbounds":[${source(body)}]}', kind), isEmpty);
+        }
+      }
+      for (final marked in [
+        '{"template":{"auth":{"type":"o|"}}}',
+        '{"future":{"streamSettings":{"xdriveSettings":{"template":{"get":{"href|"}}}}}}',
+        '{"streamSettings":{"future":{"xdriveSettings":{"template":{"get":{"href|"}}}}}}',
+        '{"streamSettings":{"masqueSettings":{"template":{"get":{"method":"G|"}}}}}',
+      ]) {
+        expect(labels(marked, JsonEditorKind.raw), isEmpty);
+        expect(labels(marked, JsonEditorKind.outbound), isEmpty);
+      }
+    },
+  );
+
+  test('template completion replaces only the selected key string', () {
+    const marked =
+        '{"streamSettings":{"xdriveSettings":{"template":{"get":{"hrefP|":"result.url","method":"CUSTOM","url":"https://example.test/{name}","headers":{"Authorization":"{secret0}"},"future":{"keep":true}},"auth":{"type":"static","header":{"X-Token":"{secret0}"}}}}}}';
+    final completion = completions(marked, JsonEditorKind.outbound).single;
+    final edited = marked
+        .replaceFirst('|', '')
+        .replaceRange(completion.start, completion.end, completion.insertText);
+    expect(edited, marked.replaceFirst('hrefP|', 'hrefPath'));
+    expect(JsonDocument(edited).syntaxError, isNull);
+  });
+
   test('XDrive service completion preserves surrounding user JSON', () {
     const marked =
         '{"streamSettings":{"xdriveSettings":{"service":"goo|","secrets":["user-value"],"future":{"a":1}}}}';

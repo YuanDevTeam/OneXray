@@ -7,6 +7,7 @@ import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/service/servers/import.dart';
 
 import '../../../support/fake_geodata_import.dart';
+import '../../../support/xdrive_template_fixture.dart';
 
 import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
@@ -241,6 +242,40 @@ void main() {
     expect(read.name, 'Metadata');
     expect(read.assets.single.fileName, 'rules.dat');
   });
+
+  test(
+    'Raw template JSON and source links preserve nested and unknown fields',
+    () async {
+      final source = jsonEncode({
+        'name': 'Template',
+        'outbounds': [xdriveTemplateOutbound()],
+        'futureRoot': {'keep': true},
+      });
+      final service = ConfigurationTransferService(
+        lookup: (_) async => null,
+        prepare: (_) async => throw StateError('No dependencies'),
+      );
+      final exported = await service.exportJson(
+        kind: ConfigurationKind.raw,
+        name: 'Template',
+        text: source,
+      );
+      final link = await service.shareLinks(
+        kind: ConfigurationKind.raw,
+        name: 'Template',
+        text: source,
+      );
+      expect(exported, source);
+      for (final input in [exported, link]) {
+        final imported = ConfigurationTransferService.read(
+          input,
+          ConfigurationKind.raw,
+        );
+        expect(imported.text, source);
+        expect(jsonDecode(imported.text), jsonDecode(source));
+      }
+    },
+  );
 
   test(
     'Custom share uses type=custom with assets but never selected servers',

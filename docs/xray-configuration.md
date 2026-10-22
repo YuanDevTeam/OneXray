@@ -377,6 +377,9 @@ libXray 原始原因完整可复制，不猜字段，不把投影行号当原文
 提示按字段所在模块区分 DNS 查询、路由匹配与拨号策略，支持 Core 的地址族优先次序、Force 策略和 Happy Eyeballs 对象；
 DNS 查询不提示拨号的地址族顺序，保留 UseSystem。XDNS、MASQUE WARP、TLS 和 DNS/嗅探仍按原生结构提示。
 高级模板只提示其可保存的策略/探测字段，不提示运行 selector/fallback/subjectSelector；Raw 保留完整模块提示。
+MASQUE/XDrive 的 XMUX 与出站 mux 分开提示；XDNS resolver 的 TLS/QUIC 与普通 TLS/ECH 复用对应模块提示，限定各自归属。
+XDrive template 提示限定在节点/Raw 的原生传输对象，覆盖认证、操作和重试；`hrefPath/hrefMethod` 只提示在操作对象。
+HTTP 方法仅给常用候选，headers/form、URL、JSON 路径、模板变量和未知字段保持自由编辑，保存及分享不投影嵌套 Map。
 Lua 不属于 JSON 编辑提示、普通模型或资源管理范围。
 
 ## 运行协调与统计

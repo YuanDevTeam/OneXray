@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/service/servers/outbound/map.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 
+import '../../../support/xdrive_template_fixture.dart';
+
 void main() {
   test('single outbound wrapper round-trips without shared references', () {
     final source = <String, dynamic>{
@@ -25,6 +27,20 @@ void main() {
     expect((decoded['settings'] as Map<String, dynamic>)['editorOnly'], {
       'enabled': true,
     });
+  });
+
+  test('XDrive template and unknown nested fields survive node storage', () {
+    final source = xdriveTemplateOutbound();
+    final saved = _savedOutbound(outboundCompanion(source).data.value!);
+    expect(saved, source);
+    expect(decodeSingleOutbound(encodeSingleOutbound(saved)), source);
+    (saved['streamSettings']['xdriveSettings']['template']['get']
+            as Map<String, dynamic>)['hrefPath'] =
+        'changed';
+    expect(
+      source['streamSettings']['xdriveSettings']['template']['get']['hrefPath'],
+      'result.url',
+    );
   });
 
   test('single outbound wrapper rejects invalid shapes', () {

@@ -13,6 +13,8 @@ import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/remnawave.dart';
 
+import '../../support/xdrive_template_fixture.dart';
+
 final catalog = RegionCatalog.fromJson(
   {
     'geosite': {
@@ -1693,6 +1695,43 @@ void main() {
     expect(raw['geodata'], jsonDecode(source)['geodata']);
     expect(plan.nodeTags, isEmpty);
     _fixture('raw', plan);
+  });
+
+  test('Raw and provider runtime copies preserve XDrive template maps', () {
+    final source = <String, dynamic>{
+      'outbounds': [xdriveTemplateOutbound()],
+      'futureRoot': {'keep': true},
+    };
+    final before = jsonEncode(source);
+    for (final provider in [false, true]) {
+      final compiled = ConnectionCompiler.compile(
+        settings: ConnectionSettings(
+          expert: !provider,
+          selection: const ServerSelection.server(99),
+        ),
+        entries: const [],
+        raw: provider ? null : source,
+        profile: provider
+            ? ResolvedProfile(
+                id: 99,
+                sourceId: 7,
+                name: 'Template',
+                config: source,
+              )
+            : null,
+        regions: catalog,
+        options: options(),
+      ).config;
+      expect(
+        compiled['outbounds'].first['streamSettings']['xdriveSettings'],
+        source['outbounds'][0]['streamSettings']['xdriveSettings'],
+      );
+      expect(compiled['outbounds'].first['mux'], {
+        'enabled': true,
+        'concurrency': 8,
+      });
+      expect(jsonEncode(source), before);
+    }
   });
 
   test('Raw semantic comparison includes fields unknown to the App', () {

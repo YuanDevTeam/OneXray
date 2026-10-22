@@ -18,6 +18,7 @@ import 'package:onexray/service/shared/share/configuration_source.dart';
 import 'package:onexray/service/shared/xray/vpn_config.dart';
 
 import '../../../support/fake_geodata_import.dart';
+import '../../../support/xdrive_template_fixture.dart';
 
 import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/connect/raw/db.dart';
@@ -30,6 +31,44 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
+  });
+
+  test('Raw template fields survive save, reopen and a second save', () async {
+    final text = jsonEncode({
+      'name': 'Template',
+      'outbounds': [xdriveTemplateOutbound()],
+      'futureRoot': {'keep': true},
+    });
+    final coordinator = await _initialize(
+      ConnectionCoordinator(
+        database: db,
+        inspect: (_, {observedStatus}) async =>
+            const HostConnection(VpnStatus.disconnected),
+        start: (_) async => throw StateError('Unexpected start'),
+      ),
+    );
+    final validated = <String>[];
+    final service = RawEditorService(
+      database: db,
+      coordinator: coordinator,
+      validate: (text) async => validated.add(text),
+    );
+    final id = await service.save(
+      RawEditorDraft(name: 'Template', text: text),
+      confirmReconnect: () async => throw StateError('Unexpected confirmation'),
+    );
+    final reopened = await service.load(id);
+    expect(reopened.text, text);
+    expect(
+      await service.save(
+        reopened,
+        confirmReconnect: () async =>
+            throw StateError('Unexpected confirmation'),
+      ),
+      id,
+    );
+    expect((await service.load(id)).text, text);
+    expect(validated, [text, text]);
   });
 
   test('renaming validates syntax against the source before formatting', () {

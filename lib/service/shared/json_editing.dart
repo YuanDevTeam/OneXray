@@ -353,6 +353,44 @@ class JsonEditing {
           'xmux',
         ];
       }
+      if (_xdriveTemplatePath(path, kind)) {
+        return const [
+          'flatten',
+          'concurrency',
+          'auth',
+          'put',
+          'get',
+          'delete',
+          'list',
+          'retry',
+        ];
+      }
+      if (_xdriveTemplatePath(path.sublist(0, path.length - 1), kind)) {
+        if (tail == 'auth') {
+          return const [
+            'type',
+            'header',
+            'username',
+            'password',
+            'tokenUrl',
+            'form',
+            'tokenPath',
+            'expiryPath',
+          ];
+        }
+        if (tail == 'retry') return const ['status', 'rateReason'];
+      }
+      if (_xdriveTemplateOperationPath(path, kind)) {
+        return const [
+          'method',
+          'url',
+          'headers',
+          'body',
+          'namesRegex',
+          'hrefPath',
+          'hrefMethod',
+        ];
+      }
       if (tail == 'xmux' &&
           (_streamSettingsChildPath(
                 path.sublist(0, path.length - 1),
@@ -691,6 +729,23 @@ class JsonEditing {
           _streamSettingsChildPath(parent, kind, 'xdriveSettings')) {
         return const ['local', 'google-drive', 'template'];
       }
+      if (field == 'type' &&
+          parent.lastOrNull == 'auth' &&
+          _xdriveTemplatePath(parent.sublist(0, parent.length - 1), kind)) {
+        return const ['none', 'static', 'oauth2', 'basic'];
+      }
+      if ((field == 'method' || field == 'hrefMethod') &&
+          _xdriveTemplateOperationPath(parent, kind)) {
+        return const [
+          'GET',
+          'POST',
+          'PUT',
+          'PATCH',
+          'DELETE',
+          'HEAD',
+          'OPTIONS',
+        ];
+      }
       if (field == 'alpn' && _tlsSettingsPath(parent, kind, shape)) {
         return const ['h2', 'http/1.1', 'h3'];
       }
@@ -891,6 +946,19 @@ bool _streamSettingsChildPath(
 ) =>
     path.lastOrNull == field &&
     _streamSettingsPath(path.sublist(0, path.length - 1), kind);
+bool _xdriveTemplatePath(List<Object> path, JsonEditorKind kind) =>
+    (kind == JsonEditorKind.outbound || kind == JsonEditorKind.raw) &&
+    path.lastOrNull == 'template' &&
+    _streamSettingsChildPath(
+      path.sublist(0, path.length - 1),
+      kind,
+      'xdriveSettings',
+    );
+
+bool _xdriveTemplateOperationPath(List<Object> path, JsonEditorKind kind) =>
+    const ['put', 'get', 'delete', 'list'].contains(path.lastOrNull) &&
+    _xdriveTemplatePath(path.sublist(0, path.length - 1), kind);
+
 bool _managedProxyBalancer(List<Object> path, _Shape shape) {
   final tag = shape.value([...path, 'tag']);
   return tag == null || tag == 'proxy';
