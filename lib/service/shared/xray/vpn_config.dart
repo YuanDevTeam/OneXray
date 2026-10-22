@@ -29,6 +29,10 @@ abstract final class VpnConfigAdapter {
     final routing = config['routing'] as Map<String, dynamic>? ?? {};
     if (routing['rules'] != null && routing['rules'] is! List) return config;
     final rules = routing['rules'] as List? ?? <dynamic>[];
+    if (_needsDefaultDns(config)) {
+      _checkDefaultDnsInbound(inbounds);
+      _checkDnsDirect(outbounds);
+    }
     if (!inbounds.whereType<Map>().any((value) => value['tag'] == tunnelTag)) {
       inbounds.insert(
         0,
@@ -94,22 +98,12 @@ abstract final class VpnConfigAdapter {
     String? ipv6Address,
   }) {
     final config = JsonTool.copyMap(source);
-    final existing = config['dns'];
-    if (existing != null && existing is! Map<String, dynamic>) return config;
-    final dns = existing as Map<String, dynamic>? ?? <String, dynamic>{};
-    final servers = dns['servers'];
-    // Malformed values remain Core errors, not an invitation to replace them.
-    if (servers != null && (servers is! List || servers.isNotEmpty)) {
-      return config;
-    }
+    if (!_needsDefaultDns(config)) return config;
+    final dns = config['dns'] as Map<String, dynamic>? ?? <String, dynamic>{};
 
     final outbounds = config['outbounds'] as List? ?? <dynamic>[];
     final inbounds = config['inbounds'] as List? ?? <dynamic>[];
-    if (inbounds.whereType<Map>().any(
-      (inbound) => inbound['tag'] == defaultDnsTag,
-    )) {
-      throw const FormatException('Default VPN DNS tags are App-managed');
-    }
+    _checkDefaultDnsInbound(inbounds);
     dns['servers'] = [
       for (final address in [ipv4Address, ?ipv6Address])
         {'address': address, 'tag': defaultDnsTag},
@@ -128,7 +122,24 @@ abstract final class VpnConfigAdapter {
     return config;
   }
 
-  static void _ensureDnsDirect(List<dynamic> outbounds) {
+  static bool _needsDefaultDns(Map<String, dynamic> config) {
+    final dns = config['dns'];
+    // Malformed values remain Core errors, not an invitation to replace them.
+    if (dns != null && dns is! Map<String, dynamic>) return false;
+    final servers = (dns as Map<String, dynamic>?)?['servers'];
+    return servers == null || (servers is List && servers.isEmpty);
+  }
+
+  static void _checkDefaultDnsInbound(List<dynamic> inbounds) {
+    if (inbounds.whereType<Map>().any(
+      (inbound) => inbound['tag'] == defaultDnsTag,
+    )) {
+      throw const FormatException('Default VPN DNS tags are App-managed');
+    }
+  }
+
+  /// Checks an existing reserved outbound without adding runtime DNS resources.
+  static bool _checkDnsDirect(List<dynamic> outbounds) {
     for (final outbound in outbounds.whereType<Map>()) {
       if (outbound['tag'] != defaultDnsDirectTag) continue;
       if (outbound['protocol'] != 'freedom' || outbound.length != 2) {
@@ -136,8 +147,14 @@ abstract final class VpnConfigAdapter {
           'The VPN DNS direct outbound is App-managed',
         );
       }
-      return;
+      return true;
     }
-    outbounds.add(createFreedomOutbound(tag: defaultDnsDirectTag).toJson());
+    return false;
+  }
+
+  static void _ensureDnsDirect(List<dynamic> outbounds) {
+    if (!_checkDnsDirect(outbounds)) {
+      outbounds.add(createFreedomOutbound(tag: defaultDnsDirectTag).toJson());
+    }
   }
 }

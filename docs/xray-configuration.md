@@ -227,6 +227,7 @@ Raw 新建 DNS 出站使用 `app-vpn-dns`，提供方沿用 `app-remna-dns`；�
 
 保存校验和复制/分享复用可移植适配，不写入本机 DNS、TUN FD、运行端口、资源路径或网卡。
 运行注入只改副本；`app-vpn-dns-direct` 与 `app-vpn-default-dns` 为 App 补充 DNS 使用的保留 tag。
+需要补缺省 DNS 时，保存与导入同步检查这两个 tag 的冲突，不在校验副本中注入本机或占位 DNS。
 系统 DNS、Core DNS 与 Go resolver 属于不同层次，补齐 Core DNS 不表示接管应用自带 DoH/DoT。
 
 ## 提供方完整配置

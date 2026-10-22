@@ -27,6 +27,32 @@ const source = '''
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'saving rejects a default DNS tag collision before Core validation',
+    () async {
+      var nativeCalls = 0;
+      await expectLater(
+        XrayRawValidator.validate(
+          jsonEncode({
+            'name': 'Reserved DNS tag',
+            'inbounds': [
+              {'tag': 'app-vpn-default-dns', 'protocol': 'socks', 'port': 1081},
+            ],
+            'outbounds': [
+              {'protocol': 'freedom'},
+            ],
+          }),
+          testXray: (_) async {
+            nativeCalls++;
+            return '';
+          },
+        ),
+        throwsFormatException,
+      );
+      expect(nativeCalls, 0);
+    },
+  );
+
   test('syntax diagnostics retain the original UTF-16 source offset', () {
     const text = '{\r\n "name": "😀",\r\n "outbounds": [#]\r\n}';
     expect(
