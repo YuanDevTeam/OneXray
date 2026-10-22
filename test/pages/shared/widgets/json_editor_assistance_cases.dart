@@ -227,6 +227,32 @@ void jsonEditorAssistanceTests(TargetPlatform platform) {
     expect(tester.takeException(), isNull);
   }, variant: variant);
 
+  editorTest('nested TLS completion inserts a key and supports undo', (
+    tester,
+  ) async {
+    const original =
+        '{"streamSettings":{"finalmask":{"udp":[{"type":"xdns","settings":{"resolvers":[{"tlsConfig":{"echS":{}}}]}}]}}}';
+    controller.text = original;
+    await pumpEditor(tester, kind: JsonEditorKind.outbound);
+    controller.selection = CodeLineSelection.collapsed(
+      index: 0,
+      offset: original.indexOf('echS') + 4,
+    );
+    tester
+        .widget<CodeEditor>(find.byType(CodeEditor))
+        .focusNode!
+        .requestFocus();
+    await tester.pumpAndSettle();
+    expect(find.text('echSockopt'), findsOneWidget);
+    await tester.tap(find.text('echSockopt'));
+    await tester.pumpAndSettle();
+    expect(controller.text, original.replaceFirst('echS', 'echSockopt'));
+    controller.undo();
+    await tester.pumpAndSettle();
+    expect(controller.text, original);
+    expect(tester.takeException(), isNull);
+  }, variant: variant);
+
   editorTest('long diagnostics scroll within the editor bounds', (
     tester,
   ) async {

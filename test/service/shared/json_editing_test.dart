@@ -437,6 +437,129 @@ void main() {
     );
   });
 
+  test('XDNS resolves nested TLS ECH and QUIC completion contexts', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
+      (JsonEditorKind.outbound, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"inbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+    ]) {
+      String resolver(
+        String body, {
+        String type = 'XDNS',
+        String net = 'udp',
+      }) => wrapper.replaceFirst(
+        'BODY',
+        '"finalmask":{"$net":[{"type":"$type","settings":{"resolvers":[{$body}]}}]}',
+      );
+      expect(labels(resolver('"|"'), kind), [
+        'addrs',
+        'worker',
+        'tlsConfig',
+        'quicConfig',
+      ]);
+      expect(labels(resolver('"tlsConfig":{"ech|"}'), kind), [
+        'echConfigList',
+        'echSockopt',
+      ]);
+      expect(labels(resolver('"tlsConfig":{"alpn":["h|"]}'), kind), [
+        'h2',
+        'http/1.1',
+        'h3',
+      ]);
+      expect(labels(resolver('"tlsConfig":{"echSockopt":{"hap|"}}'), kind), [
+        'happyEyeballs',
+      ]);
+      expect(
+        labels(
+          resolver('"tlsConfig":{"echSockopt":{"domainStrategy":"ForceI|"}}'),
+          kind,
+        ),
+        containsAll(['ForceIP', 'ForceIPv4', 'ForceIPv6']),
+      );
+      expect(
+        labels(
+          resolver('"tlsConfig":{"echSockopt":{"happyEyeballs":{"try|"}}}'),
+          kind,
+        ),
+        ['tryDelayMs'],
+      );
+      expect(labels(resolver('"quicConfig":{"disable|"}'), kind), [
+        'disablePathMTUDiscovery',
+        'disableChromeParrot',
+        'disableGSO',
+        'disableStatelessReset',
+      ]);
+      expect(labels(resolver('"quicConfig":{"congestion":"b|"}'), kind), [
+        'bbr',
+        'brutal',
+      ]);
+      expect(labels(resolver('"quicConfig":{"bbrProfile":"a|"}'), kind), [
+        'aggressive',
+      ]);
+      expect(labels(resolver('"quicConfig":{"maxIncoming|"}'), kind), [
+        'maxIncomingStreams',
+      ]);
+      expect(
+        labels(resolver('"tlsConfig":{"|"}', type: 'noise'), kind),
+        isEmpty,
+      );
+      expect(labels(resolver('"wo|"', net: 'tcp'), kind), isEmpty);
+    }
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(
+        labels(
+          '{"outbounds":[{"streamSettings":{"finalmask":{"quicParams":{"con|"}}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+    }
+    for (final marked in [
+      '{"future":{"tlsConfig":{"ech|"}}}',
+      '{"future":{"streamSettings":{"finalmask":{"quicParams":{"con|"}}}}}',
+      '{"streamSettings":{"future":{"resolvers":[{"wo|"}]}}}',
+      '{"streamSettings":{"tlsSettings":{"future":{"echSockopt":{"hap|"}}}}}',
+      '{"future":{"realitySettings":{"mld|"}}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.outbound), isEmpty);
+    }
+  });
+
+  test('stream TLS and QUIC reuse nested field and value suggestions', () {
+    expect(
+      labels(
+        '{"streamSettings":{"tlsSettings":{"echSockopt":{"hap|"}}}}',
+        JsonEditorKind.outbound,
+      ),
+      ['happyEyeballs'],
+    );
+    expect(
+      labels(
+        '{"streamSettings":{"realitySettings":{"mld|"}}}',
+        JsonEditorKind.outbound,
+      ),
+      ['mldsa65Verify'],
+    );
+    expect(
+      labels(
+        '{"streamSettings":{"finalmask":{"quicParams":{"congestion":"r|"}}}}',
+        JsonEditorKind.outbound,
+      ),
+      ['reno'],
+    );
+    expect(
+      labels(
+        '{"streamSettings":{"finalmask":{"quicParams":{"disableG|"}}}}',
+        JsonEditorKind.outbound,
+      ),
+      ['disableGSO'],
+    );
+  });
+
   test('TLS and MASQUE WARP keys follow the stream owner and editor mode', () {
     for (final kind in [JsonEditorKind.outbound, JsonEditorKind.raw]) {
       String source(String stream) => kind == JsonEditorKind.outbound

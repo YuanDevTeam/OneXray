@@ -366,14 +366,14 @@ class JsonEditing {
               ))) {
         return _xmuxFields;
       }
-      if (_endsWith(path, ['streamSettings', 'finalmask'])) {
+      if (_streamSettingsChildPath(path, kind, 'finalmask')) {
         return const ['tcp', 'udp', 'quicParams'];
       }
       if (_endsWith(path, ['streamSettings', 'finalmask', 'udp', '*']) ||
           _endsWith(path, ['streamSettings', 'finalmask', 'tcp', '*'])) {
         return const ['type', 'settings'];
       }
-      final maskType = _udpMaskType(path, shape);
+      final maskType = _udpMaskType(path, shape, kind);
       if (maskType != null) {
         return switch (maskType) {
           'xdns' => const ['domains', 'resolvers', 'extraPoll'],
@@ -383,27 +383,31 @@ class JsonEditing {
         };
       }
       if (_endsWith(path, ['domains', '*']) &&
-          _udpMaskType(path.sublist(0, path.length - 2), shape) == 'xdns') {
+          _udpMaskType(path.sublist(0, path.length - 2), shape, kind) ==
+              'xdns') {
         return const ['names', 'lenLimit', 'labelLimit', 'types', 'edns0'];
       }
-      if (_endsWith(path, ['resolvers', '*']) &&
-          _udpMaskType(path.sublist(0, path.length - 2), shape) == 'xdns') {
-        return const ['addrs'];
+      if (_xdnsResolverPath(path, kind, shape)) {
+        return const ['addrs', 'worker', 'tlsConfig', 'quicConfig'];
+      }
+      if (_quicSettingsPath(path, kind, shape)) {
+        return _quicFields;
       }
       if (_endsWith(path, ['noise', '*']) &&
-          _udpMaskType(path.sublist(0, path.length - 2), shape) == 'noise') {
+          _udpMaskType(path.sublist(0, path.length - 2), shape, kind) ==
+              'noise') {
         return const ['rand', 'randRange', 'type', 'packet', 'delay'];
       }
       if (tail == 'sockopt' &&
-          _udpMaskType(path.sublist(0, path.length - 1), shape) == 'udphop') {
+          _udpMaskType(path.sublist(0, path.length - 1), shape, kind) ==
+              'udphop') {
         return const [];
       }
     }
     if (tail == 'happyEyeballs' &&
         !custom &&
         !advanced &&
-        _endsWith(path, ['sockopt', 'happyEyeballs']) &&
-        _streamSettingsPath(path.sublist(0, path.length - 2), kind)) {
+        _socketSettingsPath(path.sublist(0, path.length - 1), kind, shape)) {
       return const [
         'prioritizeIPv6',
         'tryDelayMs',
@@ -411,8 +415,7 @@ class JsonEditing {
         'maxConcurrentTry',
       ];
     }
-    if (tail == 'sockopt' &&
-        _streamSettingsPath(path.sublist(0, path.length - 1), kind)) {
+    if (_socketSettingsPath(path, kind, shape)) {
       return advanced
           ? const ['dialerProxy']
           : const [
@@ -426,10 +429,7 @@ class JsonEditing {
               'interface',
             ];
     }
-    if (tail == 'tlsSettings' &&
-        !custom &&
-        !advanced &&
-        _streamSettingsPath(path.sublist(0, path.length - 1), kind)) {
+    if (!custom && !advanced && _tlsSettingsPath(path, kind, shape)) {
       return const [
         'serverName',
         'alpn',
@@ -438,9 +438,11 @@ class JsonEditing {
         'useSystemCA',
         'pinnedPeerCertSha256',
         'verifyPeerCertByName',
+        'echConfigList',
+        'echSockopt',
       ];
     }
-    if (tail == 'realitySettings') {
+    if (_streamSettingsChildPath(path, kind, 'realitySettings')) {
       return const [
         'serverName',
         'fingerprint',
@@ -448,6 +450,7 @@ class JsonEditing {
         'publicKey',
         'shortId',
         'spiderX',
+        'mldsa65Verify',
       ];
     }
     if (tail == 'wsSettings' || tail == 'httpupgradeSettings') {
@@ -688,12 +691,23 @@ class JsonEditing {
           _streamSettingsChildPath(parent, kind, 'xdriveSettings')) {
         return const ['local', 'google-drive', 'template'];
       }
+      if (field == 'alpn' && _tlsSettingsPath(parent, kind, shape)) {
+        return const ['h2', 'http/1.1', 'h3'];
+      }
+      if (_quicSettingsPath(parent, kind, shape)) {
+        if (field == 'congestion') {
+          return const ['reno', 'bbr', 'brutal', 'force-brutal'];
+        }
+        if (field == 'bbrProfile') {
+          return const ['conservative', 'standard', 'aggressive'];
+        }
+      }
       if (field == 'type') {
         if (_endsWith(parent, ['streamSettings', 'finalmask', 'udp', '*'])) {
           return const ['noise', 'xdns', 'udphop'];
         }
         if (_endsWith(parent, ['noise', '*']) &&
-            _udpMaskType(parent.sublist(0, parent.length - 2), shape) ==
+            _udpMaskType(parent.sublist(0, parent.length - 2), shape, kind) ==
                 'noise') {
           return const ['array', 'str', 'hex', 'base64', 'exp'];
         }
@@ -731,9 +745,7 @@ class JsonEditing {
               'freedom') {
         return _dialingStrategies;
       }
-      return !managed &&
-              parent.lastOrNull == 'sockopt' &&
-              _streamSettingsPath(parent.sublist(0, parent.length - 1), kind)
+      return !managed && _socketSettingsPath(parent, kind, shape)
           ? _dialingStrategies
           : const [];
     }
@@ -792,6 +804,26 @@ class JsonEditing {
     }
     return const [];
   }
+
+  static const _quicFields = [
+    'congestion',
+    'debug',
+    'bbrProfile',
+    'brutalUp',
+    'brutalDown',
+    'brutalDisableLossCompensation',
+    'initStreamReceiveWindow',
+    'maxStreamReceiveWindow',
+    'initConnectionReceiveWindow',
+    'maxConnectionReceiveWindow',
+    'maxIdleTimeout',
+    'keepAlivePeriod',
+    'disablePathMTUDiscovery',
+    'disableChromeParrot',
+    'disableGSO',
+    'maxIncomingStreams',
+    'disableStatelessReset',
+  ];
 
   static const _xmuxFields = [
     'maxConcurrency',
@@ -868,19 +900,56 @@ bool _isDnsRule(List<Object> path, _Shape shape) =>
     _endsWith(path, ['settings', 'rules', '*']) &&
     shape.value([...path.sublist(0, path.length - 3), 'protocol']) == 'dns';
 
-String? _udpMaskType(List<Object> settingsPath, _Shape shape) =>
+String? _udpMaskType(
+  List<Object> settingsPath,
+  _Shape shape,
+  JsonEditorKind kind,
+) =>
     _endsWith(settingsPath, [
-      'streamSettings',
-      'finalmask',
-      'udp',
-      '*',
-      'settings',
-    ])
+          'streamSettings',
+          'finalmask',
+          'udp',
+          '*',
+          'settings',
+        ]) &&
+        _streamSettingsChildPath(
+          settingsPath.sublist(0, settingsPath.length - 3),
+          kind,
+          'finalmask',
+        )
     ? shape.value([
         ...settingsPath.sublist(0, settingsPath.length - 1),
         'type',
       ])?.toLowerCase()
     : null;
+
+bool _xdnsResolverPath(List<Object> path, JsonEditorKind kind, _Shape shape) =>
+    _endsWith(path, ['resolvers', '*']) &&
+    _udpMaskType(path.sublist(0, path.length - 2), shape, kind) == 'xdns';
+
+bool _tlsSettingsPath(List<Object> path, JsonEditorKind kind, _Shape shape) =>
+    _streamSettingsChildPath(path, kind, 'tlsSettings') ||
+    path.lastOrNull == 'tlsConfig' &&
+        _xdnsResolverPath(path.sublist(0, path.length - 1), kind, shape);
+
+bool _socketSettingsPath(
+  List<Object> path,
+  JsonEditorKind kind,
+  _Shape shape,
+) =>
+    _streamSettingsChildPath(path, kind, 'sockopt') ||
+    path.lastOrNull == 'echSockopt' &&
+        _tlsSettingsPath(path.sublist(0, path.length - 1), kind, shape);
+
+bool _quicSettingsPath(List<Object> path, JsonEditorKind kind, _Shape shape) =>
+    path.lastOrNull == 'quicConfig' &&
+        _xdnsResolverPath(path.sublist(0, path.length - 1), kind, shape) ||
+    path.lastOrNull == 'quicParams' &&
+        _streamSettingsChildPath(
+          path.sublist(0, path.length - 1),
+          kind,
+          'finalmask',
+        );
 
 String? _geodataType(List<Object> path, _Shape shape) {
   if (path.isEmpty) return null;
