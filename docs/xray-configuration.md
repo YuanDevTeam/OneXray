@@ -108,10 +108,11 @@ Core 在发送 UDP 前使用 WireGuard 自身的 socket 策略本地解析 peer�
 开启后添加 `app-dns-fake`，直连域名仍使用真实直连 DNS，其余经 dnsOut 的 A/AAAA 可返回虚拟地址。
 代理域名块按 FakeDNS、真实代理 resolver 排列，只在最后一个真实 resolver 截断，
 `IPIfNonMatch` 的真实解析跳过 FakeDNS 后仍有真实 resolver。连接仍按完整规则，不保证拦截应用自带 DoH/DoT。
-普通池为 `198.19.0.0/16`、`fc00:1::/64`，各 32768，始终成对生成，IPv6 返回由 DNS 查询策略决定。
+普通池为 `198.19.0.0/16`、`2001:2::/48`，各 32768，始终成对生成；IPv6 关闭时由 DNS `UseIPv4` 限制查询。
+FakeDNS 池独立于 TUN 接口地址，后者继续使用 `fc00::1/64`。
 托管入站默认 HTTP/TLS/QUIC 嗅探增加 `fakedns` 以还原域名。
 
-高级/Raw 的池和 DNS 保留用户配置，根级 `fakeDns`/`fakedns` 两种写法均识别。
+高级/Raw/Remnawave 的显式池和 DNS 保留用户配置，根级 `fakeDns`/`fakedns` 两种写法均识别。
 Raw 只给新建 tunIn 添加默认还原，已有 sniffing 不自动修改；高级模板省略 sniffing 时使用默认值，显式填写整对象保留。
 池映射随 Core 销毁，重启后的缓存虚拟地址可能无法还原；App 不清系统 DNS 缓存或改用户排除路由。
 

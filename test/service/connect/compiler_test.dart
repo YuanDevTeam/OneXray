@@ -131,6 +131,9 @@ void main() {
         'servers': ['1.1.1.1'],
         'disableCache': true,
       },
+      'fakedns': [
+        {'ipPool': 'fc00:1::/64', 'poolSize': 1024},
+      ],
       'outbounds': [
         {
           'tag': 'edge',
@@ -220,6 +223,7 @@ void main() {
         'last',
       );
       expect(actual['dns']['disableCache'], isTrue);
+      expect(actual['fakedns'], source['fakedns']);
       expect(actual['metrics']['listen'], '127.0.0.1:18186');
       expect(actual['stats'], isEmpty);
       final inbounds = actual['inbounds'] as List;
@@ -715,7 +719,7 @@ void main() {
               if (active) {
                 expect(config['fakedns'], [
                   {'ipPool': '198.19.0.0/16', 'poolSize': 32768},
-                  {'ipPool': 'fc00:1::/64', 'poolSize': 32768},
+                  {'ipPool': '2001:2::/48', 'poolSize': 32768},
                 ]);
                 expect(servers.last['address'], '8.8.8.8');
                 final direct = servers.firstWhere(
@@ -786,7 +790,7 @@ void main() {
         for (final poolKey in [null, 'fakedns', 'fakeDns']) {
           final source = <String, dynamic>{
             'dns': dns,
-            ?poolKey: {'ipPool': '198.18.16.0/20', 'poolSize': 1024},
+            ?poolKey: {'ipPool': 'fc00:1::/64', 'poolSize': 1024},
             'inbounds': [
               {
                 'tag': 'tunIn',

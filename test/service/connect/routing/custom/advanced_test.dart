@@ -349,6 +349,7 @@ void main() {
           },
           'fakedns': [
             {'ipPool': '198.19.0.0/16', 'poolSize': 32768},
+            {'ipPool': 'fc00:1::/64', 'poolSize': 32768},
           ],
           if (explicit)
             'inbounds': [

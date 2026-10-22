@@ -71,7 +71,7 @@ void main() {
         );
         expect(config['fakedns'], [
           {'ipPool': '198.19.0.0/16', 'poolSize': 32768},
-          {'ipPool': 'fc00:1::/64', 'poolSize': 32768},
+          {'ipPool': '2001:2::/48', 'poolSize': 32768},
         ]);
         expect(XrayJson.fromJson(config).toJson(), config);
         expect(config['inbounds'].single['protocol'], 'socks');
