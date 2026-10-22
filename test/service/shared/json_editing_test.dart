@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/tools/json_document.dart';
 import 'package:onexray/service/shared/json_editing.dart';
@@ -250,9 +252,10 @@ void main() {
           'service',
           'secrets',
           'segmentBytes',
+          'sessionTtlSeconds',
         ]);
         expect(labels(source('"xdriveSettings":{"service":"G|"}'), kind), [
-          'Google Drive',
+          'google-drive',
         ]);
         expect(
           labels(source('"xdriveSettings":{"secrets":["|"]}'), kind),
@@ -273,6 +276,85 @@ void main() {
       }
     },
   );
+
+  test('XMUX and XDrive timing hints follow their transport owner', () {
+    for (final (kind, template) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
+      (JsonEditorKind.outbound, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"inbounds":[{"streamSettings":{BODY}}]}'),
+    ]) {
+      for (final transport in ['masqueSettings', 'xdriveSettings']) {
+        String source(String body) =>
+            template.replaceFirst('BODY', '"$transport":{$body}');
+        expect(labels(source('"xm|"'), kind), ['xmux']);
+        expect(labels(source('"xmux":{"max|"}'), kind), [
+          'maxConcurrency',
+          'maxConnections',
+        ]);
+        expect(labels(source('"xmux":{"h|"}'), kind), [
+          'hMaxRequestTimes',
+          'hMaxReusableSecs',
+          'hKeepAlivePeriod',
+        ]);
+        expect(labels(source('"xmux":{"cM|"}'), kind), ['cMaxReuseTimes']);
+        expect(labels(source('"xmux":{"maxConnections":"|"}'), kind), isEmpty);
+      }
+      for (final field in [
+        'maxPollIntervalMs',
+        'sessionTtlSeconds',
+        'eagerWindowMs',
+        'holeTimeoutMs',
+      ]) {
+        final body = '"xdriveSettings":{"${field.substring(0, 4)}|"}';
+        expect(labels(template.replaceFirst('BODY', body), kind), [field]);
+      }
+    }
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(
+        labels(
+          '{"outbounds":[{"streamSettings":{"xdriveSettings":{"xmux":{"max|"}}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+    }
+    for (final marked in [
+      '{"future":{"xdriveSettings":{"ser|"}}}',
+      '{"future":{"xdriveSettings":{"service":"goo|"}}}',
+      '{"future":{"masqueSettings":{"xmux":{"max|"}}}}',
+      '{"streamSettings":{"xhttpSettings":{"xmux":{"max|"}}}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.outbound), isEmpty);
+    }
+  });
+
+  test('XDrive service completion preserves surrounding user JSON', () {
+    const marked =
+        '{"streamSettings":{"xdriveSettings":{"service":"goo|","secrets":["user-value"],"future":{"a":1}}}}';
+    final completion = completions(marked, JsonEditorKind.outbound).single;
+    final source = marked.replaceFirst('|', '');
+    final edited = source.replaceRange(
+      completion.start,
+      completion.end,
+      completion.insertText,
+    );
+    expect(edited, marked.replaceFirst('goo|', 'google-drive'));
+    expect(JsonDocument(edited).syntaxError, isNull);
+    expect(jsonDecode(edited)['streamSettings']['xdriveSettings']['future'], {
+      'a': 1,
+    });
+    expect(
+      labels(
+        '{"streamSettings":{"xdriveSettings":{"xmux":{"maxConnections":1,"max|"}}}}',
+        JsonEditorKind.outbound,
+      ),
+      ['maxConcurrency'],
+    );
+  });
 
   test('XDNS completes names and addrs in UDP masks without old fields', () {
     String source(String settings) =>

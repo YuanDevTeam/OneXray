@@ -304,7 +304,15 @@ class JsonEditing {
     if (!custom && !advanced) {
       if (tail == 'masqueSettings' &&
           _streamSettingsPath(path.sublist(0, path.length - 1), kind)) {
-        return const ['host', 'path', 'user', 'pass', 'headers', 'warp'];
+        return const [
+          'host',
+          'path',
+          'user',
+          'pass',
+          'headers',
+          'warp',
+          'xmux',
+        ];
       }
       if (_endsWith(path, ['masqueSettings', 'warp']) &&
           _streamSettingsPath(path.sublist(0, path.length - 2), kind)) {
@@ -328,7 +336,7 @@ class JsonEditing {
           'statusCode',
         ];
       }
-      if (tail == 'xdriveSettings') {
+      if (_streamSettingsChildPath(path, kind, 'xdriveSettings')) {
         return const [
           'remoteFolder',
           'service',
@@ -336,9 +344,27 @@ class JsonEditing {
           'segmentBytes',
           'flushIntervalMs',
           'pollIntervalMs',
+          'maxPollIntervalMs',
+          'sessionTtlSeconds',
           'concurrency',
+          'eagerWindowMs',
+          'holeTimeoutMs',
           'template',
+          'xmux',
         ];
+      }
+      if (tail == 'xmux' &&
+          (_streamSettingsChildPath(
+                path.sublist(0, path.length - 1),
+                kind,
+                'masqueSettings',
+              ) ||
+              _streamSettingsChildPath(
+                path.sublist(0, path.length - 1),
+                kind,
+                'xdriveSettings',
+              ))) {
+        return _xmuxFields;
       }
       if (_endsWith(path, ['streamSettings', 'finalmask'])) {
         return const ['tcp', 'udp', 'quicParams'];
@@ -658,8 +684,9 @@ class JsonEditing {
       }
     }
     if (!managed) {
-      if (field == 'service' && parent.lastOrNull == 'xdriveSettings') {
-        return const ['local', 'Google Drive', 'template'];
+      if (field == 'service' &&
+          _streamSettingsChildPath(parent, kind, 'xdriveSettings')) {
+        return const ['local', 'google-drive', 'template'];
       }
       if (field == 'type') {
         if (_endsWith(parent, ['streamSettings', 'finalmask', 'udp', '*'])) {
@@ -766,6 +793,15 @@ class JsonEditing {
     return const [];
   }
 
+  static const _xmuxFields = [
+    'maxConcurrency',
+    'maxConnections',
+    'cMaxReuseTimes',
+    'hMaxRequestTimes',
+    'hMaxReusableSecs',
+    'hKeepAlivePeriod',
+  ];
+
   static const _outboundFields = [
     'tag',
     'protocol',
@@ -816,6 +852,13 @@ bool _streamSettingsPath(List<Object> path, JsonEditorKind kind) =>
     _matches(path, ['outbounds', '*', 'streamSettings']) ||
     kind == JsonEditorKind.raw &&
         _matches(path, ['inbounds', '*', 'streamSettings']);
+bool _streamSettingsChildPath(
+  List<Object> path,
+  JsonEditorKind kind,
+  String field,
+) =>
+    path.lastOrNull == field &&
+    _streamSettingsPath(path.sublist(0, path.length - 1), kind);
 bool _managedProxyBalancer(List<Object> path, _Shape shape) {
   final tag = shape.value([...path, 'tag']);
   return tag == null || tag == 'proxy';
