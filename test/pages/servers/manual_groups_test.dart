@@ -8,7 +8,9 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/manual_group_dialogs.dart';
 import 'package:onexray/pages/servers/page.dart';
+import 'package:onexray/pages/servers/sources.dart';
 import 'package:onexray/pages/servers/view.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
@@ -84,14 +86,19 @@ void main() {
   Future<void> pump(
     WidgetTester tester, {
     Locale locale = const Locale('en'),
+    Size size = const Size(390, 844),
+    bool fullPage = false,
   }) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(390, 844);
+    tester.view.physicalSize = size;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.material(Brightness.light, mobile: true),
+        theme: AppTheme.material(
+          Brightness.light,
+          mobile: size.width <= AppLayout.mobileBreakpoint,
+        ),
         locale: locale,
         localizationsDelegates: AppLocalePolicy.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
@@ -99,27 +106,75 @@ void main() {
           data: AppTheme.shad(Brightness.light),
           child: ShadToaster(child: child!),
         ),
-        home: Builder(
-          builder: (context) => Scaffold(
-            appBar: AppBar(
-              actions: [
-                TextButton(
-                  onPressed: () => controller.createManualGroup(context),
-                  child: const Text('Create'),
+        home: fullPage
+            ? ServersPage(controller: controller)
+            : Builder(
+                builder: (context) => Scaffold(
+                  appBar: AppBar(
+                    actions: [
+                      TextButton(
+                        onPressed: () => controller.createManualGroup(context),
+                        child: const Text('Create'),
+                      ),
+                    ],
+                  ),
+                  body: BlocBuilder<ServersController, ServersPageState>(
+                    bloc: controller,
+                    builder: (_, _) =>
+                        ServerBrowser(controller: controller, scroll: scroll),
+                  ),
                 ),
-              ],
-            ),
-            body: BlocBuilder<ServersController, ServersPageState>(
-              bloc: controller,
-              builder: (_, _) =>
-                  ServerBrowser(controller: controller, scroll: scroll),
-            ),
-          ),
-        ),
+              ),
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets(
+    'desktop source management survives creating an empty manual group',
+    (tester) async {
+      await databaseOperation(
+        tester,
+        () => db.subscriptionDao.insertRow(
+          SubscriptionCompanion.insert(
+            name: 'Provider',
+            url: 'https://example.com/sub',
+            timestamp: DateTime(2026),
+          ),
+        ),
+      );
+      await settleUntil(tester, () => controller.sources.length == 1);
+      await pump(tester, size: const Size(1200, 900), fullPage: true);
+      final context = tester.element(find.byType(ServersPage));
+      final l = AppLocalizations.of(context)!;
+      expect(find.text(l.prototypeUpdatesAndSources), findsOneWidget);
+
+      await tester.tap(find.byTooltip(l.manualGroupNew));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('manual-group-name')),
+        'Empty folder',
+      );
+      await tester.pump();
+      await tester.tap(find.text(l.prototypeSave));
+      await settleUntil(
+        tester,
+        () => controller.catalog.manualGroups.length == 1,
+      );
+      await tester.pumpAndSettle();
+      expect(controller.servers, isEmpty);
+      expect(find.text('Empty folder'), findsWidgets);
+      final sources = find.text(l.prototypeUpdatesAndSources);
+      expect(sources, findsOneWidget);
+      await tester.tap(sources);
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerSourcesDialog), findsOneWidget);
+      expect(find.text('Provider'), findsOneWidget);
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets(
     'empty groups can be created, renamed and dissolved from the list',

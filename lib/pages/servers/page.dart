@@ -17,13 +17,16 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 
 class ServersPage extends StatefulWidget {
-  const ServersPage({super.key});
+  const ServersPage({super.key, this.controller});
+
+  /// An injected controller remains owned by the caller.
+  final ServersController? controller;
   @override
   State<ServersPage> createState() => _ServersPageState();
 }
 
 class _ServersPageState extends State<ServersPage> {
-  final controller = ServersController();
+  late final controller = widget.controller ?? ServersController();
   final scroll = ScrollController();
   @override
   void initState() {
@@ -36,7 +39,7 @@ class _ServersPageState extends State<ServersPage> {
   @override
   void dispose() {
     scroll.dispose();
-    unawaited(controller.close());
+    if (widget.controller == null) unawaited(controller.close());
     super.dispose();
   }
 
@@ -48,7 +51,11 @@ class _ServersPageState extends State<ServersPage> {
         final l = AppLocalizations.of(context)!;
         final mobileRoot =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-        final empty = state.ready && !state.failed && state.servers.isEmpty;
+        final empty =
+            state.ready &&
+            !state.failed &&
+            state.servers.isEmpty &&
+            state.catalog.manualGroups.isEmpty;
         final page = Scaffold(
           appBar: PageAppBar(
             title: Text(l.prototypeServers),
