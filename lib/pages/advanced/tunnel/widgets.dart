@@ -189,31 +189,139 @@ class PolicyToggle extends StatelessWidget {
 class PolicyValueRow extends StatelessWidget {
   final String title;
   final String value;
-  const PolicyValueRow({super.key, required this.title, required this.value});
+  final Widget? leading;
+  final double? minHeight;
+  final TextStyle? titleStyle;
+  final TextStyle? valueStyle;
+  final TextDirection? valueTextDirection;
+
+  const PolicyValueRow({
+    super.key,
+    required this.title,
+    required this.value,
+    this.leading,
+    this.minHeight,
+    this.titleStyle,
+    this.valueStyle,
+    this.valueTextDirection = TextDirection.ltr,
+  });
 
   @override
   Widget build(BuildContext context) {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
+    final padding = EdgeInsets.symmetric(
+      horizontal: mobile ? 13 : 14,
+      vertical: mobile ? 9 : 10,
+    );
+    final labelStyle =
+        (mobile
+                ? AppTypography.settingsValueLabel
+                : AppTypography.desktopSettingsValueLabel)
+            .merge(titleStyle);
+    final textStyle =
+        (mobile
+                ? AppTypography.settingsValue
+                : AppTypography.desktopSettingsValue)
+            .copyWith(color: ColorManager.primaryText(context))
+            .merge(valueStyle);
+    final renderedTitleStyle = AppTypography.rowTitle
+        .copyWith(color: ColorManager.primaryText(context))
+        .merge(labelStyle);
+    final renderedValueStyle = AppTypography.code
+        .copyWith(color: ColorManager.secondaryText(context))
+        .merge(textStyle);
+    final height = minHeight ?? (mobile ? 46.0 : 50.0);
     return SelectionArea(
-      child: SettingRow(
-        title: title,
-        value: value,
-        minHeight: mobile ? 46 : 50,
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: mobile ? 13 : 14,
-          vertical: mobile ? 9 : 10,
-        ),
-        titleStyle: mobile
-            ? AppTypography.settingsValueLabel
-            : AppTypography.desktopSettingsValueLabel,
-        valueStyle:
-            (mobile
-                    ? AppTypography.settingsValue
-                    : AppTypography.desktopSettingsValue)
-                .copyWith(color: ColorManager.primaryText(context)),
-        valueTextDirection: TextDirection.ltr,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final available =
+              constraints.maxWidth -
+              padding.horizontal -
+              (leading == null ? 0 : 31) -
+              11;
+          final stacked =
+              _policyTextWidth(context, title, renderedTitleStyle) >
+                  available * 5 / 9 ||
+              _policyTextWidth(
+                    context,
+                    value,
+                    renderedValueStyle,
+                    direction: valueTextDirection,
+                  ) >
+                  available * 4 / 9;
+          if (!stacked) {
+            return SettingRow(
+              title: title,
+              value: value,
+              leading: leading,
+              decorateLeading: false,
+              minHeight: height,
+              contentPadding: padding,
+              titleStyle: labelStyle,
+              valueStyle: textStyle,
+              valueTextDirection: valueTextDirection,
+            );
+          }
+          return ConstrainedBox(
+            constraints: BoxConstraints(minHeight: height),
+            child: Padding(
+              padding: padding,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (leading != null) ...[
+                    IconTheme.merge(
+                      data: IconThemeData(
+                        size: 20,
+                        color: ColorManager.secondaryText(context),
+                      ),
+                      child: leading!,
+                    ),
+                    const SizedBox(width: 11),
+                  ],
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: renderedTitleStyle),
+                        const SizedBox(height: 4),
+                        Text(
+                          value,
+                          style: renderedValueStyle,
+                          textDirection: valueTextDirection,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
+}
+
+double _policyTextWidth(
+  BuildContext context,
+  String text,
+  TextStyle style, {
+  TextDirection? direction,
+}) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: text,
+      style: DefaultTextStyle.of(context).style.merge(style),
+    ),
+    textDirection: direction ?? Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    locale: Localizations.localeOf(context),
+    maxLines: 1,
+  )..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width;
 }

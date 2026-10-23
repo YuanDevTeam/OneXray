@@ -5,7 +5,7 @@ import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/page.dart';
-import 'package:onexray/pages/shared/widgets/setting_row.dart';
+import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/advanced/policy_editor.dart';
@@ -68,7 +68,7 @@ void main() {
       )!;
       final row = find.byWidgetPredicate(
         (widget) =>
-            widget is SettingRow && widget.title == l.prototypeSystemVpn,
+            widget is PolicyValueRow && widget.title == l.prototypeSystemVpn,
       );
 
       for (final (phase, label, color) in [
@@ -110,9 +110,30 @@ void main() {
           find.descendant(of: row, matching: find.text(label)),
           findsOneWidget,
         );
-        final status = tester.widget<SettingRow>(row);
+        final status = tester.widget<PolicyValueRow>(row);
         expect(status.valueStyle!.color, color);
         expect(status.titleStyle!.color, palette.foreground);
+        expect(
+          tester
+              .widget<Text>(
+                find.descendant(of: row, matching: find.text(label)),
+              )
+              .style!
+              .color,
+          color,
+        );
+        expect(
+          tester
+              .widget<Text>(
+                find.descendant(
+                  of: row,
+                  matching: find.text(l.prototypeSystemVpn),
+                ),
+              )
+              .style!
+              .color,
+          palette.foreground,
+        );
         final shield = find.descendant(
           of: row,
           matching: find.byIcon(LucideIcons.shield),

@@ -66,18 +66,13 @@ class VpnTunnelPane extends StatelessWidget {
                     icon: LucideIcons.activity,
                     title: l.prototypeConnectionStatus,
                     children: [
-                      SettingRow(
+                      PolicyValueRow(
                         title: l.prototypeSystemVpn,
                         leading: Icon(
                           LucideIcons.shield,
                           color: palette.mutedStrong,
                         ),
-                        decorateLeading: false,
                         minHeight: mobile ? 52 : 56,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: mobile ? 13 : 14,
-                          vertical: 10,
-                        ),
                         titleStyle:
                             (mobile
                                     ? AppTypography.settingsStatus
@@ -102,6 +97,7 @@ class VpnTunnelPane extends StatelessWidget {
                                   },
                                 ),
                         value: _status(controller, l),
+                        valueTextDirection: null,
                       ),
                     ],
                   ),
