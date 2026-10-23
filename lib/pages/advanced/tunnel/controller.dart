@@ -245,13 +245,24 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
               'ipv6Enabled',
             }.contains(key) ||
         section == 'apple' && key == 'dnsOverTls';
+    final dnsFailure = dnsChanged
+        ? _visibleDnsFailure(next.policy)
+        : state.dnsFailure;
+    final failingKey = switch (state.dnsFailure?.field) {
+      TunnelDnsField.ipv4 => 'dnsIpv4Address',
+      TunnelDnsField.ipv6 => 'dnsIpv6Address',
+      TunnelDnsField.serverName => 'dnsServerName',
+      null => null,
+    };
+    final sameDnsFailure =
+        failingKey != null &&
+        dnsFailure?.field == state.dnsFailure?.field &&
+        current.policy[failingKey] == next.policy[failingKey];
     emit(
       state.copyWith(
         draft: next,
-        error: !dnsChanged && state.dnsFailure != null ? state.error : null,
-        dnsFailure: dnsChanged
-            ? _visibleDnsFailure(next.policy)
-            : state.dnsFailure,
+        error: sameDnsFailure ? state.error : null,
+        dnsFailure: dnsFailure,
       ),
     );
   }

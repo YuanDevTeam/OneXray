@@ -228,6 +228,15 @@ void main() {
     expect(controller.error, contains('invalid-v4'));
     expect(find.textContaining('invalid-v4'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
+    controller.update('dnsOverTls', true, section: 'apple');
+    await tester.pumpAndSettle();
+    expect(controller.error, contains('invalid-v4'));
+    expect(find.textContaining('invalid-v4'), findsOneWidget);
+    expect(controller.state.dnsFailure?.field, TunnelDnsField.ipv4);
+    controller.update('dnsIpv4Address', '1.1.1.1');
+    await tester.pumpAndSettle();
+    expect(controller.error, isNull);
+    expect(find.textContaining('invalid-v4'), findsNothing);
     expect(service.saves, 0);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
