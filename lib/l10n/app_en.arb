@@ -3128,5 +3128,9 @@
   "subscriptionAdvancedConfigured": "Configured: {options}",
   "@subscriptionAdvancedConfigured": {
     "placeholders": {"options": {"type": "String"}}
-  }
+  },
+  "jsonEditorDiscardTitle": "Discard unsaved changes?",
+  "jsonEditorDiscardMessage": "Your JSON changes have not been saved.",
+  "jsonEditorKeepEditing": "Keep editing",
+  "jsonEditorDiscardChanges": "Discard changes"
 }

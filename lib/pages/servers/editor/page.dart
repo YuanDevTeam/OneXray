@@ -12,11 +12,19 @@ import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
 
 class ServerEditorPage extends StatelessWidget {
   final int serverId;
-  const ServerEditorPage({super.key, required this.serverId});
+  final ServerEditorController Function()? createController;
+
+  const ServerEditorPage({
+    super.key,
+    required this.serverId,
+    this.createController,
+  });
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-    create: (context) => ServerEditorController(serverId)..load(context),
+    create: (context) =>
+        (createController?.call() ?? ServerEditorController(serverId))
+          ..load(context),
     child: BlocBuilder<ServerEditorController, ServerEditorPageState>(
       builder: (context, state) {
         final controller = context.read<ServerEditorController>();
@@ -25,7 +33,10 @@ class ServerEditorPage extends StatelessWidget {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return PopScope(
-          canPop: !state.busy,
+          canPop: state.canPop,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) controller.closePage(context);
+          },
           child: AppDialog(
             title: l.prototypeEditServer,
             subtitle: state.name,
@@ -91,7 +102,8 @@ class ServerEditorPage extends StatelessWidget {
               ConnectDialogButton(
                 label: l.prototypeCancel,
                 secondary: true,
-                onPressed: state.busy
+                onPressed:
+                    state.busy || state.confirmingClose || state.closeAllowed
                     ? null
                     : () => controller.closePage(context),
               ),
@@ -99,7 +111,11 @@ class ServerEditorPage extends StatelessWidget {
                 label: l.prototypeSave,
                 busy: state.busy,
                 onPressed:
-                    state.busy || !state.loaded || state.jsonText.trim().isEmpty
+                    state.busy ||
+                        state.confirmingClose ||
+                        state.closeAllowed ||
+                        !state.loaded ||
+                        state.jsonText.trim().isEmpty
                     ? null
                     : () => controller.save(context),
               ),

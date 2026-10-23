@@ -48,8 +48,14 @@ void main() {
       addTearDown(controller.close);
       final context = await _mount(tester);
       await controller.load(context);
+      expect(controller.state.dirty, isFalse);
+      controller.text.text = '{\n  "tag": "Original", "protocol": "freedom"\n}';
+      expect(controller.state.dirty, isTrue);
+      controller.text.text = _initialText;
+      expect(controller.state.dirty, isFalse);
       const source = ' \n {"tag":"😀", "protocol": #}\n';
       controller.text.text = source;
+      expect(controller.state.dirty, isTrue);
 
       await controller.save(context);
 
@@ -68,6 +74,7 @@ void main() {
       controller.text.text = _initialText;
       expect(controller.state.diagnostic, isNull);
       expect(controller.state.error, isNull);
+      expect(controller.state.dirty, isFalse);
     },
   );
 
@@ -91,6 +98,8 @@ void main() {
     expect(controller.state.error, isNull);
     expect(controller.state.diagnostic, isNull);
     expect(controller.state.jsonText, contains('New draft'));
+    expect(controller.state.draft?.text, _initialText);
+    expect(controller.state.dirty, isTrue);
     expect(controller.state.busy, false);
     expect(find.text('Draft'), findsOneWidget);
   });
@@ -111,7 +120,10 @@ void main() {
       final saving = controller.save(context);
       controller.text.text = newer;
       final savedOriginal = _original.copyWith(name: 'Submitted');
-      service.current = ServerEditDraft(savedOriginal, submitted);
+      service.current = ServerEditDraft(
+        savedOriginal,
+        '{\n  "tag": "Submitted",\n  "protocol": "freedom"\n}',
+      );
       completion.complete(true);
       await saving;
       await tester.pump();
@@ -120,16 +132,39 @@ void main() {
       expect(controller.text.text, newer);
       expect(controller.state.jsonText, newer);
       expect(controller.state.draft?.original, savedOriginal);
+      expect(controller.state.draft?.text, submitted);
+      expect(controller.state.dirty, isTrue);
       expect(controller.state.busy, false);
       expect(controller.state.error, isNull);
       service.saveDraft = (_) async => false;
       await controller.save(context);
       expect(service.submitted.last.original, savedOriginal);
       expect(service.submitted.last.text, newer);
+      controller.text.text = submitted;
+      expect(controller.state.dirty, isFalse);
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('a save completing after disposal cannot update the editor', (
+    tester,
+  ) async {
+    final completion = Completer<bool>();
+    final service = _EditorService(database: db, coordinator: coordinator)
+      ..saveDraft = (_) => completion.future;
+    final controller = ServerEditorController(7, service: service);
+    final context = await _mount(tester);
+    await controller.load(context);
+    controller.text.text = '{"tag":"Draft","protocol":"freedom"}';
+    final saving = controller.save(context);
+    await controller.close();
+    completion.completeError(const FormatException('Late source error'));
+    await saving;
+    await tester.pump();
+    expect(controller.isClosed, isTrue);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets(
     'manual JSON reports local syntax but never guesses core locations',

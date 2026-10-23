@@ -953,5 +953,9 @@
   "subscriptionAdvancedConfigured": "پیکربندی‌شده: {options}",
   "@subscriptionAdvancedConfigured": {
     "placeholders": {"options": {"type": "String"}}
-  }
+  },
+  "jsonEditorDiscardTitle": "تغییرات ذخیره‌نشده کنار گذاشته شوند؟",
+  "jsonEditorDiscardMessage": "تغییرات JSON هنوز ذخیره نشده‌اند.",
+  "jsonEditorKeepEditing": "ادامهٔ ویرایش",
+  "jsonEditorDiscardChanges": "کنار گذاشتن تغییرات"
 }

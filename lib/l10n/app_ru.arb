@@ -953,5 +953,9 @@
   "subscriptionAdvancedConfigured": "Настроено: {options}",
   "@subscriptionAdvancedConfigured": {
     "placeholders": {"options": {"type": "String"}}
-  }
+  },
+  "jsonEditorDiscardTitle": "Отменить несохранённые изменения?",
+  "jsonEditorDiscardMessage": "Изменения JSON ещё не сохранены.",
+  "jsonEditorKeepEditing": "Продолжить редактирование",
+  "jsonEditorDiscardChanges": "Отменить изменения"
 }

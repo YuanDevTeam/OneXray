@@ -3,6 +3,7 @@ import 'package:onexray/core/errors/json_diagnostic.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
+import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/service/servers/server.dart';
 import 'package:re_editor/re_editor.dart';
@@ -14,6 +15,8 @@ class ServerEditorPageState {
     this.jsonText = '',
     this.busy = false,
     this.loading = true,
+    this.confirmingClose = false,
+    this.closeAllowed = false,
     this.error,
     this.diagnostic,
   });
@@ -22,10 +25,14 @@ class ServerEditorPageState {
   final String jsonText;
   final bool busy;
   final bool loading;
+  final bool confirmingClose;
+  final bool closeAllowed;
   final String? error;
   final JsonDiagnostic? diagnostic;
 
   bool get loaded => draft != null;
+  bool get dirty => jsonText != (draft?.text ?? '');
+  bool get canPop => closeAllowed || (!busy && !confirmingClose && !dirty);
   String? get name => draft?.original.name;
   bool get fromSubscription => draft != null && draft!.original.subId != 0;
   ServerEditorPageState copyWith({
@@ -33,6 +40,8 @@ class ServerEditorPageState {
     String? jsonText,
     bool? busy,
     bool? loading,
+    bool? confirmingClose,
+    bool? closeAllowed,
     String? error,
     JsonDiagnostic? diagnostic,
     bool clearError = false,
@@ -41,6 +50,8 @@ class ServerEditorPageState {
     jsonText: jsonText ?? this.jsonText,
     busy: busy ?? this.busy,
     loading: loading ?? this.loading,
+    confirmingClose: confirmingClose ?? this.confirmingClose,
+    closeAllowed: closeAllowed ?? this.closeAllowed,
     error: clearError ? null : error ?? this.error,
     diagnostic: clearError ? null : diagnostic ?? this.diagnostic,
   );
@@ -64,17 +75,61 @@ class ServerEditorController extends PageCubit<ServerEditorPageState> {
     emit(state.copyWith(jsonText: text.text, clearError: true));
   }
 
-  void closePage(BuildContext context) {
-    if (!state.busy) Navigator.of(context).pop();
+  Future<void> closePage(BuildContext context) async {
+    if (!isPageActive ||
+        !context.mounted ||
+        state.busy ||
+        state.confirmingClose ||
+        state.closeAllowed ||
+        ModalRoute.of(context)?.isCurrent != true) {
+      return;
+    }
+    if (state.dirty) {
+      final l = AppLocalizations.of(context)!;
+      emit(state.copyWith(confirmingClose: true));
+      var discard = false;
+      try {
+        discard = await AppConfirmationDialog(
+          title: l.jsonEditorDiscardTitle,
+          content: l.jsonEditorDiscardMessage,
+          cancelLabel: l.jsonEditorKeepEditing,
+          confirmLabel: l.jsonEditorDiscardChanges,
+          destructive: true,
+        ).show(context);
+      } finally {
+        emit(state.copyWith(confirmingClose: false));
+      }
+      if (!discard || !isPageActive || state.busy || !context.mounted) return;
+    }
+    _finishClose(context);
+  }
+
+  void _finishClose(BuildContext context, {int? result}) {
+    if (!isPageActive || !context.mounted || state.closeAllowed) return;
+    final route = ModalRoute.of(context);
+    if (route?.isCurrent != true) return;
+    emit(state.copyWith(closeAllowed: true));
+    // Let this page's PopScope accept the confirmed exit before popping it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isPageActive || !context.mounted) return;
+      if (route?.isCurrent != true) {
+        emit(state.copyWith(closeAllowed: false));
+        return;
+      }
+      Navigator.of(context).pop(result);
+    });
   }
 
   Future<void> load(BuildContext context) async {
     final initialText = text.text;
+    final initialRevision = _revision;
     try {
       final draft = await service.load(serverId);
       if (!isPageActive) return;
       emit(state.copyWith(draft: draft));
-      if (text.text == initialText) text.text = draft.text;
+      if (_revision == initialRevision && text.text == initialText) {
+        text.text = draft.text;
+      }
     } catch (error) {
       if (context.mounted) {
         emit(
@@ -89,7 +144,13 @@ class ServerEditorController extends PageCubit<ServerEditorPageState> {
   }
 
   Future<void> save(BuildContext context) async {
-    if (state.busy || state.loading || !state.loaded) return;
+    if (state.busy ||
+        state.loading ||
+        state.confirmingClose ||
+        state.closeAllowed ||
+        !state.loaded) {
+      return;
+    }
     final revision = _revision;
     final submitted = ServerEditDraft(state.draft!.original, state.jsonText);
     final l = AppLocalizations.of(context)!;
@@ -106,15 +167,24 @@ class ServerEditorController extends PageCubit<ServerEditorPageState> {
               )
             : Future.value(false),
       );
-      if (saved && isPageActive && context.mounted && revision == _revision) {
-        ContextAlert.showToast(context, l.prototypeSettingsSaved);
-        Navigator.of(context).pop(serverId);
-      } else if (saved && isPageActive) {
-        final savedDraft = await service.load(serverId);
-        if (!isPageActive) return;
-        emit(state.copyWith(draft: savedDraft));
-        if (context.mounted) {
-          ContextAlert.showToast(context, l.jsonEditorEarlierDraftSaved);
+      if (saved && isPageActive) {
+        // Keep the exact submitted text as the baseline, even if a later read
+        // formats the persisted JSON differently.
+        emit(state.copyWith(draft: submitted));
+        if (context.mounted && revision == _revision) {
+          ContextAlert.showToast(context, l.prototypeSettingsSaved);
+          _finishClose(context, result: serverId);
+        } else {
+          final savedDraft = await service.load(serverId);
+          if (!isPageActive) return;
+          emit(
+            state.copyWith(
+              draft: ServerEditDraft(savedDraft.original, submitted.text),
+            ),
+          );
+          if (context.mounted) {
+            ContextAlert.showToast(context, l.jsonEditorEarlierDraftSaved);
+          }
         }
       }
     } catch (error) {

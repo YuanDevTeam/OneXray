@@ -953,5 +953,9 @@
   "subscriptionAdvancedConfigured": "已設定：{options}",
   "@subscriptionAdvancedConfigured": {
     "placeholders": {"options": {"type": "String"}}
-  }
+  },
+  "jsonEditorDiscardTitle": "放棄未儲存的變更？",
+  "jsonEditorDiscardMessage": "JSON 變更尚未儲存。",
+  "jsonEditorKeepEditing": "繼續編輯",
+  "jsonEditorDiscardChanges": "放棄變更"
 }
