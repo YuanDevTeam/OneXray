@@ -264,8 +264,9 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   };
 
   void touchSubscriptionField(SubscriptionFormField field) {
-    if (!isPageActive || state.touchedSubscriptionFields.contains(field))
+    if (!isPageActive || state.touchedSubscriptionFields.contains(field)) {
       return;
+    }
     emit(
       state.copyWith(
         touchedSubscriptionFields: {...state.touchedSubscriptionFields, field},
