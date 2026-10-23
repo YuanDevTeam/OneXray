@@ -431,8 +431,18 @@ class SubscriptionFormView extends StatelessWidget {
                             onPressed: onToggleAgeSecretKeyVisibility,
                             style: IconButton.styleFrom(
                               foregroundColor: palette.mutedStrong,
-                              minimumSize: const Size.square(36),
-                              maximumSize: const Size.square(36),
+                              minimumSize: Size.square(
+                                AppLayout.touchExtent(
+                                  36,
+                                  platform: Theme.of(context).platform,
+                                ),
+                              ),
+                              maximumSize: Size.square(
+                                AppLayout.touchExtent(
+                                  36,
+                                  platform: Theme.of(context).platform,
+                                ),
+                              ),
                               padding: EdgeInsets.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
@@ -477,7 +487,9 @@ class SubscriptionFormView extends StatelessWidget {
     Widget generate(AgeKeyType type, String label) => OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
         foregroundColor: palette.foreground,
-        minimumSize: const Size(0, 36),
+        minimumSize: Size.square(
+          AppLayout.touchExtent(36, platform: Theme.of(context).platform),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         textStyle: AppTypography.subscriptionAgeAction,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -504,7 +516,9 @@ class SubscriptionFormView extends StatelessWidget {
           ? null
           : onClearAgeKey,
       style: TextButton.styleFrom(
-        minimumSize: const Size(0, 38),
+        minimumSize: Size.square(
+          AppLayout.touchExtent(38, platform: Theme.of(context).platform),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 8),
         textStyle: AppTypography.subscriptionClear,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,

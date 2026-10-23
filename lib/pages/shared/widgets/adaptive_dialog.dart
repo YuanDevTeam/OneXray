@@ -200,7 +200,12 @@ class AppDialog extends StatelessWidget {
                             TextButton(
                               onPressed: onBack,
                               style: TextButton.styleFrom(
-                                minimumSize: const Size(0, 34),
+                                minimumSize: Size.square(
+                                  AppLayout.touchExtent(
+                                    34,
+                                    platform: Theme.of(context).platform,
+                                  ),
+                                ),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                 ),
@@ -245,11 +250,17 @@ class AppDialog extends StatelessWidget {
                                 onClose ?? () => Navigator.of(context).pop(),
                             style: IconButton.styleFrom(
                               foregroundColor: palette.mutedStrong,
-                              minimumSize: const Size.square(
-                                AppLayout.dialogCloseSize,
+                              minimumSize: Size.square(
+                                AppLayout.touchExtent(
+                                  AppLayout.dialogCloseSize,
+                                  platform: Theme.of(context).platform,
+                                ),
                               ),
-                              maximumSize: const Size.square(
-                                AppLayout.dialogCloseSize,
+                              maximumSize: Size.square(
+                                AppLayout.touchExtent(
+                                  AppLayout.dialogCloseSize,
+                                  platform: Theme.of(context).platform,
+                                ),
                               ),
                               padding: EdgeInsets.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,

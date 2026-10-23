@@ -67,8 +67,14 @@ abstract final class AppTheme {
     final theme = Theme.of(context);
     final style = ButtonStyle(
       textStyle: WidgetStatePropertyAll(AppTypography.pageAction),
-      minimumSize: const WidgetStatePropertyAll(
-        Size(0, AppLayout.pageActionButtonMinHeight),
+      minimumSize: WidgetStatePropertyAll(
+        Size(
+          0,
+          AppLayout.touchExtent(
+            AppLayout.pageActionButtonMinHeight,
+            platform: theme.platform,
+          ),
+        ),
       ),
       padding: const WidgetStatePropertyAll(
         EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -94,7 +100,10 @@ abstract final class AppTheme {
         ShadTheme.maybeOf(context) ??
         shad(Theme.of(context).brightness, mobile: true);
     final height = math.max(
-      AppLayout.pageActionButtonMinHeight,
+      AppLayout.touchExtent(
+        AppLayout.pageActionButtonMinHeight,
+        platform: Theme.of(context).platform,
+      ),
       MediaQuery.textScalerOf(context)
                   .scale(AppTypography.pageAction.fontSize!) *
               2 +
@@ -189,7 +198,9 @@ abstract final class AppTheme {
     // Shad buttons use a tight height. Grow it with the scaled label instead of
     // constraining larger system text to the prototype's minimum height.
     final buttonHeight = math.max(
-      mobile ? AppLayout.mobileButtonMinHeight : AppLayout.buttonMinHeight,
+      AppLayout.touchExtent(
+        mobile ? AppLayout.mobileButtonMinHeight : AppLayout.buttonMinHeight,
+      ),
       textScaler.scale(AppTypography.control.fontSize!) +
           AppSpacing.controlVertical * 2,
     );
@@ -399,7 +410,9 @@ abstract final class AppTheme {
       displayColor: palette.foreground,
     );
     final minimumButtonSize = Size.square(
-      mobile ? AppLayout.mobileButtonMinHeight : AppLayout.buttonMinHeight,
+      AppLayout.touchExtent(
+        mobile ? AppLayout.mobileButtonMinHeight : AppLayout.buttonMinHeight,
+      ),
     );
     Color disabledButtonColor(Color color) =>
         Color.alphaBlend(color.withValues(alpha: 0.52), palette.card);

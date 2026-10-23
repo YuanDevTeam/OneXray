@@ -116,8 +116,8 @@ void main() {
       expect(surface.center.dx, closeTo(width / 2, 0.01));
       expect(confirm.right, closeTo(surface.right - (mobile ? 16 : 20), 1));
       expect(confirm.left - cancel.right, closeTo(10, 0.01));
-      expect(cancel.height, mobile ? 42 : 40);
-      expect(confirm.height, mobile ? 42 : 40);
+      expect(cancel.height, AppLayout.touchExtent(mobile ? 42 : 40));
+      expect(confirm.height, AppLayout.touchExtent(mobile ? 42 : 40));
       final label = tester.getRect(
         find.descendant(
           of: find.byType(FilledButton),

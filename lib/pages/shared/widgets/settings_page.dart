@@ -195,7 +195,12 @@ class AppConfirmationDialog extends StatelessWidget {
       minimumSize: WidgetStatePropertyAll(
         Size(
           0,
-          mobile ? AppLayout.mobileButtonMinHeight : AppLayout.buttonMinHeight,
+          AppLayout.touchExtent(
+            mobile
+                ? AppLayout.mobileButtonMinHeight
+                : AppLayout.buttonMinHeight,
+            platform: Theme.of(context).platform,
+          ),
         ),
       ),
       padding: const WidgetStatePropertyAll(
@@ -304,11 +309,17 @@ class AppConfirmationDialog extends StatelessWidget {
                                       Navigator.pop(context, false),
                                   style: IconButton.styleFrom(
                                     foregroundColor: palette.mutedStrong,
-                                    minimumSize: const Size.square(
-                                      AppLayout.dialogCloseSize,
+                                    minimumSize: Size.square(
+                                      AppLayout.touchExtent(
+                                        AppLayout.dialogCloseSize,
+                                        platform: Theme.of(context).platform,
+                                      ),
                                     ),
-                                    maximumSize: const Size.square(
-                                      AppLayout.dialogCloseSize,
+                                    maximumSize: Size.square(
+                                      AppLayout.touchExtent(
+                                        AppLayout.dialogCloseSize,
+                                        platform: Theme.of(context).platform,
+                                      ),
                                     ),
                                     padding: EdgeInsets.zero,
                                     tapTargetSize:

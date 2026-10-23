@@ -1,6 +1,18 @@
+import 'package:flutter/foundation.dart';
+
 /// Shared logical-pixel values mapped from the approved prototype theme.
 /// Keep platform safe areas and text scaling outside these constants.
 abstract final class AppLayout {
+  /// Touch requirements follow the input platform, including wide phone windows.
+  static double touchExtent(double size, {TargetPlatform? platform}) {
+    final minimum = switch (platform ?? defaultTargetPlatform) {
+      TargetPlatform.iOS => 44.0,
+      TargetPlatform.android => 48.0,
+      _ => 0.0,
+    };
+    return size < minimum ? minimum : size;
+  }
+
   static const macOSTitlebarHeight = 28.0;
   static const mobileBreakpoint = 720.0;
   static const compactDesktopBreakpoint = 900.0;

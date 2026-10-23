@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/menu_picker.dart';
 import 'package:onexray/pages/shared/widgets/section.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -131,7 +132,14 @@ class SettingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = ConstrainedBox(
-      constraints: BoxConstraints(minHeight: minHeight),
+      constraints: BoxConstraints(
+        minHeight: onTap == null
+            ? minHeight
+            : AppLayout.touchExtent(
+                minHeight,
+                platform: Theme.of(context).platform,
+              ),
+      ),
       child: Padding(
         padding: contentPadding,
         child: Row(
@@ -319,7 +327,14 @@ class SettingSelect<T extends Object> extends StatelessWidget {
       borderRadius: BorderRadius.circular(6),
       child: Container(
         constraints: BoxConstraints(
-          minHeight: minHeight,
+          minHeight: AppLayout.touchExtent(
+            minHeight,
+            platform: Theme.of(context).platform,
+          ),
+          minWidth: AppLayout.touchExtent(
+            0,
+            platform: Theme.of(context).platform,
+          ),
           maxWidth: MediaQuery.sizeOf(context).width * .48,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

@@ -255,11 +255,11 @@ void main() {
       );
       expect(
         material.filledButtonTheme.style!.minimumSize!.resolve({}),
-        const Size.square(AppLayout.mobileButtonMinHeight),
+        Size.square(AppLayout.touchExtent(AppLayout.mobileButtonMinHeight)),
       );
       expect(
         shad.buttonSizesTheme.regular!.height,
-        AppLayout.mobileButtonMinHeight,
+        AppLayout.touchExtent(AppLayout.mobileButtonMinHeight),
       );
     });
 
@@ -384,7 +384,10 @@ void main() {
         );
         final outlineRect = tester.getRect(outline);
         final filledRect = tester.getRect(filled);
-        expect(outlineRect.height, AppLayout.buttonMinHeight);
+        expect(
+          outlineRect.height,
+          AppLayout.touchExtent(AppLayout.buttonMinHeight),
+        );
         expect(outlineRect.height, filledRect.height);
         expect(outlineRect.top, filledRect.top);
         final outlineShape =
