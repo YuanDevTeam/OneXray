@@ -98,6 +98,9 @@ void main() {
         agePublicKeyLabel: 'Age Public Key',
         agePublicKeyHint: 'age1...',
         agePublicKeyController: public,
+        ageKeyPairErrorText: state.incompleteKeys
+            ? AppLocalizations.of(context)!.prototypeAgeBothKeysRequired
+            : null,
         obscureAgeSecretKey: obscure,
         revealAgeSecretKeyLabel: 'Reveal',
         hideAgeSecretKeyLabel: 'Hide',
@@ -132,6 +135,13 @@ void main() {
       ),
     ),
   );
+
+  Future<void> toggleAdvanced(WidgetTester tester) async {
+    final advanced = find.byKey(const ValueKey('subscription-advanced'));
+    await tester.ensureVisible(advanced);
+    await tester.tap(advanced);
+    await tester.pumpAndSettle();
+  }
 
   testWidgets(
     'field errors follow editing and blur without marking an empty draft',
@@ -311,6 +321,7 @@ void main() {
           contains('VMessAEAD / VLESS'),
         );
         expect(l.prototypeSubscriptionDescription, contains('Hysteria2'));
+        await toggleAdvanced(tester);
         for (final (title, message) in [
           (l.subscriptionPanelTitle, l.prototypeSubscriptionDescription),
           (l.subscriptionHwidTitle, l.subscriptionHwidDescription),
@@ -362,7 +373,8 @@ void main() {
           ),
           findsNothing,
         );
-        expect(find.text('Provider support required'), findsOneWidget);
+        expect(find.text('Provider support required'), findsNothing);
+        expect(find.byType(ShadSwitch), findsNothing);
         expect(find.text('Age Secret Key'), findsNothing);
         expect(
           find.ancestor(
@@ -377,6 +389,7 @@ void main() {
         expect(controller.state.hasAgeKeys, isTrue);
         expect(controller.state.ageExpanded, isTrue);
         await tester.pumpAndSettle();
+        expect(find.text('Provider support required'), findsOneWidget);
         expect(
           find.byWidgetPredicate(
             (widget) => widget is ShadInput && widget.controller == secret,
@@ -405,6 +418,7 @@ void main() {
         await tester.ensureVisible(find.text('Clear'));
         await tester.tap(find.text('Clear'));
         await tester.pumpAndSettle();
+        expect(find.text('Provider support required'), findsOneWidget);
         expect(
           find.byWidgetPredicate(
             (widget) => widget is ShadInput && widget.controller == secret,
@@ -454,6 +468,86 @@ void main() {
       },
     );
   }
+
+  testWidgets('manually collapsing Advanced preserves configured drafts', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    name.text = 'Example provider';
+    url.text = 'https://provider.example/list';
+    controller.userAgent.text = 'OneXrayAudit/1.0';
+    secret.text = 'AGE-SECRET-KEY-1EXISTING';
+    public.text = 'age1existing';
+    controller.setHwidEnabled(true);
+    await tester.pumpWidget(app(form()));
+    await tester.pumpAndSettle();
+    Finder input(TextEditingController field) => find.byWidgetPredicate(
+      (widget) => widget is ShadInput && widget.controller == field,
+    );
+    expect(input(secret), findsOneWidget);
+    expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isTrue);
+
+    await toggleAdvanced(tester);
+    expect(input(secret), findsNothing);
+    expect(input(public), findsNothing);
+    expect(find.byType(ShadSwitch), findsNothing);
+    for (final field in [name, url, controller.userAgent]) {
+      expect(input(field), findsOneWidget);
+    }
+
+    name.text = 'Renamed provider';
+    await tester.pumpAndSettle();
+    expect(input(secret), findsNothing);
+    expect(controller.state.hwidEnabled, isTrue);
+    expect(url.text, 'https://provider.example/list');
+    expect(controller.userAgent.text, 'OneXrayAudit/1.0');
+    expect(secret.text, 'AGE-SECRET-KEY-1EXISTING');
+    expect(public.text, 'age1existing');
+
+    await toggleAdvanced(tester);
+    expect(input(secret), findsOneWidget);
+    expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isTrue);
+    controller.setHwidEnabled(false);
+    controller.clearKeys();
+    await tester.pumpAndSettle();
+    expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isFalse);
+    expect(find.text('Provider support required'), findsOneWidget);
+    expect(input(secret), findsOneWidget);
+    expect(secret.text, isEmpty);
+    expect(public.text, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('HWID loaded after mounting automatically reveals Advanced', (
+    tester,
+  ) async {
+    url.text = 'https://provider.example/list';
+    await tester.pumpWidget(app(form()));
+    await tester.pumpAndSettle();
+    expect(find.byType(ShadSwitch), findsNothing);
+    expect(find.text('Provider support required'), findsNothing);
+
+    controller.setHwidEnabled(true);
+    await tester.pumpAndSettle();
+    expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isTrue);
+    expect(find.text('Provider support required'), findsOneWidget);
+    expect(find.text('Age Secret Key'), findsNothing);
+
+    await toggleAdvanced(tester);
+    name.text = 'Renamed provider';
+    await tester.pumpAndSettle();
+    expect(find.byType(ShadSwitch), findsNothing);
+    expect(controller.state.hwidEnabled, isTrue);
+    controller.setHwidEnabled(false);
+    await tester.pumpAndSettle();
+    expect(find.byType(ShadSwitch), findsNothing);
+    controller.setHwidEnabled(true);
+    await tester.pumpAndSettle();
+    expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('panel and new source mode selectors preserve automatic input', (
     tester,
   ) async {

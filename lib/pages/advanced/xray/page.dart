@@ -131,83 +131,53 @@ class XrayRuntimePage extends StatelessWidget {
                             ],
                           ),
                           _section(
-                            icon: LucideIcons.hardDrive,
-                            title: l.prototypeRoutingData,
+                            icon: LucideIcons.settings,
+                            title: l.prototypeSettings,
                             children: [
-                              SettingRow(
-                                title: l.prototypeRoutingDataSummary,
-                                minHeight: mobile ? 43 : 56,
-                                titleStyle: AppTypography.settingsRow,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: mobile ? 13 : 14,
-                                ),
+                              _pushRow(
+                                context,
+                                mobile: mobile,
+                                title: l.prototypeRoutingData,
+                                icon: LucideIcons.hardDrive,
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
                                       activity.downloading
                                       ? const ButtonProgressIndicator()
                                       : _chevron(context),
                                 ),
+                                enabled: true,
                                 onTap: () => onGeodata(context),
                               ),
-                            ],
-                          ),
-                          _section(
-                            icon: LucideIcons.refreshCw,
-                            title: l.prototypeDataUpdates,
-                            children: [
-                              SettingRow(
-                                title: l.prototypeDataUpdateIntervals,
-                                minHeight: mobile ? 43 : 56,
-                                titleStyle: AppTypography.settingsRow,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: mobile ? 13 : 14,
-                                ),
+                              _pushRow(
+                                context,
+                                mobile: mobile,
+                                title: l.prototypeDataUpdates,
+                                icon: LucideIcons.refreshCw,
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
                                       activity.downloading
                                       ? const ButtonProgressIndicator()
                                       : _chevron(context),
                                 ),
+                                enabled: true,
                                 onTap: () => onUpdates(context),
                               ),
-                            ],
-                          ),
-                          _section(
-                            icon: LucideIcons.zap,
-                            title: l.prototypeSpeedTest,
-                            children: [
-                              SettingRow(
-                                title: l.prototypeSpeedTestSummary,
-                                minHeight: 64,
-                                titleStyle: AppTypography.settingsRow,
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: mobile ? 13 : 14,
-                                  vertical: 12,
-                                ),
-                                subtitleWidget: Text(
-                                  controller.speedSummary(l),
-                                  style: AppTypography.runtimeNavigationHint
-                                      .copyWith(
-                                        color: ColorManager.secondaryText(
-                                          context,
-                                        ),
-                                      ),
-                                ),
+                              _pushRow(
+                                context,
+                                mobile: mobile,
+                                title: l.prototypeSpeedTest,
+                                subtitle: controller.speedSummary(l),
+                                icon: LucideIcons.zap,
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
                                       activity.pinging
                                       ? const ButtonProgressIndicator()
                                       : _chevron(context),
                                 ),
+                                enabled: true,
                                 onTap: () => onSpeedTest(context),
                               ),
-                            ],
-                          ),
-                          if (onServerDialing != null)
-                            _section(
-                              icon: LucideIcons.network,
-                              title: l.serverDialingTitle,
-                              children: [
+                              if (onServerDialing != null)
                                 _pushRow(
                                   context,
                                   mobile: mobile,
@@ -216,8 +186,8 @@ class XrayRuntimePage extends StatelessWidget {
                                   enabled: !disabled,
                                   onTap: () => onServerDialing!(context),
                                 ),
-                              ],
-                            ),
+                            ],
+                          ),
                           if (!state.systemExtension)
                             _section(
                               icon: LucideIcons.fileText,
@@ -546,6 +516,7 @@ class XrayRuntimePage extends StatelessWidget {
     required bool mobile,
     required String title,
     String? subtitle,
+    Widget? trailing,
     required IconData icon,
     required bool enabled,
     required VoidCallback onTap,
@@ -565,7 +536,7 @@ class XrayRuntimePage extends StatelessWidget {
     minHeight: 64,
     decorateLeading: false,
     leading: Icon(icon, size: 19, color: ColorManager.palette(context).primary),
-    trailing: _chevron(context),
+    trailing: trailing ?? _chevron(context),
     enabled: enabled,
     onTap: onTap,
   );

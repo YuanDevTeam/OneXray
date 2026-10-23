@@ -73,31 +73,65 @@ class SettingsPage extends StatelessWidget {
                             : () => controller.addTrafficWidget(context),
                       ),
                     if (controller.showAppIcon)
-                      SettingRow(
-                        title: l10n.prototypeAppIcon,
-                        value: appIconLabel(l10n, state.appIcon),
-                        minHeight: mobile ? 52 : 56,
-                        titleStyle: AppTypography.settingsRow,
-                        valueStyle:
-                            (mobile
-                                    ? AppTypography.settingsVersion
-                                    : AppTypography.desktopSettingsRowValue)
-                                .copyWith(color: palette.mutedStrong),
-                        contentPadding: rowPadding,
-                        decorateLeading: false,
-                        showChevron: true,
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadii.compact),
-                          child:
-                              (AppPlatform.isMacOS
-                                      ? state.appIcon.dockAssetImage
-                                      : state.appIcon.assetImage)
-                                  .image(width: 26, height: 26),
-                        ),
-                        onTap: () => controller.openSetting(
-                          context,
-                          AppPageDestination.appIcon,
-                        ),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final label = appIconLabel(l10n, state.appIcon);
+                          final valueStyle =
+                              (mobile
+                                      ? AppTypography.settingsVersion
+                                      : AppTypography.desktopSettingsRowValue)
+                                  .copyWith(color: palette.mutedStrong);
+                          final available =
+                              constraints.maxWidth -
+                              rowPadding.horizontal -
+                              (26 + 11) -
+                              (20 + 7) -
+                              11;
+                          final stacked =
+                              _settingsTextWidth(
+                                    context,
+                                    l10n.prototypeAppIcon,
+                                    AppTypography.settingsRow,
+                                  ) >
+                                  available * 5 / 9 ||
+                              _settingsTextWidth(
+                                    context,
+                                    label,
+                                    AppTypography.code.merge(valueStyle),
+                                  ) >
+                                  available * 4 / 9;
+                          return SettingRow(
+                            title: l10n.prototypeAppIcon,
+                            titleMaxLines: stacked ? 4 : 2,
+                            value: stacked ? null : label,
+                            subtitleWidget: stacked
+                                ? Text(
+                                    label,
+                                    style: AppTypography.code.merge(valueStyle),
+                                  )
+                                : null,
+                            minHeight: mobile ? 52 : 56,
+                            titleStyle: AppTypography.settingsRow,
+                            valueStyle: valueStyle,
+                            contentPadding: rowPadding,
+                            decorateLeading: false,
+                            showChevron: true,
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                AppRadii.compact,
+                              ),
+                              child:
+                                  (AppPlatform.isMacOS
+                                          ? state.appIcon.dockAssetImage
+                                          : state.appIcon.assetImage)
+                                      .image(width: 26, height: 26),
+                            ),
+                            onTap: () => controller.openSetting(
+                              context,
+                              AppPageDestination.appIcon,
+                            ),
+                          );
+                        },
                       ),
                   ],
                 );
@@ -309,6 +343,22 @@ class SettingsPage extends StatelessWidget {
   );
 }
 
+double _settingsTextWidth(BuildContext context, String label, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: label,
+      style: DefaultTextStyle.of(context).style.merge(style),
+    ),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    locale: Localizations.localeOf(context),
+    maxLines: 1,
+  )..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width;
+}
+
 class _ThemeOptions extends StatelessWidget {
   final ThemeCode selected;
   final ValueChanged<ThemeCode> onSelected;
@@ -321,91 +371,119 @@ class _ThemeOptions extends StatelessWidget {
     final palette = ColorManager.palette(context);
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
+    final style = mobile
+        ? AppTypography.settingsThemeOptionMobile
+        : AppTypography.settingsThemeOption;
+    final iconSize = mobile ? 16.0 : 18.0;
+    final gap = mobile ? 6.0 : 8.0;
+    final horizontalPadding = mobile ? 5.0 : 8.0;
+    final labels = {
+      ThemeCode.system: l10n.prototypeSystem,
+      ThemeCode.light: l10n.prototypeLight,
+      ThemeCode.dark: l10n.prototypeDark,
+    };
+    var widestLabel = 0.0;
+    for (final label in labels.values) {
+      final width = _settingsTextWidth(context, label, style);
+      if (width > widestLabel) widestLabel = width;
+    }
+    final horizontalWidth =
+        (widestLabel + iconSize + gap + horizontalPadding * 2) * labels.length;
     return Padding(
       padding: const EdgeInsets.all(4),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final theme in ThemeCode.values)
-              Expanded(
-                child: Semantics(
-                  button: true,
-                  selected: selected == theme,
-                  child: Material(
-                    color: selected == theme
-                        ? palette.selectedSurface
-                        : Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadii.compact),
-                      side: BorderSide(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final vertical = horizontalWidth > constraints.maxWidth;
+          Widget option(ThemeCode theme) => Semantics(
+            button: true,
+            selected: selected == theme,
+            child: Material(
+              color: selected == theme
+                  ? palette.selectedSurface
+                  : Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.compact),
+                side: BorderSide(
+                  color: selected == theme
+                      ? palette.primary
+                      : Colors.transparent,
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => onSelected(theme),
+                child: Container(
+                  constraints: BoxConstraints(
+                    minHeight: AppLayout.touchExtent(
+                      mobile ? 45 : 47,
+                      platform: Theme.of(context).platform,
+                    ),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    border: selected == theme || theme == ThemeCode.dark
+                        ? null
+                        : vertical
+                        ? Border(bottom: BorderSide(color: palette.border))
+                        : BorderDirectional(
+                            end: BorderSide(color: palette.border),
+                          ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: vertical
+                        ? MainAxisAlignment.start
+                        : MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        switch (theme) {
+                          ThemeCode.system => LucideIcons.monitor,
+                          ThemeCode.light => LucideIcons.sun,
+                          ThemeCode.dark => LucideIcons.moon,
+                        },
+                        size: iconSize,
                         color: selected == theme
                             ? palette.primary
-                            : Colors.transparent,
+                            : palette.foreground,
                       ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => onSelected(theme),
-                      child: Container(
-                        constraints: BoxConstraints(
-                          minHeight: mobile ? 45 : 47,
-                        ),
-                        padding: EdgeInsets.symmetric(
-                          horizontal: mobile ? 5 : 8,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          border: selected == theme || theme == ThemeCode.dark
-                              ? null
-                              : BorderDirectional(
-                                  end: BorderSide(color: palette.border),
-                                ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              switch (theme) {
-                                ThemeCode.system => LucideIcons.monitor,
-                                ThemeCode.light => LucideIcons.sun,
-                                ThemeCode.dark => LucideIcons.moon,
-                              },
-                              size: mobile ? 16 : 18,
-                              color: selected == theme
-                                  ? palette.primary
-                                  : palette.foreground,
-                            ),
-                            SizedBox(width: mobile ? 6 : 8),
-                            Flexible(
-                              child: Text(
-                                switch (theme) {
-                                  ThemeCode.system => l10n.prototypeSystem,
-                                  ThemeCode.light => l10n.prototypeLight,
-                                  ThemeCode.dark => l10n.prototypeDark,
-                                },
-                                textAlign: TextAlign.center,
-                                style:
-                                    (mobile
-                                            ? AppTypography
-                                                  .settingsThemeOptionMobile
-                                            : AppTypography.settingsThemeOption)
-                                        .copyWith(
-                                          color: selected == theme
-                                              ? palette.primary
-                                              : palette.foreground,
-                                        ),
-                              ),
-                            ),
-                          ],
+                      SizedBox(width: gap),
+                      Flexible(
+                        child: Text(
+                          labels[theme]!,
+                          textAlign: vertical
+                              ? TextAlign.start
+                              : TextAlign.center,
+                          style: style.copyWith(
+                            color: selected == theme
+                                ? palette.primary
+                                : palette.foreground,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+          );
+          if (vertical) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [for (final theme in ThemeCode.values) option(theme)],
+            );
+          }
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final theme in ThemeCode.values)
+                  Expanded(child: option(theme)),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

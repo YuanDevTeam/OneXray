@@ -1,17 +1,22 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onexray/core/constants/preferences.dart';
 import 'package:onexray/core/desktop_startup/model.dart';
+import 'package:onexray/core/pigeon/messages.g.dart';
+import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/settings/app_update/dialog.dart';
 import 'package:onexray/pages/settings/app_update/controller.dart';
 import 'package:onexray/pages/settings/desktop/controller.dart';
 import 'package:onexray/pages/settings/desktop/page.dart';
+import 'package:onexray/pages/settings/page.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/settings/theme/page.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/settings/app_update/service.dart';
@@ -115,6 +120,139 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final (locale, width, scale, vertical) in const [
+    (Locale('en'), 390.0, 1.0, false),
+    (Locale('en'), 390.0, 2.0, true),
+    (Locale('ru'), 390.0, 2.0, true),
+    (Locale('en'), 834.0, 2.0, false),
+    (Locale('fa'), 390.0, 2.0, true),
+  ]) {
+    testWidgets(
+      'settings appearance adapts to labels at $locale / $width / $scale',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 844);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final previousPreferences = SharedPreferencesAsyncPlatform.instance;
+        SharedPreferencesAsyncPlatform.instance =
+            InMemorySharedPreferencesAsync.empty();
+        addTearDown(
+          () => SharedPreferencesAsyncPlatform.instance = previousPreferences,
+        );
+        await PreferencesKey().saveThemeCode(ThemeCode.system.name);
+        final bus = AppEventBus();
+        addTearDown(bus.close);
+        const iconChannel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.onexray.BridgeHostApi.getCurrentAppIcon',
+          BridgeHostApi.pigeonChannelCodec,
+        );
+        const invokeChannel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.onexray.BridgeHostApi.invoke',
+          BridgeHostApi.pigeonChannelCodec,
+        );
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        messenger.setMockDecodedMessageHandler(
+          iconChannel,
+          (_) async => ['IconBlue'],
+        );
+        messenger.setMockDecodedMessageHandler(
+          invokeChannel,
+          (_) async => [
+            '{"apiVersion":3,"success":true,"data":{"version":"v26.10.21"}}',
+          ],
+        );
+        addTearDown(() {
+          messenger.setMockDecodedMessageHandler(iconChannel, null);
+          messenger.setMockDecodedMessageHandler(invokeChannel, null);
+        });
+        final semantics = tester.ensureSemantics();
+        try {
+          await tester.pumpWidget(
+            BlocProvider.value(
+              value: bus,
+              child: MaterialApp(
+                theme: AppTheme.material(Brightness.light, mobile: true),
+                locale: locale,
+                localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(context)
+                      .copyWith(textScaler: TextScaler.linear(scale)),
+                  child: ShadTheme(
+                    data: AppTheme.shad(Brightness.light, mobile: true),
+                    child: ShadToaster(child: child!),
+                  ),
+                ),
+                home: const SettingsPage(),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final l = AppLocalizations.of(
+            tester.element(find.byType(SettingsPage)),
+          )!;
+          final system = find.text(l.prototypeSystem);
+          final light = find.text(l.prototypeLight);
+          final dark = find.text(l.prototypeDark);
+          final systemRect = tester.getRect(system);
+          final lightRect = tester.getRect(light);
+          final darkRect = tester.getRect(dark);
+          if (vertical) {
+            expect(lightRect.top, greaterThanOrEqualTo(systemRect.bottom));
+            expect(darkRect.top, greaterThanOrEqualTo(lightRect.bottom));
+          } else {
+            expect(lightRect.center.dy, systemRect.center.dy);
+            expect(darkRect.center.dy, systemRect.center.dy);
+          }
+          final selected = find.ancestor(
+            of: dark,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics && widget.properties.selected != null,
+            ),
+          );
+          expect(
+            tester.widget<Semantics>(selected).properties.selected,
+            isFalse,
+          );
+          await tester.ensureVisible(dark);
+          await tester.tap(dark);
+          await tester.pumpAndSettle();
+          expect(bus.state.themeCode, ThemeCode.dark);
+          expect(await PreferencesKey().readThemeCode(), ThemeCode.dark.name);
+          expect(
+            tester.widget<Semantics>(selected).properties.selected,
+            isTrue,
+          );
+
+          if ((AppPlatform.isIOS || AppPlatform.isMacOS) && width == 390) {
+            final iconRow = tester.widget<SettingRow>(
+              find.byWidgetPredicate(
+                (widget) =>
+                    widget is SettingRow && widget.title == l.prototypeAppIcon,
+              ),
+            );
+            if (scale == 1) {
+              expect(iconRow.value, isNotNull);
+              expect(iconRow.subtitleWidget, isNull);
+            } else {
+              expect(iconRow.value, isNull);
+              expect(iconRow.subtitleWidget, isA<Text>());
+              expect((iconRow.subtitleWidget! as Text).maxLines, isNull);
+            }
+          }
+          expect(tester.takeException(), isNull);
+          await tester.pumpWidget(const SizedBox());
+        } finally {
+          semantics.dispose();
+        }
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
+
   testWidgets('theme choice uses the shared selected indicator', (
     tester,
   ) async {
@@ -146,6 +284,7 @@ void main() {
     addTearDown(
       () => SharedPreferencesAsyncPlatform.instance = previousPreferences,
     );
+    await PreferencesKey().saveThemeCode(ThemeCode.system.name);
     final bus = AppEventBus();
     addTearDown(bus.close);
     final router = GoRouter(
@@ -185,7 +324,7 @@ void main() {
       ThemeCode.dark,
     );
     expect(bus.state.themeCode, ThemeCode.system);
-    expect(await PreferencesKey().readThemeCode(), isNull);
+    expect(await PreferencesKey().readThemeCode(), ThemeCode.system.name);
 
     await tester.tap(find.text(l.buttonSave));
     await tester.pumpAndSettle();

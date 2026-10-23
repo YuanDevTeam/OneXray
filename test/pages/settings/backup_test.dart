@@ -221,6 +221,7 @@ void main() {
         tester.element(find.byType(PageActionBar)),
       )!;
       expect(find.text(l.backupTitle), findsOneWidget);
+      expect(find.text(l.backupAutomatic), findsOneWidget);
       expect(storage.writes, 0);
       final sections = find.byType(SettingSection);
       final cards = [
@@ -397,31 +398,45 @@ void main() {
   testWidgets(
     'binding starts automatic backup without a dialog and it can be disabled',
     (tester) async {
-      await tester.pumpWidget(app(const Locale('en')));
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(PageActionBar)),
-      )!;
-      expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, true);
-      expect(storage.writes, 0);
-      expect(storage.reads, 0);
-      await tester.tap(find.text(l.backupChooseExisting));
-      await pumpUntil(
-        tester,
-        () => storage.writes == 1 && service.state.operation == null,
-      );
-      await tester.pumpAndSettle();
-      expect(find.byType(AppConfirmationDialog), findsNothing);
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byType(ShadSwitch));
-      await tester.tap(find.byType(ShadSwitch));
-      await tester.pumpAndSettle();
-      expect(preferences.enabled, false);
-      expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, false);
-      expect(storage.writes, 1);
-      expect(tester.takeException(), null);
-      await tester.pumpWidget(const SizedBox());
+      final semantics = tester.ensureSemantics();
+      try {
+        await tester.pumpWidget(app(const Locale('en')));
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(PageActionBar)),
+        )!;
+        expect(find.text(l.backupAutomatic), findsOneWidget);
+        expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, true);
+        expect(
+          tester.getSemantics(find.byType(ShadSwitch)).label,
+          l.backupAutomatic,
+        );
+        expect(storage.writes, 0);
+        expect(storage.reads, 0);
+        await tester.tap(find.text(l.backupChooseExisting));
+        await pumpUntil(
+          tester,
+          () => storage.writes == 1 && service.state.operation == null,
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(AppConfirmationDialog), findsNothing);
+        await tester.pump(const Duration(seconds: 3));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byType(ShadSwitch));
+        await tester.tap(find.byType(ShadSwitch));
+        await tester.pumpAndSettle();
+        expect(preferences.enabled, false);
+        expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, false);
+        expect(
+          tester.getSemantics(find.byType(ShadSwitch)).label,
+          l.backupAutomatic,
+        );
+        expect(storage.writes, 1);
+        expect(tester.takeException(), null);
+        await tester.pumpWidget(const SizedBox());
+      } finally {
+        semantics.dispose();
+      }
     },
   );
 
@@ -447,6 +462,10 @@ void main() {
       await tester.tap(find.text('Restore'));
       await tester.pump();
       expect(find.byType(ButtonProgressIndicator), findsOneWidget);
+      expect(
+        tester.widget<ShadSwitch>(find.byType(ShadSwitch)).enabled,
+        isFalse,
+      );
       await tester.pumpWidget(const SizedBox());
       held.finish.complete();
       await pumpUntil(tester, () => service.state.operation == null);

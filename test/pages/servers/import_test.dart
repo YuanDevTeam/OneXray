@@ -912,6 +912,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('correcting a field before the next frame does not steal focus', (
+    tester,
+  ) async {
+    final controller = ServerImportController(
+      subscriptionId: 7,
+      loadSubscription: (_) async => null,
+      saveSubscriptionInput: (_, _) async =>
+          SubscriptionUpdateResult.duplicateUrl,
+    );
+    addTearDown(controller.close);
+    controller.name.text = 'Provider';
+    controller.url.text = 'https://provider.example/list';
+    controller.userAgent.text = 'Example/1.0';
+    await tester.pumpWidget(
+      _app(
+        ServerImportFormPage(
+          controller: controller,
+          action: ServerImportAction.subscription,
+        ),
+      ),
+    );
+    final nameFocus = controller.subscriptionFocusNode(
+      SubscriptionFormField.name,
+    );
+    final urlFocus = controller.subscriptionFocusNode(
+      SubscriptionFormField.url,
+    );
+    nameFocus.requestFocus();
+    await tester.pump();
+    expect(nameFocus.hasFocus, isTrue);
+    await controller.subscribe(
+      tester.element(find.byType(ServerImportFormPage)),
+    );
+    expect(
+      controller.state.subscriptionFieldProblem,
+      SubscriptionUpdateResult.duplicateUrl,
+    );
+    // Correct the draft while the old error's focus callback is still queued.
+    controller.url.text = 'https://provider.example/new-list';
+    await tester.pumpAndSettle();
+    expect(controller.state.subscriptionFieldProblem, isNull);
+    expect(nameFocus.hasFocus, isTrue);
+    expect(urlFocus.hasFocus, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('editing reuses the complete Age form and only saves metadata', (
     tester,
   ) async {

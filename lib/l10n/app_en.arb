@@ -3115,5 +3115,10 @@
   "manualOrderMoveDown": "Move down",
   "manualOrderChanged": "The list changed. Reload it before arranging again.",
   "manualOrderReload": "Reload order",
-  "manualOrderClearSearch": "Clear search to arrange."
+  "manualOrderClearSearch": "Clear search to arrange.",
+  "subscriptionAdvancedOff": "HWID and Age are off",
+  "subscriptionAdvancedConfigured": "Configured: {options}",
+  "@subscriptionAdvancedConfigured": {
+    "placeholders": {"options": {"type": "String"}}
+  }
 }

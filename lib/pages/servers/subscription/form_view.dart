@@ -143,9 +143,20 @@ class SubscriptionFormView extends StatelessWidget {
       const SizedBox(height: 14),
       _configurationCard(context),
       const SizedBox(height: 14),
-      _hwidCard(context),
-      const SizedBox(height: 14),
-      _encryptionCard(context),
+      _SubscriptionAdvanced(
+        configured: hwidEnabled || hasAgeKeys,
+        hasError: ageKeyPairErrorText != null,
+        summary: hwidEnabled || hasAgeKeys
+            ? AppLocalizations.of(context)!.subscriptionAdvancedConfigured(
+                [if (hwidEnabled) 'HWID', if (hasAgeKeys) 'Age'].join(' · '),
+              )
+            : AppLocalizations.of(context)!.subscriptionAdvancedOff,
+        child: Column(
+          spacing: 14,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [_hwidCard(context), _encryptionCard(context)],
+        ),
+      ),
     ],
   );
 
@@ -600,7 +611,12 @@ class SubscriptionFormView extends StatelessWidget {
         controller: controller,
         focusNode: focusNode,
         placeholder: hintText == null ? null : Text(hintText),
-        constraints: const BoxConstraints(minHeight: 42),
+        constraints: BoxConstraints(
+          minHeight: AppLayout.touchExtent(
+            42,
+            platform: Theme.of(context).platform,
+          ),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         style: AppTypography.subscriptionField,
         placeholderStyle: AppTypography.subscriptionField.copyWith(
@@ -683,6 +699,98 @@ class SubscriptionFormView extends StatelessWidget {
       style: AppTypography.subscriptionField.copyWith(
         color: ColorManager.palette(context).mutedStrong,
       ),
+    );
+  }
+}
+
+class _SubscriptionAdvanced extends StatefulWidget {
+  const _SubscriptionAdvanced({
+    required this.configured,
+    required this.hasError,
+    required this.summary,
+    required this.child,
+  });
+
+  final bool configured;
+  final bool hasError;
+  final String summary;
+  final Widget child;
+
+  @override
+  State<_SubscriptionAdvanced> createState() => _SubscriptionAdvancedState();
+}
+
+class _SubscriptionAdvancedState extends State<_SubscriptionAdvanced> {
+  late bool _expanded = widget.configured || widget.hasError;
+
+  @override
+  void didUpdateWidget(covariant _SubscriptionAdvanced oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if ((!oldWidget.configured && widget.configured) ||
+        (!oldWidget.hasError && widget.hasError)) {
+      _expanded = true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ColorManager.palette(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          button: true,
+          expanded: _expanded,
+          child: InkWell(
+            key: const ValueKey('subscription-advanced'),
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+              child: Row(
+                spacing: 12,
+                children: [
+                  Expanded(
+                    child: Column(
+                      spacing: 3,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          AppLocalizations.of(context)!.prototypeAdvanced,
+                          style: AppTypography.subscriptionAgeTitle,
+                        ),
+                        Text(
+                          widget.summary,
+                          style: AppTypography.subscriptionAgeOptional.copyWith(
+                            color: palette.mutedForeground,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _expanded
+                        ? LucideIcons.arrowDown
+                        : LucideIcons.arrowRightDir,
+                    size: 18,
+                    textDirection: Directionality.of(context),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        ExcludeFocus(
+          excluding: !_expanded,
+          child: Offstage(
+            offstage: !_expanded,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

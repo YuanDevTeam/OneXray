@@ -946,5 +946,10 @@
   "manualOrderMoveDown": "انتقال به پایین",
   "manualOrderChanged": "فهرست تغییر کرد. پیش از مرتب‌سازی دوباره بارگیری کنید.",
   "manualOrderReload": "بارگیری دوباره",
-  "manualOrderClearSearch": "برای مرتب‌سازی، جستجو را پاک کنید."
+  "manualOrderClearSearch": "برای مرتب‌سازی، جستجو را پاک کنید.",
+  "subscriptionAdvancedOff": "HWID و Age غیرفعال هستند",
+  "subscriptionAdvancedConfigured": "پیکربندی‌شده: {options}",
+  "@subscriptionAdvancedConfigured": {
+    "placeholders": {"options": {"type": "String"}}
+  }
 }

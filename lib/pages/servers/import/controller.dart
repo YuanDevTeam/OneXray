@@ -1023,17 +1023,16 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!isPageActive) return;
+      if (!isPageActive || state.subscriptionFieldProblem != problem) return;
       final focus = subscriptionFocusNode(field);
-      focus.requestFocus();
       final fieldContext = focus.context;
-      if (fieldContext != null && fieldContext.mounted) {
-        Scrollable.ensureVisible(
-          fieldContext,
-          duration: const Duration(milliseconds: 200),
-          alignment: 0.2,
-        );
-      }
+      if (fieldContext == null || !fieldContext.mounted) return;
+      focus.requestFocus();
+      Scrollable.ensureVisible(
+        fieldContext,
+        duration: const Duration(milliseconds: 200),
+        alignment: 0.2,
+      );
     });
     return true;
   }

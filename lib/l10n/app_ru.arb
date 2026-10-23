@@ -946,5 +946,10 @@
   "manualOrderMoveDown": "Ниже",
   "manualOrderChanged": "Список изменился. Загрузите его снова перед сортировкой.",
   "manualOrderReload": "Загрузить заново",
-  "manualOrderClearSearch": "Очистите поиск для изменения порядка."
+  "manualOrderClearSearch": "Очистите поиск для изменения порядка.",
+  "subscriptionAdvancedOff": "HWID и Age отключены",
+  "subscriptionAdvancedConfigured": "Настроено: {options}",
+  "@subscriptionAdvancedConfigured": {
+    "placeholders": {"options": {"type": "String"}}
+  }
 }

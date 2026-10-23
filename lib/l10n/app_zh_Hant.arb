@@ -946,5 +946,10 @@
   "manualOrderMoveDown": "下移",
   "manualOrderChanged": "清單已變更，請重新載入後整理。",
   "manualOrderReload": "重新載入",
-  "manualOrderClearSearch": "清空搜尋後可整理順序。"
+  "manualOrderClearSearch": "清空搜尋後可整理順序。",
+  "subscriptionAdvancedOff": "未開啟 HWID 和 Age",
+  "subscriptionAdvancedConfigured": "已設定：{options}",
+  "@subscriptionAdvancedConfigured": {
+    "placeholders": {"options": {"type": "String"}}
+  }
 }

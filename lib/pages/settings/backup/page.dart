@@ -263,31 +263,33 @@ class BackupPage extends StatelessWidget {
                             icon: LucideIcons.refreshCw,
                             padding: EdgeInsets.zero,
                             dividerIndent: 0,
-                            children: [
-                              SettingRow(
-                                title: l.backupAutomatic,
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (backup.changingAutomatic)
-                                      const Padding(
-                                        padding: EdgeInsetsDirectional.only(
-                                          end: 8,
-                                        ),
-                                        child: ButtonProgressIndicator(),
-                                      ),
-                                    ShadSwitch(
-                                      value: backup.automatic,
-                                      enabled:
-                                          !backup.changingAutomatic &&
-                                          state.action !=
-                                              BackupPageAction.restoring,
-                                      onChanged: (value) => controller
-                                          .setAutomatic(context, value),
-                                    ),
-                                  ],
+                            action: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (backup.changingAutomatic)
+                                  const Padding(
+                                    padding: EdgeInsetsDirectional.only(end: 8),
+                                    child: ButtonProgressIndicator(),
+                                  ),
+                                Semantics(
+                                  label: l.backupAutomatic,
+                                  enabled:
+                                      !backup.changingAutomatic &&
+                                      state.action !=
+                                          BackupPageAction.restoring,
+                                  child: ShadSwitch(
+                                    value: backup.automatic,
+                                    enabled:
+                                        !backup.changingAutomatic &&
+                                        state.action !=
+                                            BackupPageAction.restoring,
+                                    onChanged: (value) =>
+                                        controller.setAutomatic(context, value),
+                                  ),
                                 ),
-                              ),
+                              ],
+                            ),
+                            children: [
                               SettingRow(
                                 title: l.backupInterval,
                                 trailing: Row(
