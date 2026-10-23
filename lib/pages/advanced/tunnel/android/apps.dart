@@ -69,7 +69,12 @@ class AndroidAppsController extends PageCubit<AndroidAppsPageState> {
     emit(state.copyWith(loading: true, failed: false));
     try {
       final result = await loadApps();
-      emit(state.copyWith(apps: result));
+      // Group once on load so toggling a checkbox does not move its row.
+      final ordered = [
+        ...result.where((app) => selected.contains(app.packageName)),
+        ...result.where((app) => !selected.contains(app.packageName)),
+      ];
+      emit(state.copyWith(apps: ordered));
     } catch (error) {
       emit(state.copyWith(failed: true, failure: error));
     } finally {
@@ -251,9 +256,8 @@ class AndroidAppsPage extends StatelessWidget {
                                         final last =
                                             index ==
                                             rows.length + missing.length - 1;
-                                        if (index >= rows.length) {
-                                          final id =
-                                              missing[index - rows.length];
+                                        if (index < missing.length) {
+                                          final id = missing[index];
                                           return _AndroidAppRow(
                                             key: ValueKey(id),
                                             name: id,
@@ -268,7 +272,8 @@ class AndroidAppsPage extends StatelessWidget {
                                             onTap: () => controller.toggle(id),
                                           );
                                         }
-                                        final app = rows[index];
+                                        final app =
+                                            rows[index - missing.length];
                                         return _AndroidAppRow(
                                           key: ValueKey(app.packageName),
                                           name: app.name,
