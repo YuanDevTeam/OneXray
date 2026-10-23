@@ -292,6 +292,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('successful save completes navigation without a deferred frame', (
+    tester,
+  ) async {
+    service.saveDraft = (_) async => true;
+    final session = await openEditor(tester);
+    controller.text.text = _edited;
+    await controller.save(session.context);
+    expect(ModalRoute.of(session.context)!.isCurrent, isFalse);
+    expect(service.submitted.single.text, _edited);
+    await tester.pumpAndSettle();
+    expect(await session.result.future, 7);
+    expect(find.byType(ServerEditorPage), findsNothing);
+    expect(find.byType(AppConfirmationDialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('pending load preserves early input and still confirms closing', (
     tester,
   ) async {

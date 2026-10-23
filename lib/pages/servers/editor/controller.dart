@@ -109,15 +109,9 @@ class ServerEditorController extends PageCubit<ServerEditorPageState> {
     final route = ModalRoute.of(context);
     if (route?.isCurrent != true) return;
     emit(state.copyWith(closeAllowed: true));
-    // Let this page's PopScope accept the confirmed exit before popping it.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!isPageActive || !context.mounted) return;
-      if (route?.isCurrent != true) {
-        emit(state.copyWith(closeAllowed: false));
-        return;
-      }
-      Navigator.of(context).pop(result);
-    });
+    // Explicit pop follows the confirmed decision; unlike maybePop it does
+    // not consult PopScope again. Do not leave a frame for new edits to arrive.
+    Navigator.of(context).pop(result);
   }
 
   Future<void> load(BuildContext context) async {
