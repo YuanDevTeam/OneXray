@@ -76,31 +76,12 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
                       mobile ? AppSpacing.mobilePage : AppSpacing.page,
                       mobile ? 18 : AppSpacing.desktopPageBottom,
                     ),
-                    child:
-                        MediaQuery.sizeOf(context).width <=
-                            AppLayout.compactDesktopBreakpoint
-                        ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _settings(context, state),
-                              SizedBox(height: mobile ? 12 : 16),
-                              _preview(context, state),
-                            ],
-                          )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 25,
-                                child: _settings(context, state),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                flex: 24,
-                                child: _preview(context, state),
-                              ),
-                            ],
-                          ),
+                    child: SmartRoutingEditorContent(
+                      controller: controller,
+                      state: state,
+                      openRegions: widget.openRegions,
+                      openFinalExit: widget.openFinalExit,
+                    ),
                   ),
           ),
           bottomNavigationBar: Column(
@@ -143,125 +124,190 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
       },
     ),
   );
+}
 
-  Widget _settings(BuildContext context, SmartRoutingEditorState state) {
+/// The editable groups share one scroll surface on phones, tablets and desktop.
+class SmartRoutingEditorContent extends StatelessWidget {
+  final SmartRoutingEditorController controller;
+  final SmartRoutingEditorState state;
+  final OpenDirectRegions openRegions;
+  final OpenFinalExit openFinalExit;
+
+  const SmartRoutingEditorContent({
+    super.key,
+    required this.controller,
+    required this.state,
+    required this.openRegions,
+    required this.openFinalExit,
+  });
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final direct = _directSettings(context);
+      final proxy = _proxySettings(context);
+      final dns = _dnsSettings(context);
+      final sniffing = _sniffingSettings(context);
+      final preview = _preview(context, state);
+      // Account for the sidebar and page gutters before choosing two columns.
+      if (constraints.maxWidth < AppLayout.mobileBreakpoint) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 16,
+          children: [direct, proxy, dns, sniffing, preview],
+        );
+      }
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 16,
+        children: [
+          Expanded(
+            child: Column(
+              key: const ValueKey('smart-routing-primary'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 16,
+              children: [direct, dns],
+            ),
+          ),
+          Expanded(
+            child: Column(
+              key: const ValueKey('smart-routing-secondary'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 16,
+              children: [proxy, sniffing, preview],
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  Widget _directSettings(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final smart = state.draft;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 16,
-      children: [
-        RoutingCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              RoutingCardHeader(
-                title: l.prototypeSmartRoutingSettings,
-                help: [
-                  l.prototypeDirectPrivateAddressesHint,
-                  l.prototypeDirectAppleServicesHint,
-                  l.directWindowsServicesHint,
-                  l.prototypeDirectDnsHint,
-                  l.prototypeBlockAdDomainsHint,
-                ],
-              ),
-              _switch(
-                l.prototypeDirectPrivateAddresses,
-                LucideIcons.network,
-                'directPrivate',
-                smart.directPrivate,
-                state,
-              ),
-              _switch(
-                l.prototypeDirectAppleServices,
-                LucideIcons.apple,
-                'directApple',
-                smart.directApple,
-                state,
-              ),
-              _switch(
-                l.directWindowsServices,
-                LucideIcons.appWindow,
-                'directWindows',
-                smart.directWindows,
-                state,
-              ),
-              _switch(
-                l.prototypeDirectDns,
-                LucideIcons.earth,
-                'directDns',
-                smart.directDns,
-                state,
-              ),
-              RoutingFakeDnsRow(
-                value: smart.fakeDns,
-                enabled:
-                    !state.busy && (smart.fakeDns || smart.sniffing.enabled),
-                onChanged: (value) => controller.update('fakeDns', value),
-              ),
-              RoutingFragmentRow(
-                value: smart.fragment,
-                enabled: state.original != null && !state.busy,
-                onChanged: (value) => controller.update('fragment', value),
-              ),
-              _switch(
-                l.prototypeBlockAdDomains,
-                LucideIcons.shieldCheck,
-                'blockAds',
-                smart.blockAds,
-                state,
-              ),
-              RoutingEntryCountRow(
-                value: smart.entryCount,
-                onChanged: state.busy
-                    ? null
-                    : (count) => controller.update('entryCount', count),
-              ),
-              RoutingSelectionSettingsForm(
-                value: smart.selection,
-                enabled: !state.busy,
-                entryCount: controller.effectiveEntryCount,
-                onChanged: (value) =>
-                    controller.update('selection', value.toJson()),
-              ),
-              RoutingSettingRow(
-                icon: LucideIcons.earth,
-                title: l.prototypeDirectRegions,
-                value: controller.regionsSummary(l),
-                enabled: !state.busy,
-                onTap: () =>
-                    controller.chooseRegions(context, widget.openRegions),
-              ),
-              RoutingSettingRow(
-                icon: LucideIcons.server,
-                title: l.prototypeVpnFinalExit,
-                help: l.prototypeVpnFinalExitHint,
-                value: smart.finalExitId == null
-                    ? l.prototypeNotSet
-                    : state.finalExitName ?? l.prototypeTemporarilyUnavailable,
-                enabled: !state.busy,
-                divider: false,
-                onTap: () =>
-                    controller.chooseFinalExit(context, widget.openFinalExit),
-              ),
+    return RoutingCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RoutingCardHeader(
+            title: l.smartRoutingDirectAndBlock,
+            help: [
+              l.prototypeDirectPrivateAddressesHint,
+              l.prototypeDirectAppleServicesHint,
+              l.directWindowsServicesHint,
+              l.prototypeBlockAdDomainsHint,
             ],
           ),
-        ),
-        RoutingDnsSettingsForm(
-          value: smart.dns,
-          enabled: !state.busy,
-          directEnabled: smart.directDns,
-          onChanged: (value) => controller.update('dns', value.toJson()),
-        ),
-        RoutingSniffingSettingsForm(
-          value: smart.sniffing,
-          enabled: !state.busy,
-          fakeDns: smart.fakeDns,
-          onChanged: (value) => controller.update('sniffing', value.toJson()),
-        ),
-      ],
+          RoutingSettingRow(
+            icon: LucideIcons.earth,
+            title: l.prototypeDirectRegions,
+            value: controller.regionsSummary(l),
+            enabled: !state.busy,
+            onTap: () => controller.chooseRegions(context, openRegions),
+          ),
+          _switch(
+            l.prototypeDirectPrivateAddresses,
+            LucideIcons.network,
+            'directPrivate',
+            smart.directPrivate,
+            state,
+          ),
+          _switch(
+            l.prototypeDirectAppleServices,
+            LucideIcons.apple,
+            'directApple',
+            smart.directApple,
+            state,
+          ),
+          _switch(
+            l.directWindowsServices,
+            LucideIcons.appWindow,
+            'directWindows',
+            smart.directWindows,
+            state,
+          ),
+          _switch(
+            l.prototypeBlockAdDomains,
+            LucideIcons.shieldCheck,
+            'blockAds',
+            smart.blockAds,
+            state,
+            divider: false,
+          ),
+        ],
+      ),
     );
   }
+
+  Widget _proxySettings(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final smart = state.draft;
+    return RoutingCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          RoutingCardHeader(title: l.smartRoutingProxyConnection),
+          RoutingEntryCountRow(
+            value: smart.entryCount,
+            onChanged: state.busy
+                ? null
+                : (count) => controller.update('entryCount', count),
+          ),
+          RoutingSelectionSettingsForm(
+            value: smart.selection,
+            enabled: !state.busy,
+            entryCount: controller.effectiveEntryCount,
+            onChanged: (value) =>
+                controller.update('selection', value.toJson()),
+          ),
+          RoutingFragmentRow(
+            value: smart.fragment,
+            enabled: state.original != null && !state.busy,
+            onChanged: (value) => controller.update('fragment', value),
+          ),
+          RoutingSettingRow(
+            icon: LucideIcons.server,
+            title: l.prototypeVpnFinalExit,
+            help: l.prototypeVpnFinalExitHint,
+            value: smart.finalExitId == null
+                ? l.prototypeNotSet
+                : state.finalExitName ?? l.prototypeTemporarilyUnavailable,
+            enabled: !state.busy,
+            divider: false,
+            onTap: () => controller.chooseFinalExit(context, openFinalExit),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dnsSettings(BuildContext context) => RoutingDnsSettingsForm(
+    value: state.draft.dns,
+    enabled: !state.busy,
+    directEnabled: state.draft.directDns,
+    leading: _switch(
+      AppLocalizations.of(context)!.prototypeDirectDns,
+      LucideIcons.earth,
+      'directDns',
+      state.draft.directDns,
+      state,
+      help: AppLocalizations.of(context)!.prototypeDirectDnsHint,
+    ),
+    onChanged: (value) => controller.update('dns', value.toJson()),
+  );
+
+  Widget _sniffingSettings(BuildContext context) => RoutingSniffingSettingsForm(
+    value: state.draft.sniffing,
+    enabled: !state.busy,
+    fakeDns: state.draft.fakeDns,
+    leading: RoutingFakeDnsRow(
+      value: state.draft.fakeDns,
+      enabled:
+          !state.busy && (state.draft.fakeDns || state.draft.sniffing.enabled),
+      onChanged: (value) => controller.update('fakeDns', value),
+    ),
+    onChanged: (value) => controller.update('sniffing', value.toJson()),
+  );
 
   Widget _switch(
     String title,
@@ -270,9 +316,13 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
     bool value,
     SmartRoutingEditorState state, {
     Widget? below,
+    String? help,
+    bool divider = true,
   }) => RoutingSettingRow(
     icon: icon,
     title: title,
+    help: help,
+    divider: divider,
     enabled: state.original != null && !state.busy,
     below: below,
     trailing: Semantics(

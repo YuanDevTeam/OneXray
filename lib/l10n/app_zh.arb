@@ -508,6 +508,8 @@
   "prototypeSubscriptionSaved": "订阅已保存",
   "prototypeChangesApplyToFutureUpdates": "修改会用于后续更新，不影响当前运行中的连接。",
   "prototypeSmartRoutingSettings": "智能路由设置",
+  "smartRoutingDirectAndBlock": "直连与拦截",
+  "smartRoutingProxyConnection": "代理连接",
   "prototypeDirectPrivateAddresses": "局域网与私有地址直连",
   "prototypeDirectPrivateAddressesHint": "访问路由器、NAS 和其他私有地址时不经过 VPN。",
   "prototypeDirectAppleServices": "Apple 服务直连",

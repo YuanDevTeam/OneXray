@@ -15,6 +15,7 @@ class RoutingDnsSettingsForm extends StatelessWidget {
   final ValueChanged<RoutingDnsSettings> onChanged;
   final bool enabled;
   final bool directEnabled;
+  final Widget? leading;
 
   const RoutingDnsSettingsForm({
     super.key,
@@ -22,6 +23,7 @@ class RoutingDnsSettingsForm extends StatelessWidget {
     required this.onChanged,
     this.enabled = true,
     this.directEnabled = true,
+    this.leading,
   });
 
   void _updateResolver(bool direct, int index, RoutingDnsResolver resolver) {
@@ -72,6 +74,7 @@ class RoutingDnsSettingsForm extends StatelessWidget {
             title: l.routingDnsSettings,
             help: [l.routingDnsSettingsHint, l.routingDnsSameExitOnlyHint],
           ),
+          ?leading,
           _resolvers(context, direct: false),
           if (directEnabled) _resolvers(context, direct: true),
           _OptionSwitch(
@@ -183,6 +186,7 @@ class RoutingSniffingSettingsForm extends StatelessWidget {
   final ValueChanged<RoutingSniffingSettings> onChanged;
   final bool enabled;
   final bool fakeDns;
+  final Widget? leading;
 
   const RoutingSniffingSettingsForm({
     super.key,
@@ -190,6 +194,7 @@ class RoutingSniffingSettingsForm extends StatelessWidget {
     required this.onChanged,
     this.enabled = true,
     this.fakeDns = false,
+    this.leading,
   });
 
   @override
@@ -207,6 +212,7 @@ class RoutingSniffingSettingsForm extends StatelessWidget {
               l.routingSniffingMetadataOnlyHint,
             ],
           ),
+          ?leading,
           _OptionSwitch(
             icon: LucideIcons.scanSearch,
             title: l.routingSniffingEnabled,

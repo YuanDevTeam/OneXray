@@ -508,6 +508,8 @@
   "prototypeSubscriptionSaved": "Подписка сохранена",
   "prototypeChangesApplyToFutureUpdates": "Изменения применятся к будущим обновлениям, но не к текущему подключению.",
   "prototypeSmartRoutingSettings": "Настройки умной маршрутизации",
+  "smartRoutingDirectAndBlock": "Прямой трафик и блокировка",
+  "smartRoutingProxyConnection": "Прокси-соединения",
   "prototypeDirectPrivateAddresses": "Локальная сеть и частные адреса напрямую",
   "prototypeDirectPrivateAddressesHint": "Доступ к роутерам, NAS и частным адресам без VPN.",
   "prototypeDirectAppleServices": "Службы Apple напрямую",

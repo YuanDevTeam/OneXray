@@ -1404,6 +1404,14 @@
   "@prototypeSmartRoutingSettings": {
     "description": "Approved prototype copy: Smart Routing settings"
   },
+  "smartRoutingDirectAndBlock": "Direct and blocked traffic",
+  "@smartRoutingDirectAndBlock": {
+    "description": "Smart Routing section for direct traffic and blocking rules"
+  },
+  "smartRoutingProxyConnection": "Proxy connections",
+  "@smartRoutingProxyConnection": {
+    "description": "Smart Routing section for proxy connection settings"
+  },
   "prototypeDirectPrivateAddresses": "Direct local network and private addresses",
   "@prototypeDirectPrivateAddresses": {
     "description": "Approved prototype copy: Direct local network and private addresses"

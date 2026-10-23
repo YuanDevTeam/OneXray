@@ -315,10 +315,10 @@ class RoutingSettingRow extends StatelessWidget {
               children: [
                 Icon(icon, size: mobile ? 20 : 22, color: foreground),
                 const SizedBox(width: 13),
-                Expanded(child: copy),
+                Expanded(flex: navigation ? 2 : 1, child: copy),
                 if (!mobile && value != null) ...[
                   const SizedBox(width: 13),
-                  Flexible(
+                  Expanded(
                     child: Text(
                       value!,
                       maxLines: 1,
@@ -402,6 +402,16 @@ class EntryCountPicker extends StatelessWidget {
                         constraints: const BoxConstraints(minHeight: 34),
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         foregroundDecoration: BoxDecoration(
+                          borderRadius: value == count
+                              ? BorderRadiusDirectional.horizontal(
+                                  start: Radius.circular(
+                                    count == 1 ? AppRadii.control - 1 : 0,
+                                  ),
+                                  end: Radius.circular(
+                                    count == 3 ? AppRadii.control - 1 : 0,
+                                  ),
+                                )
+                              : null,
                           border: value == count
                               ? Border.all(color: palette.primary)
                               : count < 3

@@ -508,6 +508,8 @@
     "prototypeSubscriptionSaved": "اشتراک ذخیره شد",
     "prototypeChangesApplyToFutureUpdates": "تغییرات در به‌روزرسانی‌های بعدی اعمال می‌شوند، نه در اتصال جاری.",
     "prototypeSmartRoutingSettings": "تنظیمات مسیریابی هوشمند",
+    "smartRoutingDirectAndBlock": "اتصال مستقیم و مسدودسازی",
+    "smartRoutingProxyConnection": "اتصال‌های پراکسی",
     "prototypeDirectPrivateAddresses": "اتصال مستقیم به شبکهٔ محلی و نشانی‌های خصوصی",
     "prototypeDirectPrivateAddressesHint": "دسترسی به روترها، دستگاه‌های NAS و نشانی‌های خصوصی بدون استفاده از VPN.",
     "prototypeDirectAppleServices": "اتصال مستقیم به خدمات Apple",
