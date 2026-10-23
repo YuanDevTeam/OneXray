@@ -6,6 +6,7 @@ import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/pages/main/router.dart';
 import 'package:onexray/service/launch/app_startup.dart';
 import 'package:onexray/service/shared/menu/short_cut/service.dart';
+import 'package:onexray/service/shared/menu/settings/service.dart';
 import 'package:onexray/service/shared/menu/window/service.dart';
 import 'package:onexray/service/shared/share/service.dart';
 
@@ -28,6 +29,7 @@ Future<void> main(List<String> _) async {
     );
   }
 
+  MacOSSettingsMenuService().initialize();
   runApp(GoRouteApp());
   // Hidden windows may not render frames. Keep visibility independent from
   // first-frame callbacks and preserve the existing hidden-start policy.

@@ -17,6 +17,16 @@ class AppDelegate: FlutterAppDelegate {
         restoreMainWindow()
     }
 
+    @IBAction func showSettings(_ sender: Any?) {
+        restoreMainWindow()
+        guard NSApp.modalWindow == nil,
+              let window = mainFlutterWindow as? MainFlutterWindow,
+              window.attachedSheet == nil else {
+            return
+        }
+        window.openSettings()
+    }
+
     private func restoreMainWindow() {
         guard let window = mainFlutterWindow ?? NSApp.mainWindow ?? NSApp.windows.first(where: { $0 is MainFlutterWindow }) else {
             return

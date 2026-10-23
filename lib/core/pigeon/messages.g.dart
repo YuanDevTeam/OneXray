@@ -1184,6 +1184,8 @@ abstract class BridgeFlutterApi {
 
   Future<void> vpnStatusChanged(VpnStatus status);
 
+  Future<void> openSettings();
+
   static void setUp(
     BridgeFlutterApi? api, {
     BinaryMessenger? binaryMessenger,
@@ -1206,6 +1208,29 @@ abstract class BridgeFlutterApi {
           final VpnStatus arg_status = args[0]! as VpnStatus;
           try {
             await api.vpnStatusChanged(arg_status);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          } catch (e) {
+            return wrapResponse(
+              error: PlatformException(code: 'error', message: e.toString()),
+            );
+          }
+        });
+      }
+    }
+    {
+      final pigeonVar_channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.onexray.BridgeFlutterApi.openSettings$messageChannelSuffix',
+        pigeonChannelCodec,
+        binaryMessenger: binaryMessenger,
+      );
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          try {
+            await api.openSettings();
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

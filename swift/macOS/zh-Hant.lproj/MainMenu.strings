@@ -44,8 +44,8 @@
 /* Class = "NSMenu"; title = "Main Menu"; ObjectID = "AYu-sK-qS6"; */
 "AYu-sK-qS6.title" = "主選單";
 
-/* Class = "NSMenuItem"; title = "Preferences…"; ObjectID = "BOF-NM-1cW"; */
-"BOF-NM-1cW.title" = "偏好設定…";
+/* Class = "NSMenuItem"; title = "Settings…"; ObjectID = "BOF-NM-1cW"; */
+"BOF-NM-1cW.title" = "設定…";
 
 /* Class = "NSMenuItem"; title = "Spelling and Grammar"; ObjectID = "Dv1-io-Yv7"; */
 "Dv1-io-Yv7.title" = "拼字和文法";

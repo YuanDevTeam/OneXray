@@ -3,6 +3,8 @@ import FlutterMacOS
 import window_manager
 
 class MainFlutterWindow: NSWindow {
+    private var flutterApi: AppFlutterApi?
+
     override func awakeFromNib() {
         MainActor.assumeIsolated {
             let flutterViewController = FlutterViewController()
@@ -12,6 +14,7 @@ class MainFlutterWindow: NSWindow {
 
             let binaryMessenger = flutterViewController.engine.binaryMessenger
             let flutterApi = AppFlutterApi(binaryMessenger: binaryMessenger)
+            self.flutterApi = flutterApi
             BridgeHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: AppHostApi(flutterApi: flutterApi))
             let backupApi = AppleBackupApi()
             BackupHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: backupApi)
@@ -22,6 +25,10 @@ class MainFlutterWindow: NSWindow {
             super.awakeFromNib()
             DockIconService.restoreIcon()
         }
+    }
+
+    func openSettings() {
+        flutterApi?.openSettings()
     }
 
     override public func order(_ place: NSWindow.OrderingMode, relativeTo otherWin: Int) {

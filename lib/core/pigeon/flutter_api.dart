@@ -11,6 +11,7 @@ class AppFlutterApi extends BridgeFlutterApi {
   AppFlutterApi._internal();
 
   final vpnStatusController = StreamController<VpnStatus>.broadcast();
+  final openSettingsController = StreamController<void>.broadcast(sync: true);
   VpnStatus? _lastLoggedVpnStatus;
 
   @override
@@ -20,5 +21,10 @@ class AppFlutterApi extends BridgeFlutterApi {
       _lastLoggedVpnStatus = status;
     }
     vpnStatusController.add(status);
+  }
+
+  @override
+  Future<void> openSettings() async {
+    openSettingsController.add(null);
   }
 }

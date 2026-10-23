@@ -17,6 +17,7 @@ import 'package:onexray/service/shared/event_bus/state.dart';
 import 'package:onexray/service/manager.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/service/shared/menu/short_cut/service.dart';
+import 'package:onexray/service/shared/menu/settings/service.dart';
 import 'package:onexray/service/shared/menu/tray/service.dart';
 import 'package:onexray/service/shared/share/service.dart';
 
@@ -25,10 +26,12 @@ class AdaptiveMainShell extends StatefulWidget {
     super.key,
     required this.navigationShell,
     this.initializeServices,
+    this.settingsMenuService,
   });
 
   final StatefulNavigationShell navigationShell;
   final Future<void> Function(BuildContext context)? initializeServices;
+  final MacOSSettingsMenuService? settingsMenuService;
 
   @override
   State<AdaptiveMainShell> createState() => _AdaptiveMainShellState();
@@ -37,6 +40,8 @@ class AdaptiveMainShell extends StatefulWidget {
 class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   Future<void>? _servicesReady;
   bool _menusAttached = false;
+  late final _settingsMenu =
+      widget.settingsMenuService ?? MacOSSettingsMenuService();
 
   StatefulNavigationShell get navigationShell => widget.navigationShell;
 
@@ -72,16 +77,57 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
       ShortCutService().attach(
         (action) => handleMobileQuickAction(context, action),
       );
+      _settingsMenu.attach(
+        owner: this,
+        canNavigate: _canOpenSettings,
+        openSettings: _openSettings,
+      );
       _refreshQuickActions();
     });
   }
 
   @override
   void dispose() {
+    _settingsMenu.detach(this);
     ShortCutService().detach();
     TrayService().onConfigurationChange = null;
     TrayService().onSubscriptionFormatConfirmation = null;
     super.dispose();
+  }
+
+  bool _canOpenSettings() {
+    if (!mounted || !_menusAttached) return false;
+    final location =
+        navigationShell.shellRouteContext.match.matches.last.matchedLocation;
+    if ({
+      ...AppPageDestination.adaptiveDialogs,
+      AppPageDestination.appUpdate,
+    }.any((page) => location.endsWith('/${page.segment}'))) {
+      return false;
+    }
+    // Every ModalRoute mounts its own FocusScope, even requestFocus:false
+    // dialogs with no text input. Inspect those route scopes, not just the
+    // primary input focus. Offstage branches must not block the active branch.
+    for (final node in FocusManager.instance.rootScope.descendants) {
+      final routeContext = node.context;
+      if (routeContext == null || !routeContext.mounted) continue;
+      final route = ModalRoute.of(routeContext);
+      if (route is PopupRoute &&
+          route.isActive &&
+          route.isCurrent &&
+          TickerMode.valuesOf(routeContext).enabled) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void _openSettings() {
+    if (!_canOpenSettings()) return;
+    navigationShell.goBranch(
+      AppPrimaryDestination.settings.index,
+      initialLocation: false,
+    );
   }
 
   void _retry() {

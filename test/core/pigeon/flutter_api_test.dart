@@ -5,6 +5,31 @@ import 'package:onexray/core/pigeon/messages.g.dart';
 
 void main() {
   test(
+    'Settings commands are transient events independent of VPN status',
+    () async {
+      final api = AppFlutterApi();
+      await api.openSettings();
+      var settingsRequests = 0;
+      final statuses = <VpnStatus>[];
+      final settingsSubscription = api.openSettingsController.stream.listen(
+        (_) => settingsRequests++,
+      );
+      final statusSubscription = api.vpnStatusController.stream.listen(
+        statuses.add,
+      );
+      addTearDown(settingsSubscription.cancel);
+      addTearDown(statusSubscription.cancel);
+
+      await api.openSettings();
+      expect(settingsRequests, 1);
+      expect(statuses, isEmpty);
+      await settingsSubscription.cancel();
+      await api.openSettings();
+      expect(settingsRequests, 1);
+    },
+  );
+
+  test(
     'unchanged native replies still broadcast without repeating logs',
     () async {
       final api = AppFlutterApi();

@@ -25,4 +25,12 @@ class AppFlutterApi {
         let status = try await VPNManager.shared.readVpnStatus()
         flutterApi.vpnStatusChanged(status: status) { _ in }
     }
+
+    #if os(macOS)
+    func openSettings() {
+        // Setup or startup can still be registering the Dart receiver. This
+        // navigation command is intentionally not queued or retried.
+        flutterApi.openSettings { _ in }
+    }
+    #endif
 }

@@ -206,4 +206,7 @@ class AndroidAppInfo {
 abstract class BridgeFlutterApi {
   @asyncCallback
   void vpnStatusChanged(VpnStatus status);
+
+  @asyncCallback
+  void openSettings();
 }

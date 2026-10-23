@@ -1142,6 +1142,7 @@ class AppleBackupHostApiSetup {
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol BridgeFlutterApiProtocol {
   func vpnStatusChanged(status statusArg: VpnStatus, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  func openSettings(completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
 class BridgeFlutterApi: BridgeFlutterApiProtocol {
   private let binaryMessenger: FlutterBinaryMessenger
@@ -1157,6 +1158,24 @@ class BridgeFlutterApi: BridgeFlutterApiProtocol {
     let channelName: String = "dev.flutter.pigeon.onexray.BridgeFlutterApi.vpnStatusChanged\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
     channel.sendMessage([statusArg] as [Any?]) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(()))
+      }
+    }
+  }
+  func openSettings(completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.onexray.BridgeFlutterApi.openSettings\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage(nil) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return
