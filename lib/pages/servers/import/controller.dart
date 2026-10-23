@@ -23,6 +23,8 @@ import 'package:re_editor/re_editor.dart';
 
 enum ServerImportAction { scan, paste, subscription, file, json }
 
+enum SubscriptionFormField { name, url, userAgent }
+
 @immutable
 class ServerImportPageState {
   static const _unset = Object();
@@ -43,6 +45,8 @@ class ServerImportPageState {
     this.obscureSecret = true,
     this.loadFailed = false,
     this.error,
+    this.subscriptionFieldProblem,
+    Set<SubscriptionFormField> touchedSubscriptionFields = const {},
     this.jsonDiagnostic,
     List<ServerSubscriptionImport> subscriptionImports = const [],
     this.committedResult,
@@ -52,7 +56,8 @@ class ServerImportPageState {
     this.hwidEnabled = false,
     this.panel = SubscriptionPanel.generic,
     this.mode,
-  }) : subscriptionImports = List.unmodifiable(subscriptionImports);
+  }) : subscriptionImports = List.unmodifiable(subscriptionImports),
+       touchedSubscriptionFields = Set.unmodifiable(touchedSubscriptionFields);
 
   final String inputText;
   final String jsonInput;
@@ -69,6 +74,8 @@ class ServerImportPageState {
   final bool obscureSecret;
   final bool loadFailed;
   final String? error;
+  final SubscriptionUpdateResult? subscriptionFieldProblem;
+  final Set<SubscriptionFormField> touchedSubscriptionFields;
   final JsonDiagnostic? jsonDiagnostic;
   final List<ServerSubscriptionImport> subscriptionImports;
   final ServerImportResult? committedResult;
@@ -106,6 +113,8 @@ class ServerImportPageState {
     bool? obscureSecret,
     bool? loadFailed,
     Object? error = _unset,
+    Object? subscriptionFieldProblem = _unset,
+    Set<SubscriptionFormField>? touchedSubscriptionFields,
     Object? jsonDiagnostic = _unset,
     List<ServerSubscriptionImport>? subscriptionImports,
     Object? committedResult = _unset,
@@ -137,6 +146,11 @@ class ServerImportPageState {
     obscureSecret: obscureSecret ?? this.obscureSecret,
     loadFailed: loadFailed ?? this.loadFailed,
     error: identical(error, _unset) ? this.error : error as String?,
+    subscriptionFieldProblem: identical(subscriptionFieldProblem, _unset)
+        ? this.subscriptionFieldProblem
+        : subscriptionFieldProblem as SubscriptionUpdateResult?,
+    touchedSubscriptionFields:
+        touchedSubscriptionFields ?? this.touchedSubscriptionFields,
     jsonDiagnostic: identical(jsonDiagnostic, _unset)
         ? this.jsonDiagnostic
         : jsonDiagnostic as JsonDiagnostic?,
@@ -183,6 +197,18 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     for (final field in [text, name, url, userAgent, secretKey, publicKey]) {
       field.addListener(_changed);
     }
+    for (final field in SubscriptionFormField.values) {
+      final node = subscriptionFocusNode(field);
+      var wasFocused = false;
+      node.addListener(() {
+        if (node.hasFocus) {
+          wasFocused = true;
+        } else if (wasFocused) {
+          wasFocused = false;
+          touchSubscriptionField(field);
+        }
+      });
+    }
   }
 
   final text = TextEditingController();
@@ -192,6 +218,9 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   final userAgent = TextEditingController();
   final secretKey = TextEditingController();
   final publicKey = TextEditingController();
+  final _nameFocus = FocusNode();
+  final _urlFocus = FocusNode();
+  final _userAgentFocus = FocusNode();
   bool _closingFlow = false;
   bool _previewOpen = false;
   final _completedSubscriptions = <String, ServerSubscriptionImport>{};
@@ -202,21 +231,66 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
 
   bool get supportsScan => AppPlatform.isMobile;
   bool get editingSubscription => subscriptionId != null;
+  FocusNode subscriptionFocusNode(SubscriptionFormField field) =>
+      switch (field) {
+        SubscriptionFormField.name => _nameFocus,
+        SubscriptionFormField.url => _urlFocus,
+        SubscriptionFormField.userAgent => _userAgentFocus,
+      };
+
+  SubscriptionUpdateResult? get _subscriptionValidation =>
+      SubscriptionValidator.validate(
+        SubscriptionInput(
+          name: state.name,
+          url: SubscriptionUrl.normalize(state.url),
+          userAgent: state.userAgent,
+          ageSecretKey: state.secretKey,
+          agePublicKey: state.publicKey,
+          panel: state.panel,
+          mode: state.mode,
+        ),
+      );
+
+  static SubscriptionFormField? _subscriptionProblemField(
+    SubscriptionUpdateResult? problem,
+  ) => switch (problem) {
+    SubscriptionUpdateResult.nameRequired => SubscriptionFormField.name,
+    SubscriptionUpdateResult.urlRequired ||
+    SubscriptionUpdateResult.urlInvalid ||
+    SubscriptionUpdateResult.duplicateUrl => SubscriptionFormField.url,
+    SubscriptionUpdateResult.userAgentInvalid =>
+      SubscriptionFormField.userAgent,
+    _ => null,
+  };
+
+  void touchSubscriptionField(SubscriptionFormField field) {
+    if (!isPageActive || state.touchedSubscriptionFields.contains(field))
+      return;
+    emit(
+      state.copyWith(
+        touchedSubscriptionFields: {...state.touchedSubscriptionFields, field},
+      ),
+    );
+  }
+
+  String? subscriptionFieldError(
+    AppLocalizations l,
+    SubscriptionFormField field,
+  ) {
+    if (!state.touchedSubscriptionFields.contains(field)) return null;
+    final savedProblem = state.subscriptionFieldProblem;
+    final problem = _subscriptionProblemField(savedProblem) == field
+        ? savedProblem
+        : _subscriptionValidation;
+    return _subscriptionProblemField(problem) == field
+        ? subscriptionError(l, problem!)
+        : null;
+  }
+
   bool canSubmit(ServerImportAction action) {
     if (state.busy || state.generatingAgeKey || state.loadFailed) return false;
     if (action == ServerImportAction.subscription) {
-      return SubscriptionValidator.validate(
-            SubscriptionInput(
-              name: state.name,
-              url: SubscriptionUrl.normalize(state.url),
-              userAgent: state.userAgent,
-              ageSecretKey: state.secretKey,
-              agePublicKey: state.publicKey,
-              panel: state.panel,
-              mode: state.mode,
-            ),
-          ) ==
-          null;
+      return _subscriptionValidation == null;
     }
     return action == ServerImportAction.file ||
         action == ServerImportAction.scan ||
@@ -227,6 +301,15 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
 
   void _changed() {
     final jsonChanged = state.jsonInput != jsonText.text;
+    final problemField = _subscriptionProblemField(
+      state.subscriptionFieldProblem,
+    );
+    final problemFieldChanged = switch (problemField) {
+      SubscriptionFormField.name => state.name != name.text,
+      SubscriptionFormField.url => state.url != url.text,
+      SubscriptionFormField.userAgent => state.userAgent != userAgent.text,
+      null => false,
+    };
     if (jsonChanged) _jsonRevision++;
     var hwidEnabled = state.hwidEnabled;
     if (_hwidUrl != null && !SubscriptionUrl.sameOrigin(_hwidUrl!, url.text)) {
@@ -245,6 +328,9 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         inputText: text.text,
         jsonInput: jsonText.text,
         error: jsonChanged ? null : state.error,
+        subscriptionFieldProblem: problemFieldChanged
+            ? null
+            : state.subscriptionFieldProblem,
         jsonDiagnostic: jsonChanged ? null : state.jsonDiagnostic,
         name: name.text,
         url: url.text,
@@ -824,11 +910,13 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       final problem = SubscriptionValidator.validate(input);
       if (!isPageActive || !context.mounted) return;
       if (problem != null) {
-        emit(
-          state.copyWith(
-            error: subscriptionError(AppLocalizations.of(context)!, problem),
-          ),
-        );
+        if (!_showSubscriptionFieldProblem(problem, input)) {
+          emit(
+            state.copyWith(
+              error: subscriptionError(AppLocalizations.of(context)!, problem),
+            ),
+          );
+        }
         return;
       }
       if (subscriptionId != null) {
@@ -858,11 +946,13 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
           ContextAlert.showToast(context, messages.join('\n'));
           Navigator.of(context).pop(subscriptionId);
         } else {
-          emit(
-            state.copyWith(
-              error: subscriptionError(AppLocalizations.of(context)!, status),
-            ),
-          );
+          if (!_showSubscriptionFieldProblem(status, input)) {
+            emit(
+              state.copyWith(
+                error: subscriptionError(AppLocalizations.of(context)!, status),
+              ),
+            );
+          }
         }
         return;
       }
@@ -874,15 +964,17 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       if (failureCancelled(result.error)) return;
       final l10n = AppLocalizations.of(context)!;
       if (!result.success) {
-        emit(
-          state.copyWith(
-            error: subscriptionFailureMessage(
-              l10n,
-              result.status,
-              error: result.error,
+        if (!_showSubscriptionFieldProblem(result.status, input)) {
+          emit(
+            state.copyWith(
+              error: subscriptionFailureMessage(
+                l10n,
+                result.status,
+                error: result.error,
+              ),
             ),
-          ),
-        );
+          );
+        }
         return;
       }
       ContextAlert.showToast(context, l10n.prototypeUsableNodes(result.count));
@@ -906,6 +998,44 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     } finally {
       emit(state.copyWith(busy: false));
     }
+  }
+
+  bool _showSubscriptionFieldProblem(
+    SubscriptionUpdateResult problem,
+    SubscriptionInput submitted,
+  ) {
+    final field = _subscriptionProblemField(problem);
+    if (field == null) return false;
+    // Inputs remain editable during requests. A result for the old field value
+    // must not mark a newer draft as invalid.
+    final unchanged = switch (field) {
+      SubscriptionFormField.name => state.name.trim() == submitted.name,
+      SubscriptionFormField.url =>
+        SubscriptionUrl.normalize(state.url) == submitted.url,
+      SubscriptionFormField.userAgent => state.userAgent == submitted.userAgent,
+    };
+    if (!unchanged) return true;
+    emit(
+      state.copyWith(
+        error: null,
+        subscriptionFieldProblem: problem,
+        touchedSubscriptionFields: {...state.touchedSubscriptionFields, field},
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isPageActive) return;
+      final focus = subscriptionFocusNode(field);
+      focus.requestFocus();
+      final fieldContext = focus.context;
+      if (fieldContext != null && fieldContext.mounted) {
+        Scrollable.ensureVisible(
+          fieldContext,
+          duration: const Duration(milliseconds: 200),
+          alignment: 0.2,
+        );
+      }
+    });
+    return true;
   }
 
   static String subscriptionError(
@@ -1006,6 +1136,9 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
 
   @override
   void disposePageResources() {
+    for (final field in SubscriptionFormField.values) {
+      subscriptionFocusNode(field).dispose();
+    }
     jsonText.removeListener(_changed);
     jsonText.dispose();
     for (final controller in [

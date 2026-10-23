@@ -93,14 +93,17 @@ class LanProxyPage extends StatelessWidget {
                                 TextField(
                                   key: const ValueKey('lan-proxy-port'),
                                   controller: controller.portController,
+                                  focusNode: controller.portFocusNode,
                                   enabled: !controller.blocked,
                                   textDirection: TextDirection.ltr,
                                   textAlign: TextAlign.left,
                                   keyboardType: TextInputType.number,
                                   autocorrect: false,
                                   style: AppTypography.settingsInput,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     hintText: '11024',
+                                    errorText: controller.portError,
+                                    errorMaxLines: 3,
                                   ),
                                 ),
                               ],

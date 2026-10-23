@@ -94,6 +94,86 @@ void main() {
     });
   }
 
+  testWidgets('invalid shared ports stay inline and do not save', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 640);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    final controller = LanProxyController(
+      draft: await service.load(),
+      service: service,
+    );
+    registerCleanup(tester, controller.close);
+    await tester.pumpWidget(
+      _app(LanProxyPage(createController: () => controller)),
+    );
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('lan-proxy-port'));
+    final l = AppLocalizations.of(tester.element(field))!;
+
+    for (final invalid in ['not a port', '1023', '65536']) {
+      await tester.ensureVisible(field);
+      await tester.enterText(field, invalid);
+      await tester.tap(find.text(l.prototypeSave));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 3));
+      expect(
+        tester.widget<TextField>(field).decoration?.errorText,
+        l.localApiPortInvalid,
+      );
+      expect(find.text(l.localApiPortInvalid), findsOneWidget);
+      expect(controller.portFocusNode.hasFocus, isTrue);
+      expect(controller.error, isNull);
+      expect(service.saves, 0);
+      expect(service.configuration.policy.lanProxyPort, 11024);
+      controller.portController.selection = const TextSelection.collapsed(
+        offset: 1,
+      );
+      await tester.pumpAndSettle();
+      expect(controller.portError, l.localApiPortInvalid);
+
+      await tester.enterText(field, '11026');
+      await tester.pumpAndSettle();
+      expect(tester.widget<TextField>(field).decoration?.errorText, isNull);
+      expect(find.text(l.localApiPortInvalid), findsNothing);
+      expect(service.saves, 0);
+    }
+    expect(tester.takeException(), isNull);
+    await tester.runAsync(controller.close);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('shared port save failures remain page errors', (tester) async {
+    final controller = LanProxyController(
+      draft: await service.load(),
+      service: service,
+    );
+    registerCleanup(tester, controller.close);
+    service.failure = StateError('Policy storage unavailable');
+    await tester.pumpWidget(
+      _app(LanProxyPage(createController: () => controller)),
+    );
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('lan-proxy-port'));
+    await tester.enterText(field, '11026');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    expect(controller.error, contains('Policy storage unavailable'));
+    expect(controller.portError, isNull);
+    expect(tester.widget<TextField>(field).decoration?.errorText, isNull);
+    expect(find.textContaining('Policy storage unavailable'), findsOneWidget);
+    expect(service.saves, 0);
+    expect(service.configuration.policy.lanProxyPort, 11024);
+    expect(tester.takeException(), isNull);
+    await tester.runAsync(controller.close);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
   for (final connected in [false, true]) {
     testWidgets(
       'switch saves for next App start without restarting: $connected',
@@ -233,6 +313,7 @@ class _LanService extends PolicyEditorService {
 
   ConnectionConfiguration configuration = ConnectionConfiguration();
   int saves = 0;
+  Object? failure;
 
   @override
   Future<PolicyEditorDraft> load() async => PolicyEditorDraft(configuration);
@@ -242,6 +323,7 @@ class _LanService extends PolicyEditorService {
     required PolicyEditorDraft draft,
     required Future<bool> Function(bool disconnect) confirm,
   }) async {
+    if (failure case final error?) throw error;
     configuration = ConnectionConfiguration(
       connection: draft.original.connection,
       policy: PlatformPolicy.fromJson(draft.policy),

@@ -785,6 +785,133 @@ void main() {
     },
   );
 
+  for (final editing in [false, true]) {
+    testWidgets(
+      '${editing ? "editing" : "adding"} keeps duplicate URL feedback on its field until the URL changes',
+      (tester) async {
+        var status = SubscriptionUpdateResult.duplicateUrl;
+        var attempts = 0;
+        final controller = ServerImportController(
+          subscriptionId: editing ? 7 : null,
+          loadSubscription: (_) async => null,
+          saveSubscriptionInput: (_, _) async {
+            attempts++;
+            return status;
+          },
+          insertSubscription: (input, {confirmOrdinary}) async {
+            attempts++;
+            return SubscriptionInsertResult(status: status);
+          },
+        );
+        addTearDown(controller.close);
+        controller.name.text = 'Provider';
+        controller.url.text = 'https://provider.example/list';
+        controller.userAgent.text = 'Example/1.0';
+        await tester.pumpWidget(
+          _app(
+            ServerImportFormPage(
+              controller: controller,
+              action: ServerImportAction.subscription,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerImportFormPage)),
+        )!;
+        final submit = find
+            .text(editing ? l.prototypeSave : l.prototypeAddSubscription)
+            .last;
+        await _tapVisible(tester, submit);
+        await tester.pumpAndSettle();
+        expect(attempts, 1);
+        expect(controller.state.error, isNull);
+        expect(find.text(l.validationUrlDuplicate), findsOneWidget);
+        expect(
+          tester
+              .widget<SubscriptionFormView>(find.byType(SubscriptionFormView))
+              .urlErrorText,
+          l.validationUrlDuplicate,
+        );
+        expect(
+          controller.subscriptionFocusNode(SubscriptionFormField.url).hasFocus,
+          isTrue,
+        );
+        await tester.pump(const Duration(seconds: 3));
+        controller.name.text = 'Renamed draft';
+        controller.userAgent.text = 'Example/2.0';
+        controller.secretKey.text = 'secret';
+        controller.publicKey.text = 'public';
+        await controller.setPanel(SubscriptionPanel.remnawave);
+        controller.setMode(SubscriptionMode.providerManaged);
+        controller.url.selection = const TextSelection.collapsed(offset: 0);
+        await tester.pump();
+        expect(find.text(l.validationUrlDuplicate), findsOneWidget);
+        expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
+
+        controller.url.text = 'https://provider.example/another-list';
+        await tester.pump();
+        expect(find.text(l.validationUrlDuplicate), findsNothing);
+        expect(controller.state.subscriptionFieldProblem, isNull);
+        expect(controller.name.text, 'Renamed draft');
+        expect(controller.userAgent.text, 'Example/2.0');
+        expect(controller.secretKey.text, 'secret');
+        expect(controller.state.panel, SubscriptionPanel.remnawave);
+        expect(controller.state.mode, SubscriptionMode.providerManaged);
+
+        status = SubscriptionUpdateResult.downloadFailed;
+        await _tapVisible(tester, submit);
+        await tester.pumpAndSettle();
+        expect(attempts, 2);
+        expect(controller.state.error, l.subscriptionDownloadFailed);
+        expect(find.text(l.subscriptionDownloadFailed), findsOneWidget);
+        expect(
+          tester
+              .widget<SubscriptionFormView>(find.byType(SubscriptionFormView))
+              .urlErrorText,
+          isNull,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('an old duplicate URL result does not mark a new draft', (
+    tester,
+  ) async {
+    final saved = Completer<SubscriptionUpdateResult>();
+    final controller = ServerImportController(
+      subscriptionId: 7,
+      loadSubscription: (_) async => null,
+      saveSubscriptionInput: (_, _) => saved.future,
+    );
+    addTearDown(controller.close);
+    controller.name.text = 'Provider';
+    controller.url.text = 'https://provider.example/list';
+    controller.userAgent.text = 'Example/1.0';
+    await tester.pumpWidget(
+      _app(
+        ServerImportFormPage(
+          controller: controller,
+          action: ServerImportAction.subscription,
+        ),
+      ),
+    );
+    final l = AppLocalizations.of(
+      tester.element(find.byType(ServerImportFormPage)),
+    )!;
+    await _tapVisible(tester, find.text(l.prototypeSave));
+    await tester.pump();
+    controller.url.text = 'https://provider.example/new-list';
+    saved.complete(SubscriptionUpdateResult.duplicateUrl);
+    await tester.pumpAndSettle();
+    expect(controller.state.subscriptionFieldProblem, isNull);
+    expect(controller.state.error, isNull);
+    expect(find.text(l.validationUrlDuplicate), findsNothing);
+    expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('editing reuses the complete Age form and only saves metadata', (
     tester,
   ) async {

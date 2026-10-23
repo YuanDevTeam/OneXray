@@ -19,11 +19,20 @@ class SubscriptionFormView extends StatelessWidget {
     required this.nameLabel,
     required this.nameController,
     this.nameHint,
+    this.nameErrorText,
+    this.nameFocusNode,
+    this.onNameChanged,
     required this.urlLabel,
     required this.urlController,
     required this.userAgentController,
     this.urlHint,
     this.urlHelper,
+    this.urlErrorText,
+    this.urlFocusNode,
+    this.onUrlChanged,
+    this.userAgentErrorText,
+    this.userAgentFocusNode,
+    this.onUserAgentChanged,
     required this.panel,
     required this.mode,
     required this.onPanelChanged,
@@ -64,11 +73,20 @@ class SubscriptionFormView extends StatelessWidget {
   final String nameLabel;
   final TextEditingController nameController;
   final String? nameHint;
+  final String? nameErrorText;
+  final FocusNode? nameFocusNode;
+  final ValueChanged<String>? onNameChanged;
   final String urlLabel;
   final TextEditingController urlController;
   final TextEditingController userAgentController;
   final String? urlHint;
   final String? urlHelper;
+  final String? urlErrorText;
+  final FocusNode? urlFocusNode;
+  final ValueChanged<String>? onUrlChanged;
+  final String? userAgentErrorText;
+  final FocusNode? userAgentFocusNode;
+  final ValueChanged<String>? onUserAgentChanged;
   final SubscriptionPanel panel;
   final SubscriptionMode? mode;
   final ValueChanged<SubscriptionPanel>? onPanelChanged;
@@ -118,6 +136,9 @@ class SubscriptionFormView extends StatelessWidget {
         controller: userAgentController,
         hintText: AppLocalizations.of(context)!.subscriptionUserAgentHint,
         textDirection: TextDirection.ltr,
+        errorText: userAgentErrorText,
+        focusNode: userAgentFocusNode,
+        onChanged: onUserAgentChanged,
       ),
       const SizedBox(height: 14),
       _configurationCard(context),
@@ -276,6 +297,9 @@ class SubscriptionFormView extends StatelessWidget {
         label: nameLabel,
         controller: nameController,
         hintText: nameHint ?? nameLabel,
+        errorText: nameErrorText,
+        focusNode: nameFocusNode,
+        onChanged: onNameChanged,
       ),
       _editableField(
         context,
@@ -285,6 +309,9 @@ class SubscriptionFormView extends StatelessWidget {
         helperText: urlHelper,
         textDirection: TextDirection.ltr,
         keyboardType: TextInputType.url,
+        errorText: urlErrorText,
+        focusNode: urlFocusNode,
+        onChanged: onUrlChanged,
       ),
     ];
     if (MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint) {
@@ -562,6 +589,8 @@ class SubscriptionFormView extends StatelessWidget {
     bool obscureText = false,
     bool enabled = true,
     ValueChanged<String>? onChanged,
+    FocusNode? focusNode,
+    String? errorText,
   }) {
     final palette = ColorManager.palette(context);
     return Directionality(
@@ -569,6 +598,7 @@ class SubscriptionFormView extends StatelessWidget {
       child: ShadInput(
         enabled: enabled,
         controller: controller,
+        focusNode: focusNode,
         placeholder: hintText == null ? null : Text(hintText),
         constraints: const BoxConstraints(minHeight: 42),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -583,8 +613,13 @@ class SubscriptionFormView extends StatelessWidget {
         enableSuggestions: false,
         onChanged: onChanged,
         decoration: ShadDecoration(
+          hasError: errorText != null,
           border: ShadBorder.all(
             color: palette.border,
+            radius: BorderRadius.circular(AppRadii.card),
+          ),
+          errorBorder: ShadBorder.all(
+            color: palette.destructive,
             radius: BorderRadius.circular(AppRadii.card),
           ),
         ),
@@ -601,6 +636,8 @@ class SubscriptionFormView extends StatelessWidget {
     TextDirection? textDirection,
     TextInputType? keyboardType,
     ValueChanged<String>? onChanged,
+    FocusNode? focusNode,
+    String? errorText,
     bool enabled = true,
   }) {
     return Column(
@@ -615,8 +652,20 @@ class SubscriptionFormView extends StatelessWidget {
           textDirection: textDirection,
           keyboardType: keyboardType,
           onChanged: onChanged,
+          focusNode: focusNode,
+          errorText: errorText,
           enabled: enabled,
         ),
+        if (errorText != null)
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              errorText,
+              style: AppTypography.subscriptionAgeWarning.copyWith(
+                color: ColorManager.palette(context).destructive,
+              ),
+            ),
+          ),
         if (helperText != null && helperText.isNotEmpty)
           Text(
             helperText,

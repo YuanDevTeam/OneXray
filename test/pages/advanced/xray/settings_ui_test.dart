@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onexray/core/constants/preferences.dart';
@@ -9,6 +10,7 @@ import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/advanced/xray/log/controller.dart';
 import 'package:onexray/pages/advanced/xray/log/params.dart';
 import 'package:onexray/pages/advanced/xray/ping/page.dart';
+import 'package:onexray/pages/advanced/xray/ping/controller.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/advanced/xray/data_update/page.dart';
@@ -21,13 +23,17 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
+// ignore: depend_on_referenced_packages
+import 'package:shared_preferences_platform_interface/types.dart';
 
 void main() {
   late AppEventBus eventBus;
+  final preferences = _PingPreferences();
 
   setUp(() async {
-    SharedPreferencesAsyncPlatform.instance =
-        InMemorySharedPreferencesAsync.empty();
+    SharedPreferencesAsyncPlatform.instance = preferences;
+    preferences.failRead = false;
+    preferences.failWrite = false;
     await PreferencesKey().clearUserDataPreferences();
     eventBus = AppEventBus();
   });
@@ -69,6 +75,88 @@ void main() {
     final l = AppLocalizations.of(tester.element(find.byType(PingPage)))!;
     expect(find.text(l.pingVpnAccuracyHint), findsOneWidget);
     expect(find.byType(SingleChildScrollView), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('invalid ping URL stays beside the field without saving', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await (PingState()
+          ..url = PingUrl.custom
+          ..customUrl = 'https://example.com/old')
+        .saveToPreferences();
+    await tester.pumpWidget(app(const PingPage()));
+    await tester.pumpAndSettle();
+    final field = find.byKey(const ValueKey('ping-custom-url'));
+    final controller = tester.element(field).read<PingController>();
+    final l = AppLocalizations.of(tester.element(field))!;
+
+    await tester.ensureVisible(field);
+    await tester.enterText(field, 'invalid');
+    await tester.tap(find.text(l.prototypeSave));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    expect(
+      tester.widget<TextField>(field).decoration?.errorText,
+      l.prototypeEnterHttpUrl,
+    );
+    expect(find.text(l.prototypeEnterHttpUrl), findsOneWidget);
+    expect(controller.customUrlFocusNode.hasFocus, isTrue);
+    expect(controller.state.error, isNull);
+    expect(controller.state.saving, isFalse);
+    controller.customUrlController.selection = const TextSelection.collapsed(
+      offset: 2,
+    );
+    await tester.pumpAndSettle();
+    expect(controller.state.invalidUrl, isTrue);
+    final stored = PingState();
+    await stored.readFromPreferences();
+    expect(stored.customUrl, 'https://example.com/old');
+
+    await tester.enterText(field, 'https://example.com/new');
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).decoration?.errorText, isNull);
+    expect(controller.state.invalidUrl, isFalse);
+    await stored.readFromPreferences();
+    expect(stored.customUrl, 'https://example.com/old');
+
+    await tester.enterText(field, 'invalid again');
+    await tester.tap(find.text(l.prototypeSave));
+    await tester.pumpAndSettle();
+    controller.updateUrl(PingUrl.google.name);
+    await tester.pumpAndSettle();
+    expect(controller.state.invalidUrl, isFalse);
+    expect(find.text(l.prototypeEnterHttpUrl), findsNothing);
+    expect(controller.customUrlController.text, 'invalid again');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ping read and save failures remain visible separately', (
+    tester,
+  ) async {
+    preferences.failRead = true;
+    await tester.pumpWidget(app(const PingPage()));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Ping preferences unavailable'), findsOneWidget);
+
+    preferences.failRead = false;
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    preferences.failWrite = true;
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.textContaining('Ping storage unavailable'), findsOneWidget);
+    final controller = tester
+        .element(find.byType(PageActionBar))
+        .read<PingController>();
+    expect(controller.state.invalidUrl, isFalse);
+    expect(controller.state.saving, isFalse);
+    controller.updateTimeout(6);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Ping storage unavailable'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -207,4 +295,34 @@ void main() {
     expect(controller.state.lines, ['first line', 'second line']);
     expect(controller.state.fileExists, isTrue);
   });
+}
+
+final class _PingPreferences extends InMemorySharedPreferencesAsync {
+  _PingPreferences() : super.empty();
+
+  bool failRead = false;
+  bool failWrite = false;
+
+  @override
+  Future<String?> getString(
+    String key,
+    SharedPreferencesOptions options,
+  ) async {
+    if (failRead && key == 'app2.pingState') {
+      throw StateError('Ping preferences unavailable');
+    }
+    return super.getString(key, options);
+  }
+
+  @override
+  Future<bool> setString(
+    String key,
+    String value,
+    SharedPreferencesOptions options,
+  ) async {
+    if (failWrite && key == 'app2.pingState') {
+      throw StateError('Ping storage unavailable');
+    }
+    return super.setString(key, value, options);
+  }
 }

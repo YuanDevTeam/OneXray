@@ -43,11 +43,38 @@ void main() {
         nameLabel: 'Name',
         nameHint: 'Example Service',
         nameController: name,
+        nameErrorText: controller.subscriptionFieldError(
+          AppLocalizations.of(context)!,
+          SubscriptionFormField.name,
+        ),
+        nameFocusNode: controller.subscriptionFocusNode(
+          SubscriptionFormField.name,
+        ),
+        onNameChanged: (_) =>
+            controller.touchSubscriptionField(SubscriptionFormField.name),
         urlLabel: 'URL',
         urlController: url,
         userAgentController: controller.userAgent,
         urlHint: 'https://provider.example/subscription',
         urlHelper: 'HTTPS only',
+        urlErrorText: controller.subscriptionFieldError(
+          AppLocalizations.of(context)!,
+          SubscriptionFormField.url,
+        ),
+        urlFocusNode: controller.subscriptionFocusNode(
+          SubscriptionFormField.url,
+        ),
+        onUrlChanged: (_) =>
+            controller.touchSubscriptionField(SubscriptionFormField.url),
+        userAgentErrorText: controller.subscriptionFieldError(
+          AppLocalizations.of(context)!,
+          SubscriptionFormField.userAgent,
+        ),
+        userAgentFocusNode: controller.subscriptionFocusNode(
+          SubscriptionFormField.userAgent,
+        ),
+        onUserAgentChanged: (_) =>
+            controller.touchSubscriptionField(SubscriptionFormField.userAgent),
         panel: state.panel,
         mode: state.mode,
         automaticModeAllowed: automaticAllowed,
@@ -104,6 +131,66 @@ void main() {
         ),
       ),
     ),
+  );
+
+  testWidgets(
+    'field errors follow editing and blur without marking an empty draft',
+    (tester) async {
+      await tester.pumpWidget(app(form()));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(SubscriptionFormView)),
+      )!;
+      Finder input(TextEditingController field) => find.byWidgetPredicate(
+        (widget) => widget is ShadInput && widget.controller == field,
+      );
+      expect(find.text(l.validationNameRequired), findsNothing);
+      expect(find.text(l.validationUrlRequired), findsNothing);
+      expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
+
+      controller
+          .subscriptionFocusNode(SubscriptionFormField.name)
+          .requestFocus();
+      await tester.pump();
+      controller
+          .subscriptionFocusNode(SubscriptionFormField.url)
+          .requestFocus();
+      await tester.pump();
+      expect(find.text(l.validationNameRequired), findsOneWidget);
+      expect(find.text(l.validationUrlRequired), findsNothing);
+      expect(
+        tester.widget<ShadInput>(input(name)).decoration!.hasError,
+        isTrue,
+      );
+
+      await tester.enterText(input(name), 'Provider');
+      await tester.pump();
+      expect(find.text(l.validationNameRequired), findsNothing);
+      // URL was visited before leaving it to edit the name.
+      expect(find.text(l.validationUrlRequired), findsOneWidget);
+      await tester.enterText(input(url), 'http://provider.example/list');
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.text(l.validationUrlInvalid), findsOneWidget);
+      expect(tester.widget<ShadInput>(input(url)).decoration!.hasError, isTrue);
+      expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
+      expect(controller.state.error, isNull);
+
+      await tester.enterText(input(url), 'https://provider.example/list');
+      await tester.pump();
+      expect(find.text(l.validationUrlInvalid), findsNothing);
+      expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
+      await tester.ensureVisible(input(controller.userAgent));
+      await tester.enterText(input(controller.userAgent), 'Example/示例');
+      await tester.pump();
+      expect(find.text(l.subscriptionUserAgentInvalid), findsOneWidget);
+      expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
+      await tester.enterText(input(controller.userAgent), '');
+      await tester.pump();
+      expect(find.text(l.subscriptionUserAgentInvalid), findsNothing);
+      expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
+      expect(controller.state.error, isNull);
+      expect(tester.takeException(), isNull);
+    },
   );
 
   testWidgets('existing Age keys expose inline actions and busy guards', (

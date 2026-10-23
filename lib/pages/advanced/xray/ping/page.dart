@@ -69,15 +69,27 @@ class PingPage extends StatelessWidget {
                 ? const Center(child: CircularProgressIndicator())
                 : !state.loaded
                 ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(l.prototypeTemporarilyUnavailable),
-                        TextButton(
-                          onPressed: controller.load,
-                          child: Text(l.prototypeRetry),
-                        ),
-                      ],
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(l.prototypeTemporarilyUnavailable),
+                          if (state.error != null)
+                            Semantics(
+                              liveRegion: true,
+                              child: SelectableText(
+                                state.error!,
+                                style: AppTypography.settingsDetailNote
+                                    .copyWith(color: palette.destructive),
+                              ),
+                            ),
+                          TextButton(
+                            onPressed: controller.load,
+                            child: Text(l.prototypeRetry),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 : SettingsPageScroll(
@@ -177,8 +189,11 @@ class PingPage extends StatelessWidget {
                                       ),
                                       const SizedBox(height: 9),
                                       TextField(
+                                        key: const ValueKey('ping-custom-url'),
                                         controller:
                                             controller.customUrlController,
+                                        focusNode:
+                                            controller.customUrlFocusNode,
                                         enabled: !state.saving,
                                         textDirection: TextDirection.ltr,
                                         textAlign: TextAlign.left,
@@ -189,6 +204,10 @@ class PingPage extends StatelessWidget {
                                               color: palette.foreground,
                                             ),
                                         decoration: InputDecoration(
+                                          errorText: state.invalidUrl
+                                              ? l.prototypeEnterHttpUrl
+                                              : null,
+                                          errorMaxLines: 3,
                                           isDense: true,
                                           constraints: const BoxConstraints(
                                             minHeight: 40,
@@ -249,10 +268,13 @@ class PingPage extends StatelessWidget {
                               padding: const EdgeInsetsDirectional.only(
                                 top: 10,
                               ),
-                              child: Text(
-                                state.error!,
-                                style: AppTypography.settingsDetailNote
-                                    .copyWith(color: palette.destructive),
+                              child: Semantics(
+                                liveRegion: true,
+                                child: SelectableText(
+                                  state.error!,
+                                  style: AppTypography.settingsDetailNote
+                                      .copyWith(color: palette.destructive),
+                                ),
                               ),
                             ),
                         ],

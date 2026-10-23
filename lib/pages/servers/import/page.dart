@@ -382,10 +382,35 @@ class ServerImportFormPage extends StatelessWidget {
       nameLabel: l10n.prototypeSubscriptionName,
       nameController: controller.name,
       nameHint: l10n.prototypeExampleService,
+      nameErrorText: controller.subscriptionFieldError(
+        l10n,
+        SubscriptionFormField.name,
+      ),
+      nameFocusNode: controller.subscriptionFocusNode(
+        SubscriptionFormField.name,
+      ),
+      onNameChanged: (_) =>
+          controller.touchSubscriptionField(SubscriptionFormField.name),
       urlLabel: l10n.prototypeSubscriptionLink,
       urlController: controller.url,
       userAgentController: controller.userAgent,
       urlHint: 'https://provider.example/subscription',
+      urlErrorText: controller.subscriptionFieldError(
+        l10n,
+        SubscriptionFormField.url,
+      ),
+      urlFocusNode: controller.subscriptionFocusNode(SubscriptionFormField.url),
+      onUrlChanged: (_) =>
+          controller.touchSubscriptionField(SubscriptionFormField.url),
+      userAgentErrorText: controller.subscriptionFieldError(
+        l10n,
+        SubscriptionFormField.userAgent,
+      ),
+      userAgentFocusNode: controller.subscriptionFocusNode(
+        SubscriptionFormField.userAgent,
+      ),
+      onUserAgentChanged: (_) =>
+          controller.touchSubscriptionField(SubscriptionFormField.userAgent),
       panel: controller.state.panel,
       mode: controller.state.mode,
       automaticModeAllowed: !controller.editingSubscription,
