@@ -957,5 +957,8 @@
   "jsonEditorDiscardTitle": "تغییرات ذخیره‌نشده کنار گذاشته شوند؟",
   "jsonEditorDiscardMessage": "تغییرات JSON هنوز ذخیره نشده‌اند.",
   "jsonEditorKeepEditing": "ادامهٔ ویرایش",
-  "jsonEditorDiscardChanges": "کنار گذاشتن تغییرات"
+  "jsonEditorDiscardChanges": "کنار گذاشتن تغییرات",
+  "tunnelDnsIpv4Invalid": "یک نشانی معتبر IPv4 وارد کنید.",
+  "tunnelDnsIpv6Invalid": "یک نشانی معتبر IPv6 وارد کنید.",
+  "tunnelDnsServerNameRequired": "نام سرور DNS over TLS را وارد کنید."
 }

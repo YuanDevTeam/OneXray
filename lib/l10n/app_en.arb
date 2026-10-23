@@ -3132,5 +3132,8 @@
   "jsonEditorDiscardTitle": "Discard unsaved changes?",
   "jsonEditorDiscardMessage": "Your JSON changes have not been saved.",
   "jsonEditorKeepEditing": "Keep editing",
-  "jsonEditorDiscardChanges": "Discard changes"
+  "jsonEditorDiscardChanges": "Discard changes",
+  "tunnelDnsIpv4Invalid": "Enter a valid IPv4 address.",
+  "tunnelDnsIpv6Invalid": "Enter a valid IPv6 address.",
+  "tunnelDnsServerNameRequired": "Enter the DNS over TLS server name."
 }

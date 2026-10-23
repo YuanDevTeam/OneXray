@@ -36,6 +36,7 @@ class PolicyEditorPageState {
   final PolicyEditorDraft? draft;
   final bool busy;
   final String? error;
+  final TunnelDnsValidationException? dnsFailure;
   final Map<String, String> androidAppNames;
   final ConnectionView connection;
   final AppleVpnCapabilities? appleCapabilities;
@@ -48,6 +49,7 @@ class PolicyEditorPageState {
     this.draft,
     this.busy = false,
     this.error,
+    this.dnsFailure,
     Map<String, String> androidAppNames = const {},
     this.connection = const ConnectionView(),
     this.appleCapabilities,
@@ -62,6 +64,7 @@ class PolicyEditorPageState {
     Object? draft = _notProvided,
     bool? busy,
     Object? error = _notProvided,
+    Object? dnsFailure = _notProvided,
     Map<String, String>? androidAppNames,
     ConnectionView? connection,
     Object? appleCapabilities = _notProvided,
@@ -75,6 +78,9 @@ class PolicyEditorPageState {
         : draft as PolicyEditorDraft?,
     busy: busy ?? this.busy,
     error: identical(error, _notProvided) ? this.error : error as String?,
+    dnsFailure: identical(dnsFailure, _notProvided)
+        ? this.dnsFailure
+        : dnsFailure as TunnelDnsValidationException?,
     androidAppNames: androidAppNames ?? this.androidAppNames,
     connection: connection ?? this.connection,
     appleCapabilities: identical(appleCapabilities, _notProvided)
@@ -90,6 +96,9 @@ class PolicyEditorPageState {
 
 class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   final PolicyEditorService service;
+  final _dnsFocusNodes = <TunnelDnsField, FocusNode>{};
+  final _dnsTouched = <TunnelDnsField>{};
+  bool _dnsSubmitted = false;
 
   PolicyEditorController({
     PolicyEditorDraft? draft,
@@ -124,6 +133,62 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   String androidAppName(String packageName) =>
       state.androidAppNames[packageName] ?? packageName;
 
+  FocusNode dnsFocusNode(TunnelDnsField field) =>
+      _dnsFocusNodes.putIfAbsent(field, () {
+        final node = FocusNode(debugLabel: 'Tunnel DNS ${field.name}');
+        node.addListener(() {
+          if (!node.hasFocus && isPageActive && !blocked && draft != null) {
+            _dnsTouched.add(field);
+            emit(state.copyWith(dnsFailure: _visibleDnsFailure(value)));
+          }
+        });
+        return node;
+      });
+
+  String? dnsErrorText(AppLocalizations l, TunnelDnsField field) {
+    if (state.dnsFailure?.field != field) return null;
+    return switch (field) {
+      TunnelDnsField.ipv4 => l.tunnelDnsIpv4Invalid,
+      TunnelDnsField.ipv6 => l.tunnelDnsIpv6Invalid,
+      TunnelDnsField.serverName => l.tunnelDnsServerNameRequired,
+    };
+  }
+
+  TunnelDnsValidationException? _visibleDnsFailure(
+    Map<String, dynamic> policy,
+  ) {
+    if (!_dnsSubmitted && _dnsTouched.isEmpty) return null;
+    try {
+      PlatformPolicy.fromJson(policy)
+          .validateDns(platform, windowsMode: service.windowsMode);
+    } on TunnelDnsValidationException catch (error) {
+      if (_dnsSubmitted || _dnsTouched.contains(error.field)) return error;
+    } on FormatException {
+      // Other policy errors keep their existing page-level save feedback.
+    }
+    return null;
+  }
+
+  void _revealDns(TunnelDnsField field) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!isPageActive || state.dnsFailure?.field != field) return;
+      final node = _dnsFocusNodes[field];
+      final fieldContext = node?.context;
+      if (node == null ||
+          fieldContext == null ||
+          !fieldContext.mounted ||
+          ModalRoute.of(fieldContext)?.isCurrent == false) {
+        return;
+      }
+      node.requestFocus();
+      Scrollable.ensureVisible(
+        fieldContext,
+        alignment: .5,
+        duration: const Duration(milliseconds: 120),
+      );
+    });
+  }
+
   Future<void> loadAndroidAppNames() async {
     try {
       final apps = await AppHostApi().getInstalledApps();
@@ -142,7 +207,9 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   }
 
   Future<void> load(BuildContext context) async {
-    emit(state.copyWith(busy: true, error: null));
+    _dnsTouched.clear();
+    _dnsSubmitted = false;
+    emit(state.copyWith(busy: true, error: null, dnsFailure: null));
     try {
       final loaded = await service.load();
       emit(state.copyWith(draft: loaded));
@@ -169,7 +236,24 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
         ? next.policy
         : next.policy[section] as Map<String, dynamic>;
     target[key] = value;
-    emit(state.copyWith(draft: next, error: null));
+    final dnsChanged =
+        section == null &&
+            const {
+              'dnsIpv4Address',
+              'dnsIpv6Address',
+              'dnsServerName',
+              'ipv6Enabled',
+            }.contains(key) ||
+        section == 'apple' && key == 'dnsOverTls';
+    emit(
+      state.copyWith(
+        draft: next,
+        error: !dnsChanged && state.dnsFailure != null ? state.error : null,
+        dnsFailure: dnsChanged
+            ? _visibleDnsFailure(next.policy)
+            : state.dnsFailure,
+      ),
+    );
   }
 
   bool get emptyIncluded =>
@@ -226,7 +310,8 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
       emit(state.copyWith(error: hint));
       return false;
     }
-    emit(state.copyWith(busy: true, error: null));
+    _dnsSubmitted = true;
+    emit(state.copyWith(busy: true, error: null, dnsFailure: null));
     try {
       final saved = await service.save(
         draft: current,
@@ -253,8 +338,10 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
             error: error,
             operation: l.buttonSaveFailed,
           ),
+          dnsFailure: error is TunnelDnsValidationException ? error : null,
         ),
       );
+      if (error is TunnelDnsValidationException) _revealDns(error.field);
       return false;
     } finally {
       emit(state.copyWith(busy: false));
@@ -321,6 +408,8 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   void restoreDefaults() {
     final current = state.draft;
     if (blocked || current == null) return;
+    _dnsTouched.clear();
+    _dnsSubmitted = false;
     emit(
       state.copyWith(
         draft: PolicyEditorDraft(
@@ -328,6 +417,7 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
           PlatformPolicy.defaults().toJson(),
         ),
         error: null,
+        dnsFailure: null,
       ),
     );
   }
@@ -339,5 +429,8 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   @override
   void disposePageResources() {
     service.coordinator.state.removeListener(_connectionChanged);
+    for (final node in _dnsFocusNodes.values) {
+      node.dispose();
+    }
   }
 }

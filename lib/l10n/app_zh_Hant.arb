@@ -957,5 +957,8 @@
   "jsonEditorDiscardTitle": "放棄未儲存的變更？",
   "jsonEditorDiscardMessage": "JSON 變更尚未儲存。",
   "jsonEditorKeepEditing": "繼續編輯",
-  "jsonEditorDiscardChanges": "放棄變更"
+  "jsonEditorDiscardChanges": "放棄變更",
+  "tunnelDnsIpv4Invalid": "請輸入有效的 IPv4 位址。",
+  "tunnelDnsIpv6Invalid": "請輸入有效的 IPv6 位址。",
+  "tunnelDnsServerNameRequired": "請輸入 DNS over TLS 伺服器名稱。"
 }

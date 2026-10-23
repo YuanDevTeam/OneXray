@@ -5,6 +5,90 @@ import 'package:onexray/service/connect/dialing.dart';
 import 'package:onexray/service/connect/settings.dart';
 
 void main() {
+  test('native DNS failures identify the first effective field', () {
+    final invalid = PlatformPolicy.fromJson({
+      'dnsIpv4Address': 'invalid-v4',
+      'dnsIpv6Address': 'invalid-v6',
+      'dnsServerName': '',
+      'apple': {'dnsOverTls': true},
+    });
+    for (final platform in ConnectionPlatform.values) {
+      expect(
+        () => invalid.validateDns(platform),
+        throwsA(
+          isA<TunnelDnsValidationException>()
+              .having((error) => error.field, 'field', TunnelDnsField.ipv4)
+              .having(
+                (error) => error.message,
+                'original message',
+                'Tunnel DNS IPv4 must be an IPv4 address: invalid-v4',
+              ),
+        ),
+      );
+    }
+
+    final invalidV6 = PlatformPolicy.fromJson({
+      ...invalid.toJson(),
+      'dnsIpv4Address': '1.1.1.1',
+    });
+    expect(
+      () => invalidV6.validateDns(ConnectionPlatform.ios),
+      throwsA(
+        isA<TunnelDnsValidationException>().having(
+          (error) => error.field,
+          'field',
+          TunnelDnsField.ipv6,
+        ),
+      ),
+    );
+    final inactiveV6 = PlatformPolicy.fromJson({
+      ...invalidV6.toJson(),
+      'ipv6Enabled': false,
+    });
+    expect(
+      () => inactiveV6.validateDns(
+        ConnectionPlatform.windows,
+        windowsMode: WindowsMode.exe,
+      ),
+      returnsNormally,
+    );
+    expect(
+      () => inactiveV6.validateDns(
+        ConnectionPlatform.windows,
+        windowsMode: WindowsMode.msix,
+      ),
+      throwsA(
+        isA<TunnelDnsValidationException>().having(
+          (error) => error.field,
+          'field',
+          TunnelDnsField.ipv6,
+        ),
+      ),
+    );
+    for (final platform in [ConnectionPlatform.ios, ConnectionPlatform.macos]) {
+      expect(
+        () => inactiveV6.validateDns(platform),
+        throwsA(
+          isA<TunnelDnsValidationException>()
+              .having(
+                (error) => error.field,
+                'field',
+                TunnelDnsField.serverName,
+              )
+              .having(
+                (error) => error.message,
+                'original message',
+                'DNS over TLS requires a server name',
+              ),
+        ),
+      );
+    }
+    expect(
+      () => inactiveV6.validateDns(ConnectionPlatform.android),
+      returnsNormally,
+    );
+  });
+
   test('dialing defaults and saved preferences survive platform storage', () {
     final defaults = PlatformPolicy.fromJson({});
     expect(defaults.dialing.toJson(), const ServerDialingSettings().toJson());

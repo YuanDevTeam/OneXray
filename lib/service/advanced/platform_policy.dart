@@ -16,6 +16,14 @@ ConnectionPlatform get connectionPlatform => switch (Platform.operatingSystem) {
   _ => throw UnsupportedError('Unsupported platform'),
 };
 
+enum TunnelDnsField { ipv4, ipv6, serverName }
+
+final class TunnelDnsValidationException extends FormatException {
+  final TunnelDnsField field;
+
+  const TunnelDnsValidationException(this.field, super.message);
+}
+
 /// User policy is a value snapshot, not the mutable native TunJson or old prefs.
 final class PlatformPolicy {
   final String _json;
@@ -97,28 +105,47 @@ final class PlatformPolicy {
 
   /// Native DNS setters require IP literals; Xray DNS syntax is independent.
   void validateDns(ConnectionPlatform platform, {WindowsMode? windowsMode}) {
-    void checkAddress(String value, InternetAddressType family, String label) {
+    void checkAddress(
+      String value,
+      InternetAddressType family,
+      String label,
+      TunnelDnsField field,
+    ) {
       final address = RegExp(r'[\[\]%\s]').hasMatch(value)
           ? null
           : InternetAddress.tryParse(value);
       if (address == null || address.type != family) {
-        throw FormatException(
+        throw TunnelDnsValidationException(
+          field,
           '$label must be an ${family.name} address: $value',
         );
       }
     }
 
-    checkAddress(dnsIpv4Address, InternetAddressType.IPv4, 'Tunnel DNS IPv4');
+    checkAddress(
+      dnsIpv4Address,
+      InternetAddressType.IPv4,
+      'Tunnel DNS IPv4',
+      TunnelDnsField.ipv4,
+    );
     if (ipv6Enabled ||
         (platform == ConnectionPlatform.windows &&
             (windowsMode ?? windowsBuildMode) == WindowsMode.msix)) {
-      checkAddress(dnsIpv6Address, InternetAddressType.IPv6, 'Tunnel DNS IPv6');
+      checkAddress(
+        dnsIpv6Address,
+        InternetAddressType.IPv6,
+        'Tunnel DNS IPv6',
+        TunnelDnsField.ipv6,
+      );
     }
     if ((platform == ConnectionPlatform.ios ||
             platform == ConnectionPlatform.macos) &&
         toJson()['apple']['dnsOverTls'] == true &&
         dnsServerName.isEmpty) {
-      throw const FormatException('DNS over TLS requires a server name');
+      throw const TunnelDnsValidationException(
+        TunnelDnsField.serverName,
+        'DNS over TLS requires a server name',
+      );
     }
   }
 

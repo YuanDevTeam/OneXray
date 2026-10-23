@@ -957,5 +957,8 @@
   "jsonEditorDiscardTitle": "放弃未保存的更改？",
   "jsonEditorDiscardMessage": "JSON 更改尚未保存。",
   "jsonEditorKeepEditing": "继续编辑",
-  "jsonEditorDiscardChanges": "放弃更改"
+  "jsonEditorDiscardChanges": "放弃更改",
+  "tunnelDnsIpv4Invalid": "请输入有效的 IPv4 地址。",
+  "tunnelDnsIpv6Invalid": "请输入有效的 IPv6 地址。",
+  "tunnelDnsServerNameRequired": "请输入 DNS over TLS 服务器名称。"
 }

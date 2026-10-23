@@ -8,6 +8,8 @@ class DnsTextField extends StatefulWidget {
   final ValueChanged<String> onChanged;
   final bool enabled;
   final String? hint;
+  final String? errorText;
+  final FocusNode? focusNode;
 
   const DnsTextField({
     super.key,
@@ -16,6 +18,8 @@ class DnsTextField extends StatefulWidget {
     required this.onChanged,
     this.enabled = true,
     this.hint,
+    this.errorText,
+    this.focusNode,
   });
 
   @override
@@ -44,6 +48,7 @@ class _DnsTextFieldState extends State<DnsTextField> {
     children: [
       TextField(
         controller: controller,
+        focusNode: widget.focusNode,
         onChanged: widget.onChanged,
         enabled: widget.enabled,
         textDirection: TextDirection.ltr,
@@ -52,7 +57,11 @@ class _DnsTextFieldState extends State<DnsTextField> {
         autocorrect: false,
         enableSuggestions: false,
         style: AppTypography.settingsInput,
-        decoration: InputDecoration(labelText: widget.label),
+        decoration: InputDecoration(
+          labelText: widget.label,
+          errorText: widget.errorText,
+          errorMaxLines: 3,
+        ),
       ),
       if (widget.hint != null)
         Text(widget.hint!, style: Theme.of(context).textTheme.bodySmall),

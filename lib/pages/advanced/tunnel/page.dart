@@ -133,26 +133,50 @@ class VpnTunnelPane extends StatelessWidget {
                           spacing: 18,
                           children: [
                             DnsTextField(
+                              key: const ValueKey('tunnel-dns-ipv4'),
                               label: l.prototypeIpv4Dns,
                               value:
                                   controller.value['dnsIpv4Address'] as String,
                               enabled: !controller.blocked,
+                              focusNode: controller.dnsFocusNode(
+                                TunnelDnsField.ipv4,
+                              ),
+                              errorText: controller.dnsErrorText(
+                                l,
+                                TunnelDnsField.ipv4,
+                              ),
                               onChanged: (value) =>
                                   controller.update('dnsIpv4Address', value),
                             ),
                             DnsTextField(
+                              key: const ValueKey('tunnel-dns-ipv6'),
                               label: l.prototypeIpv6Dns,
                               value:
                                   controller.value['dnsIpv6Address'] as String,
                               enabled: !controller.blocked,
+                              focusNode: controller.dnsFocusNode(
+                                TunnelDnsField.ipv6,
+                              ),
+                              errorText: controller.dnsErrorText(
+                                l,
+                                TunnelDnsField.ipv6,
+                              ),
                               onChanged: (value) =>
                                   controller.update('dnsIpv6Address', value),
                             ),
                             DnsTextField(
+                              key: const ValueKey('tunnel-dns-server-name'),
                               label: l.prototypeDomain,
                               value:
                                   controller.value['dnsServerName'] as String,
                               enabled: !controller.blocked,
+                              focusNode: controller.dnsFocusNode(
+                                TunnelDnsField.serverName,
+                              ),
+                              errorText: controller.dnsErrorText(
+                                l,
+                                TunnelDnsField.serverName,
+                              ),
                               onChanged: (value) =>
                                   controller.update('dnsServerName', value),
                             ),

@@ -957,5 +957,8 @@
   "jsonEditorDiscardTitle": "Отменить несохранённые изменения?",
   "jsonEditorDiscardMessage": "Изменения JSON ещё не сохранены.",
   "jsonEditorKeepEditing": "Продолжить редактирование",
-  "jsonEditorDiscardChanges": "Отменить изменения"
+  "jsonEditorDiscardChanges": "Отменить изменения",
+  "tunnelDnsIpv4Invalid": "Введите корректный адрес IPv4.",
+  "tunnelDnsIpv6Invalid": "Введите корректный адрес IPv6.",
+  "tunnelDnsServerNameRequired": "Введите имя сервера DNS over TLS."
 }
