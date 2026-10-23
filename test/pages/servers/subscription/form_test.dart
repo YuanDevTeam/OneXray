@@ -143,6 +143,74 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('editable semantics retain field names after entering values', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      name.text = 'Provider';
+      url.text = 'https://provider.example/subscription';
+      controller.userAgent.text = 'Example/1.0';
+      await tester.pumpWidget(app(form()));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(SubscriptionFormView)),
+      )!;
+      Finder editable(TextEditingController field) => find.byWidgetPredicate(
+        (widget) => widget is EditableText && widget.controller == field,
+      );
+      for (final (field, label) in [
+        (name, 'Name'),
+        (url, 'URL'),
+        (controller.userAgent, l.subscriptionUserAgentTitle),
+      ]) {
+        await tester.ensureVisible(editable(field));
+        final data = tester.getSemantics(editable(field)).getSemanticsData();
+        expect(data.label, label);
+        expect(data.value, field.text);
+        expect(data.flagsCollection.isTextField, isTrue);
+        await tester.enterText(editable(field), '');
+        await tester.pump();
+        expect(
+          tester.getSemantics(editable(field)).getSemanticsData().label,
+          label,
+        );
+      }
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('Age key semantics keep labels and conceal the secret', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      secret.text = 'AGE-SECRET-KEY-1EXAMPLE';
+      public.text = 'age1example';
+      await tester.pumpWidget(app(form()));
+      await tester.pumpAndSettle();
+      final editable = find.byWidgetPredicate(
+        (widget) => widget is EditableText && widget.controller == secret,
+      );
+      await tester.ensureVisible(editable);
+      var data = tester.getSemantics(editable).getSemanticsData();
+      expect(data.label, 'Age Secret Key');
+      expect(data.flagsCollection.isObscured, isTrue);
+      expect(data.value, isNot(contains(secret.text)));
+      await tester.pumpWidget(app(form(obscure: false)));
+      await tester.pumpAndSettle();
+      data = tester.getSemantics(editable).getSemanticsData();
+      expect(data.label, 'Age Secret Key');
+      expect(data.flagsCollection.isObscured, isFalse);
+      expect(data.value, secret.text);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets(
     'field errors follow editing and blur without marking an empty draft',
     (tester) async {

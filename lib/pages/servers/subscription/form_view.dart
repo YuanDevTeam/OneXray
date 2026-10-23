@@ -455,6 +455,7 @@ class SubscriptionFormView extends StatelessWidget {
                           Expanded(
                             child: _input(
                               context,
+                              label: ageSecretKeyLabel,
                               controller: ageSecretKeyController,
                               hintText: ageSecretKeyHint,
                               obscureText: obscureAgeSecretKey,
@@ -593,6 +594,7 @@ class SubscriptionFormView extends StatelessWidget {
 
   Widget _input(
     BuildContext context, {
+    required String label,
     required TextEditingController controller,
     String? hintText,
     TextDirection? textDirection,
@@ -606,37 +608,45 @@ class SubscriptionFormView extends StatelessWidget {
     final palette = ColorManager.palette(context);
     return Directionality(
       textDirection: textDirection ?? Directionality.of(context),
-      child: ShadInput(
-        enabled: enabled,
-        controller: controller,
-        focusNode: focusNode,
-        placeholder: hintText == null ? null : Text(hintText),
-        constraints: BoxConstraints(
-          minHeight: AppLayout.touchExtent(
-            42,
-            platform: Theme.of(context).platform,
-          ),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        style: AppTypography.subscriptionField,
-        placeholderStyle: AppTypography.subscriptionField.copyWith(
-          color: palette.mutedForeground,
-        ),
-        textDirection: textDirection,
-        keyboardType: keyboardType,
-        obscureText: obscureText,
-        autocorrect: false,
-        enableSuggestions: false,
-        onChanged: onChanged,
-        decoration: ShadDecoration(
-          hasError: errorText != null,
-          border: ShadBorder.all(
-            color: palette.border,
-            radius: BorderRadius.circular(AppRadii.card),
-          ),
-          errorBorder: ShadBorder.all(
-            color: palette.destructive,
-            radius: BorderRadius.circular(AppRadii.card),
+      child: MergeSemantics(
+        child: Semantics(
+          label: label,
+          hint: errorText ?? hintText,
+          child: ShadInput(
+            enabled: enabled,
+            controller: controller,
+            focusNode: focusNode,
+            placeholder: hintText == null
+                ? null
+                : ExcludeSemantics(child: Text(hintText)),
+            constraints: BoxConstraints(
+              minHeight: AppLayout.touchExtent(
+                42,
+                platform: Theme.of(context).platform,
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            style: AppTypography.subscriptionField,
+            placeholderStyle: AppTypography.subscriptionField.copyWith(
+              color: palette.mutedForeground,
+            ),
+            textDirection: textDirection,
+            keyboardType: keyboardType,
+            obscureText: obscureText,
+            autocorrect: false,
+            enableSuggestions: false,
+            onChanged: onChanged,
+            decoration: ShadDecoration(
+              hasError: errorText != null,
+              border: ShadBorder.all(
+                color: palette.border,
+                radius: BorderRadius.circular(AppRadii.card),
+              ),
+              errorBorder: ShadBorder.all(
+                color: palette.destructive,
+                radius: BorderRadius.circular(AppRadii.card),
+              ),
+            ),
           ),
         ),
       ),
@@ -663,6 +673,7 @@ class SubscriptionFormView extends StatelessWidget {
         _fieldLabel(context, label),
         _input(
           context,
+          label: label,
           controller: controller,
           hintText: hintText,
           textDirection: textDirection,
@@ -694,10 +705,12 @@ class SubscriptionFormView extends StatelessWidget {
   }
 
   Widget _fieldLabel(BuildContext context, String text) {
-    return Text(
-      text,
-      style: AppTypography.subscriptionField.copyWith(
-        color: ColorManager.palette(context).mutedStrong,
+    return ExcludeSemantics(
+      child: Text(
+        text,
+        style: AppTypography.subscriptionField.copyWith(
+          color: ColorManager.palette(context).mutedStrong,
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:ui' show Tristate;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -9,6 +11,69 @@ import 'package:onexray/pages/theme/theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch, ShadTheme;
 
 void main() {
+  for (final (platform, extent) in const [
+    (TargetPlatform.iOS, 44.0),
+    (TargetPlatform.android, 48.0),
+    (TargetPlatform.macOS, 34.0),
+  ]) {
+    testWidgets('entry count edges remain actionable on $platform', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        var selected = 1;
+        final changes = <int>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light.copyWith(platform: platform),
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Center(
+                child: StatefulBuilder(
+                  builder: (context, setState) => EntryCountPicker(
+                    value: selected,
+                    onChanged: (value) => setState(() {
+                      selected = value;
+                      changes.add(value);
+                    }),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(EntryCountPicker)),
+        )!;
+        for (final count in [1, 2, 3]) {
+          final target = find.bySemanticsLabel(
+            l.prototypeUseEntryServers(count),
+          );
+          final rect = tester.getRect(target);
+          expect(rect.width, greaterThanOrEqualTo(extent));
+          expect(rect.height, greaterThanOrEqualTo(extent));
+          await tester.tapAt(rect.bottomRight - const Offset(2, 2));
+          await tester.pumpAndSettle();
+          expect(changes.length, count);
+          expect(changes.last, count);
+          expect(
+            tester
+                .getSemantics(target)
+                .getSemanticsData()
+                .flagsCollection
+                .isSelected,
+            Tristate.isTrue,
+          );
+        }
+        expect(tester.takeException(), isNull);
+      } finally {
+        semantics.dispose();
+      }
+    });
+  }
+
   for (final (locale, mobile) in const [
     (Locale('en'), false),
     (Locale('zh'), true),

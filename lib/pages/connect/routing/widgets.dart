@@ -372,6 +372,10 @@ class EntryCountPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
+    final extent = AppLayout.touchExtent(
+      34,
+      platform: Theme.of(context).platform,
+    );
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -391,7 +395,7 @@ class EntryCountPicker extends StatelessWidget {
                 message: l.prototypeUseEntryServers(count),
                 excludeFromSemantics: true,
                 child: SizedBox(
-                  width: 34,
+                  width: extent,
                   child: Material(
                     color: value == count
                         ? palette.selectedSurface
@@ -399,7 +403,7 @@ class EntryCountPicker extends StatelessWidget {
                     child: InkWell(
                       onTap: onChanged == null ? null : () => onChanged!(count),
                       child: Container(
-                        constraints: const BoxConstraints(minHeight: 34),
+                        constraints: BoxConstraints(minHeight: extent),
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         foregroundDecoration: BoxDecoration(
                           borderRadius: value == count
