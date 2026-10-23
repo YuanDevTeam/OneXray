@@ -60,6 +60,16 @@ class _ServersPageState extends State<ServersPage> {
           appBar: PageAppBar(
             title: Text(l.prototypeServers),
             actions: [
+              if (mobileRoot)
+                IconButton(
+                  tooltip: l.prototypeUpdatesAndSources,
+                  onPressed: () => controller.openSources(context),
+                  icon: AppActivityBuilder(
+                    builder: (context, activity) => activity.downloading
+                        ? const ButtonProgressIndicator()
+                        : const Icon(LucideIcons.refreshCw),
+                  ),
+                ),
               IconButton(
                 tooltip: l.manualGroupNew,
                 onPressed: () => controller.createManualGroup(context),

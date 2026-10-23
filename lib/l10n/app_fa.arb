@@ -454,7 +454,7 @@
     "prototypeUseEntryServers": "استفاده از {count} سرور ورودی",
     "prototypeSource": "منبع",
     "prototypeNotTested": "آزمایش نشده",
-    "prototypeNoMatchingSubscriptions": "هیچ اشتراکی مطابقت ندارد",
+    "prototypeNoMatchingSubscriptions": "نتیجه‌ای یافت نشد",
     "prototypeCurrentSelection": "انتخاب فعلی",
     "prototypeNoServersYet": "هنوز سروری وجود ندارد",
     "prototypeAddProviderSubscriptionHint": "برای شروع، اشتراک یک ارائه‌دهنده را اضافه کنید یا پیکربندی سرور وارد کنید.",

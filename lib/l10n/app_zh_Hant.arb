@@ -454,7 +454,7 @@
   "prototypeUseEntryServers": "使用 {count} 個接入節點",
   "prototypeSource": "來源",
   "prototypeNotTested": "尚未檢測",
-  "prototypeNoMatchingSubscriptions": "沒有符合條件的訂閱或伺服器",
+  "prototypeNoMatchingSubscriptions": "沒有符合條件的結果",
   "prototypeCurrentSelection": "目前選擇",
   "prototypeNoServersYet": "還沒有可用的伺服器",
   "prototypeAddProviderSubscriptionHint": "新增服務供應商提供的訂閱連結，或匯入伺服器設定即可開始。",

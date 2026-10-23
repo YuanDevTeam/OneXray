@@ -454,7 +454,7 @@
   "prototypeUseEntryServers": "Использовать входные узлы: {count}",
   "prototypeSource": "Источник",
   "prototypeNotTested": "Не проверен",
-  "prototypeNoMatchingSubscriptions": "Подписки не найдены",
+  "prototypeNoMatchingSubscriptions": "Ничего не найдено",
   "prototypeCurrentSelection": "Текущий выбор",
   "prototypeNoServersYet": "Серверов пока нет",
   "prototypeAddProviderSubscriptionHint": "Для начала добавьте подписку провайдера или импортируйте конфигурацию сервера.",

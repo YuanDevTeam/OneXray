@@ -236,11 +236,18 @@ void main() {
         controller.groups(labels).single.visibleRows.map((row) => row.id),
         [2],
       );
-      await tester.enterText(find.byType(TextField).first, '');
+      await tester.tap(find.byKey(const ValueKey('server-search-clear')));
       await tester.pumpAndSettle();
+      expect(controller.search.text, isEmpty);
+      expect(controller.query, isEmpty);
       expect(
         controller.groups(labels).single.visibleRows.map((row) => row.id),
         [2, 1],
+      );
+      expect(controller.catalog.sortOrder, ServerSortOrder.name);
+      expect(
+        controller.configuration.connection.selection.kind,
+        SelectionKind.automatic,
       );
 
       await tester.tap(find.byTooltip('Sort servers'));
@@ -253,6 +260,38 @@ void main() {
         controller.configuration.connection.selection.kind,
         SelectionKind.automatic,
       );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'empty search can be cleared without changing selection or order',
+    (tester) async {
+      await pumpBrowser(tester, 427);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerBrowser)),
+      )!;
+      final selection = controller.configuration.connection.selection.toJson();
+      final order = controller.catalog.sortOrder;
+      final ids = controller.servers.map((row) => row.id).toList();
+
+      await tester.enterText(find.byType(TextField).first, 'missing server');
+      await tester.pumpAndSettle();
+      expect(find.text(l.prototypeNoMatchingSubscriptions), findsOneWidget);
+      expect(controller.groups(l), isEmpty);
+      await tester.tap(find.byKey(const ValueKey('server-search-reset')));
+      await tester.pumpAndSettle();
+
+      expect(controller.search.text, isEmpty);
+      expect(controller.query, isEmpty);
+      expect(find.text(l.prototypeNoMatchingSubscriptions), findsNothing);
+      expect(find.byKey(const ValueKey('server-search-clear')), findsNothing);
+      expect(controller.groups(l), isNotEmpty);
+      expect(controller.catalog.sortOrder, order);
+      expect(controller.servers.map((row) => row.id), ids);
+      expect(controller.configuration.connection.selection.toJson(), selection);
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(AppEventBus.instance.state.pinging, isFalse);
       expect(tester.takeException(), isNull);
     },
   );
@@ -479,12 +518,23 @@ void main() {
   }
 
   testWidgets(
-    'latency failure uses destructive color and success clears the message',
+    'latency failure expands its original diagnostic and success clears it',
     (tester) async {
       await pumpBrowser(tester, 427, groupPage: true);
+      const diagnostic =
+          'Head "https://example.test/": context deadline exceeded\n'
+          'Original native details remain available.';
       AppEventBus.instance.updatePingResults({
-        1: const PingBatchResult(false, -1, 'Latency failed'),
+        1: const PingBatchResult(false, -1, diagnostic),
       });
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerNodeRow).first),
+      )!;
+      expect(find.byType(SelectableText), findsNothing);
+      final summary = find.text('${l.prototypeSpeedTest} · ${l.resultFailed}');
+      expect(summary, findsOneWidget);
+      await tester.tap(summary);
       await tester.pumpAndSettle();
       final message = tester.widget<SelectableText>(
         find.descendant(
@@ -492,15 +542,23 @@ void main() {
           matching: find.byType(SelectableText),
         ),
       );
+      expect(message.data, '${l.prototypeSpeedTest}\n$diagnostic');
       final palette = ColorManager.palette(
         tester.element(find.byType(ServerNodeRow).first),
       );
       expect(message.style!.color, palette.destructive);
+      await tester.tap(summary);
+      await tester.pumpAndSettle();
+      expect(find.byType(SelectableText), findsNothing);
+      await tester.tap(summary);
+      await tester.pumpAndSettle();
+      expect(find.textContaining(diagnostic), findsOneWidget);
       AppEventBus.instance.updatePingResults({
         1: const PingBatchResult(true, 20, ''),
       });
       await tester.pumpAndSettle();
       expect(find.byType(SelectableText), findsNothing);
+      expect(summary, findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

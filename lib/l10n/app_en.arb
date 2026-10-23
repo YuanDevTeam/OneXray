@@ -1121,9 +1121,9 @@
   "@prototypeNotTested": {
     "description": "Approved prototype copy: Not tested"
   },
-  "prototypeNoMatchingSubscriptions": "No matching subscriptions",
+  "prototypeNoMatchingSubscriptions": "No matching results",
   "@prototypeNoMatchingSubscriptions": {
-    "description": "Approved prototype copy: No matching subscriptions"
+    "description": "Empty search results for subscriptions, servers, and manual groups"
   },
   "prototypeCurrentSelection": "Current selection",
   "@prototypeCurrentSelection": {

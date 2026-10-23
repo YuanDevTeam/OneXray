@@ -454,7 +454,7 @@
   "prototypeUseEntryServers": "使用 {count} 个接入节点",
   "prototypeSource": "来源",
   "prototypeNotTested": "尚未检测",
-  "prototypeNoMatchingSubscriptions": "没有匹配的订阅或服务器",
+  "prototypeNoMatchingSubscriptions": "没有匹配结果",
   "prototypeCurrentSelection": "当前选择",
   "prototypeNoServersYet": "还没有可用的服务器",
   "prototypeAddProviderSubscriptionHint": "添加服务商提供的订阅链接，或导入服务器配置即可开始。",

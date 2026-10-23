@@ -139,8 +139,12 @@ class ServerBrowser extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppRadii.card),
       borderSide: BorderSide(color: palette.border),
     );
+    final searchHeight = AppLayout.touchExtent(
+      43,
+      platform: Theme.of(context).platform,
+    );
     return SizedBox(
-      height: 43,
+      height: searchHeight,
       child: Row(
         children: [
           Expanded(
@@ -158,9 +162,9 @@ class ServerBrowser extends StatelessWidget {
                 hintStyle: AppTypography.serverBody.copyWith(
                   color: palette.mutedForeground,
                 ),
-                prefixIconConstraints: const BoxConstraints.tightFor(
+                prefixIconConstraints: BoxConstraints.tightFor(
                   width: 41,
-                  height: 43,
+                  height: searchHeight,
                 ),
                 prefixIcon: Padding(
                   padding: const EdgeInsetsDirectional.only(start: 13, end: 10),
@@ -170,6 +174,14 @@ class ServerBrowser extends StatelessWidget {
                     color: palette.mutedForeground,
                   ),
                 ),
+                suffixIcon: controller.search.text.isEmpty
+                    ? null
+                    : IconButton(
+                        key: const ValueKey('server-search-clear'),
+                        tooltip: l.prototypeClear,
+                        onPressed: controller.search.clear,
+                        icon: const Icon(LucideIcons.x, size: 18),
+                      ),
                 border: border,
                 enabledBorder: border,
                 focusedBorder: border.copyWith(
@@ -276,12 +288,21 @@ class ServerBrowser extends StatelessWidget {
           if (groups.isEmpty && controller.search.text.isNotEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
-              child: Text(
-                l.prototypeNoMatchingSubscriptions,
-                textAlign: TextAlign.center,
-                style: AppTypography.settingsInput.copyWith(
-                  color: palette.mutedForeground,
-                ),
+              child: Column(
+                children: [
+                  Text(
+                    l.prototypeNoMatchingSubscriptions,
+                    textAlign: TextAlign.center,
+                    style: AppTypography.settingsInput.copyWith(
+                      color: palette.mutedForeground,
+                    ),
+                  ),
+                  TextButton(
+                    key: const ValueKey('server-search-reset'),
+                    onPressed: controller.search.clear,
+                    child: Text(l.prototypeClear),
+                  ),
+                ],
               ),
             ),
           if (mobile)
@@ -1063,37 +1084,56 @@ class ServerNodeRow extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) =>
-      BlocSelector<AppEventBus, AppEventBusState, PingBatchResult?>(
-        bloc: AppEventBus.instance,
-        selector: (state) => state.pingFailures[row.id],
-        builder: (context, failure) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _row(
-              context,
-              running: controller.runningEntries.contains(row.id),
-              chosen: controller.chosen(row),
-              enabled: controller.canChoose(row),
-              protocol: controller.protocol(row),
+  Widget build(
+    BuildContext context,
+  ) => BlocSelector<AppEventBus, AppEventBusState, PingBatchResult?>(
+    bloc: AppEventBus.instance,
+    selector: (state) => state.pingFailures[row.id],
+    builder: (context, failure) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _row(
+          context,
+          running: controller.runningEntries.contains(row.id),
+          chosen: controller.chosen(row),
+          enabled: controller.canChoose(row),
+          protocol: controller.protocol(row),
+        ),
+        if (failure != null && row.type == 'outbound')
+          ExpansionTile(
+            key: PageStorageKey(('server-ping-failure', row.id, failure)),
+            shape: const Border(),
+            collapsedShape: const Border(),
+            tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            iconColor: ColorManager.palette(context).destructive,
+            collapsedIconColor: ColorManager.palette(context).destructive,
+            title: Text(
+              '${AppLocalizations.of(context)!.prototypeSpeedTest} · ${AppLocalizations.of(context)!.resultFailed}',
+              style: AppTypography.settingsDetailNote.copyWith(
+                color: ColorManager.palette(context).destructive,
+              ),
             ),
-            if (failure != null && row.type == 'outbound')
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            children: [
+              Align(
+                alignment: AlignmentDirectional.centerStart,
                 child: SelectableText(
                   appFailureMessage(
                     AppLocalizations.of(context)!,
                     failure.error,
                     operation: AppLocalizations.of(context)!.prototypeSpeedTest,
                   ),
+                  key: PageStorageKey('server-ping-diagnostic-${row.id}'),
                   style: AppTypography.settingsDetailNote.copyWith(
                     color: ColorManager.palette(context).destructive,
                   ),
                 ),
               ),
-          ],
-        ),
-      );
+            ],
+          ),
+      ],
+    ),
+  );
 
   Widget _row(
     BuildContext context, {

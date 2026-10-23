@@ -131,6 +131,50 @@ void main() {
   }
 
   testWidgets(
+    'mobile source management stays reachable above a long group list',
+    (tester) async {
+      await databaseOperation(tester, () async {
+        await db.subscriptionDao.insertRow(
+          SubscriptionCompanion.insert(
+            name: 'Provider',
+            url: 'https://example.test/subscription',
+            timestamp: DateTime(2026),
+          ),
+        );
+        for (var index = 0; index < 30; index++) {
+          await db.manualServerGroupDao.insertRow(
+            ManualServerGroupCompanion.insert(
+              name: 'Folder $index',
+              sortOrder: Value(index),
+            ),
+          );
+        }
+      });
+      await settleUntil(
+        tester,
+        () => controller.catalog.manualGroups.length == 30,
+      );
+      await pump(tester, fullPage: true);
+      final context = tester.element(find.byType(ServersPage));
+      final l = AppLocalizations.of(context)!;
+      final sources = find.byTooltip(l.prototypeUpdatesAndSources);
+      expect(sources.hitTestable(), findsOneWidget);
+      await tester.tap(sources);
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerSourcesDialog), findsOneWidget);
+      expect(find.text('Provider'), findsOneWidget);
+      expect(controller.catalog.manualGroups, hasLength(30));
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byTooltip(l.prototypeCloseDialog));
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerSourcesDialog), findsNothing);
+      expect(sources.hitTestable(), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
     'desktop source management survives creating an empty manual group',
     (tester) async {
       await databaseOperation(
