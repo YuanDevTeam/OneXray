@@ -119,8 +119,12 @@ void main() {
     ),
   );
 
-  Widget app(Widget child, {Locale locale = const Locale('en')}) => MaterialApp(
-    theme: AppTheme.light,
+  Widget app(
+    Widget child, {
+    Locale locale = const Locale('en'),
+    TargetPlatform? platform,
+  }) => MaterialApp(
+    theme: AppTheme.light.copyWith(platform: platform),
     locale: locale,
     localizationsDelegates: AppLocalePolicy.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
@@ -141,6 +145,40 @@ void main() {
     await tester.ensureVisible(advanced);
     await tester.tap(advanced);
     await tester.pumpAndSettle();
+  }
+
+  for (final platform in [TargetPlatform.macOS, TargetPlatform.iOS]) {
+    testWidgets('visible field labels retain the $platform traversal policy', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        name.text = 'Provider';
+        await tester.pumpWidget(app(form(), platform: platform));
+        await tester.pumpAndSettle();
+        final heading = find.text('Name');
+        final excluded = find.ancestor(
+          of: heading,
+          matching: find.byType(ExcludeSemantics),
+        );
+        expect(
+          excluded,
+          platform == TargetPlatform.macOS ? findsNothing : findsOneWidget,
+        );
+        if (platform == TargetPlatform.macOS) {
+          expect(tester.getSemantics(heading).getSemanticsData().label, 'Name');
+        }
+        final editable = find.byWidgetPredicate(
+          (widget) => widget is EditableText && widget.controller == name,
+        );
+        final data = tester.getSemantics(editable).getSemanticsData();
+        expect(data.label, 'Name');
+        expect(data.value, 'Provider');
+        expect(data.flagsCollection.isTextField, isTrue);
+      } finally {
+        semantics.dispose();
+      }
+    });
   }
 
   testWidgets('editable semantics retain field names after entering values', (

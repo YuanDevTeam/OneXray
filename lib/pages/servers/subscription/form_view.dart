@@ -705,14 +705,17 @@ class SubscriptionFormView extends StatelessWidget {
   }
 
   Widget _fieldLabel(BuildContext context, String text) {
-    return ExcludeSemantics(
-      child: Text(
-        text,
-        style: AppTypography.subscriptionField.copyWith(
-          color: ColorManager.palette(context).mutedStrong,
-        ),
+    final label = Text(
+      text,
+      style: AppTypography.subscriptionField.copyWith(
+        color: ColorManager.palette(context).mutedStrong,
       ),
     );
+    // macOS's native text input bridge does not expose the merged field label.
+    // Keep the adjacent visible label available to accessibility traversal.
+    return Theme.of(context).platform == TargetPlatform.macOS
+        ? label
+        : ExcludeSemantics(child: label);
   }
 }
 
