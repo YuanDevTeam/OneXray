@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
@@ -11,20 +12,26 @@ const _filename =
     'OneXray-connection-configurations-servers-subscriptions-Age-private-keys-'
     'custom-routing-and-Raw-JSON.log';
 
-enum _Action { exportLog, restore, exportConfiguration, clear }
+enum _Action { exportLog, restore, exportConfiguration, clear, discard }
 
 // The same arguments as restore, log/configuration export and data-clear pages.
-AppConfirmationDialog _dialog(AppLocalizations l, _Action action) =>
-    AppConfirmationDialog(
-      title: switch (action) {
-        _Action.exportLog => l.prototypeExport,
-        _Action.restore => l.backupRestoreTitle,
-        _Action.exportConfiguration =>
-          l.prototypeExportOriginalConfigurationQuestion,
-        _Action.clear => l.prototypeClearAllDataQuestion,
-      },
-      subject: action == _Action.exportLog ? _filename : null,
-      content: switch (action) {
+AppConfirmationDialog _dialog(
+  AppLocalizations l,
+  _Action action, {
+  String? contentOverride,
+}) => AppConfirmationDialog(
+  title: switch (action) {
+    _Action.exportLog => l.prototypeExport,
+    _Action.restore => l.backupRestoreTitle,
+    _Action.exportConfiguration =>
+      l.prototypeExportOriginalConfigurationQuestion,
+    _Action.clear => l.prototypeClearAllDataQuestion,
+    _Action.discard => l.jsonEditorDiscardTitle,
+  },
+  subject: action == _Action.exportLog ? _filename : null,
+  content:
+      contentOverride ??
+      switch (action) {
         _Action.exportLog => l.prototypeLocalLogNotice,
         _Action.restore => [
           l.backupCreatedAt('2026-09-03 09:00'),
@@ -35,27 +42,37 @@ AppConfirmationDialog _dialog(AppLocalizations l, _Action action) =>
         _Action.exportConfiguration =>
           l.prototypeExportOriginalConfigurationWarning,
         _Action.clear => l.prototypeClearAllDataWarning,
+        _Action.discard => l.jsonEditorDiscardMessage,
       },
-      cancelLabel: l.prototypeCancel,
-      confirmLabel: switch (action) {
-        _Action.exportLog => l.prototypeExport,
-        _Action.restore => l.backupRestore,
-        _Action.exportConfiguration => l.prototypeExport,
-        _Action.clear => l.prototypeConfirmClearData,
-      },
-      destructive: action == _Action.restore || action == _Action.clear,
-      barrierDismissible: action != _Action.clear,
-    );
+  cancelLabel: action == _Action.discard
+      ? l.jsonEditorKeepEditing
+      : l.prototypeCancel,
+  confirmLabel: switch (action) {
+    _Action.exportLog => l.prototypeExport,
+    _Action.restore => l.backupRestore,
+    _Action.exportConfiguration => l.prototypeExport,
+    _Action.clear => l.prototypeConfirmClearData,
+    _Action.discard => l.jsonEditorDiscardChanges,
+  },
+  destructive:
+      action == _Action.restore ||
+      action == _Action.clear ||
+      action == _Action.discard,
+  barrierDismissible: action != _Action.clear,
+);
 
 Future<void> _pumpDialog(
   WidgetTester tester, {
   required _Action action,
   Locale locale = const Locale('en'),
   double width = 427,
+  double height = 844,
+  double textScale = 1,
+  String? contentOverride,
   ValueChanged<bool>? onResult,
 }) async {
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = Size(width, 844);
+  tester.view.physicalSize = Size(width, height);
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
   await tester.pumpWidget(
@@ -68,7 +85,8 @@ Future<void> _pumpDialog(
       localizationsDelegates: AppLocalePolicy.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(textScale)),
         child: child!,
       ),
       home: Scaffold(
@@ -79,6 +97,7 @@ Future<void> _pumpDialog(
               final confirmed = await _dialog(
                 AppLocalizations.of(context)!,
                 action,
+                contentOverride: contentOverride,
               ).show(context);
               onResult?.call(confirmed);
             },
@@ -97,6 +116,84 @@ Finder get _surface => find
     .first;
 
 void main() {
+  for (final locale in [const Locale('zh'), const Locale('ru')]) {
+    testWidgets(
+      'large $locale confirmation actions stay readable and reachable',
+      (tester) async {
+        bool? result;
+        await _pumpDialog(
+          tester,
+          action: _Action.discard,
+          locale: locale,
+          width: 375,
+          height: 667,
+          textScale: 3.2,
+          contentOverride: List.filled(
+            12,
+            'JSON changes have not been saved.',
+          ).join('\n\n'),
+          onResult: (confirmed) => result = confirmed,
+        );
+        final cancel = find.byType(OutlinedButton);
+        final confirm = find.byType(FilledButton);
+        final cancelBounds = tester.getRect(cancel);
+        final confirmBounds = tester.getRect(confirm);
+        final surface = tester.getRect(_surface);
+        expect(cancelBounds.width, closeTo(surface.width - 32, .5));
+        expect(confirmBounds.width, closeTo(cancelBounds.width, .5));
+        expect(confirmBounds.left, closeTo(cancelBounds.left, .5));
+        expect(
+          confirmBounds.top - cancelBounds.bottom,
+          closeTo(AppSpacing.actionGap, .5),
+        );
+        for (final button in [cancel, confirm]) {
+          final label = find.descendant(
+            of: button,
+            matching: find.byType(Text),
+          );
+          final richText = find.descendant(
+            of: label,
+            matching: find.byType(RichText),
+          );
+          final paragraph = tester.renderObject<RenderParagraph>(richText);
+          expect(paragraph.didExceedMaxLines, isFalse);
+          for (final box in paragraph.getBoxesForSelection(
+            TextSelection(
+              baseOffset: 0,
+              extentOffset: paragraph.text.toPlainText().length,
+            ),
+          )) {
+            expect(box.left, greaterThanOrEqualTo(-.5));
+            expect(box.right, lessThanOrEqualTo(paragraph.size.width + .5));
+            expect(box.bottom, lessThanOrEqualTo(paragraph.size.height + .5));
+          }
+          expect(tester.getRect(button).bottom, lessThanOrEqualTo(667));
+        }
+        final body = find.byType(SingleChildScrollView);
+        final scroll = tester.state<ScrollableState>(
+          find.descendant(of: body, matching: find.byType(Scrollable)),
+        );
+        expect(scroll.position.maxScrollExtent, greaterThan(0));
+        await tester.drag(body, const Offset(0, -180));
+        await tester.pumpAndSettle();
+        expect(scroll.position.pixels, greaterThan(0));
+        expect(tester.getRect(cancel), cancelBounds);
+        expect(tester.getRect(confirm), confirmBounds);
+        await tester.tap(cancel);
+        await tester.pumpAndSettle();
+        expect(result, isFalse);
+        expect(find.byType(AppConfirmationDialog), findsNothing);
+        await tester.tap(find.byKey(_open));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(FilledButton));
+        await tester.pumpAndSettle();
+        expect(result, isTrue);
+        expect(find.byType(AppConfirmationDialog), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final (width, action) in [
     (427.0, _Action.clear),
     (1200.0, _Action.exportConfiguration),
