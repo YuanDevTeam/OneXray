@@ -19,15 +19,22 @@ import 'package:onexray/service/connect/settings.dart';
 /// Embedded below Advanced's tabs; the footer belongs to this full-page body.
 class VpnTunnelPane extends StatelessWidget {
   final OpenTunnelPage? openTunnel;
-  const VpnTunnelPane({super.key, this.openTunnel});
+  final PolicyEditorController Function()? createController;
+
+  const VpnTunnelPane({super.key, this.openTunnel, this.createController});
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-    create: (_) => PolicyEditorController()..load(context),
+    create: (context) {
+      final controller = createController?.call() ?? PolicyEditorController();
+      if (controller.draft == null) controller.load(context);
+      return controller;
+    },
     child: BlocBuilder<PolicyEditorController, PolicyEditorPageState>(
       builder: (context, state) {
         final controller = context.read<PolicyEditorController>();
         final l = AppLocalizations.of(context)!;
+        final palette = ColorManager.palette(context);
         final width = MediaQuery.sizeOf(context).width;
         final mobile = width <= AppLayout.mobileBreakpoint;
         final gutter = mobile ? 15.0 : AppSpacing.advancedDesktopGutter(width);
@@ -62,8 +69,8 @@ class VpnTunnelPane extends StatelessWidget {
                       SettingRow(
                         title: l.prototypeSystemVpn,
                         leading: Icon(
-                          LucideIcons.circleCheck,
-                          color: ColorManager.palette(context).running,
+                          LucideIcons.shield,
+                          color: palette.mutedStrong,
                         ),
                         decorateLeading: false,
                         minHeight: mobile ? 52 : 56,
@@ -75,15 +82,24 @@ class VpnTunnelPane extends StatelessWidget {
                             (mobile
                                     ? AppTypography.settingsStatus
                                     : AppTypography.desktopSettingsStatus)
-                                .copyWith(
-                                  color: ColorManager.palette(context).running,
-                                ),
+                                .copyWith(color: palette.foreground),
                         valueStyle:
                             (mobile
                                     ? AppTypography.settingsStatus
                                     : AppTypography.desktopSettingsStatus)
                                 .copyWith(
-                                  color: ColorManager.primaryText(context),
+                                  color: switch (state.connection.phase) {
+                                    ConnectionPhase.connected =>
+                                      palette.runningText,
+                                    ConnectionPhase.preparing ||
+                                    ConnectionPhase.connecting ||
+                                    ConnectionPhase.disconnecting =>
+                                      palette.restartingText,
+                                    ConnectionPhase.failed =>
+                                      palette.destructive,
+                                    ConnectionPhase.disconnected =>
+                                      palette.mutedStrong,
+                                  },
                                 ),
                         value: _status(controller, l),
                       ),

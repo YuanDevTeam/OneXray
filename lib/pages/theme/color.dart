@@ -110,7 +110,7 @@ class AppPalette {
     sidebarRing: Color(0xFF1F6AF9),
     selectedSurface: Color(0xFFEEF5FF),
     running: Color(0xFF1FA04E),
-    runningText: Color(0xFF1FA04E),
+    runningText: Color(0xFF15803D),
     runningBadge: Color(0xFF047857),
     runningBadgeForeground: Color(0xFFFFFFFF),
     runningForeground: Color(0xFF10141B),
