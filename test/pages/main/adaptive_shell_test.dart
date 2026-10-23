@@ -354,6 +354,193 @@ void main() {
     expect(router.routeInformationProvider.value.uri.path, '/connect');
   });
 
+  for (final (scale, locale, landscapePadding) in const [
+    (1.0, Locale('en'), EdgeInsets.only(left: 59, bottom: 21)),
+    (2.0, Locale('ru'), EdgeInsets.only(left: 59, bottom: 21)),
+    (2.0, Locale('fa'), EdgeInsets.only(right: 59, bottom: 21)),
+  ]) {
+    testWidgets(
+      'landscape navigation remains reachable in $locale at $scale text scale',
+      (tester) async {
+        const landscape = Size(952, 426.7);
+        await tester.binding.setSurfaceSize(landscape);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        var padding = landscapePadding;
+        final eventBus = AppEventBus();
+        addTearDown(eventBus.close);
+        eventBus.updateAppUpdateInfo(
+          AppUpdateInfo(
+            currentVersion: '26.10.4',
+            latestVersion: '26.10.5',
+            releaseNotes: 'Release notes',
+            releaseUri: Uri.parse('https://example.com/release'),
+            updateUri: Uri.parse('https://example.com/update'),
+            destination: AppUpdateDestination.githubRelease,
+          ),
+        );
+        final router = GoRouter(
+          initialLocation: '/connect',
+          routes: [
+            StatefulShellRoute.indexedStack(
+              builder: (_, _, shell) => AdaptiveMainShell(
+                navigationShell: shell,
+                initializeServices: (_) async {},
+              ),
+              branches: [
+                for (final primary in AppPrimaryDestination.values)
+                  StatefulShellBranch(
+                    routes: [
+                      GoRoute(
+                        path: primary.rootPath,
+                        builder: (_, _) =>
+                            Center(child: Text('${primary.name}-content')),
+                        routes: [
+                          GoRoute(
+                            path: 'details',
+                            builder: (_, _) =>
+                                Center(child: Text('${primary.name}-details')),
+                          ),
+                          GoRoute(
+                            path: AppPageDestination.appUpdate.segment,
+                            pageBuilder: (_, state) => AppDialogPage<void>(
+                              key: state.pageKey,
+                              builder: (_) =>
+                                  const Center(child: Text('update-dialog')),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          BlocProvider.value(
+            value: eventBus,
+            child: MaterialApp.router(
+              theme: AppTheme.material(Brightness.light, mobile: true),
+              locale: locale,
+              routerConfig: router,
+              localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(scale),
+                  padding: padding,
+                  viewPadding: padding,
+                ),
+                child: child!,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final sidebar = find.byKey(
+          const ValueKey('primary-desktop-navigation'),
+        );
+        final sidebarRect = tester.getRect(sidebar);
+        expect(sidebarRect.width, AppLayout.desktopSidebarWidth);
+        expect(sidebarRect.left, greaterThanOrEqualTo(padding.left));
+        expect(
+          sidebarRect.right,
+          lessThanOrEqualTo(landscape.width - padding.right),
+        );
+        expect(
+          tester.getSize(find.text('OneXray')).height,
+          lessThan(50 * scale),
+        );
+
+        for (final primary in AppPrimaryDestination.values) {
+          final destination = find.byKey(
+            ValueKey('primary-navigation-${primary.name}'),
+          );
+          await tester.ensureVisible(destination);
+          await tester.pumpAndSettle();
+          final rect = tester.getRect(destination);
+          expect(rect.top, greaterThanOrEqualTo(padding.top));
+          expect(
+            rect.bottom,
+            lessThanOrEqualTo(landscape.height - padding.bottom),
+          );
+          await tester.tap(destination);
+          await tester.pumpAndSettle();
+          expect(find.text('${primary.name}-content'), findsOneWidget);
+          expect(
+            tester.widget<Semantics>(destination).properties.selected,
+            isTrue,
+          );
+          expect(tester.takeException(), isNull);
+        }
+
+        final l = AppLocalizations.of(tester.element(sidebar))!;
+        final update = find.text(l.appUpdateAvailable);
+        await tester.ensureVisible(update);
+        await tester.pumpAndSettle();
+        expect(
+          tester.getRect(update).bottom,
+          lessThanOrEqualTo(landscape.height - padding.bottom),
+        );
+        await tester.tap(update);
+        await tester.pumpAndSettle();
+        expect(find.text('update-dialog'), findsOneWidget);
+        router.pop();
+        await tester.pumpAndSettle();
+
+        router.go('/connect/details');
+        await tester.pumpAndSettle();
+        final settings = find.byKey(
+          const ValueKey('primary-navigation-settings'),
+        );
+        await tester.ensureVisible(settings);
+        await tester.pumpAndSettle();
+        await tester.tap(settings);
+        await tester.pumpAndSettle();
+        unawaited(router.push<void>('/settings/details'));
+        await tester.pumpAndSettle();
+
+        padding = const EdgeInsets.only(top: 59, bottom: 34);
+        await tester.binding.setSurfaceSize(const Size(426.7, 952));
+        await tester.pumpAndSettle();
+        expect(sidebar, findsNothing);
+        expect(find.byType(NavigationBar), findsNothing);
+        expect(find.text('settings-details'), findsOneWidget);
+        expect(
+          GoRouterState.of(tester.element(find.text('settings-details')))
+              .uri
+              .path,
+          '/settings/details',
+        );
+
+        padding = landscapePadding;
+        await tester.binding.setSurfaceSize(landscape);
+        await tester.pumpAndSettle();
+        expect(sidebar, findsOneWidget);
+        expect(find.text('settings-details'), findsOneWidget);
+        final connect = find.byKey(
+          const ValueKey('primary-navigation-connect'),
+        );
+        await tester.ensureVisible(connect);
+        await tester.pumpAndSettle();
+        await tester.tap(connect);
+        await tester.pumpAndSettle();
+        expect(find.text('connect-details'), findsOneWidget);
+        expect(
+          GoRouterState.of(tester.element(find.text('connect-details')))
+              .uri
+              .path,
+          '/connect/details',
+        );
+        expect(router.canPop(), isTrue);
+        expect(tester.takeException(), isNull);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
+
   for (final width in [390.0, 1200.0]) {
     testWidgets('root pages can be pushed within any tab ($width)', (
       tester,

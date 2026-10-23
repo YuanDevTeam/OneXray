@@ -207,77 +207,117 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     final nativeSidebar = DesktopWindowFrame.hasNativeSidebar(context);
     return Scaffold(
       backgroundColor: nativeSidebar ? Colors.transparent : null,
-      body: Row(
-        children: [
-          Container(
-            key: const ValueKey('primary-desktop-navigation'),
-            width: sidebarWidth,
-            decoration: BoxDecoration(
-              color: nativeSidebar ? Colors.transparent : palette.sidebar,
-              border: BorderDirectional(
-                end: BorderSide(color: palette.sidebarBorder),
+      // Keep landscape cutouts outside the sidebar's usable content width.
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: Row(
+          children: [
+            Container(
+              key: const ValueKey('primary-desktop-navigation'),
+              width: sidebarWidth,
+              decoration: BoxDecoration(
+                color: nativeSidebar ? Colors.transparent : palette.sidebar,
+                border: BorderDirectional(
+                  end: BorderSide(color: palette.sidebarBorder),
+                ),
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sidebarHorizontal,
+                    vertical: nativeSidebar
+                        ? AppSpacing.macOSSidebarVertical
+                        : AppSpacing.sidebarVertical,
+                  ),
+                  child: _sidebarContent(
+                    context,
+                    compact: compact,
+                    nativeSidebar: nativeSidebar,
+                    appUpdateInfo: appUpdateInfo,
+                  ),
+                ),
               ),
             ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sidebarHorizontal,
-                  vertical: nativeSidebar
-                      ? AppSpacing.macOSSidebarVertical
-                      : AppSpacing.sidebarVertical,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Padding(
-                      padding: EdgeInsetsDirectional.fromSTEB(
-                        compact
-                            ? AppSpacing.sidebarCompactBrandStart
-                            : AppSpacing.sidebarBrandStart,
-                        AppSpacing.sidebarBrandTop,
-                        compact
-                            ? AppSpacing.sidebarCompactBrandStart
-                            : AppSpacing.sidebarBrandStart,
-                        nativeSidebar
-                            ? AppSpacing.macOSSidebarBrandBottom
-                            : AppSpacing.sidebarBrandBottom,
-                      ),
-                      child: Text(
-                        'OneXray',
-                        style: AppTypography.desktopBrand.copyWith(
-                          color: palette.brand,
-                        ),
+            Expanded(
+              child:
+                  nativeSidebar &&
+                      Directionality.of(context) == TextDirection.ltr
+                  ? MediaQuery.removePadding(
+                      context: context,
+                      removeTop: true,
+                      child: navigationShell,
+                    )
+                  // In RTL the content, not the sidebar, is below the native
+                  // controls on the physical left. Keep its local top inset.
+                  : navigationShell,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sidebarContent(
+    BuildContext context, {
+    required bool compact,
+    required bool nativeSidebar,
+    required AppUpdateInfo? appUpdateInfo,
+  }) {
+    final palette = ColorManager.palette(context);
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        primary: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: EdgeInsetsDirectional.fromSTEB(
+                      compact
+                          ? AppSpacing.sidebarCompactBrandStart
+                          : AppSpacing.sidebarBrandStart,
+                      AppSpacing.sidebarBrandTop,
+                      compact
+                          ? AppSpacing.sidebarCompactBrandStart
+                          : AppSpacing.sidebarBrandStart,
+                      nativeSidebar
+                          ? AppSpacing.macOSSidebarBrandBottom
+                          : AppSpacing.sidebarBrandBottom,
+                    ),
+                    child: Text(
+                      'OneXray',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.desktopBrand.copyWith(
+                        color: palette.brand,
                       ),
                     ),
-                    for (final primary in AppPrimaryDestination.values) ...[
-                      if (primary.index > 0)
-                        const SizedBox(height: AppSpacing.sidebarRowGap),
-                      _desktopDestination(context, primary),
-                    ],
-                    const Spacer(),
-                    if (appUpdateInfo != null)
-                      _DesktopUpdateReminder(
-                        onTap: () => _showDesktopUpdate(context, appUpdateInfo),
-                      ),
+                  ),
+                  for (final primary in AppPrimaryDestination.values) ...[
+                    if (primary.index > 0)
+                      const SizedBox(height: AppSpacing.sidebarRowGap),
+                    _desktopDestination(context, primary),
                   ],
-                ),
+                ],
               ),
-            ),
+              if (appUpdateInfo != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sidebarRowGap),
+                  child: _DesktopUpdateReminder(
+                    onTap: () => _showDesktopUpdate(context, appUpdateInfo),
+                  ),
+                ),
+            ],
           ),
-          Expanded(
-            child:
-                nativeSidebar && Directionality.of(context) == TextDirection.ltr
-                ? MediaQuery.removePadding(
-                    context: context,
-                    removeTop: true,
-                    child: navigationShell,
-                  )
-                // In RTL the content, not the sidebar, is below the native
-                // controls on the physical left. Keep its local top inset.
-                : navigationShell,
-          ),
-        ],
+        ),
       ),
     );
   }
