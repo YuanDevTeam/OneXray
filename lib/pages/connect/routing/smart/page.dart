@@ -358,6 +358,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
             controller.vpnPath(l),
             palette.primary,
             palette.selectedSurface,
+            textColor: palette.primaryText,
             hint: controller.effectiveEntryCount > 1
                 ? l.prototypeDistributedEntries(controller.effectiveEntryCount)
                 : null,
@@ -409,6 +410,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
     String description,
     Color foreground,
     Color background, {
+    Color? textColor,
     String? hint,
   }) {
     final mobile =
@@ -449,14 +451,16 @@ class SmartRoutingEditorContent extends StatelessWidget {
           const SizedBox(height: 9),
           Text(
             description,
-            style: AppTypography.routingPreviewBody.copyWith(color: foreground),
+            style: AppTypography.routingPreviewBody.copyWith(
+              color: textColor ?? foreground,
+            ),
           ),
           if (hint != null) ...[
             const SizedBox(height: 5),
             Text(
               hint,
               style: AppTypography.routingPreviewHint.copyWith(
-                color: foreground.withValues(alpha: .8),
+                color: textColor ?? foreground,
               ),
             ),
           ],

@@ -15,6 +15,7 @@ class AppPalette {
     required this.popoverForeground,
     required this.primary,
     required this.primaryHover,
+    required this.primaryText,
     required this.primarySolid,
     required this.primarySolidHover,
     required this.primaryForeground,
@@ -76,6 +77,7 @@ class AppPalette {
     popoverForeground: Color(0xFF0E1020),
     primary: Color(0xFF1F6AF9),
     primaryHover: Color(0xFF185BD8),
+    primaryText: Color(0xFF185BD8),
     primarySolid: Color(0xFF1F6AF9),
     primarySolidHover: Color(0xFF185BD8),
     primaryForeground: Color(0xFFFFFFFF),
@@ -135,6 +137,7 @@ class AppPalette {
     popoverForeground: Color(0xFFF2F5F8),
     primary: Color(0xFF69A5FF),
     primaryHover: Color(0xFF8AB8FF),
+    primaryText: Color(0xFF8AB8FF),
     primarySolid: Color(0xFF1F6AF9),
     primarySolidHover: Color(0xFF185BD8),
     primaryForeground: Color(0xFFFFFFFF),
@@ -193,6 +196,8 @@ class AppPalette {
   final Color popoverForeground;
   final Color primary;
   final Color primaryHover;
+  // Opaque small text on selectedSurface, independent of interaction state.
+  final Color primaryText;
   final Color primarySolid;
   final Color primarySolidHover;
   // Foregrounds pair with solid fills, not the dark theme's interactive colors.
@@ -255,6 +260,7 @@ class AppPalette {
       popoverForeground: color(begin.popoverForeground, end.popoverForeground),
       primary: color(begin.primary, end.primary),
       primaryHover: color(begin.primaryHover, end.primaryHover),
+      primaryText: color(begin.primaryText, end.primaryText),
       primarySolid: color(begin.primarySolid, end.primarySolid),
       primarySolidHover: color(begin.primarySolidHover, end.primarySolidHover),
       primaryForeground: color(begin.primaryForeground, end.primaryForeground),

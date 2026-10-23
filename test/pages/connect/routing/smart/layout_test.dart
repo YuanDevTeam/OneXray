@@ -61,6 +61,7 @@ void main() {
     required double contentWidth,
     Locale locale = const Locale('en'),
     double textScale = 1,
+    Brightness brightness = Brightness.light,
   }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = Size(windowWidth, 1100);
@@ -69,14 +70,14 @@ void main() {
     final scaler = TextScaler.linear(textScale);
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.material(Brightness.light),
+        theme: AppTheme.material(brightness),
         locale: locale,
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalePolicy.localizationsDelegates,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: scaler),
           child: ShadTheme(
-            data: AppTheme.shad(Brightness.light, textScaler: scaler),
+            data: AppTheme.shad(brightness, textScaler: scaler),
             child: child!,
           ),
         ),
@@ -110,6 +111,54 @@ void main() {
   Finder header(String title) => find.byWidgetPredicate(
     (widget) => widget is RoutingCardHeader && widget.title == title,
   );
+
+  for (final brightness in Brightness.values) {
+    testWidgets('preview small text has readable contrast ($brightness)', (
+      tester,
+    ) async {
+      for (final count in [1, 2, 3]) {
+        controller.update('entryCount', count);
+        await pumpContent(
+          tester,
+          windowWidth: 1024,
+          contentWidth: 743,
+          brightness: brightness,
+        );
+        final l = AppLocalizations.of(
+          tester.element(find.byType(SmartRoutingEditorContent)),
+        )!;
+        final body = find.text(controller.vpnPath(l));
+        final surface = tester.widget<Container>(
+          find
+              .ancestor(
+                of: body,
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is Container &&
+                      widget.decoration is BoxDecoration &&
+                      (widget.decoration! as BoxDecoration).color != null,
+                ),
+              )
+              .first,
+        );
+        final background = (surface.decoration! as BoxDecoration).color!;
+        for (final text in [
+          tester.widget<Text>(body),
+          if (count > 1)
+            tester.widget<Text>(
+              find.text(l.prototypeDistributedEntries(count)),
+            ),
+        ]) {
+          final foreground = Color.alphaBlend(text.style!.color!, background);
+          final a = foreground.computeLuminance();
+          final b = background.computeLuminance();
+          final ratio = a > b ? (a + .05) / (b + .05) : (b + .05) / (a + .05);
+          expect(ratio, greaterThanOrEqualTo(4.5));
+        }
+        expect(tester.takeException(), isNull);
+      }
+    });
+  }
 
   testWidgets(
     'default iPad and desktop groups balance both columns',
