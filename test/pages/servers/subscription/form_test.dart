@@ -50,8 +50,6 @@ void main() {
         nameFocusNode: controller.subscriptionFocusNode(
           SubscriptionFormField.name,
         ),
-        onNameChanged: (_) =>
-            controller.touchSubscriptionField(SubscriptionFormField.name),
         urlLabel: 'URL',
         urlController: url,
         userAgentController: controller.userAgent,
@@ -64,8 +62,6 @@ void main() {
         urlFocusNode: controller.subscriptionFocusNode(
           SubscriptionFormField.url,
         ),
-        onUrlChanged: (_) =>
-            controller.touchSubscriptionField(SubscriptionFormField.url),
         userAgentErrorText: controller.subscriptionFieldError(
           AppLocalizations.of(context)!,
           SubscriptionFormField.userAgent,
@@ -73,8 +69,6 @@ void main() {
         userAgentFocusNode: controller.subscriptionFocusNode(
           SubscriptionFormField.userAgent,
         ),
-        onUserAgentChanged: (_) =>
-            controller.touchSubscriptionField(SubscriptionFormField.userAgent),
         panel: state.panel,
         mode: state.mode,
         automaticModeAllowed: automaticAllowed,
@@ -252,60 +246,88 @@ void main() {
   testWidgets(
     'field errors follow editing and blur without marking an empty draft',
     (tester) async {
-      await tester.pumpWidget(app(form()));
-      await tester.pumpAndSettle();
-      final l = AppLocalizations.of(
-        tester.element(find.byType(SubscriptionFormView)),
-      )!;
-      Finder input(TextEditingController field) => find.byWidgetPredicate(
-        (widget) => widget is ShadInput && widget.controller == field,
-      );
-      expect(find.text(l.validationNameRequired), findsNothing);
-      expect(find.text(l.validationUrlRequired), findsNothing);
-      expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
+      try {
+        await tester.pumpWidget(app(form()));
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(SubscriptionFormView)),
+        )!;
+        Finder input(TextEditingController field) => find.byWidgetPredicate(
+          (widget) => widget is ShadInput && widget.controller == field,
+        );
+        expect(find.text(l.validationNameRequired), findsNothing);
+        expect(find.text(l.validationUrlRequired), findsNothing);
+        expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
 
-      controller
-          .subscriptionFocusNode(SubscriptionFormField.name)
-          .requestFocus();
-      await tester.pump();
-      controller
-          .subscriptionFocusNode(SubscriptionFormField.url)
-          .requestFocus();
-      await tester.pump();
-      expect(find.text(l.validationNameRequired), findsOneWidget);
-      expect(find.text(l.validationUrlRequired), findsNothing);
-      expect(
-        tester.widget<ShadInput>(input(name)).decoration!.hasError,
-        isTrue,
-      );
+        controller
+            .subscriptionFocusNode(SubscriptionFormField.name)
+            .requestFocus();
+        await tester.pump();
+        controller
+            .subscriptionFocusNode(SubscriptionFormField.url)
+            .requestFocus();
+        await tester.pump();
+        expect(find.text(l.validationNameRequired), findsOneWidget);
+        expect(find.text(l.validationUrlRequired), findsNothing);
+        expect(
+          tester.widget<ShadInput>(input(name)).decoration!.hasError,
+          isTrue,
+        );
 
-      await tester.enterText(input(name), 'Provider');
-      await tester.pump();
-      expect(find.text(l.validationNameRequired), findsNothing);
-      // URL was visited before leaving it to edit the name.
-      expect(find.text(l.validationUrlRequired), findsOneWidget);
-      await tester.enterText(input(url), 'http://provider.example/list');
-      await tester.pump(const Duration(seconds: 3));
-      expect(find.text(l.validationUrlInvalid), findsOneWidget);
-      expect(tester.widget<ShadInput>(input(url)).decoration!.hasError, isTrue);
-      expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
-      expect(controller.state.error, isNull);
+        await tester.enterText(input(name), 'Provider');
+        await tester.pump();
+        expect(find.text(l.validationNameRequired), findsNothing);
+        // URL was visited before leaving it to edit the name.
+        expect(find.text(l.validationUrlRequired), findsOneWidget);
+        await tester.enterText(input(url), 'http://provider.example/list');
+        await tester.pump(const Duration(seconds: 3));
+        expect(find.text(l.validationUrlInvalid), findsOneWidget);
+        expect(
+          tester.widget<ShadInput>(input(url)).decoration!.hasError,
+          isTrue,
+        );
+        expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
+        expect(controller.state.error, isNull);
 
-      await tester.enterText(input(url), 'https://provider.example/list');
-      await tester.pump();
-      expect(find.text(l.validationUrlInvalid), findsNothing);
-      expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
-      await tester.ensureVisible(input(controller.userAgent));
-      await tester.enterText(input(controller.userAgent), 'Example/示例');
-      await tester.pump();
-      expect(find.text(l.subscriptionUserAgentInvalid), findsOneWidget);
-      expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
-      await tester.enterText(input(controller.userAgent), '');
-      await tester.pump();
-      expect(find.text(l.subscriptionUserAgentInvalid), findsNothing);
-      expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
-      expect(controller.state.error, isNull);
-      expect(tester.takeException(), isNull);
+        await tester.enterText(input(url), 'https://provider.example/list');
+        await tester.pump();
+        expect(find.text(l.validationUrlInvalid), findsNothing);
+        expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
+        final userAgentFocus = controller.subscriptionFocusNode(
+          SubscriptionFormField.userAgent,
+        );
+        await tester.ensureVisible(input(controller.userAgent));
+        await tester.pumpAndSettle();
+        await tester.tap(input(controller.userAgent));
+        await tester.pumpAndSettle();
+        expect(userAgentFocus.hasFocus, isTrue);
+        await tester.enterText(input(controller.userAgent), 'Example/示例');
+        await tester.pumpAndSettle();
+        expect(userAgentFocus.hasFocus, isTrue);
+        expect(find.text(l.subscriptionUserAgentInvalid), findsNothing);
+        await tester.ensureVisible(input(url));
+        await tester.pumpAndSettle();
+        await tester.tap(input(url));
+        await tester.pumpAndSettle();
+        expect(userAgentFocus.hasFocus, isFalse);
+        expect(
+          controller.subscriptionFocusNode(SubscriptionFormField.url).hasFocus,
+          isTrue,
+        );
+        expect(find.text(l.subscriptionUserAgentInvalid), findsOneWidget);
+        expect(controller.canSubmit(ServerImportAction.subscription), isFalse);
+        await tester.enterText(input(controller.userAgent), '');
+        await tester.pump();
+        expect(find.text(l.subscriptionUserAgentInvalid), findsNothing);
+        expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
+        expect(controller.state.error, isNull);
+        expect(tester.takeException(), isNull);
+      } finally {
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pump();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      }
     },
   );
 

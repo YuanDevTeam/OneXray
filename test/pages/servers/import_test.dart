@@ -140,6 +140,100 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'subscription field errors wait for blur and then update while editing',
+    (tester) async {
+      final controller = ServerImportController(
+        loadSubscription: (_) async => null,
+      );
+      addTearDown(controller.close);
+      controller.userAgent.text = 'Example/1.0';
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showAppDialog<ServerImportResult>(
+                context,
+                (_) => ServersImportPage(controller: controller),
+              ),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add subscription'));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(SubscriptionFormView)),
+      )!;
+      Finder input(TextEditingController field) => find.byWidgetPredicate(
+        (widget) => widget is ShadInput && widget.controller == field,
+      );
+
+      await tester.enterText(input(controller.name), ' ');
+      await tester.pump();
+      expect(find.text(l.validationNameRequired), findsNothing);
+      await tester.enterText(input(controller.name), 'Provider');
+      await tester.enterText(input(controller.url), 'h');
+      await tester.pump();
+      expect(
+        controller.subscriptionFocusNode(SubscriptionFormField.url).hasFocus,
+        isTrue,
+      );
+      expect(find.text(l.validationUrlInvalid), findsNothing);
+      expect(find.text(l.validationUrlRequired), findsNothing);
+
+      await _tapVisible(tester, input(controller.name));
+      await tester.pumpAndSettle();
+      expect(find.text(l.validationUrlInvalid), findsOneWidget);
+      await tester.enterText(input(controller.url), 'ht');
+      await tester.pump();
+      expect(find.text(l.validationUrlInvalid), findsOneWidget);
+      await tester.enterText(
+        input(controller.url),
+        'https://provider.example/list',
+      );
+      await tester.pump();
+      expect(find.text(l.validationUrlInvalid), findsNothing);
+      expect(
+        controller.subscriptionFocusNode(SubscriptionFormField.url).hasFocus,
+        isTrue,
+      );
+
+      await tester.ensureVisible(input(controller.userAgent));
+      await tester.enterText(input(controller.userAgent), '示');
+      await tester.pump();
+      expect(find.text(l.subscriptionUserAgentInvalid), findsNothing);
+      expect(
+        controller
+            .subscriptionFocusNode(SubscriptionFormField.userAgent)
+            .hasFocus,
+        isTrue,
+      );
+      await _tapVisible(tester, input(controller.url));
+      await tester.pumpAndSettle();
+      expect(find.text(l.subscriptionUserAgentInvalid), findsOneWidget);
+      await tester.enterText(input(controller.name), 'Renamed provider');
+      await tester.pump();
+      expect(find.text(l.subscriptionUserAgentInvalid), findsOneWidget);
+      await tester.ensureVisible(input(controller.userAgent));
+      await tester.enterText(input(controller.userAgent), 'Example/2.0');
+      await tester.pump();
+      expect(find.text(l.subscriptionUserAgentInvalid), findsNothing);
+      expect(
+        controller
+            .subscriptionFocusNode(SubscriptionFormField.userAgent)
+            .hasFocus,
+        isTrue,
+      );
+      expect(controller.canSubmit(ServerImportAction.subscription), isTrue);
+      expect(controller.state.error, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   for (final panel in SubscriptionPanel.values) {
     for (final storedUserAgent in <String?>[null, ' \t ']) {
       final storedLabel = storedUserAgent == null ? 'missing' : 'blank';

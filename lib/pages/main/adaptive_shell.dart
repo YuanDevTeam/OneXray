@@ -25,11 +25,13 @@ class AdaptiveMainShell extends StatefulWidget {
   const AdaptiveMainShell({
     super.key,
     required this.navigationShell,
+    required this.hasActiveModal,
     this.initializeServices,
     this.settingsMenuService,
   });
 
   final StatefulNavigationShell navigationShell;
+  final bool Function(AppPrimaryDestination) hasActiveModal;
   final Future<void> Function(BuildContext context)? initializeServices;
   final MacOSSettingsMenuService? settingsMenuService;
 
@@ -97,29 +99,24 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
 
   bool _canOpenSettings() {
     if (!mounted || !_menusAttached) return false;
-    final location =
-        navigationShell.shellRouteContext.match.matches.last.matchedLocation;
+    final location = GoRouter.of(context)
+        .routerDelegate
+        .currentConfiguration
+        .last
+        .matchedLocation;
     if ({
       ...AppPageDestination.adaptiveDialogs,
       AppPageDestination.appUpdate,
     }.any((page) => location.endsWith('/${page.segment}'))) {
       return false;
     }
-    // Every ModalRoute mounts its own FocusScope, even requestFocus:false
-    // dialogs with no text input. Inspect those route scopes, not just the
-    // primary input focus. Offstage branches must not block the active branch.
-    for (final node in FocusManager.instance.rootScope.descendants) {
-      final routeContext = node.context;
-      if (routeContext == null || !routeContext.mounted) continue;
-      final route = ModalRoute.of(routeContext);
-      if (route is PopupRoute &&
-          route.isActive &&
-          route.isCurrent &&
-          TickerMode.valuesOf(routeContext).enabled) {
-        return false;
+    for (final primary in AppPrimaryDestination.values) {
+      if (location == primary.rootPath ||
+          location.startsWith('${primary.rootPath}/')) {
+        return !widget.hasActiveModal(primary);
       }
     }
-    return true;
+    return false;
   }
 
   void _openSettings() {

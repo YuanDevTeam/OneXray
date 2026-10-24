@@ -30,6 +30,7 @@ import 'package:onexray/pages/launch/splash/page.dart';
 import 'package:onexray/pages/main/adaptive_shell.dart';
 import 'package:onexray/pages/main/advanced.dart';
 import 'package:onexray/pages/main/dialog_page.dart';
+import 'package:onexray/pages/main/modal_route_observer.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
@@ -66,6 +67,12 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(
   debugLabel: "root",
 );
 
+final _rootModalObserver = AppModalRouteObserver();
+final _primaryModalObservers = {
+  for (final primary in AppPrimaryDestination.values)
+    primary: AppModalRouteObserver(),
+};
+
 abstract final class RouterPath {
   static const splash = "/splash";
   static const privacy = "/privacy";
@@ -75,6 +82,7 @@ abstract final class RouterPath {
 
   static final router = GoRouter(
     navigatorKey: _rootNavigatorKey,
+    observers: [_rootModalObserver],
     initialLocation: RouterPath.splash,
     debugLogDiagnostics: true,
     routes: [
@@ -101,8 +109,15 @@ abstract final class RouterPath {
       GoRoute(path: RouterPath.privacy, redirect: (_, _) => RouterPath.setup),
       GoRoute(path: RouterPath.firstRun, redirect: (_, _) => RouterPath.setup),
       StatefulShellRoute.indexedStack(
+        // Forwarded branch events would overwrite the root modal state.
+        notifyRootObserver: false,
         builder: (_, _, navigationShell) {
-          return AdaptiveMainShell(navigationShell: navigationShell);
+          return AdaptiveMainShell(
+            navigationShell: navigationShell,
+            hasActiveModal: (primary) =>
+                _rootModalObserver.hasPopupRoute ||
+                _primaryModalObservers[primary]!.hasPopupRoute,
+          );
         },
         branches: AppPrimaryDestination.values
             .map(_buildPrimaryBranch)
@@ -123,6 +138,7 @@ StatefulShellBranch _buildPrimaryBranch(AppPrimaryDestination primary) {
   );
   return StatefulShellBranch(
     navigatorKey: _primaryNavigatorKeys[primary],
+    observers: [_primaryModalObservers[primary]!],
     routes: [
       GoRoute(
         path: primary.rootPath,

@@ -389,8 +389,6 @@ class ServerImportFormPage extends StatelessWidget {
       nameFocusNode: controller.subscriptionFocusNode(
         SubscriptionFormField.name,
       ),
-      onNameChanged: (_) =>
-          controller.touchSubscriptionField(SubscriptionFormField.name),
       urlLabel: l10n.prototypeSubscriptionLink,
       urlController: controller.url,
       userAgentController: controller.userAgent,
@@ -400,8 +398,6 @@ class ServerImportFormPage extends StatelessWidget {
         SubscriptionFormField.url,
       ),
       urlFocusNode: controller.subscriptionFocusNode(SubscriptionFormField.url),
-      onUrlChanged: (_) =>
-          controller.touchSubscriptionField(SubscriptionFormField.url),
       userAgentErrorText: controller.subscriptionFieldError(
         l10n,
         SubscriptionFormField.userAgent,
@@ -409,8 +405,6 @@ class ServerImportFormPage extends StatelessWidget {
       userAgentFocusNode: controller.subscriptionFocusNode(
         SubscriptionFormField.userAgent,
       ),
-      onUserAgentChanged: (_) =>
-          controller.touchSubscriptionField(SubscriptionFormField.userAgent),
       panel: controller.state.panel,
       mode: controller.state.mode,
       automaticModeAllowed: !controller.editingSubscription,

@@ -107,6 +107,7 @@ void main() {
         StatefulShellRoute.indexedStack(
           builder: (_, _, navigationShell) => AdaptiveMainShell(
             navigationShell: navigationShell,
+            hasActiveModal: (_) => false,
             initializeServices: (_) async {},
           ),
           branches: [
@@ -384,6 +385,7 @@ void main() {
             StatefulShellRoute.indexedStack(
               builder: (_, _, shell) => AdaptiveMainShell(
                 navigationShell: shell,
+                hasActiveModal: (_) => false,
                 initializeServices: (_) async {},
               ),
               branches: [
@@ -564,6 +566,7 @@ void main() {
               shell = navigationShell;
               return AdaptiveMainShell(
                 navigationShell: navigationShell,
+                hasActiveModal: (_) => false,
                 initializeServices: (_) async {},
               );
             },
@@ -656,6 +659,7 @@ void main() {
         StatefulShellRoute.indexedStack(
           builder: (_, _, navigationShell) => AdaptiveMainShell(
             navigationShell: navigationShell,
+            hasActiveModal: (_) => false,
             initializeServices: (_) {
               attempts++;
               if (attempts == 1) {
@@ -743,6 +747,7 @@ void main() {
           StatefulShellRoute.indexedStack(
             builder: (_, _, shell) => AdaptiveMainShell(
               navigationShell: shell,
+              hasActiveModal: (_) => false,
               initializeServices: (_) async {},
             ),
             branches: [
