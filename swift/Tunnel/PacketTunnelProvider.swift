@@ -56,6 +56,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         options: [String: NSObject]? = nil,
         completionHandler: @escaping @Sendable (Error?) -> Void
     ) {
+        #if os(iOS)
+        AppleWidgetPublisher.publish(.connecting)
+        #endif
         let startedByApp = options != nil
         let systemExtensionRequest: StartVpnRequest?
         do {
@@ -65,6 +68,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
                 systemExtensionRequest = nil
             }
         } catch {
+            #if os(iOS)
+            AppleWidgetPublisher.publish(.unknown)
+            #endif
             completionHandler(error)
             return
         }
@@ -77,6 +83,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
                 }
                 completionHandler(nil)
             } catch {
+                #if os(iOS)
+                AppleWidgetPublisher.publish(.unknown)
+                #endif
                 completionHandler(error)
             }
         }
@@ -276,7 +285,14 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     }
 
     override func stopTunnel(with reason: NEProviderStopReason) async {
+        #if os(iOS)
+        AppleWidgetPublisher.publish(.disconnecting)
+        #endif
         self.stopXray()
+        #if os(iOS)
+        // Core stopped, but NetworkExtension has not confirmed its final status.
+        AppleWidgetPublisher.publish(.unknown)
+        #endif
     }
 
     override func handleAppMessage(_ messageData: Data) async -> Data? {

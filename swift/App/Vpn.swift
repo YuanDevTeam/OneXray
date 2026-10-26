@@ -320,14 +320,31 @@ class VPNManager {
     }
 
     func readVpnStatus() async throws -> VpnStatus {
-        guard let status = try await readStatus() else { return .disconnected }
-        YGLog("readRunningVpn \(status.rawValue)")
-        switch status {
-        case .disconnecting: return .disconnecting
-        case .connecting, .reasserting: return .connecting
-        case .connected: return .connected
-        default: return .disconnected
+        guard let status = try await readStatus() else {
+            #if os(iOS)
+            AppleWidgetPublisher.publish(.unknown)
+            #endif
+            return .disconnected
         }
+        YGLog("readRunningVpn \(status.rawValue)")
+        let result: VpnStatus
+        switch status {
+        case .disconnecting: result = .disconnecting
+        case .connecting, .reasserting: result = .connecting
+        case .connected: result = .connected
+        default: result = .disconnected
+        }
+        #if os(iOS)
+        // Only the system's observed status may publish a connected snapshot.
+        let widgetStatus: AppleWidgetStatus = switch result {
+        case .disconnecting: .disconnecting
+        case .disconnected: .disconnected
+        case .connecting: .connecting
+        case .connected: .connected
+        }
+        AppleWidgetPublisher.publish(widgetStatus)
+        #endif
+        return result
     }
 
     private func commandResult(_ state: NativeVpnCommandState) async -> NativeVpnCommandResult {

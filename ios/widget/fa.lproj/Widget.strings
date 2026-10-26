@@ -1,0 +1,12 @@
+"Connection" = "اتصال";
+"VPN status and actions that open OneXray." = "وضعیت VPN و اقداماتی که OneXray را باز می‌کنند.";
+"Open app" = "باز کردن برنامه";
+"Open app to refresh" = "برای تازه‌سازی برنامه را باز کنید";
+"Observed" = "زمان مشاهده";
+"Start VPN" = "شروع VPN";
+"Stop VPN" = "توقف VPN";
+"Disconnected" = "قطع است";
+"Connecting" = "در حال اتصال…";
+"Connected" = "متصل";
+"Disconnecting" = "در حال قطع اتصال…";
+"Unknown" = "نامشخص";

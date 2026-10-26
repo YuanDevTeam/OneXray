@@ -1,0 +1,12 @@
+"Connection" = "Подключение";
+"VPN status and actions that open OneXray." = "Статус VPN и действия с открытием OneXray.";
+"Open app" = "Открыть приложение";
+"Open app to refresh" = "Откройте для обновления";
+"Observed" = "Обновлено";
+"Start VPN" = "Старт VPN";
+"Stop VPN" = "Стоп VPN";
+"Disconnected" = "Не подключено";
+"Connecting" = "Подключение…";
+"Connected" = "Подключено";
+"Disconnecting" = "Отключение…";
+"Unknown" = "Неизвестно";

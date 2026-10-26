@@ -1,0 +1,12 @@
+"Connection" = "连接";
+"VPN status and actions that open OneXray." = "查看 VPN 状态，打开 OneXray 执行操作。";
+"Open app" = "打开 App";
+"Open app to refresh" = "打开 App 刷新";
+"Observed" = "观测时间";
+"Start VPN" = "启动 VPN";
+"Stop VPN" = "停止 VPN";
+"Disconnected" = "未连接";
+"Connecting" = "正在连接…";
+"Connected" = "已连接";
+"Disconnecting" = "正在断开…";
+"Unknown" = "未知";
