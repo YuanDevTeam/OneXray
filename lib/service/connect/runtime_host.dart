@@ -276,17 +276,18 @@ class ConnectionRuntimeHost {
       await Future<void>.value();
       if (wasCancelled) throw const ConnectionHostException('cancelled');
     }
-    // Only the submitted native command races cancellation. File writes remain
-    // drained before Stop can return, and cannot later submit a stale start.
+    // Only iOS has native admission and preparation draining for concurrent
+    // Stop. Other platforms retain their serialized native-command contract.
     final submitted = _start(runtime);
-    final result = await (cancelled == null
-        ? submitted
-        : Future.any([
-            submitted,
-            cancelled.then<NativeVpnCommandResult>(
-              (_) => throw const ConnectionHostException('cancelled'),
-            ),
-          ]));
+    final result =
+        await (cancelled == null || runtime.platform != ConnectionPlatform.ios
+            ? submitted
+            : Future.any([
+                submitted,
+                cancelled.then<NativeVpnCommandResult>(
+                  (_) => throw const ConnectionHostException('cancelled'),
+                ),
+              ]));
     if (result.state != NativeVpnCommandState.success) {
       throw ConnectionHostException(
         result.state == NativeVpnCommandState.waitingForPlatformPermission

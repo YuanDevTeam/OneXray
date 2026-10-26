@@ -65,6 +65,53 @@ final class AppleWidgetTests: XCTestCase {
             XCTAssertNil(inbox.takeAction())
         }
     }
+
+    @MainActor
+    func testStopDrainsPreparationAndRejectsEveryOldStart() async throws {
+        let admission = AppleVpnStartAdmission()
+        let first = admission.begin()
+        let second = admission.begin()
+        XCTAssertThrowsError(try admission.check(first))
+        try admission.check(second)
+        admission.invalidate()
+        var stopped = false
+        let stopping = Task { @MainActor in
+            await admission.waitForPreparation()
+            stopped = true
+        }
+        await Task.yield()
+        XCTAssertFalse(stopped)
+        XCTAssertThrowsError(try admission.check(first))
+        XCTAssertThrowsError(try admission.check(second))
+        admission.finishPreparation(first)
+        await Task.yield()
+        XCTAssertFalse(stopped, "The second profile write is still in progress.")
+        admission.finishPreparation(second)
+        await stopping.value
+        XCTAssertTrue(stopped)
+        let retry = admission.begin()
+        try admission.check(retry)
+        XCTAssertThrowsError(try admission.check(second))
+        admission.finishPreparation(second)
+        try admission.check(retry)
+        admission.finishPreparation(retry)
+    }
+
+    @MainActor
+    func testStopDoesNotWaitForSubmittedStartStatusConfirmation() async throws {
+        let admission = AppleVpnStartAdmission()
+        let submitted = admission.begin()
+        try admission.check(submitted)
+        admission.finishPreparation(submitted)
+        // The original request may still await a native connected callback.
+        admission.invalidate()
+        await admission.waitForPreparation()
+        XCTAssertThrowsError(try admission.check(submitted))
+        let retry = admission.begin()
+        admission.finishPreparation(submitted)
+        try admission.check(retry)
+        admission.finishPreparation(retry)
+    }
 }
 
 @main

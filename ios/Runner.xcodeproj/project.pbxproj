@@ -60,6 +60,7 @@
 		EB2400000000000000000108 /* AppleWidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000013 /* AppleWidgetIntents.swift */; };
 		EB2400000000000000000109 /* AppleWidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000013 /* AppleWidgetIntents.swift */; };
 		EB240000000000000000010A /* AppleWidgetApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000014 /* AppleWidgetApi.swift */; };
+		EB240000000000000000010C /* AppleVpnStartAdmission.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000016 /* AppleVpnStartAdmission.swift */; };
 		EB240000000000000000010B /* Widget.strings in Resources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000020 /* Widget.strings */; };
 /* End PBXBuildFile section */
 
@@ -166,6 +167,7 @@
 		EB2400000000000000000012 /* AppleWidgetActionInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetActionInbox.swift; path = ../swift/iOS/AppleWidgetActionInbox.swift; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000013 /* AppleWidgetIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetIntents.swift; path = ../swift/iOS/AppleWidgetIntents.swift; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000014 /* AppleWidgetApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetApi.swift; path = Runner/AppleWidgetApi.swift; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000016 /* AppleVpnStartAdmission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleVpnStartAdmission.swift; path = ../swift/iOS/AppleVpnStartAdmission.swift; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000021 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "en"; path = "widget/en.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000022 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "widget/zh-Hans.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000023 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "widget/zh-Hant.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
@@ -356,6 +358,7 @@
 			EB2400000000000000000012 /* AppleWidgetActionInbox.swift */,
 			EB2400000000000000000013 /* AppleWidgetIntents.swift */,
 			EB2400000000000000000014 /* AppleWidgetApi.swift */,
+			EB2400000000000000000016 /* AppleVpnStartAdmission.swift */,
 			EB2400000000000000000020 /* Widget.strings */,
 		); name = "iOS Widget"; sourceTree = "<group>"; };
 /* End PBXGroup section */
@@ -555,6 +558,7 @@
 				EB2400000000000000000106 /* AppleWidgetActionInbox.swift in Sources */,
 				EB2400000000000000000108 /* AppleWidgetIntents.swift in Sources */,
 				EB240000000000000000010A /* AppleWidgetApi.swift in Sources */,
+				EB240000000000000000010C /* AppleVpnStartAdmission.swift in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				EB68C7042F94D150007C293A /* Constants.swift in Sources */,

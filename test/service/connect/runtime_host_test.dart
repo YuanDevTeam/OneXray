@@ -25,7 +25,7 @@ void main() {
   });
 
   test('cancelled file preparation never submits a native start', () async {
-    final runtime = _runtime();
+    final runtime = _runtime(platform: ConnectionPlatform.ios);
     final writing = Completer<void>();
     final release = Completer<void>();
     final cancellation = Completer<void>();
@@ -77,7 +77,7 @@ void main() {
     test(
       'submitted native start cancels before its late ${lateFailure ? 'error' : 'success'}',
       () async {
-        final runtime = _runtime();
+        final runtime = _runtime(platform: ConnectionPlatform.ios);
         final submitted = Completer<void>();
         final reply = Completer<NativeVpnCommandResult>();
         final cancellation = Completer<void>();
@@ -118,6 +118,43 @@ void main() {
           );
         }
         await pumpEventQueue();
+      },
+    );
+  }
+
+  for (final platform in [
+    ConnectionPlatform.android,
+    ConnectionPlatform.windows,
+    ConnectionPlatform.linux,
+  ]) {
+    test(
+      '${platform.name} retains the submitted command wait on cancellation',
+      () async {
+        final runtime = _runtime(platform: platform);
+        final submitted = Completer<void>();
+        final reply = Completer<NativeVpnCommandResult>();
+        final cancellation = Completer<void>();
+        final host = ConnectionRuntimeHost(
+          startVpn: (_) {
+            submitted.complete();
+            return reply.future;
+          },
+        );
+        var finished = false;
+        final starting = host
+            .start(runtime, cancelled: cancellation.future)
+            .whenComplete(() => finished = true);
+        await submitted.future;
+        cancellation.complete();
+        await pumpEventQueue();
+        expect(finished, isFalse);
+        reply.complete(
+          NativeVpnCommandResult(
+            state: NativeVpnCommandState.success,
+            status: VpnStatus.connected,
+          ),
+        );
+        expect((await starting).status, VpnStatus.connected);
       },
     );
   }
@@ -531,6 +568,7 @@ ConnectionRuntime _runtime({
   ResolvedProfile? profile,
   List<ResolvedServer>? entries,
   String xrayJson = '{"outbounds":[]}',
+  ConnectionPlatform platform = ConnectionPlatform.android,
 }) {
   final configuration = ConnectionConfiguration();
   final server = ResolvedServer(
@@ -552,7 +590,7 @@ ConnectionRuntime _runtime({
   return ConnectionRuntime.create(
     configuration: configuration,
     compiled: compiled,
-    platform: ConnectionPlatform.android,
+    platform: platform,
     request: StartVpnRequest(null, null, '18003', jsonEncode(invoke.toJson())),
   );
 }

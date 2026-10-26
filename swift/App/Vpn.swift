@@ -30,6 +30,9 @@ class VPNManager {
     private var observedConnecting = false
     private var cancellable: Cancellable?
     private var statusObserver: VPNStatusCallback?
+    #if os(iOS)
+    private let startAdmission = AppleVpnStartAdmission()
+    #endif
     #if os(macOS)
     private let systemExtensionActivation = SystemExtensionActivation()
     #endif
@@ -308,11 +311,21 @@ class VPNManager {
         } else if status == .disconnected, awaitingStart, observedConnecting {
             awaitingStart = false
             if #available(iOS 16.0, macOS 13.0, *), let connection = vpn?.connection {
-                lastCommandError = await withCheckedContinuation { continuation in
+                #if os(iOS)
+                let generation = startAdmission.generation
+                #endif
+                let disconnectError: String? = await withCheckedContinuation { continuation in
                     connection.fetchLastDisconnectError { error in
                         continuation.resume(returning: error?.localizedDescription)
                     }
                 }
+                #if os(iOS)
+                guard startAdmission.isCurrent(generation) else { return vpn?.connection.status }
+                if connection.status == .disconnected { lastCommandError = disconnectError }
+                return connection.status
+                #else
+                lastCommandError = disconnectError
+                #endif
             }
         }
         return status
@@ -347,14 +360,43 @@ class VPNManager {
         return result
     }
 
-    private func commandResult(_ state: NativeVpnCommandState) async -> NativeVpnCommandResult {
+    private func checkStartAdmission(_ generation: UInt64?) throws {
+        #if os(iOS)
+        if let generation { try startAdmission.check(generation) }
+        #endif
+    }
+
+    private func startIsCurrent(_ generation: UInt64?) -> Bool {
+        #if os(iOS)
+        if let generation { return startAdmission.isCurrent(generation) }
+        #endif
+        return true
+    }
+
+    private func finishStartPreparation(_ generation: UInt64?) {
+        #if os(iOS)
+        if let generation { startAdmission.finishPreparation(generation) }
+        #endif
+    }
+
+    private var cancelledStartResult: NativeVpnCommandResult {
+        NativeVpnCommandResult(state: .failed, message: "The VPN start was cancelled.")
+    }
+
+    private func commandResult(
+        _ state: NativeVpnCommandState, startGeneration: UInt64? = nil
+    ) async -> NativeVpnCommandResult {
+        guard startIsCurrent(startGeneration) else { return cancelledStartResult }
         let permission = await queryPlatformPermission()
+        guard startIsCurrent(startGeneration) else { return cancelledStartResult }
         switch state {
         case .success:
             do {
+                let status = try await readVpnStatus()
+                guard startIsCurrent(startGeneration) else { return cancelledStartResult }
                 return NativeVpnCommandResult(
                     state: .success,
-                    status: try await readVpnStatus(),
+                    status: status,
                     permission: permission,
                     message: nil
                 )
@@ -388,40 +430,49 @@ class VPNManager {
     }
 
     func startVpn() async -> NativeVpnCommandResult {
+        #if os(iOS)
+        let generation: UInt64? = startAdmission.begin()
+        defer { finishStartPreparation(generation) }
+        #else
+        let generation: UInt64? = nil
+        #endif
         lastCommandError = nil
         awaitingStart = true
         observedConnecting = false
         guard let request = StartVpnRequest.startModel else {
             lastCommandError = "Unable to read run/start.json."
-            return await commandResult(.failed)
+            return await commandResult(.failed, startGeneration: generation)
         }
         #if targetEnvironment(simulator)
         guard let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) else {
             lastCommandError = VPNError.noGroupContainer.localizedDescription
             runStatusObserver()
-            return await commandResult(.failed)
+            return await commandResult(.failed, startGeneration: generation)
         }
         let state: NativeVpnCommandState
         do {
             try await SimulatorProxy.start(request, at: groupURL.adaptedAppendPath(path: StartModelFile))
+            try checkStartAdmission(generation)
             state = .success
         } catch {
+            guard startIsCurrent(generation) else { return cancelledStartResult }
             YGLog("Simulator proxy start failed: \(error)")
             lastCommandError = error.localizedDescription
             state = .failed
         }
         runStatusObserver()
-        return await commandResult(state)
+        return await commandResult(state, startGeneration: generation)
         #else
         do {
             let permission = await queryPlatformPermission()
+            try checkStartAdmission(generation)
             switch permission.state {
             case .granted, .notRequired:
                 break
             case .awaitingUserApproval:
-                return await commandResult(.waitingForPlatformPermission)
+                return await commandResult(.waitingForPlatformPermission, startGeneration: generation)
             default:
-                return await commandResult(.failed)
+                return await commandResult(.failed, startGeneration: generation)
             }
             if let vpn = vpn {
                 if let tun = request.tun {
@@ -429,39 +480,53 @@ class VPNManager {
                 } else {
                     try await saveVpn(vpn: vpn, tun: TunJson(), request: request)
                 }
+                try checkStartAdmission(generation)
                 if let session = vpn.connection as? NETunnelProviderSession {
                     if Constants.useSystemExtension {
                         try await waitForStatus(
                             session: session, accepted: [.connecting, .connected, .reasserting], timeout: 10
                         ) {
+                            try self.checkStartAdmission(generation)
                             try session.startTunnel(options: ["source": "app" as NSString])
                         }
+                        try checkStartAdmission(generation)
                         try await syncDatAndStart(session: session)
+                        try checkStartAdmission(generation)
+                        finishStartPreparation(generation)
                         try await waitForStatus(session: session, accepted: [.connected], timeout: 30)
                     } else {
                         try await waitForStatus(session: session, accepted: [.connected], timeout: 30) {
+                            try self.checkStartAdmission(generation)
                             try session.startTunnel()
+                            self.finishStartPreparation(generation)
                         }
                     }
-                    return await commandResult(.success)
+                    try checkStartAdmission(generation)
+                    return await commandResult(.success, startGeneration: generation)
                 } else {
                     lastCommandError = VPNError.sessionNotReady.localizedDescription
-                    return await commandResult(.failed)
+                    return await commandResult(.failed, startGeneration: generation)
                 }
             } else {
                 lastCommandError = VPNError.sessionNotReady.localizedDescription
-                return await commandResult(.failed)
+                return await commandResult(.failed, startGeneration: generation)
             }
         } catch {
+            guard startIsCurrent(generation) else { return cancelledStartResult }
             YGLog(error.localizedDescription)
             _ = try? await readStatus()
+            guard startIsCurrent(generation) else { return cancelledStartResult }
             if lastCommandError == nil { lastCommandError = error.localizedDescription }
-            return await commandResult(.failed)
+            return await commandResult(.failed, startGeneration: generation)
         }
         #endif
     }
 
     func stopVpn() async -> NativeVpnCommandResult {
+        #if os(iOS)
+        startAdmission.invalidate()
+        await startAdmission.waitForPreparation()
+        #endif
         lastCommandError = nil
         awaitingStart = false
         #if targetEnvironment(simulator)
