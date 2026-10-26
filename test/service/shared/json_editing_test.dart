@@ -25,6 +25,31 @@ List<String> labels(String marked, JsonEditorKind kind) =>
     completions(marked, kind).map((value) => value.label).toList();
 
 void main() {
+  test('ordinary DNS helper completions match the editable record policy', () {
+    String source(String rules) =>
+        '{"outbounds":[{}, {"tag":"dnsOut","protocol":"dns","settings":{"rules":[$rules]}}]}';
+    expect(
+      labels(
+        source('{"action":"|","qType":"1,28"}'),
+        JsonEditorKind.customRouting,
+      ),
+      ['hijack'],
+    );
+    expect(
+      labels(
+        source('{"action":"hijack","qType":"1,28"},{"action":"|"}'),
+        JsonEditorKind.customRouting,
+      ),
+      ['direct', 'return'],
+    );
+    expect(labels(source('{"action":"|"}'), JsonEditorKind.raw), [
+      'hijack',
+      'direct',
+      'drop',
+      'return',
+    ]);
+  });
+
   test('completes object keys and protocol enums in both node input forms', () {
     expect(labels('{"pro|"}', JsonEditorKind.outbound), [
       'protocol',

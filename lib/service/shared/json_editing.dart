@@ -773,6 +773,9 @@ class JsonEditing {
       }
     }
     if (field == 'action' && dnsRule) {
+      if (kind == JsonEditorKind.customRouting) {
+        return parent.last == 0 ? const ['hijack'] : const ['direct', 'return'];
+      }
       return const ['hijack', 'direct', 'drop', 'return'];
     }
     if (field == 'rewriteNetwork' &&
