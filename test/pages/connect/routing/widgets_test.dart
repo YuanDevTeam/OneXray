@@ -16,6 +16,33 @@ void main() {
     (TargetPlatform.android, 48.0),
     (TargetPlatform.macOS, 34.0),
   ]) {
+    testWidgets('routing headers align with and without help on $platform', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light.copyWith(platform: platform),
+          localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const Scaffold(
+            body: Column(
+              children: [
+                RoutingCardHeader(title: 'Direct', help: ['Direct traffic']),
+                RoutingCardHeader(title: 'Proxy'),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final headers = find.byType(RoutingCardHeader);
+      expect(
+        tester.getSize(headers.at(0)).height,
+        tester.getSize(headers.at(1)).height,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('entry count edges remain actionable on $platform', (
       tester,
     ) async {
@@ -215,7 +242,7 @@ void main() {
       final context = tester.element(find.byType(EntryCountPicker));
       expect(
         tester.widget<Text>(find.text('3')).style?.color,
-        ColorManager.palette(context).primary,
+        ColorManager.palette(context).primaryText,
       );
       expect(tester.takeException(), isNull);
     });

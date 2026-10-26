@@ -17,6 +17,18 @@
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		B316F8C5899D423CA135969F /* BackupFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4B28326E4F2407F9AEDB9C1 /* BackupFileStore.swift */; };
 		D1B9E46DC8CB45DE8C3A2852 /* BackupApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54C0E75B86BC41128CD6F654 /* BackupApi.swift */; };
+		EB2400000000000000000101 /* AppleWidgetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000010 /* AppleWidgetState.swift */; };
+		EB2400000000000000000102 /* AppleWidgetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000010 /* AppleWidgetState.swift */; };
+		EB2400000000000000000103 /* AppleWidgetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000010 /* AppleWidgetState.swift */; };
+		EB2400000000000000000104 /* AppleWidgetPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000011 /* AppleWidgetPublisher.swift */; };
+		EB2400000000000000000105 /* AppleWidgetPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000011 /* AppleWidgetPublisher.swift */; };
+		EB2400000000000000000106 /* AppleWidgetActionInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000012 /* AppleWidgetActionInbox.swift */; };
+		EB2400000000000000000107 /* AppleWidgetActionInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000012 /* AppleWidgetActionInbox.swift */; };
+		EB2400000000000000000108 /* AppleWidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000013 /* AppleWidgetIntents.swift */; };
+		EB2400000000000000000109 /* AppleWidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000013 /* AppleWidgetIntents.swift */; };
+		EB240000000000000000010A /* AppleWidgetApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000014 /* AppleWidgetApi.swift */; };
+		EB240000000000000000010B /* Widget.strings in Resources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000020 /* Widget.strings */; };
+		EB240000000000000000010C /* AppleVpnStartAdmission.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000016 /* AppleVpnStartAdmission.swift */; };
 		EB67F754308F0B400096B893 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB67F753308F0B400096B893 /* WidgetKit.framework */; };
 		EB67F756308F0B400096B893 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB67F755308F0B400096B893 /* SwiftUI.framework */; };
 		EB67F767308F0B400096B893 /* widgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB67F752308F0B400096B893 /* widgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -50,18 +62,6 @@
 		EBD700023006000000000002 /* RuntimeEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD700013006000000000001 /* RuntimeEnv.swift */; };
 		EBD700033006000000000003 /* RuntimeEnv.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBD700013006000000000001 /* RuntimeEnv.swift */; };
 		EF6C196001D54A57BBD4AAD1 /* SimulatorProxy.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF6C196001D54A57BBD4AAD2 /* SimulatorProxy.swift */; };
-		EB2400000000000000000101 /* AppleWidgetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000010 /* AppleWidgetState.swift */; };
-		EB2400000000000000000102 /* AppleWidgetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000010 /* AppleWidgetState.swift */; };
-		EB2400000000000000000103 /* AppleWidgetState.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000010 /* AppleWidgetState.swift */; };
-		EB2400000000000000000104 /* AppleWidgetPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000011 /* AppleWidgetPublisher.swift */; };
-		EB2400000000000000000105 /* AppleWidgetPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000011 /* AppleWidgetPublisher.swift */; };
-		EB2400000000000000000106 /* AppleWidgetActionInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000012 /* AppleWidgetActionInbox.swift */; };
-		EB2400000000000000000107 /* AppleWidgetActionInbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000012 /* AppleWidgetActionInbox.swift */; };
-		EB2400000000000000000108 /* AppleWidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000013 /* AppleWidgetIntents.swift */; };
-		EB2400000000000000000109 /* AppleWidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000013 /* AppleWidgetIntents.swift */; };
-		EB240000000000000000010A /* AppleWidgetApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000014 /* AppleWidgetApi.swift */; };
-		EB240000000000000000010C /* AppleVpnStartAdmission.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000016 /* AppleVpnStartAdmission.swift */; };
-		EB240000000000000000010B /* Widget.strings in Resources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000020 /* Widget.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -126,6 +126,17 @@
 		A4B28326E4F2407F9AEDB9C1 /* BackupFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupFileStore.swift; sourceTree = "<group>"; };
 		EB210DFE2DE8692A00D76E7A /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Main.strings; sourceTree = "<group>"; };
 		EB210DFF2DE8692A00D76E7A /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/LaunchScreen.strings; sourceTree = "<group>"; };
+		EB2400000000000000000010 /* AppleWidgetState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetState.swift; path = ../swift/iOS/AppleWidgetState.swift; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000011 /* AppleWidgetPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetPublisher.swift; path = ../swift/iOS/AppleWidgetPublisher.swift; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000012 /* AppleWidgetActionInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetActionInbox.swift; path = ../swift/iOS/AppleWidgetActionInbox.swift; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000013 /* AppleWidgetIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetIntents.swift; path = ../swift/iOS/AppleWidgetIntents.swift; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000014 /* AppleWidgetApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetApi.swift; path = Runner/AppleWidgetApi.swift; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000016 /* AppleVpnStartAdmission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleVpnStartAdmission.swift; path = ../swift/iOS/AppleVpnStartAdmission.swift; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000021 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = widget/en.lproj/Widget.strings; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000022 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "widget/zh-Hans.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000023 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "widget/zh-Hant.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000024 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = widget/ru.lproj/Widget.strings; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000025 /* fa */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fa; path = widget/fa.lproj/Widget.strings; sourceTree = SOURCE_ROOT; };
 		EB390D812EC84AF400B741BA /* fa */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fa; path = fa.lproj/Main.strings; sourceTree = "<group>"; };
 		EB390D822EC84AF400B741BA /* fa */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fa; path = fa.lproj/LaunchScreen.strings; sourceTree = "<group>"; };
 		EB67F752308F0B400096B893 /* widgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = widgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -162,17 +173,6 @@
 		EBD300012FE9000000000001 /* DatFileTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatFileTransfer.swift; sourceTree = "<group>"; };
 		EBD700013006000000000001 /* RuntimeEnv.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeEnv.swift; sourceTree = "<group>"; };
 		EF6C196001D54A57BBD4AAD2 /* SimulatorProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulatorProxy.swift; sourceTree = "<group>"; };
-		EB2400000000000000000010 /* AppleWidgetState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetState.swift; path = ../swift/iOS/AppleWidgetState.swift; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000011 /* AppleWidgetPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetPublisher.swift; path = ../swift/iOS/AppleWidgetPublisher.swift; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000012 /* AppleWidgetActionInbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetActionInbox.swift; path = ../swift/iOS/AppleWidgetActionInbox.swift; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000013 /* AppleWidgetIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetIntents.swift; path = ../swift/iOS/AppleWidgetIntents.swift; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000014 /* AppleWidgetApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetApi.swift; path = Runner/AppleWidgetApi.swift; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000016 /* AppleVpnStartAdmission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleVpnStartAdmission.swift; path = ../swift/iOS/AppleVpnStartAdmission.swift; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000021 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "en"; path = "widget/en.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000022 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "widget/zh-Hans.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000023 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "widget/zh-Hant.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000024 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "ru"; path = "widget/ru.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
-		EB2400000000000000000025 /* fa */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "fa"; path = "widget/fa.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -282,6 +282,20 @@
 			path = Runner;
 			sourceTree = "<group>";
 		};
+		EB2400000000000000000015 /* iOS Widget */ = {
+			isa = PBXGroup;
+			children = (
+				EB2400000000000000000010 /* AppleWidgetState.swift */,
+				EB2400000000000000000011 /* AppleWidgetPublisher.swift */,
+				EB2400000000000000000012 /* AppleWidgetActionInbox.swift */,
+				EB2400000000000000000013 /* AppleWidgetIntents.swift */,
+				EB2400000000000000000014 /* AppleWidgetApi.swift */,
+				EB2400000000000000000016 /* AppleVpnStartAdmission.swift */,
+				EB2400000000000000000020 /* Widget.strings */,
+			);
+			name = "iOS Widget";
+			sourceTree = "<group>";
+		};
 		EB68C6FA2F94D127007C293A /* Tunnel */ = {
 			isa = PBXGroup;
 			children = (
@@ -352,15 +366,6 @@
 			path = tunnel;
 			sourceTree = "<group>";
 		};
-		EB2400000000000000000015 /* iOS Widget */ = {isa = PBXGroup; children = (
-			EB2400000000000000000010 /* AppleWidgetState.swift */,
-			EB2400000000000000000011 /* AppleWidgetPublisher.swift */,
-			EB2400000000000000000012 /* AppleWidgetActionInbox.swift */,
-			EB2400000000000000000013 /* AppleWidgetIntents.swift */,
-			EB2400000000000000000014 /* AppleWidgetApi.swift */,
-			EB2400000000000000000016 /* AppleVpnStartAdmission.swift */,
-			EB2400000000000000000020 /* Widget.strings */,
-		); name = "iOS Widget"; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -644,13 +649,18 @@
 			name = LaunchScreen.storyboard;
 			sourceTree = "<group>";
 		};
-		EB2400000000000000000020 /* Widget.strings */ = {isa = PBXVariantGroup; children = (
-			EB2400000000000000000021 /* en */,
-			EB2400000000000000000022 /* zh-Hans */,
-			EB2400000000000000000023 /* zh-Hant */,
-			EB2400000000000000000024 /* ru */,
-			EB2400000000000000000025 /* fa */,
-		); name = Widget.strings; sourceTree = "<group>"; };
+		EB2400000000000000000020 /* Widget.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				EB2400000000000000000021 /* en */,
+				EB2400000000000000000022 /* zh-Hans */,
+				EB2400000000000000000023 /* zh-Hant */,
+				EB2400000000000000000024 /* ru */,
+				EB2400000000000000000025 /* fa */,
+			);
+			name = Widget.strings;
+			sourceTree = "<group>";
+		};
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
@@ -926,6 +936,7 @@
 		EB67F768308F0B400096B893 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -944,7 +955,7 @@
 				INFOPLIST_FILE = widget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = OneXray;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -957,9 +968,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.yuandev.onexray.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				APPLICATION_EXTENSION_API_ONLY = YES;
 				SKIP_INSTALL = YES;
-				VERSIONING_SYSTEM = "apple-generic";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -968,12 +977,14 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
 		EB67F769308F0B400096B893 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -994,7 +1005,7 @@
 				INFOPLIST_FILE = widget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = OneXray;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1008,21 +1019,21 @@
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = OneXrayiOSWidget;
 				REGISTER_APP_GROUPS = YES;
-				APPLICATION_EXTENSION_API_ONLY = YES;
 				SKIP_INSTALL = YES;
-				VERSIONING_SYSTEM = "apple-generic";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
 		};
 		EB67F76A308F0B400096B893 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
@@ -1041,7 +1052,7 @@
 				INFOPLIST_FILE = widget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = OneXray;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1053,15 +1064,14 @@
 				PRODUCT_BUNDLE_IDENTIFIER = net.yuandev.onexray.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				APPLICATION_EXTENSION_API_ONLY = YES;
 				SKIP_INSTALL = YES;
-				VERSIONING_SYSTEM = "apple-generic";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Profile;
 		};

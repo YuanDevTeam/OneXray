@@ -10,3 +10,5 @@
 "Connected" = "Connected";
 "Disconnecting" = "Disconnecting…";
 "Unknown" = "Unknown";
+"Start" = "Start";
+"Stop" = "Stop";

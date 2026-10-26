@@ -94,6 +94,8 @@ FakeDNS 开启时不能关闭嗅探，先关闭 FakeDNS 才能停用。
 智能路由按直连与拦截、代理连接、DNS 和流量嗅探分组；直连 DNS 开关归入 DNS，
 FakeDNS 归入流量嗅探。内容宽度至少 720 时，平板和桌面共用双列：左侧直连与拦截及 DNS，
 右侧代理连接、嗅探及预览。窄窗口按上述分组顺序单列显示，整页统一滚动。
+常规路由的规则列表、FakeDNS/Fragment、DNS 和嗅探使用同级卡片，避免重复嵌套外框。
+路由分组标题保持相同最小高度；数量、规则条件与动作控件统一绘制前景外框，保留圆角与分隔线。
 
 接入数量附近提供轮询/最低延迟，默认轮询。最低延迟只探测本次连接中的至少两条代理链，
 单节点保留偏好并显示未启动观察说明；高级项提供探测 URL、30/60/300 秒间隔和并发。
@@ -247,11 +249,19 @@ Android 设置页可请求固定 `home_widget`，不把请求完成当作已添�
 
 ### iOS/iPadOS Widget
 
-iOS/iPadOS 16 起提供连接 Widget，支持 `systemSmall`、`systemMedium`、`accessoryCircular`、
-`accessoryRectangular`，可添加位置由系统版本与设备决定。iOS/iPadOS 16 静态展示状态，点击打开连接页；
+iOS/iPadOS 15 起提供连接 Widget，支持 `systemSmall`、`systemMedium`；16 起增加
+`accessoryCircular`、`accessoryRectangular`，可添加位置由系统版本与设备决定。
+iOS/iPadOS 15–16 静态展示状态，点击打开连接页；
 17 起主屏幕小号/中号 Widget 增加显式“启动 VPN”“停止 VPN”，通过前台 App Intent 打开 App。
 锁屏两种 accessory 只导航。当前仅接入 Widget，不发布可发现的 Siri/App Shortcuts，
 也不提供 Control Widget 或 Live Activity。
+
+主屏组件跟随系统浅深色，配色复用 App 色板，由 Widget 命名颜色资源统一管理；
+系统配置界面通过同一资源目录中的强调色和背景色匹配主题。小号居中展示状态，底部并排显示简短启停文案；
+中号将状态摘要与操作分列，摘要和旧系统的“打开 App”均进入连接页。
+启动使用蓝色，停止使用红色，已连接用绿色盾牌标识，未连接使用中性色。
+按钮强调跟随展示快照，两种操作始终可用，不因可能过期的状态禁用。
+操作保留 44pt 点击范围，最小尺寸与大字模式精简重复品牌、装饰及可见按钮文字，保留完整无障碍名称。
 
 启停复用 App 的 `ConnectionCoordinator` 与当前选择、权限检查和错误反馈；不读取 saved-start，
 Widget 扩展不在后台直接启停 VPN。已到达的冷启动输入先于偏好自动连接处理，Shell 就绪后执行；

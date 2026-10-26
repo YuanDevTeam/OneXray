@@ -10,3 +10,5 @@
 "Connected" = "Подключено";
 "Disconnecting" = "Отключение…";
 "Unknown" = "Неизвестно";
+"Start" = "Старт";
+"Stop" = "Стоп";

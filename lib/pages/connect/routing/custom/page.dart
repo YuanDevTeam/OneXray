@@ -126,152 +126,159 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                                 SizedBox(height: mobile ? 12 : 16),
                                 LayoutBuilder(
                                   builder: (context, layout) {
-                                    final list = RoutingCard(
+                                    final rules = RoutingCard(
                                       key: const ValueKey('custom-rule-list'),
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          minHeight: mobile
-                                              ? (constraints.maxHeight > 26
-                                                    ? constraints.maxHeight - 26
-                                                    : 0)
-                                              : 0,
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.stretch,
-                                          children: [
-                                            if (!mobile)
-                                              RoutingCardHeader(
-                                                title: l.prototypeRuleList,
-                                                description: l
-                                                    .prototypeRulesMatchInOrder,
-                                              ),
-                                            RoutingEntryCountRow(
-                                              value: state.entryCount,
-                                              onChanged: state.editingBlocked
-                                                  ? null
-                                                  : controller.setEntryCount,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          if (!mobile)
+                                            RoutingCardHeader(
+                                              title: l.prototypeRuleList,
+                                              description:
+                                                  l.prototypeRulesMatchInOrder,
                                             ),
-                                            RoutingSelectionSettingsForm(
-                                              value: state.selection,
-                                              enabled: !state.editingBlocked,
-                                              entryCount: state.entryCount,
-                                              onChanged:
-                                                  controller.setSelection,
-                                            ),
-                                            ReorderableListView.builder(
-                                              shrinkWrap: true,
-                                              primary: false,
-                                              physics:
-                                                  const NeverScrollableScrollPhysics(),
-                                              padding: EdgeInsets.zero,
-                                              buildDefaultDragHandles: false,
-                                              onReorderItem: controller.reorder,
-                                              itemCount: state.rules.length,
-                                              itemBuilder: (context, index) =>
-                                                  _rule(
+                                          RoutingEntryCountRow(
+                                            value: state.entryCount,
+                                            onChanged: state.editingBlocked
+                                                ? null
+                                                : controller.setEntryCount,
+                                          ),
+                                          RoutingSelectionSettingsForm(
+                                            value: state.selection,
+                                            enabled: !state.editingBlocked,
+                                            entryCount: state.entryCount,
+                                            onChanged: controller.setSelection,
+                                          ),
+                                          ReorderableListView.builder(
+                                            shrinkWrap: true,
+                                            primary: false,
+                                            physics:
+                                                const NeverScrollableScrollPhysics(),
+                                            padding: EdgeInsets.zero,
+                                            buildDefaultDragHandles: false,
+                                            proxyDecorator:
+                                                (
+                                                  child,
+                                                  index,
+                                                  animation,
+                                                ) => Material(
+                                                  color: ColorManager.palette(
                                                     context,
-                                                    index,
-                                                    mobile,
-                                                    state,
-                                                  ),
-                                            ),
-                                            _fallback(context, mobile),
-                                            Padding(
-                                              padding: const EdgeInsets.all(12),
-                                              child: OutlinedButton.icon(
-                                                onPressed: state.editingBlocked
-                                                    ? null
-                                                    : () => controller.editRule(
-                                                        context,
-                                                        widget.openRule,
+                                                  ).card,
+                                                  elevation: 4,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        AppRadii.control,
                                                       ),
-                                                style: OutlinedButton.styleFrom(
-                                                  minimumSize:
-                                                      const Size.fromHeight(43),
-                                                  visualDensity: mobile
-                                                      ? null
-                                                      : VisualDensity.standard,
-                                                  foregroundColor:
-                                                      ColorManager.palette(
-                                                        context,
-                                                      ).primary,
-                                                  side: BorderSide(
-                                                    color: Color.lerp(
-                                                      ColorManager.palette(
-                                                        context,
-                                                      ).border,
-                                                      ColorManager.palette(
-                                                        context,
-                                                      ).primary,
-                                                      .55,
-                                                    )!,
-                                                  ),
-                                                  textStyle:
-                                                      AppTypography.ruleAdd,
+                                                  clipBehavior: Clip.antiAlias,
+                                                  child: child,
                                                 ),
-                                                icon: const Icon(
-                                                  LucideIcons.plus,
-                                                  size: 17,
+                                            onReorderItem: controller.reorder,
+                                            itemCount: state.rules.length,
+                                            itemBuilder: (context, index) =>
+                                                _rule(
+                                                  context,
+                                                  index,
+                                                  mobile,
+                                                  state,
                                                 ),
-                                                label: Text(l.prototypeAddRule),
+                                          ),
+                                          _fallback(context, mobile),
+                                          Padding(
+                                            padding: const EdgeInsets.all(12),
+                                            child: OutlinedButton.icon(
+                                              onPressed: state.editingBlocked
+                                                  ? null
+                                                  : () => controller.editRule(
+                                                      context,
+                                                      widget.openRule,
+                                                    ),
+                                              style: OutlinedButton.styleFrom(
+                                                minimumSize:
+                                                    const Size.fromHeight(43),
+                                                visualDensity: mobile
+                                                    ? null
+                                                    : VisualDensity.standard,
+                                                foregroundColor:
+                                                    ColorManager.palette(
+                                                      context,
+                                                    ).primary,
+                                                side: BorderSide(
+                                                  color: Color.lerp(
+                                                    ColorManager.palette(
+                                                      context,
+                                                    ).border,
+                                                    ColorManager.palette(
+                                                      context,
+                                                    ).primary,
+                                                    .55,
+                                                  )!,
+                                                ),
+                                                textStyle:
+                                                    AppTypography.ruleAdd,
                                               ),
-                                            ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.fromLTRB(
-                                                    12,
-                                                    0,
-                                                    12,
-                                                    12,
-                                                  ),
-                                              child: RoutingCard(
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment
-                                                          .stretch,
-                                                  children: [
-                                                    RoutingFakeDnsRow(
-                                                      value: state.fakeDns,
-                                                      enabled:
-                                                          !state
-                                                              .editingBlocked &&
-                                                          (state.fakeDns ||
-                                                              state
-                                                                  .sniffing
-                                                                  .enabled),
-                                                      onChanged:
-                                                          controller.setFakeDns,
-                                                    ),
-                                                    RoutingFragmentRow(
-                                                      value: state.fragment,
-                                                      enabled:
-                                                          !state.editingBlocked,
-                                                      onChanged: controller
-                                                          .setFragment,
-                                                    ),
-                                                    RoutingDnsSettingsForm(
-                                                      value: state.dns,
-                                                      enabled:
-                                                          !state.editingBlocked,
-                                                      onChanged:
-                                                          controller.setDns,
-                                                    ),
-                                                    const SizedBox(height: 12),
-                                                    RoutingSniffingSettingsForm(
-                                                      value: state.sniffing,
-                                                      enabled:
-                                                          !state.editingBlocked,
-                                                      fakeDns: state.fakeDns,
-                                                      onChanged: controller
-                                                          .setSniffing,
-                                                    ),
-                                                  ],
-                                                ),
+                                              icon: const Icon(
+                                                LucideIcons.plus,
+                                                size: 17,
                                               ),
+                                              label: Text(l.prototypeAddRule),
                                             ),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    final list = ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        minHeight: mobile
+                                            ? (constraints.maxHeight > 26
+                                                  ? constraints.maxHeight - 26
+                                                  : 0)
+                                            : 0,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        spacing: 12,
+                                        children: [
+                                          rules,
+                                          RoutingCard(
+                                            child: Column(
+                                              children: [
+                                                RoutingFakeDnsRow(
+                                                  value: state.fakeDns,
+                                                  enabled:
+                                                      !state.editingBlocked &&
+                                                      (state.fakeDns ||
+                                                          state
+                                                              .sniffing
+                                                              .enabled),
+                                                  onChanged:
+                                                      controller.setFakeDns,
+                                                ),
+                                                RoutingFragmentRow(
+                                                  value: state.fragment,
+                                                  enabled:
+                                                      !state.editingBlocked,
+                                                  divider: false,
+                                                  onChanged:
+                                                      controller.setFragment,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          RoutingDnsSettingsForm(
+                                            value: state.dns,
+                                            enabled: !state.editingBlocked,
+                                            onChanged: controller.setDns,
+                                          ),
+                                          RoutingSniffingSettingsForm(
+                                            value: state.sniffing,
+                                            enabled: !state.editingBlocked,
+                                            fakeDns: state.fakeDns,
+                                            onChanged: controller.setSniffing,
+                                          ),
+                                        ],
                                       ),
                                     );
                                     if (mobile) return list;
@@ -384,37 +391,18 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
     final error = controller.nameError(l);
-    final field = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 6,
-      children: [
-        Text(
-          l.prototypeRouteName,
-          style: AppTypography.routeIdentityLabel.copyWith(
-            color: palette.mutedStrong,
-          ),
-        ),
-        ShadInput(
-          controller: controller.name,
-          enabled: state.loaded && !state.editingBlocked,
-          maxLength: 32,
-          constraints: const BoxConstraints(minHeight: 40),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          style: AppTypography.routeIdentityLabel,
-          decoration: error == null
-              ? null
-              : ShadDecoration(
-                  border: ShadBorder.all(color: palette.destructive, width: 1),
-                ),
-        ),
-        if (error != null)
-          Text(
-            error,
-            style: AppTypography.conditionRelation.copyWith(
-              color: palette.destructive,
+    final field = ShadInput(
+      controller: controller.name,
+      enabled: state.loaded && !state.editingBlocked,
+      maxLength: 32,
+      constraints: const BoxConstraints(minHeight: 40),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      style: AppTypography.routeIdentityLabel,
+      decoration: error == null
+          ? null
+          : ShadDecoration(
+              border: ShadBorder.all(color: palette.destructive, width: 1),
             ),
-          ),
-      ],
     );
     final delete = OutlinedButton.icon(
       onPressed: state.busy ? null : () => controller.delete(context),
@@ -439,9 +427,18 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
         spacing: 10,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             spacing: mobile ? 10 : 16,
             children: [
-              Expanded(child: field),
+              Expanded(
+                child: Text(
+                  l.prototypeRouteName,
+                  style: AppTypography.routeIdentityLabel.copyWith(
+                    color: palette.mutedStrong,
+                  ),
+                ),
+              ),
               Flexible(
                 flex: 0,
                 child: Text(
@@ -451,9 +448,22 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                   ),
                 ),
               ),
+            ],
+          ),
+          Row(
+            spacing: mobile ? 10 : 16,
+            children: [
+              Expanded(child: field),
               if (!mobile && state.original?.original != null) delete,
             ],
           ),
+          if (error != null)
+            Text(
+              error,
+              style: AppTypography.conditionRelation.copyWith(
+                color: palette.destructive,
+              ),
+            ),
           if (mobile && state.original?.original != null) delete,
         ],
       ),
@@ -487,8 +497,11 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
       ),
       foregroundDecoration: selected
           ? BoxDecoration(
-              border: Border.all(
-                color: Color.lerp(palette.border, palette.primary, .58)!,
+              border: BorderDirectional(
+                start: BorderSide(
+                  color: Color.lerp(palette.border, palette.primary, .58)!,
+                  width: 2,
+                ),
               ),
             )
           : null,

@@ -90,182 +90,183 @@ class CustomRoutingRuleForm extends StatelessWidget {
   const CustomRoutingRuleForm({super.key, required this.controller});
 
   @override
-  Widget build(
-    BuildContext context,
-  ) => BlocBuilder<CustomRoutingRuleController, CustomRoutingRuleState>(
-    bloc: controller,
-    builder: (context, state) {
-      final l = AppLocalizations.of(context)!;
-      final palette = ColorManager.palette(context);
-      final mobile =
-          MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-      return RoutingCard(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!mobile)
-              RoutingCardHeader(
-                title: l.prototypeEditRule,
-                description: l.prototypeRuleEditHint,
-              ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: palette.border)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: 7,
-                children: [
-                  Text(
-                    l.prototypeRuleName,
-                    style: AppTypography.routeIdentityLabel.copyWith(
-                      color: palette.mutedStrong,
-                    ),
+  Widget build(BuildContext context) =>
+      BlocBuilder<CustomRoutingRuleController, CustomRoutingRuleState>(
+        bloc: controller,
+        builder: (context, state) {
+          final l = AppLocalizations.of(context)!;
+          final palette = ColorManager.palette(context);
+          final mobile =
+              MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
+          return RoutingCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!mobile)
+                  RoutingCardHeader(
+                    title: l.prototypeEditRule,
+                    description: l.prototypeRuleEditHint,
                   ),
-                  ShadInput(
-                    controller: controller.name,
-                    constraints: const BoxConstraints(minHeight: 40),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    style: AppTypography.routeIdentityLabel,
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: mobile ? 12 : 16,
+                    vertical: 14,
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                mobile ? 12 : 16,
-                14,
-                mobile ? 12 : 16,
-                0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l.prototypeMatchWhen,
-                    style: AppTypography.conditionTitle.copyWith(
-                      color: palette.mutedStrong,
-                    ),
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: palette.border)),
                   ),
-                  const SizedBox(height: 8),
-                  Container(
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: palette.border),
-                      borderRadius: BorderRadius.circular(AppRadii.control),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _conditions(
-                          context,
-                          state,
-                          RoutingRuleCondition.domains,
-                        ),
-                        const Divider(),
-                        _conditions(context, state, RoutingRuleCondition.ips),
-                        const Divider(),
-                        _ConditionField(
-                          icon: LucideIcons.terminal,
-                          title: l.prototypeTargetPort,
-                          summary: state.port.trim().isEmpty
-                              ? l.prototypeNotSet
-                              : state.port,
-                          open: state.expandedConditions.contains(
-                            RoutingRuleCondition.port,
-                          ),
-                          onToggle: () => controller.toggleCondition(
-                            RoutingRuleCondition.port,
-                          ),
-                          child: _input(
-                            context,
-                            controller: controller.port,
-                            hint: '80, 443, 1000-2000',
-                          ),
-                        ),
-                        const Divider(),
-                        _ConditionField(
-                          icon: LucideIcons.wifi,
-                          title: l.prototypeNetworkType,
-                          summary: state.network == 'any'
-                              ? l.prototypeAny
-                              : state.network.toUpperCase(),
-                          open: state.expandedConditions.contains(
-                            RoutingRuleCondition.network,
-                          ),
-                          onToggle: () => controller.toggleCondition(
-                            RoutingRuleCondition.network,
-                          ),
-                          child: _network(context, state),
-                        ),
-                        const Divider(),
-                        _moreConditions(context, state),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     spacing: 7,
                     children: [
-                      Icon(
-                        LucideIcons.info,
-                        size: 14,
-                        color: palette.mutedForeground,
-                      ),
-                      Expanded(
-                        child: Text(
-                          l.prototypeRuleConditionsHint,
-                          style: AppTypography.conditionRelation.copyWith(
-                            color: palette.mutedForeground,
-                          ),
+                      Text(
+                        l.prototypeRuleName,
+                        style: AppTypography.routeIdentityLabel.copyWith(
+                          color: palette.mutedStrong,
                         ),
+                      ),
+                      ShadInput(
+                        controller: controller.name,
+                        constraints: const BoxConstraints(minHeight: 40),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        style: AppTypography.routeIdentityLabel,
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                mobile ? 12 : 16,
-                14,
-                mobile ? 12 : 16,
-                0,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    l.prototypeThen,
-                    style: AppTypography.conditionTitle.copyWith(
-                      color: palette.mutedStrong,
-                    ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    mobile ? 12 : 16,
+                    14,
+                    mobile ? 12 : 16,
+                    0,
                   ),
-                  const SizedBox(height: 8),
-                  _actions(context, state),
-                  if (state.action == RoutingRuleAction.proxy)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 9),
-                      child: Text(
-                        l.prototypeVpnRuleHint,
-                        style: AppTypography.actionHelp.copyWith(
-                          color: palette.mutedForeground,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        l.prototypeMatchWhen,
+                        style: AppTypography.conditionTitle.copyWith(
+                          color: palette.mutedStrong,
                         ),
                       ),
-                    ),
-                ],
-              ),
+                      const SizedBox(height: 8),
+                      RoutingControlFrame(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _conditions(
+                              context,
+                              state,
+                              RoutingRuleCondition.domains,
+                            ),
+                            const Divider(),
+                            _conditions(
+                              context,
+                              state,
+                              RoutingRuleCondition.ips,
+                            ),
+                            const Divider(),
+                            _ConditionField(
+                              icon: LucideIcons.terminal,
+                              title: l.prototypeTargetPort,
+                              summary: state.port.trim().isEmpty
+                                  ? l.prototypeNotSet
+                                  : state.port,
+                              open: state.expandedConditions.contains(
+                                RoutingRuleCondition.port,
+                              ),
+                              onToggle: () => controller.toggleCondition(
+                                RoutingRuleCondition.port,
+                              ),
+                              child: _input(
+                                context,
+                                controller: controller.port,
+                                hint: '80, 443, 1000-2000',
+                              ),
+                            ),
+                            const Divider(),
+                            _ConditionField(
+                              icon: LucideIcons.wifi,
+                              title: l.prototypeNetworkType,
+                              summary: state.network == 'any'
+                                  ? l.prototypeAny
+                                  : state.network.toUpperCase(),
+                              open: state.expandedConditions.contains(
+                                RoutingRuleCondition.network,
+                              ),
+                              onToggle: () => controller.toggleCondition(
+                                RoutingRuleCondition.network,
+                              ),
+                              child: _network(context, state),
+                            ),
+                            const Divider(),
+                            _moreConditions(context, state),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 9),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        spacing: 7,
+                        children: [
+                          Icon(
+                            LucideIcons.info,
+                            size: 14,
+                            color: palette.mutedForeground,
+                          ),
+                          Expanded(
+                            child: Text(
+                              l.prototypeRuleConditionsHint,
+                              style: AppTypography.conditionRelation.copyWith(
+                                color: palette.mutedForeground,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    mobile ? 12 : 16,
+                    14,
+                    mobile ? 12 : 16,
+                    14,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        l.prototypeThen,
+                        style: AppTypography.conditionTitle.copyWith(
+                          color: palette.mutedStrong,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _actions(context, state),
+                      if (state.action == RoutingRuleAction.proxy)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 9),
+                          child: Text(
+                            l.prototypeVpnRuleHint,
+                            style: AppTypography.actionHelp.copyWith(
+                              color: palette.mutedForeground,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       );
-    },
-  );
 
   Widget _conditions(
     BuildContext context,
@@ -324,6 +325,7 @@ class CustomRoutingRuleForm extends StatelessWidget {
                         child: Material(
                           elevation: 4,
                           color: ColorManager.palette(context).card,
+                          clipBehavior: Clip.antiAlias,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(
                               AppRadii.control,
@@ -580,12 +582,7 @@ class CustomRoutingRuleForm extends StatelessWidget {
       RoutingRuleAction.direct: l.prototypeDirect,
       RoutingRuleAction.block: l.prototypeBlock,
     };
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        border: Border.all(color: palette.border),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
+    return RoutingControlFrame(
       child: IntrinsicHeight(
         child: Row(
           children: [
@@ -595,35 +592,37 @@ class CustomRoutingRuleForm extends StatelessWidget {
                 child: Semantics(
                   button: true,
                   selected: state.action == action.key,
-                  child: InkWell(
-                    onTap: () => controller.setAction(action.key),
-                    child: Container(
-                      constraints: const BoxConstraints(minHeight: 38),
-                      alignment: Alignment.center,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: state.action == action.key
-                            ? palette.selectedSurface
-                            : palette.muted,
-                        border: state.action == action.key
-                            ? Border.all(color: palette.primary)
-                            : null,
-                      ),
-                      child: Text(
-                        action.value,
-                        textAlign: TextAlign.center,
-                        style:
-                            (state.action == action.key
-                                    ? AppTypography.selectedActionOption
-                                    : AppTypography.actionOption)
-                                .copyWith(
-                                  color: state.action == action.key
-                                      ? palette.primary
-                                      : palette.foreground,
-                                ),
+                  child: Material(
+                    color: state.action == action.key
+                        ? palette.selectedSurface
+                        : palette.muted,
+                    child: InkWell(
+                      onTap: () => controller.setAction(action.key),
+                      child: Container(
+                        constraints: BoxConstraints(
+                          minHeight: AppLayout.touchExtent(
+                            38,
+                            platform: Theme.of(context).platform,
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 8,
+                        ),
+                        child: Text(
+                          action.value,
+                          textAlign: TextAlign.center,
+                          style:
+                              (state.action == action.key
+                                      ? AppTypography.selectedActionOption
+                                      : AppTypography.actionOption)
+                                  .copyWith(
+                                    color: state.action == action.key
+                                        ? palette.primaryText
+                                        : palette.foreground,
+                                  ),
+                        ),
                       ),
                     ),
                   ),

@@ -10,6 +10,7 @@ import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch;
 class RoutingFakeDnsRow extends StatelessWidget {
   final bool value;
   final bool enabled;
+  final bool divider;
   final ValueChanged<bool> onChanged;
 
   const RoutingFakeDnsRow({
@@ -17,6 +18,7 @@ class RoutingFakeDnsRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.enabled = true,
+    this.divider = true,
   });
 
   @override
@@ -27,6 +29,7 @@ class RoutingFakeDnsRow extends StatelessWidget {
       title: l.routingFakeDns,
       help: l.routingFakeDnsHint,
       enabled: enabled,
+      divider: divider,
       trailing: Semantics(
         label: l.routingFakeDns,
         child: ShadSwitch(value: value, enabled: enabled, onChanged: onChanged),
@@ -38,6 +41,7 @@ class RoutingFakeDnsRow extends StatelessWidget {
 class RoutingFragmentRow extends StatelessWidget {
   final bool value;
   final bool enabled;
+  final bool divider;
   final ValueChanged<bool> onChanged;
 
   const RoutingFragmentRow({
@@ -45,6 +49,7 @@ class RoutingFragmentRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.enabled = true,
+    this.divider = true,
   });
 
   @override
@@ -55,6 +60,7 @@ class RoutingFragmentRow extends StatelessWidget {
       title: l.routingFragment,
       help: l.routingFragmentHint,
       enabled: enabled,
+      divider: divider,
       trailing: Semantics(
         label: l.routingFragment,
         child: ShadSwitch(value: value, enabled: enabled, onChanged: onChanged),
@@ -105,25 +111,29 @@ class RoutingCardHeader extends StatelessWidget {
     final palette = ColorManager.palette(context);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsetsDirectional.fromSTEB(18, 17, 18, 13),
+      padding: const EdgeInsetsDirectional.fromSTEB(18, 10, 18, 10),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: palette.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: AppTypography.routingCardTitle.copyWith(
-                    color: palette.foreground,
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: AppTypography.routingCardTitle.copyWith(
+                      color: palette.foreground,
+                    ),
                   ),
                 ),
-              ),
-              if (help.isNotEmpty) PageHelpButton(title: title, messages: help),
-            ],
+                if (help.isNotEmpty)
+                  PageHelpButton(title: title, messages: help),
+              ],
+            ),
           ),
           if (description != null) ...[
             const SizedBox(height: 4),
@@ -362,6 +372,24 @@ class RoutingSettingRow extends StatelessWidget {
   }
 }
 
+/// Paints one outline in front of child backgrounds, including the corners.
+class RoutingControlFrame extends StatelessWidget {
+  final Widget child;
+
+  const RoutingControlFrame({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: ColorManager.palette(context).card,
+    shape: RoundedRectangleBorder(
+      side: BorderSide(color: ColorManager.palette(context).border),
+      borderRadius: BorderRadius.circular(AppRadii.control),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Padding(padding: const EdgeInsets.all(1), child: child),
+  );
+}
+
 class EntryCountPicker extends StatelessWidget {
   final int value;
   final ValueChanged<int>? onChanged;
@@ -376,12 +404,7 @@ class EntryCountPicker extends StatelessWidget {
       34,
       platform: Theme.of(context).platform,
     );
-    return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        border: Border.all(color: palette.border),
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
+    return RoutingControlFrame(
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -406,19 +429,7 @@ class EntryCountPicker extends StatelessWidget {
                         constraints: BoxConstraints(minHeight: extent),
                         padding: const EdgeInsets.symmetric(vertical: 6),
                         foregroundDecoration: BoxDecoration(
-                          borderRadius: value == count
-                              ? BorderRadiusDirectional.horizontal(
-                                  start: Radius.circular(
-                                    count == 1 ? AppRadii.control - 1 : 0,
-                                  ),
-                                  end: Radius.circular(
-                                    count == 3 ? AppRadii.control - 1 : 0,
-                                  ),
-                                )
-                              : null,
-                          border: value == count
-                              ? Border.all(color: palette.primary)
-                              : count < 3
+                          border: count < 3
                               ? BorderDirectional(
                                   end: BorderSide(color: palette.border),
                                 )
@@ -433,7 +444,7 @@ class EntryCountPicker extends StatelessWidget {
                                 color: onChanged == null
                                     ? Theme.of(context).disabledColor
                                     : value == count
-                                    ? palette.primary
+                                    ? palette.primaryText
                                     : palette.mutedStrong,
                               ),
                             ),

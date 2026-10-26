@@ -10,3 +10,5 @@
 "Connected" = "已连接";
 "Disconnecting" = "正在断开…";
 "Unknown" = "未知";
+"Start" = "启动";
+"Stop" = "停止";
