@@ -27,10 +27,10 @@ App 保留自身名称、资产数量/交换格式、文件链接安全、事务
 显示排序独立于自动候选选择，见 [数据管理](data-management.md#数据显示顺序)。
 
 代理规则固定使用 `balancerTag: proxy`，单节点同样使用 balancer。selector 填完整运行 tag，
-默认轮询使用 `roundRobin`、`fallbackTag: direct`，未命中走第一个 outbound。
+默认轮询使用 `roundRobin`，其 fallback 为第一条完整代理链，未命中走第一个 outbound。
 可选最低延迟使用 `leastPing`；只有本次连接至少两条代理链时才启动观察，并在用户规则末尾为托管
 `tunIn` 和已启用的 `app-lan-proxy` 添加代理兜底。其 fallback 为第一条完整代理链，无结果或全失败
-仍尝试代理，由实际请求报告错误，不自动直连；单节点保留偏好但不额外探测。不增加 loopback。
+仍尝试代理，由实际请求报告错误，不自动直连；单节点保留偏好但不额外探测。不为选路额外增加 loopback。
 无最终出口时接入节点按顺序位于最顶部；智能路由有最终出口时，每条接入各生成出口副本，
 副本的 `dialerProxy` 指向对应接入，出口副本按顺序置顶，接入节点随后。
 balancer 选择这些完整链路，接入选择排除最终出口；自定义路由不绑定具体节点或最终出口。
@@ -65,6 +65,11 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 
 全部使用 VPN 的业务 DNS 只走代理，非 A/AAAA 的 `dnsOut` 转发同样走代理；
 按需生成的服务器域名引导 DNS 独立直连，见 [服务器拨号](#服务器拨号)。
+智能与常规自定义各自保存“其它 DNS 查询”策略，缺省为代理，包括旧设置和旧普通分享。
+A/AAAA 始终劫持到内置 DNS；其它记录可选代理、显式直连或返回 NOERROR 空答案。
+代理保留原查询目标，经 `app-dns-forward` loopback 和前置同名入站规则进入已有 `proxy` balancer，
+不改用代理 resolver 地址，也不受智能直连 DNS 开关影响；局域网 resolver 需用户自行选择可达的出口。
+该辅助出站不进入节点映射或观察范围，不监听端口；普通代理选路失败不隐式回退 direct。
 普通模式的查询地址族仍由 App IPv6 设置管理，不额外生成根级 hosts/queryStrategy。
 高级模板和 Raw 不应用这些普通 DNS 设置；模板 DNS 保持其原有管理边界。
 Raw 与提供方完整配置缺少 Core DNS 服务器时，使用[完整配置的 VPN 适配](#完整配置的-vpn-适配)中的隧道 DNS 缺省策略。
@@ -174,7 +179,9 @@ finalQuery 和平台 queryStrategy 编译时产生，不另存第二套规则。
 destOverride 由 App 固定管理；普通文档不开放实际监听、平台 settings 或嗅探排除列表。
 选路通过唯一 tag 为 proxy 的 strategy.type，以及 observatory 的 probeURL/probeInterval/enableConcurrency 保存；
 运行 selector/fallback/subjectSelector 由 App 生成，导出不包含它们。
-缺省沿用旧默认；不支持的结构仍明确拒绝，不依赖数组位置标记 DNS 角色。
+其它 DNS 查询缺省代理；显式直连/空答案通过空槽及可选 Fragment 后的受控 `dnsOut` 辅助出站保存，
+只含 A/AAAA hijack 和 direct/return 两条固定规则，不包含 socket、改写目标或运行 loopback。
+其余缺省沿用原默认；不支持的结构仍明确拒绝，不依赖数组位置标记 DNS resolver 角色。
 `geodata.assets` 仅为交换依赖元数据，导入后从存储 JSON 删除，省略默认文件，详见 [数据管理](data-management.md)。
 
 规则子页只改草稿，不重复验证内核字段。保存/导入用 freedom 占位替换空槽，补齐相同 proxy balancer、

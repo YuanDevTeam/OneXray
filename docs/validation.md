@@ -117,6 +117,10 @@
 `test/pages/connect/` 和 `test/service/shared/menu/tray/`，按负责层验证业务结果，不复制测试实现。
 
 原生 `testXray` 只构造并关闭，mock 和 JSON 对比不能证明 DNS、FakeDNS、IPIfNonMatch 第二轮匹配或网络链路。
+普通非 A/AAAA DNS 覆盖 Smart/Custom 三态、1–3 完整链、最终出口、Fragment、轮询/最低延迟及旧设置默认代理；
+保存校验包含相同 dnsOut/loopback 图，directDns 关闭仍参与有效比较，导入导出和备份保留选择。
+受控网络分别验证 UDP/TCP 的 A/AAAA、TXT、HTTPS、SVCB、SRV；代理保留原 DNS 目标经选中链转发，
+直连须显式选择，空答案为 NOERROR 且不转发，所有代理失败时不得出现直连转发收据。
 Android :native、Apple 真机 extension 与桌面 Core 的 UI 校验通道有进程隔离；同进程 managed Core 防线仍保留，
 iOS Simulator 不能通过绕过它来验证刷新。设备验收需要检查 VPN 持续运行、native Invoke 新入口、真实 DNS/路由/代理请求。
 
