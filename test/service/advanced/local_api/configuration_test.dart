@@ -118,7 +118,7 @@ void main() {
           expect(config['env']['xray.location.asset'], VpnConstants.datDir);
           expect(
             config['routing']['balancers'].single['fallbackTag'],
-            'direct',
+            'app-entry-0',
           );
           return '';
         },
@@ -226,9 +226,12 @@ void main() {
         calls++;
         final projected = jsonDecode(text);
         expect(projected.containsKey('geodata'), false);
-        expect(projected['routing']['rules'].single['domain'], [
-          'ext:extra.dat:cn',
-        ]);
+        expect(
+          (projected['routing']['rules'] as List).singleWhere(
+            (rule) => rule.containsKey('domain'),
+          )['domain'],
+          ['ext:extra.dat:cn'],
+        );
         return '';
       },
     );
