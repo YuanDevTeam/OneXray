@@ -7,6 +7,7 @@ import 'package:onexray/service/launch/app_startup.dart';
 import 'package:quick_actions/quick_actions.dart';
 
 enum ShortCutAction {
+  openConnect,
   startVpn,
   stopVpn,
   chooseConfiguration,

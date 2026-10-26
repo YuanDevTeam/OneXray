@@ -19,6 +19,7 @@ import 'package:onexray/service/shared/menu/window/service.dart';
 import 'package:onexray/service/shared/notification/service.dart';
 import 'package:onexray/service/shared/ping/service.dart';
 import 'package:onexray/service/shared/share/service.dart';
+import 'package:onexray/service/shared/apple_widget/service.dart';
 import 'package:onexray/service/advanced/tunnel/android/automation/service.dart';
 
 abstract final class ServiceManager {
@@ -59,6 +60,7 @@ abstract final class ServiceManager {
   }
 
   static Future<void> _serviceInit(BuildContext context) async {
+    await AppleWidgetService().initialize();
     final databaseWasMissing = await StoragePreparation.ensureReady();
     await _runInit("NetClient", () => NetClient().asyncInit());
     await GeoDataService().ensureInstalled(
@@ -130,6 +132,7 @@ abstract final class ServiceManager {
     _initialized = false;
     TrayService().dispose();
     ShareService().dispose();
+    AppleWidgetService().dispose();
     ShortCutService().detach();
     WindowService().dispose();
     BackgroundTaskService().dispose();

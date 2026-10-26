@@ -9,6 +9,7 @@ import 'package:onexray/service/shared/menu/short_cut/service.dart';
 import 'package:onexray/service/shared/menu/settings/service.dart';
 import 'package:onexray/service/shared/menu/window/service.dart';
 import 'package:onexray/service/shared/share/service.dart';
+import 'package:onexray/service/shared/apple_widget/service.dart';
 
 const _desktopWindowSize = Size(1160, 720);
 const _minimumDesktopWindowSize = Size(480, 600);
@@ -19,6 +20,7 @@ Future<void> main(List<String> _) async {
   await ShortCutService().initialize();
   ShareService().startAppLinks();
   await _initBridge();
+  await AppleWidgetService().initialize();
   final appStartup = AppStartupService();
   await appStartup.prepare();
 

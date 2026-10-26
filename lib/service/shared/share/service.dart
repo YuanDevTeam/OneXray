@@ -7,6 +7,7 @@ import 'package:onexray/core/tools/platform.dart';
 import 'package:image/image.dart' as img;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:onexray/core/tools/logger.dart';
+import 'package:onexray/service/shared/apple_widget/service.dart';
 import 'package:zxing2/qrcode.dart';
 
 final class ShareService {
@@ -30,6 +31,7 @@ final class ShareService {
     }
     _appLinkSubscription = AppLinks().uriLinkStream.listen(
       (uri) {
+        if (AppleWidgetService().receiveOpenUri(uri)) return;
         _pendingAppLinks.add(uri);
         unawaited(_processAppLinks());
       },

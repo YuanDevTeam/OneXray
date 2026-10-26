@@ -910,6 +910,52 @@ class BridgeHostApiSetup {
   }
 }
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol AppleWidgetHostApi {
+  func takeAction(completion: @escaping (Result<String?, Error>) -> Void)
+  func setLanguage(languageCode: String, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class AppleWidgetHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `AppleWidgetHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: AppleWidgetHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    let takeActionChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleWidgetHostApi.takeAction\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      takeActionChannel.setMessageHandler { _, reply in
+        api.takeAction { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      takeActionChannel.setMessageHandler(nil)
+    }
+    let setLanguageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleWidgetHostApi.setLanguage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setLanguageChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let languageCodeArg = args[0] as! String
+        api.setLanguage(languageCode: languageCodeArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setLanguageChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol AndroidAutomationHostApi {
   func read(completion: @escaping (Result<AndroidAutomationSettings, Error>) -> Void)
   func setEnabled(enabled: Bool, completion: @escaping (Result<AndroidAutomationSettings, Error>) -> Void)
@@ -1141,6 +1187,7 @@ class AppleBackupHostApiSetup {
 
 /// Generated protocol from Pigeon that represents Flutter messages that can be called from Swift.
 protocol BridgeFlutterApiProtocol {
+  func appleWidgetActionAvailable(completion: @escaping (Result<Void, PigeonError>) -> Void)
   func vpnStatusChanged(status statusArg: VpnStatus, completion: @escaping (Result<Void, PigeonError>) -> Void)
   func openSettings(completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
@@ -1153,6 +1200,24 @@ class BridgeFlutterApi: BridgeFlutterApiProtocol {
   }
   var codec: MessagesPigeonCodec {
     return MessagesPigeonCodec.shared
+  }
+  func appleWidgetActionAvailable(completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.onexray.BridgeFlutterApi.appleWidgetActionAvailable\(messageChannelSuffix)"
+    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
+    channel.sendMessage(nil) { response in
+      guard let listResponse = response as? [Any?] else {
+        completion(.failure(createConnectionError(withChannelName: channelName)))
+        return
+      }
+      if listResponse.count > 1 {
+        let code: String = listResponse[0] as! String
+        let message: String? = nilOrValue(listResponse[1])
+        let details: String? = nilOrValue(listResponse[2])
+        completion(.failure(PigeonError(code: code, message: message, details: details)))
+      } else {
+        completion(.success(()))
+      }
+    }
   }
   func vpnStatusChanged(status statusArg: VpnStatus, completion: @escaping (Result<Void, PigeonError>) -> Void) {
     let channelName: String = "dev.flutter.pigeon.onexray.BridgeFlutterApi.vpnStatusChanged\(messageChannelSuffix)"

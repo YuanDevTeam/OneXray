@@ -1011,6 +1011,60 @@ interface BridgeHostApi {
   }
 }
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface AppleWidgetHostApi {
+  fun takeAction(callback: (Result<String?>) -> Unit)
+  fun setLanguage(languageCode: String, callback: (Result<Unit>) -> Unit)
+
+  companion object {
+    /** The codec used by AppleWidgetHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      MessagesPigeonCodec()
+    }
+    /** Sets up an instance of `AppleWidgetHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: AppleWidgetHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.AppleWidgetHostApi.takeAction$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.takeAction{ result: Result<String?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.AppleWidgetHostApi.setLanguage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val languageCodeArg = args[0] as String
+            api.setLanguage(languageCodeArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(MessagesPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface AndroidAutomationHostApi {
   fun read(callback: (Result<AndroidAutomationSettings>) -> Unit)
   fun setEnabled(enabled: Boolean, callback: (Result<AndroidAutomationSettings>) -> Unit)
@@ -1282,6 +1336,23 @@ class BridgeFlutterApi(private val binaryMessenger: BinaryMessenger, private val
     /** The codec used by BridgeFlutterApi. */
     val codec: MessageCodec<Any?> by lazy {
       MessagesPigeonCodec()
+    }
+  }
+  fun appleWidgetActionAvailable(callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.onexray.BridgeFlutterApi.appleWidgetActionAvailable$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(null) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(MessagesPigeonUtils.createConnectionError(channelName)))
+      }
     }
   }
   fun vpnStatusChanged(statusArg: VpnStatus, callback: (Result<Unit>) -> Unit)

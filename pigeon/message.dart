@@ -70,6 +70,15 @@ abstract class BridgeHostApi {
 
 enum VpnStatus { disconnecting, disconnected, connecting, connected }
 
+@HostApi()
+abstract class AppleWidgetHostApi {
+  @asyncCallback
+  String? takeAction();
+
+  @asyncCallback
+  void setLanguage(String languageCode);
+}
+
 class AndroidAutomationSettings {
   AndroidAutomationSettings({required this.enabled, this.token});
   final bool enabled;
@@ -204,6 +213,9 @@ class AndroidAppInfo {
 
 @FlutterApi()
 abstract class BridgeFlutterApi {
+  @asyncCallback
+  void appleWidgetActionAvailable();
+
   @asyncCallback
   void vpnStatusChanged(VpnStatus status);
 

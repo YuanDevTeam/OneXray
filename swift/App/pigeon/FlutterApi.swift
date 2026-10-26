@@ -26,6 +26,12 @@ class AppFlutterApi {
         flutterApi.vpnStatusChanged(status: status) { _ in }
     }
 
+    #if os(iOS)
+    func appleWidgetActionAvailable() {
+        flutterApi.appleWidgetActionAvailable { _ in }
+    }
+    #endif
+
     #if os(macOS)
     func openSettings() {
         // Setup or startup can still be registering the Dart receiver. This

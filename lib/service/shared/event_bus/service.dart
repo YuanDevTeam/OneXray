@@ -6,6 +6,7 @@ import 'package:onexray/service/shared/event_bus/enum.dart';
 import 'package:onexray/service/shared/event_bus/state.dart';
 import 'package:onexray/service/manager.dart';
 import 'package:onexray/service/shared/ping/batch.dart';
+import 'package:onexray/service/shared/apple_widget/service.dart';
 
 class AppEventBus extends Cubit<AppEventBusState> {
   static late AppEventBus instance;
@@ -33,6 +34,7 @@ class AppEventBus extends Cubit<AppEventBusState> {
         serverSort: ServerSortOrder.fromString(serverSort),
       ),
     );
+    await AppleWidgetService().setLanguage(state.languageCode.name);
   }
 
   void updatePinging(bool value) {
@@ -93,6 +95,7 @@ class AppEventBus extends Cubit<AppEventBusState> {
       return;
     }
     emit(state.copyWith(languageCode: value));
+    await AppleWidgetService().setLanguage(value.name);
   }
 
   @override

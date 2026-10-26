@@ -21,6 +21,8 @@ Future<void> handleMobileQuickAction(
   final coordinator = ConnectionCoordinator.instance;
   try {
     switch (action) {
+      case ShortCutAction.openConnect:
+        context.goPrimaryRoot(AppPrimaryDestination.connect);
       case ShortCutAction.startVpn:
         context.goPrimaryRoot(AppPrimaryDestination.connect);
         await coordinator.connect();
