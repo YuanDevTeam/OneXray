@@ -57,6 +57,7 @@ class ConnectionRuntimeHost {
   final Future<VpnStatus> Function()? _readStatus;
   final Future<NativeVpnCommandResult> Function(ConnectionRuntime runtime)?
   _startVpn;
+  final Future<void> Function(ConnectionRuntime runtime)? _writeStartFile;
   final Future<NativeVpnCommandResult> Function()? _stopVpn;
 
   ConnectionRuntimeHost({
@@ -65,10 +66,12 @@ class ConnectionRuntimeHost {
     Future<VpnStatus> Function()? readStatus,
     Future<NativeVpnCommandResult> Function(ConnectionRuntime runtime)?
     startVpn,
+    Future<void> Function(ConnectionRuntime runtime)? writeStartFile,
     Future<NativeVpnCommandResult> Function()? stopVpn,
   }) : _runDirectory = runDirectory,
        _readStatus = readStatus,
        _startVpn = startVpn,
+       _writeStartFile = writeStartFile,
        _stopVpn = stopVpn,
        _metrics = readMetrics;
 
@@ -219,10 +222,9 @@ class ConnectionRuntimeHost {
     );
   }
 
-  Future<NativeVpnCommandResult> _start(ConnectionRuntime runtime) async {
+  Future<NativeVpnCommandResult> _start(ConnectionRuntime runtime) {
     final startVpn = _startVpn;
     if (startVpn != null) return startVpn(runtime);
-    await runtime.request.writeToStartFile();
     final policy = runtime.configuration.policy;
     final windows =
         runtime.platform == ConnectionPlatform.windows &&
@@ -252,8 +254,39 @@ class ConnectionRuntimeHost {
     );
   }
 
-  Future<HostConnection> start(ConnectionRuntime runtime) async {
-    final result = await _start(runtime);
+  Future<HostConnection> start(
+    ConnectionRuntime runtime, {
+    Future<void>? cancelled,
+  }) async {
+    var wasCancelled = false;
+    unawaited(
+      cancelled?.then<void>((_) {
+        wasCancelled = true;
+      }),
+    );
+    final writeStartFile = _writeStartFile;
+    if (writeStartFile != null) {
+      await writeStartFile(runtime);
+    } else if (_startVpn == null) {
+      await runtime.request.writeToStartFile();
+    }
+    if (cancelled != null) {
+      // Observe an already completed cancellation before submitting any native
+      // command, including when an injected host needs no file preparation.
+      await Future<void>.value();
+      if (wasCancelled) throw const ConnectionHostException('cancelled');
+    }
+    // Only the submitted native command races cancellation. File writes remain
+    // drained before Stop can return, and cannot later submit a stale start.
+    final submitted = _start(runtime);
+    final result = await (cancelled == null
+        ? submitted
+        : Future.any([
+            submitted,
+            cancelled.then<NativeVpnCommandResult>(
+              (_) => throw const ConnectionHostException('cancelled'),
+            ),
+          ]));
     if (result.state != NativeVpnCommandState.success) {
       throw ConnectionHostException(
         result.state == NativeVpnCommandState.waitingForPlatformPermission

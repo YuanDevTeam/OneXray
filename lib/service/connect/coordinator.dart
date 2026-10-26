@@ -74,7 +74,8 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   static final instance = ConnectionCoordinator();
   final AppDatabase db;
   late final PrepareConnection _prepare;
-  late final Future<HostConnection> Function(ConnectionRuntime) _start;
+  late final Future<HostConnection> Function(ConnectionRuntime, Future<void>)
+  _start;
   late final Future<HostConnection> Function() _stop;
   late final InspectConnection _inspect;
   late final Future<ConnectionTraffic> Function(ConnectionRuntime) _readTraffic;
@@ -94,6 +95,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   bool _ready = false;
   VpnStatus? _pendingStatus;
   int _commandGeneration = 0;
+  int _cancellationGeneration = 0;
   int _trafficGeneration = 0;
   bool _commandActive = false;
   Completer<void>? _cancel;
@@ -122,7 +124,14 @@ class ConnectionCoordinator with WidgetsBindingObserver {
        _observeStatus = observeStatus ?? AppHostApi().observeVpnStatus,
        _disposeStatus = disposeStatus ?? AppHostApi().disposeVpnStatus {
     final host = ConnectionRuntimeHost();
-    _start = start ?? host.start;
+    _start = start == null
+        ? (runtime, cancelled) => host.start(runtime, cancelled: cancelled)
+        : (runtime, cancelled) => Future.any([
+            start(runtime),
+            cancelled.then<HostConnection>(
+              (_) => throw const ConnectionHostException('cancelled'),
+            ),
+          ]);
     _stop = stop ?? host.stop;
     _inspect = inspect ?? host.inspect;
     _readTraffic = readTraffic ?? host.query;
@@ -440,19 +449,23 @@ class ConnectionCoordinator with WidgetsBindingObserver {
     }
   }
 
-  Future<void> connect() => _connectRequested ??= _connectOnce().whenComplete(
-    () => _connectRequested = null,
-  );
+  Future<void> connect() =>
+      _connectRequested ??= _connectOnce(_cancellationGeneration)
+          .whenComplete(() => _connectRequested = null);
 
-  Future<void> _connectOnce() async {
+  Future<void> _connectOnce(int generation) async {
     await initialize();
+    _checkConnectionRequest(generation);
     if (_commandActive) return;
     final current = await _inspect(await _currentRuntime());
+    _checkConnectionRequest(generation);
     if (current.status != VpnStatus.disconnected) {
       _publish(current);
       return;
     }
-    await apply(await configuration, connect: true);
+    final next = await configuration;
+    _checkConnectionRequest(generation);
+    await apply(next, connect: true);
   }
 
   /// UI has already confirmed a disruptive change before calling this method.
@@ -469,158 +482,178 @@ class ConnectionCoordinator with WidgetsBindingObserver {
     Future<void> Function()? validateAssets,
     ConfigurationImportDraft? imported,
     PrepareConnection? prepare,
-  }) => _run(() async {
-    if (connect && disconnect) {
-      throw ArgumentError('Conflicting connection action');
-    }
-    final stored = await configuration;
-    if (expectedConfiguration != null &&
-        stored.encode() != expectedConfiguration) {
-      throw const ConnectionHostException('configurationChanged');
-    }
-    final current = await _inspect(await _currentRuntime());
-    final shouldStart =
-        !disconnect && (connect || (affectsRuntime && current.connected));
-    final shouldStop = disconnect && current.status != VpnStatus.disconnected;
-    // Recheck after preceding commands finish: a disconnected editor may have
-    // queued behind Connect without ever asking the user to reconnect.
-    if ((shouldStart || shouldStop) && current.connected && !allowReconnect) {
-      throw const ConnectionHostException('reconnectRequired');
-    }
-    Future<void> save(Future<void> Function() writeMetadata) async {
-      Future<void> write() async {
-        await writeMetadata();
-        await writeAssets?.call();
+  }) {
+    // Capture before entering the queue: Stop also invalidates requests still
+    // waiting for configuration, native inspection or the Geodata file queue.
+    final generation = _cancellationGeneration;
+    return _run(() async {
+      if (connect && disconnect) {
+        throw ArgumentError('Conflicting connection action');
       }
+      if (connect) _checkConnectionRequest(generation);
+      final stored = await configuration;
+      if (expectedConfiguration != null &&
+          stored.encode() != expectedConfiguration) {
+        throw const ConnectionHostException('configurationChanged');
+      }
+      final current = await _inspect(await _currentRuntime());
+      final shouldStart =
+          !disconnect && (connect || (affectsRuntime && current.connected));
+      final shouldStop = disconnect && current.status != VpnStatus.disconnected;
+      if (shouldStart) _checkConnectionRequest(generation);
+      // Recheck after preceding commands finish: a disconnected editor may have
+      // queued behind Connect without ever asking the user to reconnect.
+      if ((shouldStart || shouldStop) && current.connected && !allowReconnect) {
+        throw const ConnectionHostException('reconnectRequired');
+      }
+      Future<void> save(Future<void> Function() writeMetadata) async {
+        Future<void> write() async {
+          await writeMetadata();
+          await writeAssets?.call();
+        }
 
-      if (!shouldStart && !shouldStop) {
-        await validateAssets?.call();
-        await db.connectionConfigDao.commit(
-          configurationJson: next.encode(),
-          writeAssets: write,
-        );
-        _publish(current);
-        return;
-      }
-      final cancellation = Completer<void>();
-      _cancel = cancellation;
-      final old = current.connected ? current.runtime : null;
-      if (current.connected && old == null) {
-        throw const ConnectionHostException('runtimeMetadataUnavailable');
-      }
-      bool touchedHost = false;
-      try {
-        _preparingNodeIds = {...?old?.nodeIds};
-        _checkCancelled(cancellation);
-        var running = current;
-        if (current.status != VpnStatus.disconnected) {
-          touchedHost = true;
-          state.value = ConnectionView(
-            phase: ConnectionPhase.disconnecting,
-            runtime: old,
-            traffic: current.traffic,
+        if (!shouldStart && !shouldStop) {
+          await validateAssets?.call();
+          await db.connectionConfigDao.commit(
+            configurationJson: next.encode(),
+            writeAssets: write,
           );
-          running = await _stop();
-          if (running.status != VpnStatus.disconnected) {
-            throw const ConnectionHostException('stopNotConfirmed');
-          }
+          _publish(current);
+          return;
         }
-        _checkCancelled(cancellation);
-        if (!disconnect) {
-          state.value = ConnectionView(
-            phase: ConnectionPhase.preparing,
-            traffic: running.traffic,
-          );
+        if (shouldStart) _checkConnectionRequest(generation);
+        final cancellation = Completer<void>();
+        _cancel = cancellation;
+        final old = current.connected ? current.runtime : null;
+        if (current.connected && old == null) {
+          throw const ConnectionHostException('runtimeMetadataUnavailable');
         }
-        await validateAssets?.call();
-        _checkCancelled(cancellation);
-        final runtime = disconnect
-            ? null
-            : await (prepare ?? _prepare)(next, cancellation.future);
-        _checkCancelled(cancellation);
-        _pendingRuntime = runtime;
-        if (runtime != null) {
-          touchedHost = true;
-          state.value = ConnectionView(
-            phase: ConnectionPhase.connecting,
-            traffic: running.traffic,
-          );
-          running = await _start(runtime);
+        bool touchedHost = false;
+        try {
+          _preparingNodeIds = {...?old?.nodeIds};
           _checkCancelled(cancellation);
-          if (!running.connected ||
-              running.runtime?.identity != runtime.identity) {
-            throw const ConnectionHostException('startNotConfirmed');
-          }
-        }
-        await db.connectionConfigDao.commit(
-          configurationJson: (runtime?.configuration ?? next).encode(),
-          writeAssets: () async {
-            await write();
-            _checkCancelled(cancellation);
-          },
-        );
-        _publish(running, issue: runtime?.notice);
-      } catch (error, stack) {
-        HostConnection? failed;
-        if (touchedHost) {
-          try {
-            failed = await _stop();
-          } catch (_) {
-            try {
-              failed = await _inspect(await _currentRuntime());
-            } catch (_) {
-              // The failed state remains explicit when native state is unavailable.
+          var running = current;
+          if (current.status != VpnStatus.disconnected) {
+            touchedHost = true;
+            state.value = ConnectionView(
+              phase: ConnectionPhase.disconnecting,
+              runtime: old,
+              traffic: current.traffic,
+            );
+            running = await _stop();
+            if (running.status != VpnStatus.disconnected) {
+              throw const ConnectionHostException('stopNotConfirmed');
             }
           }
-        }
-        final permission = error is ConnectionHostException
-            ? error.permission
-            : null;
-        final issue = cancellation.isCompleted
-            ? 'cancelled'
-            : connectionFailureReason(error);
-        if (touchedHost) {
-          final status = failed?.status;
-          _failureLatched = true;
-          state.value = ConnectionView(
-            phase: ConnectionPhase.failed,
-            runtime: status == VpnStatus.disconnected
-                ? null
-                : failed?.runtime ??
-                      _pendingRuntime ??
-                      state.value.runtime ??
-                      current.runtime,
-            traffic: failed?.traffic ?? current.traffic,
-            issue: issue,
-            error: error,
-            permission: permission,
+          _checkCancelled(cancellation);
+          if (!disconnect) {
+            state.value = ConnectionView(
+              phase: ConnectionPhase.preparing,
+              traffic: running.traffic,
+            );
+          }
+          await validateAssets?.call();
+          _checkCancelled(cancellation);
+          final runtime = disconnect
+              ? null
+              : await (prepare ?? _prepare)(next, cancellation.future);
+          _checkCancelled(cancellation);
+          _pendingRuntime = runtime;
+          if (runtime != null) {
+            touchedHost = true;
+            state.value = ConnectionView(
+              phase: ConnectionPhase.connecting,
+              traffic: running.traffic,
+            );
+            running = await _start(runtime, cancellation.future);
+            _checkCancelled(cancellation);
+            if (!running.connected ||
+                running.runtime?.identity != runtime.identity) {
+              throw const ConnectionHostException('startNotConfirmed');
+            }
+          }
+          await db.connectionConfigDao.commit(
+            configurationJson: (runtime?.configuration ?? next).encode(),
+            writeAssets: () async {
+              await write();
+              _checkCancelled(cancellation);
+            },
           );
-          _syncTrafficSampling();
-        } else {
-          _publish(current, issue: issue, error: error, permission: permission);
+          _publish(running, issue: runtime?.notice);
+        } catch (error, stack) {
+          HostConnection? failed;
+          if (touchedHost) {
+            try {
+              failed = await _stop();
+            } catch (_) {
+              try {
+                failed = await _inspect(await _currentRuntime());
+              } catch (_) {
+                // The failed state remains explicit when native state is unavailable.
+              }
+            }
+          }
+          final permission = error is ConnectionHostException
+              ? error.permission
+              : null;
+          final issue = cancellation.isCompleted
+              ? 'cancelled'
+              : connectionFailureReason(error);
+          if (touchedHost) {
+            final status = failed?.status;
+            _failureLatched = true;
+            state.value = ConnectionView(
+              phase: ConnectionPhase.failed,
+              runtime: status == VpnStatus.disconnected
+                  ? null
+                  : failed?.runtime ??
+                        _pendingRuntime ??
+                        state.value.runtime ??
+                        current.runtime,
+              traffic: failed?.traffic ?? current.traffic,
+              issue: issue,
+              error: error,
+              permission: permission,
+            );
+            _syncTrafficSampling();
+          } else {
+            _publish(
+              current,
+              issue: issue,
+              error: error,
+              permission: permission,
+            );
+          }
+          Error.throwWithStackTrace(error, stack);
+        } finally {
+          _pendingRuntime = null;
+          _preparingNodeIds = {};
+          _cancel = null;
         }
-        Error.throwWithStackTrace(error, stack);
-      } finally {
-        _pendingRuntime = null;
-        _preparingNodeIds = {};
-        _cancel = null;
       }
-    }
 
-    if (!shouldStart &&
-        !shouldStop &&
-        writeAssets == null &&
-        validateAssets == null &&
-        imported == null) {
-      return save(() async {});
-    }
-    return GeoDataService().withFiles(
-      () => imported?.save(save) ?? save(() async {}),
-    );
-  });
+      if (!shouldStart &&
+          !shouldStop &&
+          writeAssets == null &&
+          validateAssets == null &&
+          imported == null) {
+        return save(() async {});
+      }
+      return GeoDataService().withFiles(
+        () => imported?.save(save) ?? save(() async {}),
+      );
+    });
+  }
 
   void cancel() {
+    _cancellationGeneration++;
     if (_cancel?.isCompleted == false) _cancel!.complete();
+  }
+
+  void _checkConnectionRequest(int generation) {
+    if (generation != _cancellationGeneration) {
+      throw const ConnectionHostException('cancelled');
+    }
   }
 
   void _checkCancelled(Completer<void> cancellation) {

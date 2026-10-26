@@ -1219,6 +1219,150 @@ void main() {
     },
   );
 
+  for (final queuedApply in [false, true]) {
+    test(
+      'Stop cancels ${queuedApply ? 'queued apply' : 'connect'} before preparation',
+      () async {
+        final runtime = _runtime('cancelled-start');
+        var host = const HostConnection(VpnStatus.disconnected);
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        var pauseNextInspection = false;
+        final calls = <String>[];
+        final coordinator = await _initialize(
+          ConnectionCoordinator(
+            database: db,
+            readRuntime: () async => host.runtime,
+            inspect: (_, {observedStatus}) async {
+              if (pauseNextInspection) {
+                pauseNextInspection = false;
+                entered.complete();
+                await release.future;
+              }
+              return host;
+            },
+            prepare: (_, _) async {
+              calls.add('prepare');
+              return runtime;
+            },
+            start: (runtime) async {
+              calls.add('start');
+              return host = HostConnection(
+                VpnStatus.connected,
+                runtime: runtime,
+              );
+            },
+            stop: () async {
+              calls.add('stop');
+              return host = const HostConnection(VpnStatus.disconnected);
+            },
+          ),
+        );
+        pauseNextInspection = true;
+        final starting = queuedApply
+            ? coordinator.apply(runtime.configuration, connect: true)
+            : coordinator.connect();
+        final cancelled = expectLater(
+          starting,
+          throwsA(
+            isA<ConnectionHostException>().having(
+              (error) => error.reason,
+              'reason',
+              'cancelled',
+            ),
+          ),
+        );
+        await entered.future;
+        final stopping = coordinator.disconnect();
+        if (!queuedApply) await stopping;
+        release.complete();
+        await Future.wait([cancelled, stopping]);
+
+        expect(calls, ['stop']);
+        expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      },
+    );
+  }
+
+  for (final lateFailure in [false, true]) {
+    test(
+      'Stop interrupts native start and ignores its late ${lateFailure ? 'error' : 'success'}',
+      () async {
+        final runtime = _runtime('delayed-start');
+        var host = const HostConnection(VpnStatus.disconnected);
+        final entered = Completer<void>();
+        final reply = Completer<HostConnection>();
+        var starts = 0;
+        var stops = 0;
+        final coordinator = await _initialize(
+          ConnectionCoordinator(
+            database: db,
+            readRuntime: () async => host.runtime,
+            inspect: (_, {observedStatus}) async => host,
+            prepare: (_, _) async => runtime,
+            start: (runtime) async {
+              starts++;
+              if (starts == 1) {
+                host = HostConnection(VpnStatus.connecting, runtime: runtime);
+                entered.complete();
+                return reply.future;
+              }
+              return host = HostConnection(
+                VpnStatus.connected,
+                runtime: runtime,
+              );
+            },
+            stop: () async {
+              stops++;
+              return host = const HostConnection(VpnStatus.disconnected);
+            },
+          ),
+        );
+        final original = (await coordinator.configuration).encode();
+        final cancelled = expectLater(
+          coordinator.connect(),
+          throwsA(
+            isA<ConnectionHostException>().having(
+              (error) => error.reason,
+              'reason',
+              'cancelled',
+            ),
+          ),
+        );
+        await entered.future;
+        var stopped = false;
+        final stopping = coordinator.disconnect().then((_) => stopped = true);
+        try {
+          await pumpEventQueue();
+          expect(stops, greaterThan(0));
+          expect(stopped, isTrue);
+          expect(reply.isCompleted, isFalse);
+          expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+          expect((await coordinator.configuration).encode(), original);
+        } finally {
+          if (lateFailure) {
+            reply.completeError(
+              const ConnectionHostException('lateStartFailure'),
+            );
+          } else {
+            reply.complete(
+              HostConnection(VpnStatus.connected, runtime: runtime),
+            );
+          }
+          await cancelled;
+          await stopping;
+        }
+        await pumpEventQueue();
+        expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+        expect((await coordinator.configuration).encode(), original);
+
+        await coordinator.connect();
+        expect(starts, 2);
+        expect(coordinator.state.value.phase, ConnectionPhase.connected);
+      },
+    );
+  }
+
   test('connect prepares, starts and commits selected settings', () async {
     final next = _runtime('b', entryIds: const [2]);
     var status = VpnStatus.disconnected;
