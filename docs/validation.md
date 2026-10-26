@@ -176,6 +176,11 @@ Pigeon、FFI、Drift 或本地化变更先生成对应输出；只改测试时�
   验证完整清单、空集合、消息往返与发布回滚，不启动 App/VPN。
 - Apple 文件备份：`bash tool/test_backup_file_store.sh` 编译生产文件存储实现，验证首字节内容探测、绑定不覆盖、替换写入、
   新实例重新访问、解绑保留文件及大小限制。命令行使用普通 bookmark，持久沙盒授权需在签名 App 中核对。
+- iOS Widget 原生：`bash tool/test_apple_widget.sh` 以纯 Swift 编译生产快照与动作收件箱，
+  验证状态/语言独立原子更新、五语言归一化、缺失/损坏/未知版本与过期状态、早到动作只消费一次及保留最后动作。
+  Dart 定向测试位于 `test/service/shared/apple_widget/` 与 `test/service/shared/menu/short_cut/`，
+  覆盖冷启动抑制自动连接、运行中停止不被启动阻塞、重复动作、回前台读取、未知输入及导航 URL 边界。
+  这些测试不执行实际 App Intent、不证明 WidgetKit 展示或 NetworkExtension 状态。
 - macOS SE 激活：`bash tool/test_system_extension_activation.sh` 编译生产 Swift，
   验证并发请求合并及完成后的重新激活；使用可控系统回复，不申请真实扩展授权或启动 VPN。
 - Android 原生：在 `android/` 执行 `./gradlew :app:testDebugUnitTest`，
@@ -198,6 +203,13 @@ Android 模拟器直接使用当前分支构建覆盖已经安装的 OneXray，�
   仅显示已连接或杀进程后的成功不能代替此项。
 - 完整配置适配在 Android 验证 Raw/提供方真实 VPN 启动、DNS 查询、受控网页响应、连续重连和隧道 DNS 设置变更。
   iOS 模拟器只验证配置与 SOCKS 路径，不能验收真机 DNS、DoT 或 includeAllNetworks；这些项目需要 Apple 真机。
+- iOS/iPadOS Widget 在系统图库与实际主屏幕/锁屏验证系统支持的四种 family；16 验证静态导航，
+  17 起验证主屏幕小号/中号启动、停止实际前台打开 App，并使用当前选择而非最近生成的 saved-start。
+  覆盖冷启动、App 已运行/后台、重复点击和启动中停止，确认连接协调器、权限失败与页面/通知反馈。
+  核对五语言及系统语言匹配、波斯语 RTL、大字、明暗主题、可访问名称，以及未知/过期状态不会继续展示已连接，
+  Widget 不泄露配置名、订阅、地址或流量。签名安装包须检查 Widget 扩展嵌入、独立 provisioning profile、
+  App/隧道扩展/Widget 的共享 App Group 权限。模拟器与无签名构建不能证明真机 NE 授权、锁屏交互或后台刷新，
+  App Intent 前台执行、WidgetKit 调度与系统限制须在对应真机签名渠道单独验收。
 - Android 自动化需普通第三方 UID 的后台启停、冷进程、Token 撤销和清理/恢复阻断，
   至少联调一款真实工具；shell 广播不等于工具联调。
 - macOS 桌面 UI 使用 Flutter Debug 验证；VPN、Apple 授权、按需连接、SE 跨容器交接

@@ -98,10 +98,9 @@ Token 不是 HTTP Header，无公开 Token 查询或状态广播；用户参数�
 
 Receiver 在已有 `:native` 进程复用 `VpnController/OneVpnService`，不创建 Flutter 引擎、Activity、第二套编译器或后台队列。
 START 使用最近生成的完整 `run/start.json`，不是“最后成功连接”，也不追随后来 DB 选择；改配置后须从 App 正常连接一次。
-LAN sharing edits likewise leave this input unchanged: automation, Widget/Tile and Apple on-demand
-starts retain the last compiled sharing setting. Only an App start/restart compiles the newly saved
-policy; see [LAN proxy sharing](xray-configuration.md#局域网代理共享). Sharing edits do not add an
-automation or saved-start block; the separate cleanup/restore admission below remains in place.
+局域网共享编辑同样不更新该输入：Android 自动化、Widget/Tile 与 Apple 按需连接沿用最近一次编译的共享设置。
+从 App 启动或重连才编译新保存的策略，见 [局域网代理共享](xray-configuration.md#局域网代理共享)。
+共享编辑不新增自动化或 saved-start 阻断；清理/恢复仍遵循下述独立准入规则。
 顺序为鉴权 → 清理/恢复阻断 → 启动请求外层读取 → VPN/LAN 权限 → 原生交付；
 文件检查在 `VpnService.prepare()` 前，实际配置/资源错误交 Core。
 合法失败只反馈具体原因和通知点击入口，不自动拉起 App、下载、重试或恢复旧连接；通知不可见仍保留原生日志。
@@ -124,6 +123,24 @@ Widget/Tile 的缺输入打开 App 回退不用于广播。
 清理全部数据删除授权，备份恢复保留目标设备授权；临界区正常退出解除标记。
 异常退出遗留标记在下次 `ServiceManager` 存储/协调器就绪后解除，不依赖 Setup、不自动连接，
 也不把此标记扩展成 VPN 状态缓存或普通保存/测速锁。
+
+## iOS Widget 前台动作与链接
+
+iOS/iPadOS 17 起 Widget 的启动/停止使用不公开发现的前台 App Intent；App 内存接收动作，
+经原生桥交给既有快捷入口和连接协调器。冷启动与回前台均读取待处理动作，Shell 未就绪时保留最后一个动作，
+并抑制本次偏好自动连接；消费后清除，同类在途动作合并。较晚到达的停止会取消待执行启动，
+iOS 原生先排空配置准备写入再停止，不等待已提交启动的连接状态确认。
+输入仅限启动/停止，不接受配置参数、节点选择或通用 invoke，也不形成跨进程持久命令队列。
+它使用当前 App 选择，不复用 Android Widget/Tile 或 Apple 按需连接的 saved-start 路径。
+
+Widget 唯一公开 URL 为 `onexray://widget/connect`，只打开连接页，不启停 VPN。
+带查询、fragment、端口、用户信息或其他路径的地址不进入 Widget 动作入口；启停不通过 URL 参数开放。
+冷启动导航同样抑制本次偏好自动连接。
+
+状态与有效语言通过 App Group 中独立的原子快照传递，语言更新不覆盖原生状态。
+App/隧道扩展发布状态，Widget 只读取展示；快照不是启动输入，不含连接配置或凭据。
+快照写入或 Widget 刷新不可用不改变 VPN 操作结果。版本、family、过期及隐私边界见
+[iOS/iPadOS Widget](app.md#iosipados-widget)。
 
 ## 平台检查
 

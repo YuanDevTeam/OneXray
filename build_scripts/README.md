@@ -122,6 +122,13 @@ Native outputs and Geodata are refreshed. Apple updates Xcode build numbers;
 `macos_se` also replaces `macos/` with `macos_se/`, preserving framework symlinks.
 Use a disposable checkout for those operations.
 
+iOS embeds the Widget extension alongside the tunnel extension. The
+[deploy lane](../ios/fastlane/Fastfile) fetches and maps a separate Widget
+provisioning profile, read-only, as well as the App and tunnel profiles. Configure
+all three App IDs for the shared App Group before deploying. Check that the
+archive/IPA embeds the Widget extension and its resources; unsigned or Simulator
+builds do not validate distribution signing or device Widget availability.
+
 ## Windows
 
 `--windows-mode exe|msix` selects both packaging and the compiled runtime; default

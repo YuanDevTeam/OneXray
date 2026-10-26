@@ -230,7 +230,7 @@ EXE/ZIP/Linux 的 Quit 先停止 VPN。需要停止的退出失败时保持 App 
 
 ## 系统快捷入口
 
-移动端 `quick_actions` 固定提供启动、停止、切换配置、更新订阅，不接入 Siri/App Intents。
+移动端 `quick_actions` 固定提供启动、停止、切换配置、更新订阅。
 冷启动动作等待主 Shell 就绪后消费；失败保留到重试。重复同类动作不重复提交，停止不被启动动作阻塞。
 切换配置复用已有服务器或 Raw 选择页，不另建选择器。
 
@@ -244,6 +244,25 @@ EXE/ZIP/Linux 的 Quit 先停止 VPN。需要停止的退出失败时保持 App 
 Android 设置页可请求固定 `home_widget`，不把请求完成当作已添加；Widget 展示状态、本次速率和流量，
 标题/数据打开 App，图标启停 VPN。Widget/Tile 直接复用已保存运行输入的边界见
 [运行协调与统计](xray-configuration.md#运行协调与统计)。外部自动化的授权与失败行为见 [外部接口](external-interfaces.md)。
+
+### iOS/iPadOS Widget
+
+iOS/iPadOS 16 起提供连接 Widget，支持 `systemSmall`、`systemMedium`、`accessoryCircular`、
+`accessoryRectangular`，可添加位置由系统版本与设备决定。iOS/iPadOS 16 静态展示状态，点击打开连接页；
+17 起主屏幕小号/中号 Widget 增加显式“启动 VPN”“停止 VPN”，通过前台 App Intent 打开 App。
+锁屏两种 accessory 只导航。当前仅接入 Widget，不发布可发现的 Siri/App Shortcuts，
+也不提供 Control Widget 或 Live Activity。
+
+启停复用 App 的 `ConnectionCoordinator` 与当前选择、权限检查和错误反馈；不读取 saved-start，
+Widget 扩展不在后台直接启停 VPN。已到达的冷启动输入先于偏好自动连接处理，Shell 就绪后执行；
+重复同类操作合并；停止取消已有启动，等待必要的准备写入排空，不等待已提交启动的连接状态确认。公开链接仅导航，见
+[Widget 动作与链接](external-interfaces.md#ios-widget-前台动作与链接)。
+
+Widget 展示最近一次原生状态快照及观测时间，非实时状态。真机“已连接”只来自 NetworkExtension 状态观测，
+提交启动请求或 Core 构造成功不代表已连接。快照超过 15 分钟、缺失、损坏或版本未知时按“未知”处理；
+WidgetKit 负责刷新调度，不承诺 App 退出后持续更新。展示不包含配置名称、订阅、服务器地址或流量。
+语言跟随 App 有效语言，支持英语、简体中文、繁体中文、俄语、波斯语；系统语言偏好先按 App 规则匹配，
+波斯语使用 RTL。模拟器代理状态不作为真机 NetworkExtension 验收证据，见 [平台验收](validation.md#平台验收)。
 
 ## 错误反馈
 
