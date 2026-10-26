@@ -84,7 +84,11 @@ private struct ConnectionWidgetView: View {
             }
         case .systemMedium:
             HStack(spacing: 16) {
-                summary
+                Link(destination: connectionURL) {
+                    summary
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("OneXray, \(statusText), \(text("Open app"))")
                 Spacer(minLength: 0)
                 if #available(iOS 17.0, *) {
                     actions(compact: false)
