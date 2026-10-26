@@ -35,6 +35,30 @@ RegionCatalog _regions() => RegionCatalog.fromJson(
 );
 
 void main() {
+  test(
+    'non-address DNS policy changes runtime even with direct DNS disabled',
+    () {
+      final before = SmartRoutingSettings(directDns: false);
+      for (final policy in [
+        NonAddressDnsPolicy.direct,
+        NonAddressDnsPolicy.empty,
+      ]) {
+        final after = SmartRoutingSettings.fromJson({
+          ...before.toJson(),
+          'dns': before.dns.copyWith(nonAddressPolicy: policy).toJson(),
+        });
+        expect(
+          SmartRoutingEditorService.sameRuntime(
+            ConnectionSettings(smart: before),
+            after,
+            _regions(),
+          ),
+          isFalse,
+        );
+      }
+    },
+  );
+
   test('Fragment defaults off, persists and changes Smart runtime', () {
     final before = SmartRoutingSettings.fromJson({});
     expect(before.fragment, false);
@@ -569,8 +593,13 @@ void main() {
         database: db,
         coordinator: coordinator,
         loadRegions: () async => _regions(),
+        testXray: (_) async => '',
       );
-      final smart = SmartRoutingSettings(blockAds: true);
+      final smart = SmartRoutingSettings(
+        dns: const RoutingDnsSettings(
+          nonAddressPolicy: NonAddressDnsPolicy.direct,
+        ),
+      );
       expect(
         await service.save(
           original: original,

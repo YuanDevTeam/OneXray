@@ -25,6 +25,7 @@ import 'package:onexray/service/connect/routing/custom/configuration.dart';
 import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
+import 'package:onexray/service/connect/routing/options.dart';
 
 RoutingProfileState _state(
   String name, {
@@ -43,6 +44,25 @@ RoutingProfileState _state(
 );
 
 void main() {
+  test(
+    'non-address DNS policy participates in the custom runtime comparison',
+    () {
+      final before = _state('Route');
+      for (final policy in [
+        NonAddressDnsPolicy.direct,
+        NonAddressDnsPolicy.empty,
+      ]) {
+        expect(
+          CustomRoutingEditorService.sameRouting(
+            before,
+            before.copyWith(dns: before.dns.copyWith(nonAddressPolicy: policy)),
+          ),
+          isFalse,
+        );
+      }
+    },
+  );
+
   test(
     'direct DNS changes are runtime changes independent of profile naming',
     () {
@@ -178,7 +198,9 @@ void main() {
         testXray: (text) async {
           calls++;
           expect(
-            jsonDecode(text)['routing']['rules'].single['port'],
+            (jsonDecode(text)['routing']['rules'] as List).singleWhere(
+              (rule) => rule.containsKey('port'),
+            )['port'],
             'invalid',
           );
           return 'Core rejected port';

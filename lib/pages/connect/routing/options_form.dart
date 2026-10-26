@@ -77,6 +77,28 @@ class RoutingDnsSettingsForm extends StatelessWidget {
           ?leading,
           _resolvers(context, direct: false),
           if (directEnabled) _resolvers(context, direct: true),
+          RoutingSettingRow(
+            key: const ValueKey('dns-non-address-policy'),
+            icon: LucideIcons.listFilter,
+            title: l.routingDnsNonAddress,
+            help: l.routingDnsNonAddressHint,
+            enabled: enabled,
+            below: _OptionPicker(
+              semanticLabel: l.routingDnsNonAddress,
+              value: value.nonAddressPolicy.name,
+              labels: {
+                NonAddressDnsPolicy.proxy.name: l.routingDnsNonAddressProxy,
+                NonAddressDnsPolicy.direct.name: l.routingDnsNonAddressDirect,
+                NonAddressDnsPolicy.empty.name: l.routingDnsNonAddressEmpty,
+              },
+              enabled: enabled,
+              onChanged: (selected) => onChanged(
+                value.copyWith(
+                  nonAddressPolicy: NonAddressDnsPolicy.values.byName(selected),
+                ),
+              ),
+            ),
+          ),
           _OptionSwitch(
             icon: LucideIcons.route,
             title: l.routingDnsSameExitOnly,
@@ -406,12 +428,14 @@ class _RoutingDetailsState extends State<_RoutingDetails> {
 
 class _OptionPicker extends StatelessWidget {
   final String? label;
+  final String? semanticLabel;
   final String value;
   final Map<String, String> labels;
   final bool enabled;
   final ValueChanged<String> onChanged;
   const _OptionPicker({
     this.label,
+    this.semanticLabel,
     required this.value,
     required this.labels,
     required this.enabled,
@@ -434,7 +458,13 @@ class _OptionPicker extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(labels[value] ?? value, textAlign: TextAlign.start),
+                child: Text(
+                  labels[value] ?? value,
+                  semanticsLabel: semanticLabel == null
+                      ? null
+                      : '$semanticLabel: ${labels[value] ?? value}',
+                  textAlign: TextAlign.start,
+                ),
               ),
               const Icon(LucideIcons.chevronDown, size: 16),
             ],

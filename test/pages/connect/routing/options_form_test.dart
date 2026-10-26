@@ -9,14 +9,26 @@ import 'package:onexray/service/connect/routing/custom/document.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch, ShadTheme;
 
-Widget _app(Widget child, {Locale locale = const Locale('en')}) => MaterialApp(
+Widget _app(
+  Widget child, {
+  Locale locale = const Locale('en'),
+  double textScale = 1,
+}) => MaterialApp(
   theme: AppTheme.material(Brightness.light, mobile: true),
   locale: locale,
   supportedLocales: AppLocalizations.supportedLocales,
   localizationsDelegates: AppLocalePolicy.localizationsDelegates,
-  builder: (context, child) => ShadTheme(
-    data: AppTheme.shad(Brightness.light, mobile: true),
-    child: child!,
+  builder: (context, child) => MediaQuery(
+    data: MediaQuery.of(context)
+        .copyWith(textScaler: TextScaler.linear(textScale)),
+    child: ShadTheme(
+      data: AppTheme.shad(
+        Brightness.light,
+        mobile: true,
+        textScaler: TextScaler.linear(textScale),
+      ),
+      child: child!,
+    ),
   ),
   home: Scaffold(body: SingleChildScrollView(child: child)),
 );
@@ -28,7 +40,86 @@ Finder _switch(String title) => find.descendant(
   matching: find.byType(ShadSwitch),
 );
 
+Finder _dnsPolicyPicker() => find.descendant(
+  of: find.byKey(const ValueKey('dns-non-address-policy')),
+  matching: find.byType(OutlinedButton),
+);
+
 void main() {
+  for (final directEnabled in [true, false]) {
+    testWidgets(
+      'DNS record policy choices save with direct DNS enabled=$directEnabled',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        var value = const RoutingDnsSettings();
+        Map<String, dynamic>? saved;
+        await tester.pumpWidget(
+          _app(
+            StatefulBuilder(
+              builder: (context, setState) => Column(
+                children: [
+                  RoutingDnsSettingsForm(
+                    value: value,
+                    directEnabled: directEnabled,
+                    onChanged: (updated) => setState(() => value = updated),
+                  ),
+                  TextButton(
+                    onPressed: () => saved = value.toJson(),
+                    child: const Text('Save DNS'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(RoutingDnsSettingsForm)),
+        )!;
+        expect(value.nonAddressPolicy, NonAddressDnsPolicy.proxy);
+        expect(
+          tester.getSemantics(_dnsPolicyPicker()).label,
+          '${l.routingDnsNonAddress}: ${l.routingDnsNonAddressProxy}',
+        );
+        expect(
+          find.byKey(const ValueKey('dns-direct-0')),
+          directEnabled ? findsOneWidget : findsNothing,
+        );
+        expect(
+          tester.widget<OutlinedButton>(_dnsPolicyPicker()).onPressed,
+          isNotNull,
+        );
+        for (final (policy, label) in [
+          (NonAddressDnsPolicy.direct, l.routingDnsNonAddressDirect),
+          (NonAddressDnsPolicy.empty, l.routingDnsNonAddressEmpty),
+          (NonAddressDnsPolicy.proxy, l.routingDnsNonAddressProxy),
+        ]) {
+          await tester.ensureVisible(_dnsPolicyPicker());
+          await tester.tap(_dnsPolicyPicker());
+          await tester.pumpAndSettle();
+          await tester.tap(find.widgetWithText(MenuItemButton, label));
+          await tester.pumpAndSettle();
+          expect(value.nonAddressPolicy, policy);
+          expect(
+            tester.getSemantics(_dnsPolicyPicker()).label,
+            '${l.routingDnsNonAddress}: $label',
+          );
+          expect(
+            find.descendant(of: _dnsPolicyPicker(), matching: find.text(label)),
+            findsOneWidget,
+          );
+          final save = find.widgetWithText(TextButton, 'Save DNS');
+          await tester.ensureVisible(save);
+          await tester.tap(save);
+          await tester.pumpAndSettle();
+          expect(RoutingDnsSettings.fromJson(saved!).nonAddressPolicy, policy);
+        }
+        semantics.dispose();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets(
     'DNS address editing saves fallback lists, global cache and exit policy',
     (tester) async {
@@ -290,40 +381,36 @@ void main() {
     },
   );
 
-  for (final locale in const [Locale('en'), Locale('zh'), Locale('fa')]) {
+  for (final locale in AppLocalizations.supportedLocales) {
     testWidgets('routing options fit mobile scaled text ($locale)', (
       tester,
     ) async {
       tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(390, 844);
+      tester.view.physicalSize = const Size(375, 667);
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(tester.view.resetPhysicalSize);
       await tester.pumpWidget(
         _app(
-          Builder(
-            builder: (context) => MediaQuery(
-              data: MediaQuery.of(context)
-                  .copyWith(textScaler: const TextScaler.linear(1.5)),
-              child: Column(
-                children: [
-                  RoutingSelectionSettingsForm(
-                    value: const RoutingSelectionSettings(type: 'leastPing'),
-                    entryCount: 1,
-                    onChanged: (_) {},
-                  ),
-                  RoutingDnsSettingsForm(
-                    value: const RoutingDnsSettings(),
-                    onChanged: (_) {},
-                  ),
-                  RoutingSniffingSettingsForm(
-                    value: const RoutingSniffingSettings(),
-                    onChanged: (_) {},
-                  ),
-                ],
+          Column(
+            children: [
+              RoutingSelectionSettingsForm(
+                value: const RoutingSelectionSettings(type: 'leastPing'),
+                entryCount: 1,
+                onChanged: (_) {},
               ),
-            ),
+              RoutingDnsSettingsForm(
+                value: const RoutingDnsSettings(),
+                directEnabled: false,
+                onChanged: (_) {},
+              ),
+              RoutingSniffingSettingsForm(
+                value: const RoutingSniffingSettings(),
+                onChanged: (_) {},
+              ),
+            ],
           ),
           locale: locale,
+          textScale: 1.5,
         ),
       );
       await tester.pumpAndSettle();
@@ -335,6 +422,26 @@ void main() {
       await tester.tap(find.text(l.routingSelectionProbeSettings));
       await tester.pumpAndSettle();
       expect(find.text(l.routingSelectionProbeUrl), findsOneWidget);
+      await tester.ensureVisible(_dnsPolicyPicker());
+      expect(find.text(l.routingDnsNonAddressHint), findsNothing);
+      await tester.tap(_dnsPolicyPicker());
+      await tester.pumpAndSettle();
+      for (final label in [
+        l.routingDnsNonAddressProxy,
+        l.routingDnsNonAddressDirect,
+        l.routingDnsNonAddressEmpty,
+      ]) {
+        expect(find.widgetWithText(MenuItemButton, label), findsOneWidget);
+      }
+      await tester.tap(
+        find.widgetWithText(MenuItemButton, l.routingDnsNonAddressEmpty),
+      );
+      await tester.pumpAndSettle();
+      final help = find.byTooltip('${l.pageHelp} · ${l.routingDnsNonAddress}');
+      await tester.ensureVisible(help);
+      await tester.tap(help);
+      await tester.pumpAndSettle();
+      expect(find.text(l.routingDnsNonAddressHint), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
