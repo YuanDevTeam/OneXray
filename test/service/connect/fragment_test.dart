@@ -56,12 +56,13 @@ void main() {
               'direct',
               'block',
               'dnsOut',
+              'app-dns-forward',
             ]);
             expect(compiled.nodeTags.keys, [
               for (var i = 0; i < count; i++) 'app-entry-$i',
             ]);
             expect(_dialer(_outbound(config, 'direct')), isNull);
-            expect(_dialer(_outbound(config, 'dnsOut')), 'direct');
+            expect(_dialer(_outbound(config, 'dnsOut')), 'app-dns-forward');
             if (enabled) {
               expect(
                 _outbound(config, 'fragment'),

@@ -403,7 +403,7 @@ final class RoutingSelectionSettings {
   );
 
   ({XrayBalancer balancer, XrayObservatory observatory, bool automatic})
-  compile({required List<String> selector}) {
+  compile({required List<String> selector, String? fallbackTag}) {
     final automatic = type == 'leastPing' && selector.length >= 2;
     return (
       automatic: automatic,
@@ -413,7 +413,7 @@ final class RoutingSelectionSettings {
         strategy: XrayBalancingStrategy(
           type: automatic ? 'leastPing' : 'roundRobin',
         ),
-        fallbackTag: automatic ? selector.first : 'direct',
+        fallbackTag: automatic ? selector.first : fallbackTag ?? 'direct',
       ),
       observatory: automatic
           ? XrayObservatory(

@@ -7,6 +7,7 @@ import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/state_db.dart';
 import 'package:onexray/service/connect/routing/dns.dart';
+import 'package:onexray/service/connect/routing/dns_forwarding.dart';
 import 'package:onexray/service/shared/xray/runtime_outbounds.dart';
 import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/validation.dart';
@@ -66,6 +67,9 @@ class CustomRoutingService {
     final tags = [for (var i = 0; i < state.entryCount; i++) 'app-entry-$i'];
     final fragment = state.fragmentOutbound;
     final helpers = <Map<String, dynamic>>[?fragment];
+    final forwarding = RoutingDnsForwarding.compile(
+      policy: state.dns.nonAddressPolicy,
+    );
     config.outbounds = [
       ...XrayFragment.connectEntries([
         for (final tag in tags) createFreedomOutbound(tag: tag).toJson(),
@@ -73,6 +77,7 @@ class CustomRoutingService {
       ...helpers,
       createFreedomOutbound(tag: 'direct').toJson(),
       createBlackholeOutbound(tag: 'block').toJson(),
+      ...forwarding.outbounds,
     ];
     config.inbounds = [
       createSocksInbound(
@@ -81,8 +86,12 @@ class CustomRoutingService {
         sniffing: state.sniffing,
       ),
     ];
-    final selection = state.selection.compile(selector: tags);
+    final selection = state.selection.compile(
+      selector: tags,
+      fallbackTag: tags.first,
+    );
     (config.routing ??= XrayRouting()).balancers = [selection.balancer];
+    config.routing!.rules = [...forwarding.rules, ...?config.routing!.rules];
     config.observatory = selection.observatory;
     return XrayValidation.normal(config);
   }

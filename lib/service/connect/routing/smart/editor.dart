@@ -12,6 +12,7 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/custom/geodata_suggestions.dart';
 import 'package:onexray/service/connect/routing/region_catalog.dart';
 import 'package:onexray/service/connect/routing/dns.dart';
+import 'package:onexray/service/connect/routing/dns_forwarding.dart';
 import 'package:onexray/service/shared/xray/runtime_outbounds.dart';
 import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/validation.dart';
@@ -148,7 +149,13 @@ class SmartRoutingEditorService {
       if (smart.fragment) XrayFragment.defaultOutbound(),
     ];
     final tags = [for (var i = 0; i < smart.entryCount; i++) 'app-entry-$i'];
-    final selection = smart.selection.compile(selector: tags);
+    final selection = smart.selection.compile(
+      selector: tags,
+      fallbackTag: tags.first,
+    );
+    final forwarding = RoutingDnsForwarding.compile(
+      policy: smart.dns.nonAddressPolicy,
+    );
     final error = await (testXray ?? AppHostApi().testXray)(
       XrayValidation.normal(
         XrayJson(
@@ -161,7 +168,10 @@ class SmartRoutingEditorService {
           ],
           dns: dns,
           fakedns: FakeDns.poolsFor(dns),
-          routing: XrayRouting(balancers: [selection.balancer]),
+          routing: XrayRouting(
+            balancers: [selection.balancer],
+            rules: forwarding.rules,
+          ),
           observatory: selection.observatory,
           outbounds: [
             ...XrayFragment.connectEntries([
@@ -169,6 +179,7 @@ class SmartRoutingEditorService {
             ], helpers),
             ...helpers,
             createFreedomOutbound(tag: 'direct').toJson(),
+            ...forwarding.outbounds,
           ],
         ),
       ),

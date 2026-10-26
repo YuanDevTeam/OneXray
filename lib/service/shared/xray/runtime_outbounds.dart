@@ -16,17 +16,18 @@ XrayOutbound createBlackholeOutbound({required String tag}) =>
 
 XrayOutbound createDnsOutbound({
   required String tag,
-  required String dialerProxy,
+  required String? dialerProxy,
+  bool returnNonAddress = false,
 }) => XrayOutbound(
   tag: tag,
   protocol: 'dns',
   settings: {
-    'rules': const [
-      XrayOutboundDnsRule(action: 'hijack', qType: '1,28'),
-      XrayOutboundDnsRule(action: 'direct'),
+    'rules': [
+      const XrayOutboundDnsRule(action: 'hijack', qType: '1,28'),
+      XrayOutboundDnsRule(action: returnNonAddress ? 'return' : 'direct'),
     ].map((rule) => rule.toJson()).toList(),
   },
-  streamSettings: XrayStreamSettings(
-    sockopt: XraySockopt(dialerProxy: dialerProxy),
-  ),
+  streamSettings: dialerProxy == null
+      ? null
+      : XrayStreamSettings(sockopt: XraySockopt(dialerProxy: dialerProxy)),
 );

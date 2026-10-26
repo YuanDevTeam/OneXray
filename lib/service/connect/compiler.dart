@@ -14,6 +14,7 @@ import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/dns.dart';
+import 'package:onexray/service/connect/routing/dns_forwarding.dart';
 import 'package:onexray/service/connect/routing/options.dart';
 import 'package:onexray/service/servers/outbound/map.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
@@ -199,7 +200,7 @@ class ConnectionCompiler {
 
   static const dnsProxy = RoutingDns.proxyTag;
   static const dnsDirect = RoutingDns.directTag;
-  static const dnsOutbound = 'dnsOut';
+  static const dnsOutbound = RoutingDnsForwarding.outboundTag;
 
   /// Checks only collisions with the enabled App-managed LAN listener.
   static void validateLanProxyInbounds(List<dynamic> inbounds, int port) {
@@ -415,16 +416,17 @@ class ConnectionCompiler {
               : null,
         ).toJson(),
         createBlackholeOutbound(tag: 'block').toJson(),
-        createDnsOutbound(
-          tag: dnsOutbound,
-          dialerProxy: allVpn ? selector.single : 'direct',
-        ).toJson(),
       ]);
       final dnsSettings = switch (settings.trafficMode) {
         TrafficMode.smart => settings.smart.dns,
         TrafficMode.custom => ordinary!.dns,
         TrafficMode.allVpn => const RoutingDnsSettings(),
       };
+      final forwarding = RoutingDnsForwarding.compile(
+        policy: dnsSettings.nonAddressPolicy,
+        fixedProxyTag: allVpn ? selector.single : null,
+      );
+      outbounds.addAll(forwarding.outbounds);
       final sniffing = switch (settings.trafficMode) {
         TrafficMode.smart => settings.smart.sniffing,
         TrafficMode.custom => ordinary!.sniffing,
@@ -435,7 +437,10 @@ class ConnectionCompiler {
         TrafficMode.custom => ordinary!.selection,
         TrafficMode.allVpn => const RoutingSelectionSettings(),
       };
-      final selection = selectionSettings.compile(selector: selector);
+      final selection = selectionSettings.compile(
+        selector: selector,
+        fallbackTag: selector.first,
+      );
       final fakeDns = !allVpn && (ordinary?.fakeDns ?? settings.smart.fakeDns);
       dnsSettings.validate(
         directEnabled:
@@ -496,6 +501,7 @@ class ConnectionCompiler {
                 inboundTag: [ManagedServerDialing.dnsTag],
                 outboundTag: 'direct',
               ),
+            ...forwarding.rules,
             XrayRoutingRule(
               ruleTag: 'app-default',
               inboundTag: [dnsProxy],

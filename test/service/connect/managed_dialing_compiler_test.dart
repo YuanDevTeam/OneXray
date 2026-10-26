@@ -115,8 +115,14 @@ void main() {
     expect(
       (config['routing']['rules'] as List)
           .map((rule) => rule['ruleTag'])
-          .take(4),
-      ['app-default', 'app-direct-dns', 'app-tunnel-dns', 'app-tunnel-dot'],
+          .take(5),
+      [
+        'app-dns-forward',
+        'app-default',
+        'app-direct-dns',
+        'app-tunnel-dns',
+        'app-tunnel-dot',
+      ],
     );
     expect(jsonEncode(source), before);
     expect(entry.outbound, source);

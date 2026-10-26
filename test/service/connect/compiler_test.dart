@@ -1187,7 +1187,7 @@ void main() {
           balancer['selector'],
           List.generate(count, (i) => 'app-entry-$i'),
         );
-        expect(balancer['fallbackTag'], 'direct');
+        expect(balancer['fallbackTag'], 'app-entry-0');
         expect(config['observatory']['subjectSelector'], isEmpty);
         final outbounds = (config['outbounds'] as List).cast<Map>();
         expect(
@@ -1198,14 +1198,17 @@ void main() {
           'direct',
           'block',
           'dnsOut',
+          'app-dns-forward',
         ]);
         expect(
-          outbounds.last['streamSettings']['sockopt']['dialerProxy'],
-          'direct',
+          outbounds.singleWhere(
+            (outbound) => outbound['tag'] == 'dnsOut',
+          )['streamSettings']['sockopt']['dialerProxy'],
+          'app-dns-forward',
         );
         expect(
           outbounds.any((outbound) => outbound['protocol'] == 'loopback'),
-          false,
+          true,
         );
         expect(jsonEncode(outbounds), isNot(contains('domainStrategy')));
         expect(
@@ -1296,6 +1299,7 @@ void main() {
           'direct',
           'block',
           'dnsOut',
+          'app-dns-forward',
         ]);
         expect(
           outbounds.take(count).map((outbound) => outbound['tag']),
@@ -1440,7 +1444,14 @@ void main() {
     );
     expect(
       (plan.config['outbounds'] as List).map((outbound) => outbound['tag']),
-      ['app-entry-0', 'app-entry-1', 'direct', 'block', 'dnsOut'],
+      [
+        'app-entry-0',
+        'app-entry-1',
+        'direct',
+        'block',
+        'dnsOut',
+        'app-dns-forward',
+      ],
     );
     final first = (plan.config['routing']['rules'] as List).singleWhere(
       (rule) => rule['ruleTag'] == 'app-custom-0',

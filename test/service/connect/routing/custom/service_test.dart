@@ -125,14 +125,39 @@ void main() {
           {'tag': 'app-entry-$i', 'protocol': 'freedom'},
         {'tag': 'direct', 'protocol': 'freedom'},
         {'tag': 'block', 'protocol': 'blackhole'},
+        {
+          'tag': 'dnsOut',
+          'protocol': 'dns',
+          'settings': {
+            'rules': [
+              {'action': 'hijack', 'qType': '1,28'},
+              {'action': 'direct'},
+            ],
+          },
+          'streamSettings': {
+            'sockopt': {'dialerProxy': 'app-dns-forward'},
+          },
+        },
+        {
+          'tag': 'app-dns-forward',
+          'protocol': 'loopback',
+          'settings': {'inboundTag': 'app-dns-forward'},
+        },
       ]);
       expect(config['routing']['domainStrategy'], 'IPIfNonMatch');
-      expect(config['routing']['rules'], [state.rules.single.toJson()]);
+      expect(config['routing']['rules'], [
+        {
+          'ruleTag': 'app-dns-forward',
+          'inboundTag': ['app-dns-forward'],
+          'balancerTag': 'proxy',
+        },
+        state.rules.single.toJson(),
+      ]);
       expect(config['routing']['balancers'].single, {
         'tag': 'proxy',
         'selector': ['app-entry-0', 'app-entry-1', 'app-entry-2'],
         'strategy': {'type': 'roundRobin'},
-        'fallbackTag': 'direct',
+        'fallbackTag': 'app-entry-0',
       });
       expect(config['observatory'], {'subjectSelector': []});
       return calls == 1 ? '' : 'Core rejected rule';
