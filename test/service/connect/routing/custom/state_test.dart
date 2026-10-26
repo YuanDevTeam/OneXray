@@ -6,8 +6,155 @@ import 'package:onexray/service/connect/routing/custom/document.dart';
 import 'package:onexray/service/connect/routing/custom/editor.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/state_db.dart';
+import 'package:onexray/service/connect/routing/options.dart';
 
 void main() {
+  test('non-address DNS policies use reversible standard DNS helpers', () {
+    final legacy = RoutingProfileDocument.fromJson(_document()).state;
+    expect(legacy.dns.nonAddressPolicy, NonAddressDnsPolicy.proxy);
+    for (final policy in NonAddressDnsPolicy.values) {
+      final state = legacy.copyWith(
+        dns: legacy.dns.copyWith(nonAddressPolicy: policy),
+      );
+      final exported = jsonDecode(state.encode()) as Map<String, dynamic>;
+      expect(exported['outbounds'], [
+        <String, dynamic>{},
+        if (policy != NonAddressDnsPolicy.proxy) _dnsHelper(policy),
+      ]);
+      expect(exported.containsKey('nonAddressPolicy'), false);
+      expect((exported['dns'] as Map).containsKey('nonAddressPolicy'), false);
+      final shared = RoutingProfileDocument.fromJson({
+        ...exported,
+        'name': 'Shared route',
+      }).state;
+      expect(shared.dns.nonAddressPolicy, policy);
+      expect(shared.copyWith(name: 'Renamed').dns.nonAddressPolicy, policy);
+      final stored = RoutingProfileStateDb.readData(
+        id: 7,
+        name: 'Stored route',
+        data: shared.databaseData,
+      );
+      expect(stored.dns.nonAddressPolicy, policy);
+      expect(stored.toJson(), state.toJson());
+      expect(
+        CustomRoutingEditorService.sameRouting(legacy, state),
+        policy == NonAddressDnsPolicy.proxy,
+      );
+    }
+  });
+
+  test('non-address DNS helpers coexist with fragment and entry slots', () {
+    for (final count in [1, 2, 3]) {
+      for (final policy in NonAddressDnsPolicy.values) {
+        final state = RoutingProfileState(
+          name: 'Route',
+          entryCount: count,
+          dns: RoutingDnsSettings(nonAddressPolicy: policy),
+          fragmentOutbound: _fragment(),
+        );
+        final decoded = RoutingProfileDocument.parse(state.encode()).state;
+        expect(decoded.entryCount, count);
+        expect(decoded.fragmentOutbound, _fragment());
+        expect(decoded.dns.nonAddressPolicy, policy);
+        expect(decoded.toJson(), state.toJson());
+        expect(decoded.xrayJson.outbounds, [
+          for (var i = 0; i < count; i++) <String, dynamic>{},
+          _fragment(),
+          if (policy != NonAddressDnsPolicy.proxy) _dnsHelper(policy),
+        ]);
+      }
+    }
+  });
+
+  test('DNS helpers reject runtime and unrepresentable exchange fields', () {
+    final helper = _dnsHelper(NonAddressDnsPolicy.direct);
+    for (final outbound in [
+      {...helper, 'tag': 'other'},
+      {...helper, 'protocol': 'freedom'},
+      {...helper, 'futureField': true},
+      {
+        ...helper,
+        'streamSettings': {
+          'sockopt': {'dialerProxy': 'direct'},
+        },
+      },
+      {...helper, 'settings': null},
+      {
+        ...helper,
+        'settings': {...helper['settings'] as Map, 'address': '1.1.1.1'},
+      },
+      {
+        ...helper,
+        'settings': {'rules': 'direct'},
+      },
+      for (final rules in [
+        [],
+        [
+          {'action': 'direct'},
+        ],
+        [
+          {'action': 'hijack', 'qType': '1,28'},
+          {'action': 'direct'},
+          {'action': 'return'},
+        ],
+        [
+          {
+            'action': 'hijack',
+            'qType': [1, 28],
+          },
+          {'action': 'direct'},
+        ],
+        [
+          {'action': 'hijack', 'qType': '1'},
+          {'action': 'direct'},
+        ],
+        [
+          {'action': 'hijack', 'qType': '1,28', 'domain': 'example.com'},
+          {'action': 'direct'},
+        ],
+        [
+          {'action': 'direct'},
+          {'action': 'hijack', 'qType': '1,28'},
+        ],
+        [
+          {'action': 'hijack', 'qType': '1,28'},
+          {'action': 'drop'},
+        ],
+        [
+          {'action': 'hijack', 'qType': '1,28'},
+          {'action': 'return', 'rcode': 0},
+        ],
+        [
+          {'action': 'hijack', 'qType': '1,28'},
+          {'action': 'direct', 'target': '1.1.1.1'},
+        ],
+      ])
+        {
+          ...helper,
+          'settings': {'rules': rules},
+        },
+    ]) {
+      _reject({
+        ..._document(),
+        'outbounds': [{}, outbound],
+      });
+    }
+    for (final outbounds in [
+      [helper],
+      [{}, helper, {}],
+      [{}, helper, helper],
+      [{}, helper, _fragment()],
+      [{}, _fragment(), helper, helper],
+    ]) {
+      _reject({..._document(), 'outbounds': outbounds});
+    }
+    _reject({..._document(), 'nonAddressPolicy': 'direct'});
+    _reject({
+      ..._document(),
+      'dns': {..._storedDns(), 'nonAddressPolicy': 'direct'},
+    });
+  });
+
   test('stored ordinary configuration drops retired fields without mutating the source', () {
     final expected = RoutingProfileState(
       name: 'Stored route',
@@ -597,6 +744,17 @@ Map<String, dynamic> _fragment() => {
   },
   'streamSettings': {
     'sockopt': {'tcpNoDelay': true},
+  },
+};
+
+Map<String, dynamic> _dnsHelper(NonAddressDnsPolicy policy) => {
+  'tag': 'dnsOut',
+  'protocol': 'dns',
+  'settings': {
+    'rules': [
+      {'action': 'hijack', 'qType': '1,28'},
+      {'action': policy == NonAddressDnsPolicy.direct ? 'direct' : 'return'},
+    ],
   },
 };
 

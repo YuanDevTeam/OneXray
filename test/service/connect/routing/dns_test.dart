@@ -5,6 +5,60 @@ import 'package:onexray/service/connect/routing/options.dart';
 import 'package:onexray/service/shared/xray/fake_dns.dart';
 
 void main() {
+  test('non-address DNS policy defaults to proxy and survives preferences', () {
+    expect(
+      RoutingDnsSettings.fromJson({}).nonAddressPolicy,
+      NonAddressDnsPolicy.proxy,
+    );
+    for (final policy in NonAddressDnsPolicy.values) {
+      final settings = const RoutingDnsSettings().copyWith(
+        nonAddressPolicy: policy,
+      );
+      expect(settings.toJson()['nonAddressPolicy'], policy.name);
+      expect(
+        RoutingDnsSettings.fromJson(settings.toJson()).nonAddressPolicy,
+        policy,
+      );
+      expect(settings.copyWith(disableCache: true).nonAddressPolicy, policy);
+    }
+    for (final value in ['unknown', '', 1, true, []]) {
+      expect(
+        () => RoutingDnsSettings.fromJson({'nonAddressPolicy': value}),
+        throwsFormatException,
+      );
+    }
+  });
+
+  test('non-address policy stays effective with direct DNS disabled', () {
+    const settings = RoutingDnsSettings(
+      directResolvers: [RoutingDnsResolver(address: '223.5.5.5')],
+    );
+    for (final policy in NonAddressDnsPolicy.values) {
+      final effective = settings
+          .copyWith(nonAddressPolicy: policy)
+          .effectiveJson(directEnabled: false);
+      expect(effective['nonAddressPolicy'], policy.name);
+      expect(effective, isNot(contains('directResolvers')));
+      expect(
+        effective,
+        settings
+            .copyWith(
+              nonAddressPolicy: policy,
+              directResolvers: const [RoutingDnsResolver(address: '9.9.9.9')],
+            )
+            .effectiveJson(directEnabled: false),
+      );
+    }
+    expect(
+      settings.effectiveJson(directEnabled: false),
+      isNot(
+        settings
+            .copyWith(nonAddressPolicy: NonAddressDnsPolicy.direct)
+            .effectiveJson(directEnabled: false),
+      ),
+    );
+  });
+
   test('only unconditional direct domain rules contribute to local DNS', () {
     final extraConditions = <XrayRoutingRule>[
       XrayRoutingRule(ip: ['192.0.2.0/24']),
@@ -212,6 +266,7 @@ void main() {
     expect(settings.toJson(), {
       'disableCache': true,
       'sameExitOnly': true,
+      'nonAddressPolicy': 'proxy',
       'proxyResolvers': [
         {'address': '1.1.1.1'},
         {'address': '9.9.9.9'},

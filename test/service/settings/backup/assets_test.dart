@@ -174,6 +174,9 @@ void main() {
     (advanced['inbounds'] as List).single['sniffing'].addAll(_retiredSniffing);
     final ordinary = RoutingProfileState(
       name: '普通路由',
+      dns: const RoutingDnsSettings(
+        nonAddressPolicy: NonAddressDnsPolicy.empty,
+      ),
       fragmentOutbound: fragmentOutbound,
     );
     final legacyOrdinary = ordinary.toJson();
@@ -288,6 +291,7 @@ void main() {
               RoutingDnsResolver(address: '9.9.9.9'),
             ],
             sameExitOnly: true,
+            nonAddressPolicy: NonAddressDnsPolicy.direct,
           ),
           sniffing: const RoutingSniffingSettings(metadataOnly: true),
           selection: const RoutingSelectionSettings(
@@ -313,6 +317,7 @@ void main() {
     );
     final document = await assets.capture();
     validateBackupAssets(document);
+    expect(document.version, 1);
     expect(document.coreConfigs.length, 5);
     expect(document.coreConfigs.last.data, outbound);
     expect(document.routingProfiles.map((row) => row.data), routeData);
@@ -424,6 +429,10 @@ void main() {
     expect(
       RoutingProfileStateDb.read(routes.first).toJson(),
       ordinary.toJson(),
+    );
+    expect(
+      RoutingProfileStateDb.read(routes.first).dns.nonAddressPolicy,
+      NonAddressDnsPolicy.empty,
     );
     expect(
       RoutingProfileStateDb.readConfiguration(routes.last).toJson(),

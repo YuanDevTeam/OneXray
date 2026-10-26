@@ -171,17 +171,30 @@ final class RoutingProfileState implements RoutingConfiguration {
         .takeWhile((outbound) => outbound.isEmpty)
         .length;
     final helpers = outbounds.skip(entryCount).toList();
-    if (entryCount < 1 ||
-        entryCount > 3 ||
-        helpers.length > 1 ||
-        helpers.any((outbound) => !XrayFragment.matches(outbound))) {
+    if (entryCount < 1 || entryCount > 3 || helpers.length > 2) {
       throw const JsonDiagnostic(
         'outbounds must start with 1–3 empty object slots followed by an '
-        'optional fragment freedom outbound',
+        'optional fragment freedom outbound and optional managed DNS outbound',
         path: ['outbounds'],
       );
     }
-    final dns = RoutingDnsSettings.fromXrayDns(xrayJson.dns);
+    final fragment = helpers.isNotEmpty && XrayFragment.matches(helpers.first)
+        ? helpers.removeAt(0)
+        : null;
+    if (helpers.length > 1) {
+      throw const JsonDiagnostic(
+        'Custom routing supports one fragment and one managed DNS outbound',
+        path: ['outbounds'],
+      );
+    }
+    final nonAddressPolicy = helpers.isEmpty
+        ? NonAddressDnsPolicy.proxy
+        : _nonAddressPolicy(helpers.single, [
+            'outbounds',
+            entryCount + (fragment == null ? 0 : 1),
+          ]);
+    final dns = RoutingDnsSettings.fromXrayDns(xrayJson.dns)
+        .copyWith(nonAddressPolicy: nonAddressPolicy);
     final sniffing = RoutingSniffingSettings.fromXraySniffing(
       (xrayJson.inbounds?.isNotEmpty == true
           ? xrayJson.inbounds!.first.sniffing
@@ -201,7 +214,7 @@ final class RoutingProfileState implements RoutingConfiguration {
       fakeDns:
           xrayJson.dns?.servers?.any((server) => server.tag == FakeDns.tag) ??
           false,
-      fragmentOutbound: helpers.isEmpty ? null : helpers.single,
+      fragmentOutbound: fragment,
       rules: [
         for (final (index, rule)
             in (xrayJson.routing?.rules ?? const <XrayRoutingRule>[]).indexed)
@@ -229,6 +242,21 @@ final class RoutingProfileState implements RoutingConfiguration {
       outbounds: [
         for (var index = 0; index < entryCount; index++) <String, dynamic>{},
         if (_fragmentOutbound != null) JsonTool.copyMap(_fragmentOutbound),
+        if (dns.nonAddressPolicy != NonAddressDnsPolicy.proxy)
+          {
+            'tag': 'dnsOut',
+            'protocol': 'dns',
+            'settings': {
+              'rules': [
+                {'action': 'hijack', 'qType': '1,28'},
+                {
+                  'action': dns.nonAddressPolicy == NonAddressDnsPolicy.direct
+                      ? 'direct'
+                      : 'return',
+                },
+              ],
+            },
+          },
       ],
       routing: XrayRouting(
         domainStrategy: 'IPIfNonMatch',
@@ -304,3 +332,58 @@ final class RoutingProfileState implements RoutingConfiguration {
 
 Object? _copyValue(Object? value) =>
     value is List ? List<Object?>.unmodifiable(value) : value;
+
+// The ordinary form represents only this fixed helper. Runtime socket and
+// destination settings must never be imported into its persisted state.
+NonAddressDnsPolicy _nonAddressPolicy(
+  Map<String, dynamic> outbound,
+  List<Object> path,
+) {
+  if (outbound.length != 3 ||
+      outbound['tag'] != 'dnsOut' ||
+      outbound['protocol'] != 'dns') {
+    throw JsonDiagnostic(
+      'Custom DNS outbound must contain only dnsOut tag, dns protocol and settings',
+      path: path,
+    );
+  }
+  final settings = outbound['settings'];
+  if (settings is! Map<String, dynamic> || settings.length != 1) {
+    throw JsonDiagnostic(
+      'Custom DNS outbound settings must contain only rules',
+      path: [...path, 'settings'],
+    );
+  }
+  final rules = settings['rules'];
+  if (rules is! List || rules.length != 2) {
+    throw JsonDiagnostic(
+      'Custom DNS outbound requires one A/AAAA hijack and one fallback rule',
+      path: [...path, 'settings', 'rules'],
+    );
+  }
+  final addressRule = rules.first;
+  if (addressRule is! Map<String, dynamic> ||
+      addressRule.length != 2 ||
+      addressRule['action'] != 'hijack' ||
+      addressRule['qType'] != '1,28') {
+    throw JsonDiagnostic(
+      'Custom DNS outbound must hijack exactly A/AAAA queries first',
+      path: [...path, 'settings', 'rules', 0],
+    );
+  }
+  final fallback = rules.last;
+  if (fallback is! Map<String, dynamic> || fallback.length != 1) {
+    throw JsonDiagnostic(
+      'Custom DNS outbound fallback must contain only an action',
+      path: [...path, 'settings', 'rules', 1],
+    );
+  }
+  return switch (fallback['action']) {
+    'direct' => NonAddressDnsPolicy.direct,
+    'return' => NonAddressDnsPolicy.empty,
+    _ => throw JsonDiagnostic(
+      'Custom DNS outbound fallback must use direct or return',
+      path: [...path, 'settings', 'rules', 1, 'action'],
+    ),
+  };
+}

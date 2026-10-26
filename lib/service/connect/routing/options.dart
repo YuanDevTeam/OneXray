@@ -63,6 +63,9 @@ final class RoutingDnsResolver {
   }
 }
 
+/// Handling of DNS records outside the managed A/AAAA resolver policy.
+enum NonAddressDnsPolicy { proxy, direct, empty }
+
 /// App-owned DNS policy; runtime domain blocks are generated from routing.
 final class RoutingDnsSettings {
   static const defaultAddress = '8.8.8.8';
@@ -74,12 +77,14 @@ final class RoutingDnsSettings {
   final List<RoutingDnsResolver> _directResolvers;
   final bool disableCache;
   final bool sameExitOnly;
+  final NonAddressDnsPolicy nonAddressPolicy;
 
   const RoutingDnsSettings({
     List<RoutingDnsResolver> proxyResolvers = defaultResolvers,
     List<RoutingDnsResolver> directResolvers = defaultResolvers,
     this.disableCache = false,
     this.sameExitOnly = false,
+    this.nonAddressPolicy = NonAddressDnsPolicy.proxy,
   }) : _proxyResolvers = proxyResolvers,
        _directResolvers = directResolvers;
 
@@ -99,6 +104,14 @@ final class RoutingDnsSettings {
         directResolvers: _resolvers(json['directResolvers']),
         disableCache: json['disableCache'] as bool? ?? false,
         sameExitOnly: json['sameExitOnly'] as bool? ?? false,
+        nonAddressPolicy: switch (json['nonAddressPolicy']) {
+          null || 'proxy' => NonAddressDnsPolicy.proxy,
+          'direct' => NonAddressDnsPolicy.direct,
+          'empty' => NonAddressDnsPolicy.empty,
+          _ => throw const FormatException(
+            'Unsupported non-address DNS policy',
+          ),
+        },
       );
 
   factory RoutingDnsSettings.fromXrayDns(XrayDns? dns) {
@@ -174,6 +187,7 @@ final class RoutingDnsSettings {
     ],
     'disableCache': disableCache,
     'sameExitOnly': sameExitOnly,
+    'nonAddressPolicy': nonAddressPolicy.name,
   };
 
   /// Standard DNS exchange fields only; no derived domains or platform query.
@@ -201,11 +215,13 @@ final class RoutingDnsSettings {
     List<RoutingDnsResolver>? directResolvers,
     bool? disableCache,
     bool? sameExitOnly,
+    NonAddressDnsPolicy? nonAddressPolicy,
   }) => RoutingDnsSettings(
     proxyResolvers: List.unmodifiable(proxyResolvers ?? this.proxyResolvers),
     directResolvers: List.unmodifiable(directResolvers ?? this.directResolvers),
     disableCache: disableCache ?? this.disableCache,
     sameExitOnly: sameExitOnly ?? this.sameExitOnly,
+    nonAddressPolicy: nonAddressPolicy ?? this.nonAddressPolicy,
   );
 
   Map<String, dynamic> effectiveJson({bool directEnabled = true}) => {
@@ -218,6 +234,7 @@ final class RoutingDnsSettings {
       ],
     'disableCache': disableCache,
     'sameExitOnly': sameExitOnly,
+    'nonAddressPolicy': nonAddressPolicy.name,
   };
 
   void validate({bool directEnabled = true}) {
