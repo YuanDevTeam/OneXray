@@ -104,7 +104,8 @@ final class AppDataCleanupService {
   }
 
   /// Same admission/drain boundary as clear, without deleting preferences,
-  /// platform policy, default resources, runtime permissions or startup setup.
+  /// default resources, runtime permissions or startup setup. The backup
+  /// transaction may restore VPN settings for the current platform.
   Future<void> runForRestore(Future<void> Function() commit) async {
     if (_clearing) throw StateError('App data is being cleared or restored.');
     _clearing = true;

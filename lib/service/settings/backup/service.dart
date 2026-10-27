@@ -377,6 +377,7 @@ class BackupService extends Cubit<BackupState> {
   Future<BackupPreview> _preview(BackupTarget target) async {
     final bytes = await _storage.read(target);
     final document = await compute(_decode, bytes);
+    await _assets.validatePlatformSettings(document);
     return BackupPreview._(
       document,
       await _assets.geodata.previewRestore(backupSources(document)),

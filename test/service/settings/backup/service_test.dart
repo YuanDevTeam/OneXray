@@ -11,10 +11,13 @@ import 'package:onexray/core/backup/model.dart';
 import 'package:onexray/core/backup/storage.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
+import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/settings/backup/assets.dart';
 import 'package:onexray/service/settings/backup/service.dart';
 import 'package:onexray/service/settings/data_cleanup.dart';
@@ -70,7 +73,7 @@ void main() {
       count: (_, _, _) async => fail('No indexing'),
       copyBundled: (_) async => fail('No default replacement'),
     );
-    assets = BackupAssets(db, geodata);
+    assets = BackupAssets(db, geodata, platform: ConnectionPlatform.android);
     stops = 0;
     stopFails = false;
     beforeRestore = null;
@@ -231,18 +234,177 @@ void main() {
       await db.manualServerGroupDao.insertRow(
         ManualServerGroupCompanion.insert(name: 'Group'),
       );
+      await db.connectionConfigDao.commit(
+        configurationJson: ConnectionConfiguration(
+          policy: PlatformPolicy.fromJson({
+            'ipv6Enabled': false,
+            'android': {
+              'appScope': 'included',
+              'includedAppPackageNames': ['net.example.backup'],
+            },
+          }),
+        ).encode(),
+      );
       final preview = await savedPreview();
+      await db.connectionConfigDao.commit(
+        configurationJson: ConnectionConfiguration(
+          policy: PlatformPolicy.fromJson({
+            'android': {
+              'appScope': 'excluded',
+              'excludedAppPackageNames': ['net.example.target'],
+            },
+          }),
+        ).encode(),
+      );
       final original = await db.coreConfigDao.allRawRowsWithData;
       final groups = await db.manualServerGroupDao.allRows;
+      final originalConfiguration = await db.connectionConfigDao.read();
       await db.customStatement(
         "CREATE TRIGGER reject_restore BEFORE INSERT ON core_config WHEN NEW.name = 'Restored' BEGIN SELECT RAISE(ABORT, 'fixture insert failure'); END;",
       );
       await expectLater(service.restore(preview), throwsA(anything));
       expect(await db.coreConfigDao.allRawRowsWithData, original);
       expect(await db.manualServerGroupDao.allRows, groups);
+      expect(await db.connectionConfigDao.read(), originalConfiguration);
       expect(stops, 1);
     },
   );
+
+  for (final invalid in [
+    42,
+    {
+      'android': {'appScope': 'unsupported'},
+    },
+    {
+      'android': {'includedAppPackageNames': 'not a list'},
+    },
+    {
+      'lanProxy': {'port': 'not a port'},
+    },
+  ]) {
+    test(
+      'invalid matching platform settings fail preview before destructive work: $invalid',
+      () async {
+        await insert('Current');
+        await db.connectionConfigDao.commit(
+          configurationJson: ConnectionConfiguration(
+            policy: PlatformPolicy.fromJson({
+              'android': {
+                'appScope': 'excluded',
+                'excludedAppPackageNames': ['net.example.keep'],
+              },
+            }),
+          ).encode(),
+        );
+        final original = await db.coreConfigDao.allRawRowsWithData;
+        final originalConfiguration = await db.connectionConfigDao.read();
+        final snapshot = (await assets.capture()).toJson();
+        snapshot['platformSettings'] = {'android': invalid};
+        storage.bytes = Uint8List.fromList(utf8.encode(jsonEncode(snapshot)));
+        preferences.enabled = false;
+        preferences.settings = BackupSettings(target: storage.target);
+        await service.load();
+
+        await expectLater(service.preview(), throwsFormatException);
+        expect(await db.coreConfigDao.allRawRowsWithData, original);
+        expect(await db.connectionConfigDao.read(), originalConfiguration);
+        expect((stops, storage.writes), (0, 0));
+        expect(service.state.operation, null);
+      },
+    );
+  }
+
+  test(
+    'preview validates partial platform settings against the target policy',
+    () async {
+      await insert('Current');
+      await db.connectionConfigDao.commit(
+        configurationJson: ConnectionConfiguration(
+          policy: PlatformPolicy.fromJson({
+            'apple': {
+              'disconnectWifiSsids': ['Home'],
+            },
+          }),
+        ).encode(),
+      );
+      final original = await db.connectionConfigDao.read();
+      final snapshot = (await assets.capture()).toJson()
+        ..['platformSettings'] = {
+          'ios': {
+            'apple': {
+              'connectWifiSsids': ['Home'],
+            },
+          },
+        };
+      storage.bytes = Uint8List.fromList(utf8.encode(jsonEncode(snapshot)));
+      preferences.enabled = false;
+      preferences.settings = BackupSettings(target: storage.target);
+      final appleService = BackupService.forTesting(
+        storage: storage,
+        preferences: preferences,
+        assets: BackupAssets(
+          db,
+          assets.geodata,
+          platform: ConnectionPlatform.ios,
+        ),
+        now: () => now,
+        restore: (_) async => fail('Preview cannot begin restore'),
+      );
+      addTearDown(appleService.close);
+      await appleService.load();
+
+      await expectLater(appleService.preview(), throwsFormatException);
+      expect(await db.connectionConfigDao.read(), original);
+      expect((stops, storage.writes), (0, 0));
+      expect(
+        (await db.coreConfigDao.allRawRowsWithData).single.name,
+        'Current',
+      );
+    },
+  );
+
+  test('malformed foreign platform settings do not block ordinary asset restoration', () async {
+    await insert('Restored');
+    final snapshot = (await assets.capture()).toJson();
+    snapshot['platformSettings'] = {
+      'ios': 42,
+      'macos': {
+        'apple': {'alwaysOn': 'not a boolean'},
+      },
+      'windows': null,
+    };
+    storage.bytes = Uint8List.fromList(utf8.encode(jsonEncode(snapshot)));
+    await db.coreConfigDao.clear();
+    await insert('Current');
+    await db.connectionConfigDao.commit(
+      configurationJson: ConnectionConfiguration(
+        policy: PlatformPolicy.fromJson({
+          'ipv6Enabled': false,
+          'android': {
+            'appScope': 'excluded',
+            'excludedAppPackageNames': ['net.example.keep'],
+          },
+        }),
+      ).encode(),
+    );
+    final originalConfiguration = ConnectionConfiguration.fromJson(
+      jsonDecode((await db.connectionConfigDao.read()).configurationJson)
+          as Map<String, dynamic>,
+    );
+    preferences.enabled = false;
+    preferences.settings = BackupSettings(target: storage.target);
+    await service.load();
+    final preview = await service.preview();
+    expect((preview.raw, stops, storage.writes), (1, 0, 0));
+    await service.restore(preview);
+    expect((await db.coreConfigDao.allRawRowsWithData).single.name, 'Restored');
+    final restored = ConnectionConfiguration.fromJson(
+      jsonDecode((await db.connectionConfigDao.read()).configurationJson)
+          as Map<String, dynamic>,
+    );
+    expect(restored.policy.toJson(), originalConfiguration.policy.toJson());
+    expect((stops, storage.writes), (1, 0));
+  });
 
   test('clear waits for accepted provider write, rejects restore, then resets binding', () async {
     final preview = await savedPreview();

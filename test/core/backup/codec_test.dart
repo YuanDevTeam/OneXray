@@ -60,6 +60,51 @@ void main() {
     },
   );
 
+  test(
+    'platform sections remain opaque until the receiving platform reads them',
+    () {
+      final json = sample().toJson()
+        ..['platformSettings'] = {
+          'android': {
+            'android': {
+              'appScope': 'included',
+              'includedAppPackageNames': ['com.example.app'],
+              'excludedAppPackageNames': ['com.example.other'],
+            },
+          },
+          'ios': 'unreadable on other platforms',
+          'macos': 42,
+          'windows': null,
+          'linux': {'ipv6Enabled': false},
+          'futurePlatform': [1, 2],
+        };
+      final document = decodeBackup(
+        Uint8List.fromList(utf8.encode(jsonEncode(json))),
+      );
+      expect(
+        decodeBackup(encodeBackup(document)).platformSettings,
+        json['platformSettings'],
+      );
+      expect(document.version, 1);
+    },
+  );
+
+  test('old v1 has no platform settings and omits the optional section', () {
+    final document = decodeBackup(encodeBackup(sample()));
+    expect(document.platformSettings, isNull);
+    expect(document.toJson(), isNot(contains('platformSettings')));
+  });
+
+  test('the platform settings container must be an object', () {
+    for (final value in ['android', <Object>[], 1]) {
+      final json = sample().toJson()..['platformSettings'] = value;
+      expect(
+        () => decodeBackup(Uint8List.fromList(utf8.encode(jsonEncode(json)))),
+        throwsFormatException,
+      );
+    }
+  });
+
   test('previous v1 backups default fragment to disabled', () {
     final json = sample().toJson();
     (json['smartRouting'] as Map<String, dynamic>).remove('fragment');

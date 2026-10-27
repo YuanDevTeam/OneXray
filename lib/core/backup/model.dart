@@ -13,6 +13,8 @@ class BackupDocument {
   final List<BackupRoutingProfile> routingProfiles;
   final BackupSmartRouting smartRouting;
   final List<BackupGeoData> geoData;
+  @JsonKey(includeIfNull: false)
+  final Map<String, dynamic>? platformSettings;
 
   const BackupDocument({
     this.format = 'onexray-backup',
@@ -24,6 +26,7 @@ class BackupDocument {
     required this.routingProfiles,
     required this.smartRouting,
     required this.geoData,
+    this.platformSettings,
   });
 
   factory BackupDocument.fromJson(Map<String, dynamic> json) =>

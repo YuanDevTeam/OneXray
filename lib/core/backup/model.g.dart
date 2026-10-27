@@ -33,6 +33,7 @@ BackupDocument _$BackupDocumentFromJson(Map<String, dynamic> json) =>
       geoData: (json['geoData'] as List<dynamic>)
           .map((e) => BackupGeoData.fromJson(e as Map<String, dynamic>))
           .toList(),
+      platformSettings: json['platformSettings'] as Map<String, dynamic>?,
     );
 
 Map<String, dynamic> _$BackupDocumentToJson(
@@ -47,6 +48,7 @@ Map<String, dynamic> _$BackupDocumentToJson(
   'routingProfiles': instance.routingProfiles.map((e) => e.toJson()).toList(),
   'smartRouting': instance.smartRouting.toJson(),
   'geoData': instance.geoData.map((e) => e.toJson()).toList(),
+  'platformSettings': ?instance.platformSettings,
 };
 
 BackupManualGroup _$BackupManualGroupFromJson(Map<String, dynamic> json) =>

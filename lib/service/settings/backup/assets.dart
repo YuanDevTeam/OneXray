@@ -9,19 +9,32 @@ import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/db/dao/routing_profile.dart';
 import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/core/network/model.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/advanced/xray/geodata/model.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/custom/document.dart';
 import 'package:onexray/service/shared/share/configuration_transfer.dart';
+import 'package:onexray/service/settings/backup/platform_settings.dart';
 
-/// Only connection assets cross this boundary. Runtime choices, device policy,
-/// database identities, measurements and resource bytes are never exported.
+/// Connection assets and same-platform VPN settings cross this boundary.
+/// Runtime choices, local bindings, identities and resource bytes stay local.
 class BackupAssets {
-  BackupAssets(this.db, this.geodata);
+  BackupAssets(this.db, this.geodata, {ConnectionPlatform? platform})
+    : platform = platform ?? connectionPlatform;
   final AppDatabase db;
   final GeoDataService geodata;
+  final ConnectionPlatform platform;
+  late final _platformSettings = BackupPlatformSettings(platform);
+
+  Future<void> validatePlatformSettings(BackupDocument document) async {
+    final original = ConnectionConfiguration.fromJson(
+      jsonDecode((await db.connectionConfigDao.read()).configurationJson)
+          as Map<String, dynamic>,
+    );
+    _platformSettings.restore(document, original.policy);
+  }
 
   Future<BackupDocument> capture() => db.transaction(() async {
     final nodes =
@@ -40,12 +53,14 @@ class BackupAssets {
     };
     final routes = await db.routingProfileDao.allRows;
     final sources = await db.geoDataDao.allRows;
-    final settings = ConnectionConfiguration.fromJson(
+    final configuration = ConnectionConfiguration.fromJson(
       jsonDecode((await db.connectionConfigDao.read()).configurationJson)
           as Map<String, dynamic>,
-    ).connection.smart;
+    );
+    final settings = configuration.connection.smart;
     return BackupDocument(
       createdAt: DateTime.now().millisecondsSinceEpoch,
+      platformSettings: _platformSettings.capture(configuration.policy),
       manualGroups: [
         for (final group in groups)
           BackupManualGroup(groupKeys[group.id]!, group.name, group.sortOrder),
@@ -116,7 +131,7 @@ class BackupAssets {
               document.smartRouting.toJson(),
             ),
           ),
-          policy: original.policy,
+          policy: _platformSettings.restore(document, original.policy),
         );
         await db.connectionConfigDao.commit(
           configurationJson: restored.encode(),

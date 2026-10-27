@@ -453,6 +453,221 @@ void main() {
     );
     expect(recaptured.routingProfiles.map((row) => row.data), routeData);
   });
+
+  group('platform-scoped settings', () {
+    late AppDatabase db;
+    late GeoDataService geodata;
+
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      final parent = await Directory('../references/onexray-tests').absolute
+          .create(recursive: true);
+      final root = await parent.createTemp('backup-platform-settings-');
+      addTearDown(() => root.delete(recursive: true));
+      geodata = GeoDataService.forTesting(
+        database: db,
+        directory: '${root.path}/dat',
+        download: (_, _) async => fail('Restore must stay offline'),
+        count: (_, _, _) async => fail('No indexing during restore'),
+        copyBundled: (_) async => fail('No default resource replacement'),
+      );
+    });
+
+    Future<void> savePolicy(PlatformPolicy policy) =>
+        db.connectionConfigDao.commit(
+          configurationJson: ConnectionConfiguration(policy: policy).encode(),
+        );
+
+    Future<PlatformPolicy> readPolicy() async =>
+        ConnectionConfiguration.fromJson(
+          jsonDecode((await db.connectionConfigDao.read()).configurationJson)
+              as Map<String, dynamic>,
+        ).policy;
+
+    for (final scope in ['included', 'excluded']) {
+      test(
+        'Android $scope capture restores both package lists and portable settings',
+        () async {
+          final source = PlatformPolicy.fromJson({
+            'ipv6Enabled': false,
+            'dnsIpv4Address': '1.1.1.1',
+            'dnsIpv6Address': '2606:4700:4700::1111',
+            'dnsServerName': 'cloudflare-dns.com',
+            'dialing': {'domainStrategy': 'ipv4First', 'happyEyeballs': true},
+            'lanProxy': {'enabled': true, 'port': 12044},
+            'log': {
+              'enabled': true,
+              'level': 'debug',
+              'recordDns': false,
+              'maskIp': false,
+            },
+            'xrayOutboundInterfaceName': 'Source interface',
+            'android': {
+              'appScope': scope,
+              'includedAppPackageNames': [
+                'net.example.included',
+                'net.example.notInstalled',
+              ],
+              'excludedAppPackageNames': ['net.example.excluded'],
+            },
+            'apple': {'alwaysOn': true},
+            'windows': {'alwaysOn': true},
+          });
+          await savePolicy(source);
+          final assets = BackupAssets(
+            db,
+            geodata,
+            platform: ConnectionPlatform.android,
+          );
+          final document = decodeBackup(encodeBackup(await assets.capture()));
+          expect(document.platformSettings!.keys, ['android']);
+          final platform = document.platformSettings!['android'] as Map;
+          expect(platform['android'], source.toJson()['android']);
+          expect(platform, isNot(contains('xrayOutboundInterfaceName')));
+          expect(platform, isNot(contains('apple')));
+          expect(platform, isNot(contains('windows')));
+
+          final target = PlatformPolicy.fromJson({
+            'xrayOutboundInterfaceName': 'Target interface',
+            'android': {
+              'appScope': 'all',
+              'includedAppPackageNames': ['net.example.oldIncluded'],
+              'excludedAppPackageNames': ['net.example.oldExcluded'],
+            },
+            'apple': {'captureAllTraffic': true},
+            'windows': {'allowLocalNetwork': false},
+          });
+          await savePolicy(target);
+          await assets.restore(document, await geodata.previewRestore([]));
+          expect((await readPolicy()).toJson(), {
+            ...source.toJson(),
+            'xrayOutboundInterfaceName': 'Target interface',
+            'apple': target.toJson()['apple'],
+            'windows': target.toJson()['windows'],
+          });
+          expect(
+            (await assets.capture()).platformSettings,
+            document.platformSettings,
+          );
+        },
+      );
+    }
+
+    for (final (sourcePlatform, targetPlatform) in [
+      (ConnectionPlatform.android, ConnectionPlatform.windows),
+      (ConnectionPlatform.ios, ConnectionPlatform.macos),
+      (ConnectionPlatform.macos, ConnectionPlatform.ios),
+    ]) {
+      test(
+        '$sourcePlatform settings do not replace $targetPlatform policy',
+        () async {
+          await savePolicy(
+            PlatformPolicy.fromJson({
+              'ipv6Enabled': false,
+              'android': {
+                'appScope': 'excluded',
+                'excludedAppPackageNames': ['net.example.source'],
+              },
+              'apple': {'alwaysOn': true},
+              'windows': {'alwaysOn': true},
+            }),
+          );
+          final id = await db.coreConfigDao.insertRow(
+            CoreConfigCompanion.insert(
+              name: 'Shared asset',
+              type: 'raw',
+              tags: '',
+              data: const Value('e30='),
+              delay: 0,
+              subId: 0,
+            ),
+          );
+          final sourceAssets = BackupAssets(
+            db,
+            geodata,
+            platform: sourcePlatform,
+          );
+          final document = decodeBackup(
+            encodeBackup(await sourceAssets.capture()),
+          );
+          final target = PlatformPolicy.fromJson({
+            'xrayOutboundInterfaceName': 'Target interface',
+            'android': {
+              'appScope': 'included',
+              'includedAppPackageNames': ['net.example.target'],
+            },
+            'apple': {'captureAllTraffic': true},
+            'windows': {'allowLocalNetwork': false},
+          });
+          await savePolicy(target);
+          await BackupAssets(
+            db,
+            geodata,
+            platform: targetPlatform,
+          ).restore(document, await geodata.previewRestore([]));
+          expect((await readPolicy()).toJson(), target.toJson());
+          final restored = (await db.coreConfigDao.allRawRowsWithData).single;
+          expect(restored.name, 'Shared asset');
+          expect(restored.id, greaterThan(id));
+        },
+      );
+    }
+
+    test('legacy v1 without platform settings preserves the complete target policy', () async {
+      final assets = BackupAssets(
+        db,
+        geodata,
+        platform: ConnectionPlatform.android,
+      );
+      final snapshot = (await assets.capture()).toJson()
+        ..remove('platformSettings');
+      final legacy = decodeBackup(
+        Uint8List.fromList(utf8.encode(jsonEncode(snapshot))),
+      );
+      final target = PlatformPolicy.fromJson({
+        'ipv6Enabled': false,
+        'xrayOutboundInterfaceName': 'Target interface',
+        'android': {
+          'appScope': 'excluded',
+          'excludedAppPackageNames': ['net.example.target'],
+        },
+      });
+      await savePolicy(target);
+      await assets.restore(legacy, await geodata.previewRestore([]));
+      expect((await readPolicy()).toJson(), target.toJson());
+    });
+
+    test('partial matching settings recursively preserve fields absent from the backup', () async {
+      final target = PlatformPolicy.fromJson({
+        'ipv6Enabled': false,
+        'android': {
+          'appScope': 'excluded',
+          'includedAppPackageNames': ['net.example.keepIncluded'],
+          'excludedAppPackageNames': ['net.example.keepExcluded'],
+        },
+      });
+      await savePolicy(target);
+      final assets = BackupAssets(
+        db,
+        geodata,
+        platform: ConnectionPlatform.android,
+      );
+      final snapshot = (await assets.capture()).toJson();
+      snapshot['platformSettings'] = {
+        'android': {
+          'android': {'appScope': 'included'},
+        },
+      };
+      final document = decodeBackup(
+        Uint8List.fromList(utf8.encode(jsonEncode(snapshot))),
+      );
+      await assets.restore(document, await geodata.previewRestore([]));
+      final expected = target.toJson();
+      (expected['android'] as Map)['appScope'] = 'included';
+      expect((await readPolicy()).toJson(), expected);
+    });
+  });
 }
 
 const _retiredDnsRoot = {
