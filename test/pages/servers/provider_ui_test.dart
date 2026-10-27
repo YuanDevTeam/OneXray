@@ -340,7 +340,7 @@ void main() {
   );
 
   testWidgets(
-    'source mode is checked again before a stale group selection commits',
+    'source existence is checked again before a stale group selection commits',
     (tester) async {
       final provider = controller.sources.single;
       final ordinarySource = provider.copyWith(
@@ -357,7 +357,7 @@ void main() {
       });
       assets.afterValidation = (attempt) async {
         if (attempt == 1) {
-          await db.subscriptionDao.updateRow(provider);
+          await db.subscriptionDao.deleteRow(provider.id);
         }
       };
       final before = (await configuration(tester)).encode();
@@ -371,8 +371,8 @@ void main() {
       expect(
         (await tester.runAsync(
           () => db.subscriptionDao.searchRow(provider.id),
-        ))!.mode,
-        SubscriptionMode.providerManaged.name,
+        )),
+        isNull,
       );
       expect((await configuration(tester)).encode(), before);
       expect(controller.selecting, isNull);

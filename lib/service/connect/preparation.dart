@@ -254,15 +254,26 @@ class ConnectionPreparation {
             }.contains(error.reason)) {
           rethrow;
         }
+        final retryFromFixed = settings.selection.kind == SelectionKind.server;
         settings = ConnectionSettings.fromJson({
           ...settings.toJson(),
           'selection': const ServerSelection.automatic().toJson(),
         });
-        target = await resolver.resolveTarget(
-          settings,
-          custom: custom,
-          cancelled: cancelled,
-        );
+        // Preserve the existing ordinary-node retry for a failed fixed node.
+        // Only automatic/source intent may introduce a provider target.
+        target = retryFromFixed
+            ? ResolvedConnectionTarget.entries(
+                await resolver.resolve(
+                  settings,
+                  custom: custom,
+                  cancelled: cancelled,
+                ),
+              )
+            : await resolver.resolveTarget(
+                settings,
+                custom: custom,
+                cancelled: cancelled,
+              );
         configuration = ConnectionConfiguration(
           connection: settings,
           policy: policy,

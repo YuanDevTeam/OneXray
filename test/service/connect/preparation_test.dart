@@ -919,6 +919,76 @@ void main() {
       expect(await db.coreConfigDao.allActiveServerRows(), hasLength(2));
     });
 
+    for (final healthyAlternative in [false, true]) {
+      test(
+        'fixed ordinary retry stays ordinary with alternative $healthyAlternative',
+        () async {
+          Future<int> addOrdinary(String name, int delay) =>
+              db.coreConfigDao.insertRow(
+                CoreConfigCompanion.insert(
+                  name: name,
+                  type: CoreConfigType.outbound.name,
+                  tags: '',
+                  delay: delay,
+                  subId: 0,
+                  data: Value(
+                    base64Encode(
+                      utf8.encode(
+                        jsonEncode({
+                          'outbounds': [
+                            {'tag': name, 'protocol': 'freedom'},
+                          ],
+                        }),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+          final failed = await addOrdinary(
+            'Failed ordinary',
+            PingDelayConstants.error,
+          );
+          final healthy = healthyAlternative
+              ? await addOrdinary('Healthy ordinary', 20)
+              : null;
+          final preparing =
+              ConnectionPreparation(
+                db: db,
+                getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+                requireDependencies: (_) async {},
+              ).prepare(
+                ConnectionConfiguration(
+                  connection: ConnectionSettings(
+                    selection: ServerSelection.server(failed),
+                    trafficMode: TrafficMode.allVpn,
+                  ),
+                ),
+              );
+          if (healthy == null) {
+            await expectLater(
+              preparing,
+              throwsA(
+                isA<ConnectionResolutionException>().having(
+                  (error) => error.reason,
+                  'reason',
+                  ConnectionResolutionFailure.insufficientHealthyServers,
+                ),
+              ),
+            );
+          } else {
+            final runtime = await preparing;
+            expect(runtime.profile, isNull);
+            expect(runtime.entries.map((entry) => entry.id), [healthy]);
+            expect(
+              runtime.configuration.connection.selection.kind,
+              SelectionKind.automatic,
+            );
+            expect(runtime.notice, 'selectionReset');
+          }
+        },
+      );
+    }
+
     test('rejects an inactive fixed provider', () async {
       await db.subscriptionDao.updateRow(
         source.copyWith(mode: SubscriptionMode.appManaged.name),
