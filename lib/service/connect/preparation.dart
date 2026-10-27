@@ -145,7 +145,7 @@ class ConnectionPreparation {
            ConnectionResolver(
              rows: () {
                final database = db ?? AppDatabase();
-               return database.coreConfigDao.watchOutbounds();
+               return database.coreConfigDao.watchServers();
              },
            );
 
@@ -163,6 +163,7 @@ class ConnectionPreparation {
     final platform = connectionPlatform;
     ResolvedProfile? profile;
     CoreConfigData? profileRow;
+    String? sourceMode;
     if (!settings.expert && settings.selection.kind == SelectionKind.server) {
       final id = settings.selection.id!;
       final selected = await db.coreConfigDao.searchRow(id);
@@ -186,11 +187,10 @@ class ConnectionPreparation {
         settings.selection.kind == SelectionKind.source &&
         settings.selection.id! > 0) {
       final source = await db.subscriptionDao.searchRow(settings.selection.id!);
-      if (source == null || source.mode != SubscriptionMode.appManaged.name) {
-        throw const FormatException(
-          'Choose an individual provider configuration',
-        );
+      if (source == null) {
+        throw const FormatException('The selected subscription is unavailable');
       }
+      sourceMode = source.mode;
     }
     await ConnectionPlatformRequirements(platform: platform)
         .ensureOutboundInterface(policy.xrayOutboundInterfaceName);
@@ -223,8 +223,9 @@ class ConnectionPreparation {
     String? notice;
     List<ResolvedServer> entries = const [];
     if (profile == null) {
+      ResolvedConnectionTarget target;
       try {
-        entries = await resolver.resolve(
+        target = await resolver.resolveTarget(
           settings,
           custom: custom,
           cancelled: cancelled,
@@ -243,7 +244,7 @@ class ConnectionPreparation {
             settings.selection.id! > 0 &&
             (await db.subscriptionDao.searchRow(settings.selection.id!))
                     ?.mode !=
-                SubscriptionMode.appManaged.name) {
+                sourceMode) {
           throw const FormatException('The selected subscription mode changed');
         }
         if (settings.selection.kind == SelectionKind.automatic ||
@@ -257,7 +258,7 @@ class ConnectionPreparation {
           ...settings.toJson(),
           'selection': const ServerSelection.automatic().toJson(),
         });
-        entries = await resolver.resolve(
+        target = await resolver.resolveTarget(
           settings,
           custom: custom,
           cancelled: cancelled,
@@ -268,6 +269,9 @@ class ConnectionPreparation {
         );
         notice = 'selectionReset';
       }
+      entries = target.entries;
+      profile = target.profile;
+      profileRow = target.profileRow;
     }
     entries = [for (final entry in entries) serverDrafts[entry.id] ?? entry];
     onResolved?.call({
@@ -300,11 +304,9 @@ class ConnectionPreparation {
       );
     }
     final rawConfig = raw == null ? null : ConnectionCompiler.parseRawJson(raw);
-    final userInbounds =
-        profile?.config['inbounds'] ??
-        rawConfig?['inbounds'] ??
-        custom?.toJson()['inbounds'] ??
-        [];
+    final userInbounds = profile != null
+        ? profile.config['inbounds'] ?? []
+        : rawConfig?['inbounds'] ?? custom?.toJson()['inbounds'] ?? [];
     if (userInbounds is! List ||
         userInbounds.any((entry) => entry is! Map<String, dynamic>)) {
       throw const FormatException('inbounds must be an object array');
@@ -344,7 +346,7 @@ class ConnectionPreparation {
       finalExit: finalExit,
       raw: rawConfig,
       profile: profile,
-      custom: custom,
+      custom: profile == null ? custom : null,
       regions: regions,
       options: RuntimeOptions(
         platform: platform,

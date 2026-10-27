@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
@@ -289,7 +289,203 @@ void main() {
       expect(rows.listeners, 0);
     },
   );
+
+  group('complete provider fallback', () {
+    test('sufficient healthy ordinary entries always win', () async {
+      final target =
+          await _oneShot([_profile(1), _row(5, delay: 30), _row(3, delay: 10)])
+              .resolveTarget(
+                ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
+              );
+      expect(target.entries.map((entry) => entry.id), [3, 5]);
+      expect(target.profile, isNull);
+      expect(target.profileRow, isNull);
+    });
+
+    for (final ordinary in [
+      <CoreConfigData>[],
+      [_row(20)],
+      [
+        _row(20, delay: PingDelayConstants.error),
+        _row(21, delay: PingDelayConstants.timeout),
+      ],
+    ]) {
+      test(
+        'entry shortage ${ordinary.length} selects the first readable profile by ID',
+        () async {
+          final unreadable = _profile(2)
+              .copyWith(data: const Value('not base64'));
+          final first = _profile(7);
+          final target =
+              await _oneShot([
+                _profile(9),
+                ...ordinary,
+                unreadable,
+                first,
+              ]).resolveTarget(
+                ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
+              );
+          expect(target.entries, isEmpty);
+          expect(target.profile?.id, 7);
+          expect(target.profileRow, first);
+          expect(target.profile?.config['outbounds'], hasLength(1));
+        },
+      );
+    }
+
+    for (final succeeds in [true, false]) {
+      test(
+        'ordinary probes finish before provider fallback: $succeeds',
+        () async {
+          var rows = [_profile(1), _row(2, delay: PingDelayConstants.unknown)];
+          final probes = <List<int>>[];
+          final resolver = ConnectionResolver(
+            rows: () => Stream.value(rows),
+            probe: (ids) async {
+              probes.add(ids);
+              rows = [
+                _profile(1),
+                _row(2, delay: succeeds ? 12 : PingDelayConstants.error),
+              ];
+            },
+          );
+          final target = await resolver.resolveTarget(ConnectionSettings());
+          expect(probes, [
+            [2],
+          ]);
+          expect(target.profile?.id, succeeds ? null : 1);
+          expect(target.entries.map((entry) => entry.id), succeeds ? [2] : []);
+        },
+      );
+    }
+
+    test(
+      'source fallback stays within its source and excludes manual scope',
+      () async {
+        final resolver = _oneShot([
+          _profile(1, source: 4),
+          _profile(3, source: 7),
+          _profile(2, source: 7),
+        ]);
+        final target = await resolver.resolveTarget(
+          ConnectionSettings(selection: const ServerSelection.source(7)),
+        );
+        expect(target.profile?.id, 2);
+        await expectLater(
+          resolver.resolveTarget(
+            ConnectionSettings(selection: const ServerSelection.source(0)),
+          ),
+          _fails(ConnectionResolutionFailure.selectionUnavailable),
+        );
+        await expectLater(
+          resolver.resolveTarget(
+            ConnectionSettings(selection: const ServerSelection.source(8)),
+          ),
+          _fails(ConnectionResolutionFailure.selectionUnavailable),
+        );
+      },
+    );
+
+    test(
+      'fixed and expert selections never acquire a fallback profile',
+      () async {
+        final resolver = _oneShot([
+          _profile(1),
+          _row(2, delay: PingDelayConstants.error),
+        ]);
+        await expectLater(
+          resolver.resolveTarget(
+            ConnectionSettings(selection: const ServerSelection.server(2)),
+          ),
+          _fails(ConnectionResolutionFailure.insufficientHealthyServers),
+        );
+        final raw = await resolver.resolveTarget(
+          ConnectionSettings(expert: true),
+        );
+        expect(raw.entries, isEmpty);
+        expect(raw.profile, isNull);
+      },
+    );
+
+    test(
+      'without a readable profile the ordinary failure is preserved',
+      () async {
+        await expectLater(
+          _oneShot([_profile(1).copyWith(data: const Value('bad')), _row(2)])
+              .resolveTarget(
+                ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
+              ),
+          _fails(ConnectionResolutionFailure.insufficientCandidates),
+        );
+      },
+    );
+
+    test('configuration and probe failures do not select a provider', () async {
+      final rows = [_profile(1), _row(2, delay: PingDelayConstants.unknown)];
+      await expectLater(
+        _oneShot(rows)
+            .resolveTarget(ConnectionSettings(trafficMode: TrafficMode.custom)),
+        _fails(ConnectionResolutionFailure.invalidSettings),
+      );
+      await expectLater(
+        _oneShot([_profile(1), _row(2)]).resolveTarget(
+          ConnectionSettings(smart: SmartRoutingSettings(finalExitId: 99)),
+        ),
+        _fails(ConnectionResolutionFailure.finalExitUnavailable),
+      );
+      await expectLater(
+        ConnectionResolver(
+          rows: () => Stream.value(rows),
+          probe: (_) async => throw StateError('probe'),
+        ).resolveTarget(ConnectionSettings()),
+        _fails(ConnectionResolutionFailure.probeFailed),
+      );
+      await expectLater(
+        ConnectionResolver(rows: () => Stream.error(StateError('read')))
+            .resolveTarget(ConnectionSettings()),
+        _fails(ConnectionResolutionFailure.readFailed),
+      );
+    });
+
+    test('cancellation never becomes provider fallback', () async {
+      final started = Completer<void>();
+      final remaining = Completer<void>();
+      final cancelled = Completer<void>();
+      addTearDown(() {
+        if (!remaining.isCompleted) remaining.complete();
+      });
+      final resolver = ConnectionResolver(
+        rows: () => Stream.value([
+          _profile(1),
+          _row(2, delay: PingDelayConstants.unknown),
+        ]),
+        probe: (_) {
+          started.complete();
+          return remaining.future;
+        },
+      );
+      final resolving = resolver.resolveTarget(
+        ConnectionSettings(),
+        cancelled: cancelled.future,
+      );
+      await started.future;
+      final expected = expectLater(
+        resolving,
+        _fails(ConnectionResolutionFailure.cancelled),
+      );
+      cancelled.complete();
+      await expected;
+      expect(remaining.isCompleted, isFalse);
+    });
+  });
 }
+
+CoreConfigData _profile(int id, {int source = 7}) => _row(
+  id,
+  source: source,
+  type: 'Remnawave',
+  delay: PingDelayConstants.unknown,
+);
 
 ConnectionResolver _oneShot(List<CoreConfigData> rows) => ConnectionResolver(
   rows: () => Stream.value(rows),

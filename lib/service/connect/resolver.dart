@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/service/connect/compiler.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/shared/ping/service.dart';
@@ -34,6 +35,23 @@ class ConnectionResolutionException implements Exception {
   String toString() => 'Connection resolution failed: ${reason.name}';
 }
 
+/// One connection target: ordinary entries or one complete provider graph.
+class ResolvedConnectionTarget {
+  final List<ResolvedServer> entries;
+  final ResolvedProfile? profile;
+  final CoreConfigData? profileRow;
+
+  ResolvedConnectionTarget.entries(Iterable<ResolvedServer> entries)
+    : entries = List.unmodifiable(entries),
+      profile = null,
+      profileRow = null;
+
+  ResolvedConnectionTarget.profile(CoreConfigData row)
+    : entries = const [],
+      profile = ResolvedProfile.fromRow(row),
+      profileRow = row;
+}
+
 /// Resolves a committed selection to independent values, never a live session.
 /// The rows stream must emit its current rows whenever it is subscribed to; it
 /// may then watch batch commits. The final re-read also supports one-shot readers.
@@ -48,7 +66,7 @@ class ConnectionResolver {
        _probe = probe ?? PingService().pingConfigIds;
 
   static Stream<List<CoreConfigData>> _databaseRows() =>
-      AppDatabase().coreConfigDao.watchOutbounds();
+      AppDatabase().coreConfigDao.watchServers();
 
   /// Cancellation ends only this wait. Already scheduled probes keep updating
   /// candidate caches and cannot change resolved inputs or a running VPN.
@@ -56,14 +74,24 @@ class ConnectionResolver {
     ConnectionSettings settings, {
     RoutingConfiguration? custom,
     Future<void>? cancelled,
-  }) => _resolve(settings, custom, cancelled);
+  }) async => (await _resolve(settings, custom, cancelled)).entries;
 
-  Future<List<ResolvedServer>> _resolve(
-    ConnectionSettings settings,
+  /// Automatic and source selection prefer sufficient healthy ordinary nodes,
+  /// then the first locally readable provider profile by ID within that scope.
+  /// Profiles are complete graphs and never enter ordinary-node probing.
+  Future<ResolvedConnectionTarget> resolveTarget(
+    ConnectionSettings settings, {
     RoutingConfiguration? custom,
     Future<void>? cancelled,
-  ) async {
-    if (settings.expert) return const [];
+  }) => _resolve(settings, custom, cancelled, allowProfiles: true);
+
+  Future<ResolvedConnectionTarget> _resolve(
+    ConnectionSettings settings,
+    RoutingConfiguration? custom,
+    Future<void>? cancelled, {
+    bool allowProfiles = false,
+  }) async {
+    if (settings.expert) return ResolvedConnectionTarget.entries(const []);
     if (settings.trafficMode == TrafficMode.custom && custom == null) {
       throw const ConnectionResolutionException(
         ConnectionResolutionFailure.invalidSettings,
@@ -79,7 +107,7 @@ class ConnectionResolver {
       );
     }
 
-    final result = Completer<List<ResolvedServer>>();
+    final result = Completer<ResolvedConnectionTarget>();
     StreamSubscription<List<CoreConfigData>>? subscription;
     var probeStarted = false;
 
@@ -113,6 +141,34 @@ class ConnectionResolver {
 
     void consider(List<CoreConfigData> rows, {required bool finalRead}) {
       if (result.isCompleted) return;
+
+      void unavailable(
+        ConnectionResolutionFailure reason, [
+        int available = 0,
+      ]) {
+        if (allowProfiles && settings.selection.kind != SelectionKind.server) {
+          final profiles =
+              rows
+                  .where(
+                    (row) =>
+                        row.type == CoreConfigType.Remnawave.name &&
+                        _inScope(row, settings.selection),
+                  )
+                  .toList()
+                ..sort((a, b) => a.id.compareTo(b.id));
+          for (final row in profiles) {
+            try {
+              result.complete(ResolvedConnectionTarget.profile(row));
+              return;
+            } on FormatException {
+              // Imported profiles were validated on save. Skip unreadable
+              // retained rows without attempting runtime validation or retries.
+            }
+          }
+        }
+        fail(reason, available);
+      }
+
       final seen = <int>{};
       final candidates = <({CoreConfigData row, ResolvedServer server})>[];
       for (final row in rows) {
@@ -130,11 +186,11 @@ class ConnectionResolver {
         }
       }
       if (candidates.isEmpty) {
-        fail(ConnectionResolutionFailure.selectionUnavailable);
+        unavailable(ConnectionResolutionFailure.selectionUnavailable);
         return;
       }
       if (candidates.length < required) {
-        fail(
+        unavailable(
           ConnectionResolutionFailure.insufficientCandidates,
           candidates.length,
         );
@@ -167,14 +223,14 @@ class ConnectionResolver {
             });
       if (successful.length >= required) {
         result.complete(
-          List<ResolvedServer>.unmodifiable(
+          ResolvedConnectionTarget.entries(
             successful.take(required).map((candidate) => candidate.server),
           ),
         );
         return;
       }
       if (finalRead) {
-        fail(
+        unavailable(
           ConnectionResolutionFailure.insufficientHealthyServers,
           successful.length,
         );
@@ -186,7 +242,7 @@ class ConnectionResolver {
           .map((candidate) => candidate.row.id)
           .toList();
       if (unmeasured.isEmpty) {
-        fail(
+        unavailable(
           ConnectionResolutionFailure.insufficientHealthyServers,
           successful.length,
         );

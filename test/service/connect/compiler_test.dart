@@ -387,49 +387,73 @@ void main() {
     expect(jsonEncode(source), before);
   });
 
-  test('provider compilation requires one matching fixed profile without normal nodes', () {
-    final profile = ResolvedProfile(
-      id: 99,
-      sourceId: 7,
-      name: 'Provider',
-      config: {
-        'outbounds': [
-          {'tag': 'first', 'protocol': 'freedom'},
-        ],
-      },
-    );
-    for (final settings in [
-      ConnectionSettings(),
-      ConnectionSettings(selection: const ServerSelection.server(98)),
-      ConnectionSettings(
-        expert: true,
-        selection: const ServerSelection.server(99),
-      ),
-    ]) {
+  test(
+    'provider compilation supports automatic or matching scoped selections',
+    () {
+      final profile = ResolvedProfile(
+        id: 99,
+        sourceId: 7,
+        name: 'Provider',
+        config: {
+          'outbounds': [
+            {'tag': 'first', 'protocol': 'freedom'},
+          ],
+        },
+      );
+      for (final selection in [
+        const ServerSelection.automatic(),
+        const ServerSelection.source(7),
+        const ServerSelection.server(99),
+      ]) {
+        final compiled = ConnectionCompiler.compile(
+          settings: ConnectionSettings(
+            selection: selection,
+            smart: SmartRoutingSettings(entryCount: 3, finalExitId: 123),
+          ),
+          entries: const [],
+          profile: profile,
+          regions: catalog,
+          options: options(),
+        );
+        expect(compiled.profile, same(profile));
+        expect(compiled.entries, isEmpty);
+        expect(compiled.finalExit, isNull);
+        expect(compiled.nodeTags, isEmpty);
+      }
+      for (final settings in [
+        ConnectionSettings(selection: const ServerSelection.source(0)),
+        ConnectionSettings(selection: const ServerSelection.source(8)),
+        ConnectionSettings(selection: const ServerSelection.server(98)),
+        ConnectionSettings(
+          expert: true,
+          selection: const ServerSelection.server(99),
+        ),
+      ]) {
+        expect(
+          () => ConnectionCompiler.compile(
+            settings: settings,
+            entries: const [],
+            profile: profile,
+            regions: catalog,
+            options: options(),
+          ),
+          throwsFormatException,
+        );
+      }
       expect(
         () => ConnectionCompiler.compile(
-          settings: settings,
-          entries: const [],
+          settings: ConnectionSettings(
+            selection: const ServerSelection.server(99),
+          ),
+          entries: [node(1)],
           profile: profile,
           regions: catalog,
           options: options(),
         ),
         throwsFormatException,
       );
-    }
-    expect(
-      () => ConnectionCompiler.compile(
-        settings: ConnectionSettings(
-          selection: const ServerSelection.server(99),
-        ),
-        entries: [node(1)],
-        profile: profile,
-        regions: catalog,
-        options: options(),
-      ),
-      throwsFormatException,
-    );
-  });
+    },
+  );
 
   test(
     'LAN sharing adds one mixed SOCKS inbound without changing selected routes',

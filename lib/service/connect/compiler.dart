@@ -274,14 +274,16 @@ class ConnectionCompiler {
     late final Map<String, dynamic> config;
     if (profile != null) {
       if (settings.expert ||
-          settings.selection.kind != SelectionKind.server ||
-          settings.selection.id != profile.id ||
+          (settings.selection.kind == SelectionKind.server &&
+              settings.selection.id != profile.id) ||
+          (settings.selection.kind == SelectionKind.source &&
+              settings.selection.id != profile.sourceId) ||
           entries.isNotEmpty ||
           finalExit != null ||
           raw != null ||
           custom != null) {
         throw const FormatException(
-          'Provider configuration requires one fixed profile',
+          'Provider configuration requires one matching complete profile',
         );
       }
       final adapted = RemnawaveAdapter.adapt(profile.config);

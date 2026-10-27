@@ -17,6 +17,7 @@ import 'package:onexray/service/advanced/local_api/settings.dart';
 import 'package:onexray/service/connect/preparation.dart';
 import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
+import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
 
@@ -671,6 +672,215 @@ void main() {
       );
     }
 
+    for (final scoped in [false, true]) {
+      for (final mode in [TrafficMode.smart, TrafficMode.custom]) {
+        test(
+          'automatic provider fallback preserves $mode and source scope $scoped',
+          () async {
+            final original = _providerInput(profile.id, trafficMode: mode);
+            final input = ConnectionConfiguration(
+              connection: ConnectionSettings.fromJson({
+                ...original.connection.toJson(),
+                'selection':
+                    (scoped
+                            ? ServerSelection.source(source.id)
+                            : const ServerSelection.automatic())
+                        .toJson(),
+              }),
+              policy: original.policy,
+            );
+            final protected = <int>{};
+            final runtime =
+                await ConnectionPreparation(
+                  db: db,
+                  getFreePorts: (count, {excludePorts}) async {
+                    expect(protected, {profile.id});
+                    return [18002, 18003];
+                  },
+                  requireDependencies: (_) async {},
+                ).prepare(
+                  input,
+                  customDraft: mode == TrafficMode.custom
+                      ? RoutingProfileState(
+                          name: 'Preserved route',
+                          entryCount: 3,
+                        )
+                      : null,
+                  onResolved: protected.addAll,
+                );
+            expect(runtime.configuration.encode(), input.encode());
+            expect(runtime.profile?.id, profile.id);
+            expect(runtime.profile?.sourceId, source.id);
+            expect(runtime.entries, isEmpty);
+            expect(runtime.finalExit, isNull);
+            expect(runtime.notice, isNull);
+            expect(runtime.nodeIds, {profile.id});
+            expect(runtime.profile?.type, CoreConfigType.Remnawave.name);
+            final restored = ConnectionRuntime.fromRequest(runtime.request);
+            expect(restored.configuration.encode(), input.encode());
+            expect(restored.profile?.id, profile.id);
+            expect(restored.nodeIds, {profile.id});
+            final compiled =
+                jsonDecode(runtime.xrayJson) as Map<String, dynamic>;
+            expect(
+              (compiled['outbounds'] as List).any(
+                (value) => value['tag'] == 'provider-proxy',
+              ),
+              isTrue,
+            );
+            expect(
+              (compiled['outbounds'] as List).any(
+                (value) => '${value['tag']}'.startsWith('app-entry-'),
+              ),
+              isFalse,
+            );
+          },
+        );
+      }
+    }
+
+    test('automatic selection ignores inactive provider and ordinary caches', () async {
+      final appSourceId = await db.subscriptionDao.insertRow(
+        SubscriptionCompanion.insert(
+          name: 'App source',
+          url: 'https://example.com/app-subscription',
+          timestamp: DateTime(2026, 10, 12),
+        ),
+      );
+      final hiddenProfileId = await db.coreConfigDao.insertRow(
+        CoreConfigCompanion.insert(
+          name: 'Hidden provider profile',
+          type: CoreConfigType.Remnawave.name,
+          tags: '',
+          delay: PingDelayConstants.unknown,
+          subId: appSourceId,
+          data: Value(profile.data),
+        ),
+      );
+      await db.coreConfigDao.insertRow(
+        CoreConfigCompanion.insert(
+          name: 'Hidden ordinary node',
+          type: CoreConfigType.outbound.name,
+          tags: '',
+          delay: 1,
+          subId: source.id,
+          data: Value(profile.data),
+        ),
+      );
+      // Put the inactive profile before the active row to verify filtering,
+      // rather than depending on the setup row already having the smallest ID.
+      await db.coreConfigDao.deleteRow(profile);
+      final activeId = await db.coreConfigDao.insertRow(
+        CoreConfigCompanion.insert(
+          name: profile.name,
+          type: CoreConfigType.Remnawave.name,
+          tags: '',
+          delay: PingDelayConstants.unknown,
+          subId: source.id,
+          data: Value(profile.data),
+        ),
+      );
+      expect(hiddenProfileId, lessThan(activeId));
+      final runtime =
+          await ConnectionPreparation(
+            db: db,
+            getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+            requireDependencies: (_) async {},
+          ).prepare(
+            ConnectionConfiguration(
+              connection: ConnectionSettings(trafficMode: TrafficMode.allVpn),
+            ),
+          );
+      expect(runtime.profile?.id, activeId);
+      expect(runtime.entries, isEmpty);
+    });
+
+    test('a missing custom route remains a configuration error with provider candidates', () async {
+      await expectLater(
+        ConnectionPreparation(
+          db: db,
+          getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+          requireDependencies: (_) async {},
+        ).prepare(
+          ConnectionConfiguration(
+            connection: ConnectionSettings(
+              trafficMode: TrafficMode.custom,
+              customId: 987654,
+            ),
+          ),
+        ),
+        throwsFormatException,
+      );
+    });
+
+    test(
+      'automatic profile without inbounds ignores inactive custom listeners',
+      () async {
+        final config = {..._providerConfig}..remove('inbounds');
+        await db.coreConfigDao.updateRow(
+          profile.copyWith(
+            data: Value(base64Encode(utf8.encode(jsonEncode(config)))),
+          ),
+        );
+        final api = _localApi(enabled: true);
+        addTearDown(api.stop);
+        final runtime =
+            await ConnectionPreparation(
+              db: db,
+              localApi: api,
+              getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+              requireDependencies: (_) async {},
+            ).prepare(
+              ConnectionConfiguration(
+                connection: ConnectionSettings(trafficMode: TrafficMode.custom),
+              ),
+              customDraft: AdvancedRoutingDocument.fromJson({
+                'outbounds': [<String, dynamic>{}],
+                'inbounds': [
+                  {'tag': 'custom-http', 'protocol': 'http', 'port': 18587},
+                ],
+              }).state,
+            );
+        expect(runtime.profile?.id, profile.id);
+        expect(runtime.entries, isEmpty);
+      },
+    );
+
+    test(
+      'automatic provider changes are rejected without trying a later profile',
+      () async {
+        final laterId = await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: 'Later provider profile',
+            type: CoreConfigType.Remnawave.name,
+            tags: '',
+            delay: PingDelayConstants.unknown,
+            subId: source.id,
+            data: Value(profile.data),
+          ),
+        );
+        var allocations = 0;
+        await expectLater(
+          ConnectionPreparation(
+            db: db,
+            getFreePorts: (count, {excludePorts}) async {
+              allocations++;
+              await db.coreConfigDao.deleteRow(profile);
+              return [18002, 18003];
+            },
+            requireDependencies: (_) async {},
+          ).prepare(
+            ConnectionConfiguration(
+              connection: ConnectionSettings(trafficMode: TrafficMode.allVpn),
+            ),
+          ),
+          throwsFormatException,
+        );
+        expect(allocations, 1);
+        expect(await db.coreConfigDao.searchRow(laterId), isNotNull);
+      },
+    );
+
     test('reports the provider before allocation so refresh keeps its original row', () async {
       final protectedIds = <int>{};
       var refreshed = false;
@@ -709,29 +919,15 @@ void main() {
       expect(await db.coreConfigDao.allActiveServerRows(), hasLength(2));
     });
 
-    test(
-      'rejects an inactive provider and a provider source selection',
-      () async {
-        await db.subscriptionDao.updateRow(
-          source.copyWith(mode: SubscriptionMode.appManaged.name),
-        );
-        await expectLater(
-          _providerPreparation(db).prepare(_providerInput(profile.id)),
-          throwsFormatException,
-        );
-        await db.subscriptionDao.updateRow(source);
-        await expectLater(
-          _providerPreparation(db).prepare(
-            ConnectionConfiguration(
-              connection: ConnectionSettings(
-                selection: ServerSelection.source(source.id),
-              ),
-            ),
-          ),
-          throwsFormatException,
-        );
-      },
-    );
+    test('rejects an inactive fixed provider', () async {
+      await db.subscriptionDao.updateRow(
+        source.copyWith(mode: SubscriptionMode.appManaged.name),
+      );
+      await expectLater(
+        _providerPreparation(db).prepare(_providerInput(profile.id)),
+        throwsFormatException,
+      );
+    });
 
     test('a missing fixed configuration remains a selection error', () async {
       await expectLater(

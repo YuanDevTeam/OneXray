@@ -55,10 +55,13 @@ Map<String, dynamic> _source() => {
 CompiledConnection _compile(
   Map<String, dynamic> source, {
   bool provider = false,
+  ServerSelection? selection,
   RuntimeOptions? options,
 }) => ConnectionCompiler.compile(
   settings: provider
-      ? ConnectionSettings(selection: const ServerSelection.server(99))
+      ? ConnectionSettings(
+          selection: selection ?? const ServerSelection.server(99),
+        )
       : ConnectionSettings(expert: true),
   entries: const [],
   raw: provider ? null : source,
@@ -70,6 +73,33 @@ CompiledConnection _compile(
 );
 
 void main() {
+  test(
+    'automatic and source profiles share the fixed full-config runtime path',
+    () {
+      final source = _source();
+      final before = jsonEncode(source);
+      for (final platform in ConnectionPlatform.values) {
+        final options = _options(platform: platform);
+        final fixed = _compile(source, provider: true, options: options).config;
+        for (final selection in [
+          const ServerSelection.automatic(),
+          const ServerSelection.source(7),
+        ]) {
+          final automatic = _compile(
+            source,
+            provider: true,
+            selection: selection,
+            options: options,
+          );
+          expect(automatic.config, fixed);
+          expect(automatic.entries, isEmpty);
+          expect(automatic.profile?.id, 99);
+        }
+      }
+      expect(jsonEncode(source), before);
+    },
+  );
+
   test('only the native session may supply a TUN descriptor', () {
     for (final provider in [false, true]) {
       for (final platform in ConnectionPlatform.values) {
