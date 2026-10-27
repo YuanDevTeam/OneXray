@@ -370,65 +370,145 @@ void main() {
     });
   }
 
-  for (final ordinaryCount in [1, 2]) {
+  for (final mode in SubscriptionMode.values) {
+    for (final count in [1, 2]) {
+      test(
+        'source selection follows the remaining active $mode pool: $count',
+        () async {
+          final profile = await _provider(db, mode: mode);
+          final ordinary = await server(subId: profile.subId);
+          final active = [
+            mode == SubscriptionMode.appManaged ? ordinary : profile,
+          ];
+          if (count == 2) {
+            final id = await db.coreConfigDao.insertAssetRow(
+              active.first
+                  .toCompanion(false)
+                  .copyWith(id: const Value.absent()),
+            );
+            active.add((await db.coreConfigDao.searchRow(id))!);
+          }
+          final inactive = mode == SubscriptionMode.appManaged
+              ? profile
+              : ordinary;
+          final configuration = ConnectionConfiguration(
+            connection: ConnectionSettings(
+              selection: ServerSelection.source(profile.subId),
+            ),
+          );
+          await db.connectionConfigDao.commit(
+            configurationJson: configuration.encode(),
+          );
+          final coordinator = await initialize(
+            ConnectionCoordinator(
+              database: db,
+              readRuntime: () async => null,
+              inspect: (_, {observedStatus}) async =>
+                  const HostConnection(VpnStatus.disconnected),
+              start: (_) async => throw StateError('No implicit start'),
+              stop: () async => throw StateError('No implicit stop'),
+            ),
+          );
+          final service = ServerAssetService(
+            database: db,
+            coordinator: coordinator,
+          );
+          expect(
+            (await db.coreConfigDao.allActiveServerRows()).map((row) => row.id),
+            active.map((row) => row.id),
+          );
+          final preview = await service.previewRemoval(ids: {active.first.id});
+          final expected = count == 1
+              ? const ServerSelection.automatic()
+              : ServerSelection.source(profile.subId);
+          expect(
+            preview.configuration.connection.selection.toJson(),
+            expected.toJson(),
+          );
+          expect(preview.affectsRuntime, isFalse);
+          expect(preview.disconnect, isFalse);
+          await service.remove(preview);
+          expect(
+            (await coordinator.configuration).connection.selection.toJson(),
+            expected.toJson(),
+          );
+          expect(await db.coreConfigDao.searchRow(active.first.id), isNull);
+          expect(await db.coreConfigDao.searchRow(inactive.id), inactive);
+          expect(await db.subscriptionDao.searchRow(profile.subId), isNotNull);
+          if (count == 2) {
+            expect(
+              await db.coreConfigDao.searchRow(active.last.id),
+              active.last,
+            );
+          }
+        },
+      );
+    }
+  }
+
+  for (final removeProvider in [false, true]) {
     test(
-      'source selection follows the remaining active ordinary pool: $ordinaryCount',
+      'deleting a running ${removeProvider ? 'provider' : 'ordinary node'} reconnects to an available provider',
       () async {
-        final profile = await _provider(db, mode: SubscriptionMode.appManaged);
-        final ordinary = [
-          for (var index = 0; index < ordinaryCount; index++)
-            await server(subId: profile.subId),
-        ];
-        final configuration = ConnectionConfiguration(
-          connection: ConnectionSettings(
-            selection: ServerSelection.source(profile.subId),
-          ),
+        final removed = removeProvider ? await _provider(db) : await server();
+        final remaining = await _provider(db);
+        final configuration = ConnectionConfiguration();
+        final old = _runtime(
+          'a',
+          configuration,
+          removeProvider ? [] : [ResolvedServer.fromRow(removed)],
+          profile: removeProvider ? ResolvedProfile.fromRow(removed) : null,
+        );
+        final replacement = _runtime(
+          'b',
+          configuration,
+          [],
+          profile: ResolvedProfile.fromRow(remaining),
         );
         await db.connectionConfigDao.commit(
           configurationJson: configuration.encode(),
         );
+        var host = HostConnection(VpnStatus.connected, runtime: old);
+        final calls = <String>[];
         final coordinator = await initialize(
           ConnectionCoordinator(
             database: db,
-            readRuntime: () async => null,
-            inspect: (_, {observedStatus}) async =>
-                const HostConnection(VpnStatus.disconnected),
-            start: (_) async => throw StateError('No implicit start'),
-            stop: () async => throw StateError('No implicit stop'),
+            readRuntime: () async => old,
+            inspect: (_, {observedStatus}) async => host,
+            start: (runtime) async {
+              calls.add('start');
+              return host = HostConnection(
+                VpnStatus.connected,
+                runtime: runtime,
+              );
+            },
+            stop: () async {
+              calls.add('stop');
+              return host = const HostConnection(VpnStatus.disconnected);
+            },
           ),
         );
         final service = ServerAssetService(
           database: db,
           coordinator: coordinator,
+          prepare: (next, _, _, excluded) async {
+            expect(excluded, {removed.id});
+            expect(next.encode(), configuration.encode());
+            return replacement;
+          },
         );
-        expect(
-          (await db.coreConfigDao.allActiveServerRows()).map((row) => row.id),
-          ordinary.map((row) => row.id),
-        );
-        final preview = await service.previewRemoval(ids: {ordinary.first.id});
-        final expected = ordinaryCount == 1
-            ? const ServerSelection.automatic()
-            : ServerSelection.source(profile.subId);
-        expect(
-          preview.configuration.connection.selection.toJson(),
-          expected.toJson(),
-        );
-        expect(preview.affectsRuntime, isFalse);
+        final preview = await service.previewRemoval(ids: {removed.id});
+        expect(preview.affectsRuntime, isTrue);
         expect(preview.disconnect, isFalse);
         await service.remove(preview);
+        expect(calls, ['stop', 'start']);
+        expect(coordinator.state.value.runtime?.profile?.id, remaining.id);
         expect(
-          (await coordinator.configuration).connection.selection.toJson(),
-          expected.toJson(),
+          (await coordinator.configuration).connection.selection.kind,
+          SelectionKind.automatic,
         );
-        expect(await db.coreConfigDao.searchRow(ordinary.first.id), isNull);
-        expect(await db.coreConfigDao.searchRow(profile.id), profile);
-        expect(await db.subscriptionDao.searchRow(profile.subId), isNotNull);
-        if (ordinaryCount == 2) {
-          expect(
-            await db.coreConfigDao.searchRow(ordinary.last.id),
-            ordinary.last,
-          );
-        }
+        expect(await db.coreConfigDao.searchRow(removed.id), isNull);
+        expect(await db.coreConfigDao.searchRow(remaining.id), remaining);
       },
     );
   }
@@ -528,13 +608,23 @@ void main() {
     );
     final profile = (await db.coreConfigDao.allActiveServerRows()).single;
     expect(profile.type, CoreConfigType.Remnawave.name);
+    expect(
+      (await subscriptions.modeAvailability(inserted.subId)).selectedCompatible,
+      isTrue,
+    );
     await service.remove(await service.previewRemoval(ids: {profile.id}));
     expect(await service.rows(), isEmpty);
-    expect((await coordinator.configuration).encode(), configuration.encode());
+    expect(
+      (await coordinator.configuration).connection.selection.kind,
+      SelectionKind.automatic,
+    );
 
     final another = await server();
     await service.remove(await service.previewRemoval(ids: {another.id}));
-    expect((await coordinator.configuration).encode(), configuration.encode());
+    expect(
+      (await coordinator.configuration).connection.selection.kind,
+      SelectionKind.automatic,
+    );
     expect(await db.subscriptionDao.searchRow(inserted.subId), isNotNull);
     await service.remove(
       await service.previewRemoval(sourceId: inserted.subId),
@@ -1038,10 +1128,7 @@ void main() {
       await service.validateSelection(const ServerSelection.automatic());
       await service.validateSelection(const ServerSelection.source(0));
       await service.validateSelection(ServerSelection.server(profile.id));
-      await expectLater(
-        service.validateSelection(ServerSelection.source(profile.subId)),
-        throwsFormatException,
-      );
+      await service.validateSelection(ServerSelection.source(profile.subId));
       await expectLater(
         service.validateSelection(ServerSelection.server(derived.id)),
         throwsFormatException,

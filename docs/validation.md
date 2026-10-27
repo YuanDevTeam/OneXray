@@ -112,7 +112,16 @@
   桌面不携带来源旧 FD。编辑语义比较使用当前隧道 DNS 设置，与运行补充一致，不改写保存原文。
 - 连接页显示 provider 名称快照与完整路由说明，不伪装成 App 多入口或单节点延迟；
   App Smart/Custom/LAN 偏好保存不影响 provider 会话，平台策略有效变更保持原重连流程。
+- 自动选择覆盖纯普通、纯提供方、混合、接入数量不足及健康不足；提供方按 ID 稳定选取且限定活动缓存和来源范围。
+  读取/测速异常、取消、编译或启动失败不尝试其它完整配置；保存意图与运行 profile 分离，重启仍显示原自动选择。
+  删除活动最后一项、仍有提供方可重连、模式切换及非活动缓存分别检查；固定选择和个人 Raw 不获得自动兜底。
 - 备份 panel/mode 往返、旧文件缺省与未知字段容忍；订阅缓存排除，恢复不联网、不自动连接，正常刷新重新获取。
+
+外部链接覆盖正常冷启动、已初始化冷启动导入、Setup 期间接收、前台和后台恢复，以及服务失败后重试。
+相同链接排队/在途合并，不同链接 FIFO；完成、取消、失败和 Shell 销毁后不重放，之后可再次打开同一链接。
+主动读取与广播竞争只打开一次；手动导入页和直接压入 Navigator 的模态关闭后继续排队链接，Widget 链接不进入导入。
+定向测试位于 `test/service/shared/share/service_test.dart` 和 `test/pages/main/app_link_delivery_test.dart`，
+原生 App Link 交付、首次设置和实际配置启动仍需模拟器或设备验收。
 
 目标测试分别位于 `test/core/db/subscription_migration_test.dart`、`test/service/servers/subscription/`、
 `test/service/shared/xray/remnawave_test.dart`、`test/service/connect/`、`test/pages/servers/`、

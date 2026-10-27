@@ -161,6 +161,27 @@ void main() {
     expect(_item(items, 'traffic:allVpn').disabled, isTrue);
     final profile = ResolvedProfile.fromRow(row);
     final runtime = _providerRuntime(profile);
+    for (final selection in [
+      const ServerSelection.automatic(),
+      ServerSelection.source(sourceId),
+    ]) {
+      data.configuration = ConnectionSettings(selection: selection);
+      final automatic = data.selectionItems(
+        l,
+        busy: false,
+        runningProfile: runtime.profile,
+      );
+      expect(
+        _item(automatic, 'automatic').checked,
+        selection.kind == SelectionKind.automatic,
+      );
+      expect(_item(automatic, 'traffic:smart').disabled, isTrue);
+      expect(
+        _descendants(automatic).where((item) => item.key == 'source:$sourceId'),
+        isEmpty,
+      );
+      expect(data.configuration.selection.toJson(), selection.toJson());
+    }
     await db.subscriptionDao.updateRow(
       (await db.subscriptionDao.searchRow(sourceId))!
           .copyWith(mode: SubscriptionMode.appManaged.name),
@@ -182,75 +203,88 @@ void main() {
     expect(_item(hidden, 'traffic:allVpn').disabled, isTrue);
   });
 
-  test('tray revalidates provider mode and never applies stale source or traffic actions', () async {
-    final sourceId = await db.subscriptionDao.insertRow(
-      SubscriptionCompanion.insert(
-        name: 'Provider source',
-        url: 'https://example.com/provider',
-        timestamp: DateTime(2026),
-        mode: Value(SubscriptionMode.providerManaged.name),
-      ),
-    );
-    final id = await db.coreConfigDao.insertAssetRow(
-      _node('Provider profile', source: sourceId).copyWith(
-        type: Value(CoreConfigType.Remnawave.name),
-        delay: Value(PingDelayConstants.unknown),
-        data: Value(
-          base64Encode(
-            utf8.encode('{"outbounds":[{"tag":"first","protocol":"freedom"}]}'),
+  test(
+    'tray revalidates provider modes, sources and traffic actions',
+    () async {
+      final sourceId = await db.subscriptionDao.insertRow(
+        SubscriptionCompanion.insert(
+          name: 'Provider source',
+          url: 'https://example.com/provider',
+          timestamp: DateTime(2026),
+          mode: Value(SubscriptionMode.providerManaged.name),
+        ),
+      );
+      final id = await db.coreConfigDao.insertAssetRow(
+        _node('Provider profile', source: sourceId).copyWith(
+          type: Value(CoreConfigType.Remnawave.name),
+          delay: Value(PingDelayConstants.unknown),
+          data: Value(
+            base64Encode(
+              utf8.encode(
+                '{"outbounds":[{"tag":"first","protocol":"freedom"}]}',
+              ),
+            ),
           ),
         ),
-      ),
-    );
-    final row = (await db.coreConfigDao.searchRow(id))!;
-    final configuration = ConnectionConfiguration(
-      connection: ConnectionSettings(selection: ServerSelection.server(id)),
-    );
-    await db.connectionConfigDao.commit(
-      configurationJson: configuration.encode(),
-    );
-    final coordinator = ConnectionCoordinator(database: db);
-    addTearDown(coordinator.dispose);
-    coordinator.state.value = ConnectionView(
-      phase: ConnectionPhase.connected,
-      runtime: _providerRuntime(ResolvedProfile.fromRow(row)),
-    );
-    final changes = <Map<String, dynamic>>[];
-    final notices = <String>[];
-    Future<void> Function()? recheck;
-    final tray =
-        TrayService.forTesting(
-            database: db,
-            coordinator: coordinator,
-            connect: () async => fail('A selection must not directly connect'),
-            notify: (message) async => notices.add(message),
-            showMainWindow: () async =>
-                fail('Selection must not require a window'),
-          )
-          ..onConfigurationChange = (values, label, validate) async {
-            await validate();
-            recheck = validate;
-            changes.add(values);
-          };
-    await tray.onMenuAction(TrayMenuEntry(key: 'server:$id'));
-    expect(changes.single['selection'], {'kind': 'server', 'id': id});
-    await tray.onMenuAction(TrayMenuEntry(key: 'source:$sourceId'));
-    await tray.onMenuAction(TrayMenuEntry(key: 'traffic:allVpn'));
-    await tray.onMenuAction(TrayMenuEntry(key: 'custom:100'));
-    expect(changes, hasLength(1));
-    expect(notices, isNotEmpty);
-    await db.subscriptionDao.updateRow(
-      (await db.subscriptionDao.searchRow(sourceId))!
-          .copyWith(mode: SubscriptionMode.appManaged.name),
-    );
-    await expectLater(recheck!(), throwsA(isA<AppFailure>()));
-    await tray.onMenuAction(TrayMenuEntry(key: 'traffic:smart'));
-    expect(
-      changes,
-      hasLength(1),
-      reason: 'The actual provider runtime remains active after a mode change.',
-    );
-  });
+      );
+      final row = (await db.coreConfigDao.searchRow(id))!;
+      final configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(selection: ServerSelection.server(id)),
+      );
+      await db.connectionConfigDao.commit(
+        configurationJson: configuration.encode(),
+      );
+      final coordinator = ConnectionCoordinator(database: db);
+      addTearDown(coordinator.dispose);
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.connected,
+        runtime: _providerRuntime(ResolvedProfile.fromRow(row)),
+      );
+      final changes = <Map<String, dynamic>>[];
+      final notices = <String>[];
+      Future<void> Function()? recheck;
+      final tray =
+          TrayService.forTesting(
+              database: db,
+              coordinator: coordinator,
+              connect: () async =>
+                  fail('A selection must not directly connect'),
+              notify: (message) async => notices.add(message),
+              showMainWindow: () async =>
+                  fail('Selection must not require a window'),
+            )
+            ..onConfigurationChange = (values, label, validate) async {
+              await validate();
+              recheck = validate;
+              changes.add(values);
+            };
+      await tray.onMenuAction(TrayMenuEntry(key: 'server:$id'));
+      expect(changes.single['selection'], {'kind': 'server', 'id': id});
+      final recheckServer = recheck!;
+      await tray.onMenuAction(TrayMenuEntry(key: 'source:$sourceId'));
+      expect(changes.last['selection'], {'kind': 'source', 'id': sourceId});
+      await tray.onMenuAction(TrayMenuEntry(key: 'traffic:allVpn'));
+      await tray.onMenuAction(TrayMenuEntry(key: 'custom:100'));
+      expect(changes, hasLength(2));
+      expect(notices, isEmpty);
+      await db.subscriptionDao.updateRow(
+        (await db.subscriptionDao.searchRow(sourceId))!
+            .copyWith(mode: SubscriptionMode.appManaged.name),
+      );
+      await expectLater(recheckServer(), throwsA(isA<AppFailure>()));
+      await tray.onMenuAction(TrayMenuEntry(key: 'traffic:smart'));
+      expect(
+        changes,
+        hasLength(2),
+        reason:
+            'The actual provider runtime remains active after a mode change.',
+      );
+      await db.subscriptionDao.deleteRow(sourceId);
+      await tray.onMenuAction(TrayMenuEntry(key: 'source:$sourceId'));
+      expect(changes, hasLength(2));
+      expect(notices, isNotEmpty);
+    },
+  );
 
   for (final count in [0, 10, 12]) {
     test(

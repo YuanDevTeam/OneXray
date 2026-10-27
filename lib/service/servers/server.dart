@@ -142,10 +142,8 @@ class ServerAssetService {
     if (selection.kind == SelectionKind.source) {
       if (selection.id == DBConstants.defaultId) return;
       final source = await db.subscriptionDao.searchRow(selection.id!);
-      if (source == null || source.mode != SubscriptionMode.appManaged.name) {
-        throw const FormatException(
-          'Choose an individual provider configuration',
-        );
+      if (source == null) {
+        throw const FormatException('Subscription no longer exists');
       }
       return;
     }
@@ -332,8 +330,7 @@ class ServerAssetService {
               .map((row) => row.id)
               .toSet();
     final remaining = all.where((row) => !removed.contains(row.id)).toList();
-    final activeOrdinaryIds = (await db.coreConfigDao.allActiveServerRows())
-        .where((row) => row.type == CoreConfigType.outbound.name)
+    final activeServerIds = (await db.coreConfigDao.allActiveServerRows())
         .map((row) => row.id)
         .toSet();
     final selection = current.connection.selection;
@@ -345,13 +342,13 @@ class ServerAssetService {
             (all.any(
                   (row) =>
                       row.subId == selection.id &&
-                      activeOrdinaryIds.contains(row.id) &&
+                      activeServerIds.contains(row.id) &&
                       removed.contains(row.id),
                 ) &&
                 !remaining.any(
                   (row) =>
                       row.subId == selection.id &&
-                      activeOrdinaryIds.contains(row.id),
+                      activeServerIds.contains(row.id),
                 )),
     };
     final next = ConnectionConfiguration(
@@ -381,7 +378,7 @@ class ServerAssetService {
           active &&
           !remaining.any(
             (row) =>
-                activeOrdinaryIds.contains(row.id) &&
+                activeServerIds.contains(row.id) &&
                 selectable(row) &&
                 row.id != next.connection.finalExitId,
           ),

@@ -155,6 +155,39 @@ void main() {
       expect(find.text(l.providerRoutingNotice), findsOneWidget);
       expect(find.text(l.prototypeNoAvailableEntries), findsNothing);
       expect(find.textContaining('3 entry nodes'), findsNothing);
+      for (final selection in [
+        const ServerSelection.automatic(),
+        ServerSelection.source(sourceId),
+      ]) {
+        final automatic = ConnectionConfiguration(
+          connection: ConnectionSettings(
+            selection: selection,
+            smart: settings.connection.smart,
+          ),
+        );
+        coordinator.saved = automatic;
+        controller.configuration = automatic;
+        coordinator.state.value = ConnectionView(
+          phase: ConnectionPhase.connected,
+          runtime: _runtime(
+            profile: ResolvedProfile.fromRow(row),
+            selection: selection,
+          ),
+        );
+        expect(controller.selectedProvider, isNull);
+        expect(controller.providerConfiguration, isTrue);
+        expect(controller.selectionTitle(l), row.name);
+        expect(controller.selectionDetail(l), l.providerRoutingNotice);
+        expect(controller.homeMethodTitle(l), l.providerConfigurationTitle);
+        expect(controller.selectionHealth(l), isNull);
+        expect(controller.runningRoute, isNull);
+        expect(
+          controller.configuration.connection.selection.toJson(),
+          selection.toJson(),
+        );
+        expect(controller.configuration.connection.smart.entryCount, 3);
+        expect(coordinator.applyCount, 0);
+      }
     },
   );
 
@@ -973,13 +1006,19 @@ Widget _testApp(Widget home) => MaterialApp(
   home: home,
 );
 
-ConnectionRuntime _runtime({bool expert = false, ResolvedProfile? profile}) {
+ConnectionRuntime _runtime({
+  bool expert = false,
+  ResolvedProfile? profile,
+  ServerSelection? selection,
+}) {
   final configuration = ConnectionConfiguration(
     connection: ConnectionSettings(
       expert: expert,
-      selection: profile == null
-          ? const ServerSelection.automatic()
-          : ServerSelection.server(profile.id),
+      selection:
+          selection ??
+          (profile == null
+              ? const ServerSelection.automatic()
+              : ServerSelection.server(profile.id)),
     ),
   );
   ResolvedServer server(int id, String name) => ResolvedServer(

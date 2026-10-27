@@ -962,6 +962,53 @@ void main() {
     }
   });
 
+  test(
+    'source selection remains compatible with either active cache type',
+    () async {
+      final source = await _source(database);
+      final ordinaryId = await database.coreConfigDao.insertRow(
+        _node('Derived', subId: source.id),
+      );
+      final providerId = await database.coreConfigDao.insertRow(
+        _provider('Complete', subId: source.id),
+      );
+      final configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          selection: ServerSelection.source(source.id),
+        ),
+      );
+      await database.connectionConfigDao.commit(
+        configurationJson: configuration.encode(),
+      );
+      final service = _service(
+        database,
+        (_) async => throw StateError('Availability must not download'),
+      );
+      for (final mode in SubscriptionMode.values) {
+        await database.subscriptionDao.updateRow(
+          source.copyWith(mode: mode.name),
+        );
+        final availability = await service.modeAvailability(source.id);
+        expect(availability.count, 1);
+        expect(availability.hasActiveCache, isTrue);
+        expect(availability.selectedCompatible, isTrue);
+        expect(
+          (await database.connectionConfigDao.read()).configurationJson,
+          configuration.encode(),
+        );
+      }
+      await database.subscriptionDao.updateRow(
+        source.copyWith(mode: SubscriptionMode.providerManaged.name),
+      );
+      final provider = (await database.coreConfigDao.searchRow(providerId))!;
+      await database.coreConfigDao.deleteRow(provider);
+      final unavailable = await service.modeAvailability(source.id);
+      expect(unavailable.count, 0);
+      expect(unavailable.selectedCompatible, isFalse);
+      expect(await database.coreConfigDao.searchRow(ordinaryId), isNotNull);
+    },
+  );
+
   test('local mode switches preserve both caches and report refresh or reselect warnings', () async {
     final source = (await _source(database)).copyWith(
       uploadBytes: const Value(100),

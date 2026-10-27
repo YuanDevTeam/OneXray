@@ -376,7 +376,7 @@ class SubscriptionService {
       }
     } else if (settings.selection.kind == SelectionKind.source &&
         settings.selection.id == id) {
-      selectedCompatible = source.mode == SubscriptionMode.appManaged.name;
+      selectedCompatible = rows.isNotEmpty;
     }
     return SubscriptionModeAvailability(
       count: rows.length,

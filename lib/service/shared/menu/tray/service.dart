@@ -415,8 +415,7 @@ final class TrayService {
           id == 0
               ? (await _db.coreConfigDao.allOutboundRowsWithDataBySubId(0))
                     .isNotEmpty
-              : (await _db.subscriptionDao.searchRow(id!))?.mode ==
-                    SubscriptionMode.appManaged.name,
+              : await _db.subscriptionDao.searchRow(id!) != null,
         'custom' =>
           await trafficAvailable() &&
               await _db.routingProfileDao.searchRow(id!) != null,
