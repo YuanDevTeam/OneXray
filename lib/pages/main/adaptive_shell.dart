@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
+import 'package:onexray/core/tools/logger.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/main/desktop_window.dart';
 import 'package:onexray/pages/main/menu_actions.dart';
@@ -28,12 +29,16 @@ class AdaptiveMainShell extends StatefulWidget {
     required this.hasActiveModal,
     this.initializeServices,
     this.settingsMenuService,
+    this.shareService,
+    this.modalChanges,
   });
 
   final StatefulNavigationShell navigationShell;
   final bool Function(AppPrimaryDestination) hasActiveModal;
   final Future<void> Function(BuildContext context)? initializeServices;
   final MacOSSettingsMenuService? settingsMenuService;
+  final ShareService? shareService;
+  final Listenable? modalChanges;
 
   @override
   State<AdaptiveMainShell> createState() => _AdaptiveMainShellState();
@@ -44,6 +49,11 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   bool _menusAttached = false;
   late final _settingsMenu =
       widget.settingsMenuService ?? MacOSSettingsMenuService();
+  late final _shareService = widget.shareService ?? ShareService();
+  StreamSubscription<void>? _appLinkSubscription;
+  GoRouter? _router;
+  IncomingAppLink? _activeAppLink;
+  bool _appLinkDrainScheduled = false;
 
   StatefulNavigationShell get navigationShell => widget.navigationShell;
 
@@ -55,12 +65,36 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   }
 
   Future<void> _initializeServices() {
-    ShareService().onIncomingShare = (text) async {
-      if (mounted) {
-        await context.pushScoped(AppPageDestination.serversImport, extra: text);
-      }
-    };
     return (widget.initializeServices ?? ServiceManager.serviceInit)(context);
+  }
+
+  void _scheduleAppLinkDrain() {
+    if (!mounted || _appLinkDrainScheduled) return;
+    _appLinkDrainScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _appLinkDrainScheduled = false;
+      if (mounted) unawaited(_drainAppLink());
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _drainAppLink() async {
+    if (_activeAppLink != null || !_canOpenSettings()) return;
+    final event = _shareService.claimNextAppLink();
+    if (event == null) return;
+    _activeAppLink = event;
+    try {
+      await context.pushScoped(
+        AppPageDestination.serversImport,
+        extra: event.uri.toString(),
+      );
+    } catch (_) {
+      ygLogger('open incoming share failed');
+    } finally {
+      _shareService.finishAppLink(event);
+      if (identical(_activeAppLink, event)) _activeAppLink = null;
+      if (mounted) _scheduleAppLinkDrain();
+    }
   }
 
   void _refreshQuickActions() {
@@ -72,6 +106,15 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     _menusAttached = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      _router = GoRouter.of(context);
+      _router!.routerDelegate.addListener(_scheduleAppLinkDrain);
+      widget.modalChanges?.addListener(_scheduleAppLinkDrain);
+      _appLinkSubscription = _shareService.pendingAppLinksChanged.listen(
+        (_) => _scheduleAppLinkDrain(),
+      );
+      // Links received during Setup or service initialization precede this
+      // subscription. Read once after the main navigation has rendered.
+      _scheduleAppLinkDrain();
       TrayService().onConfigurationChange = (values, label, validate) =>
           applyTrayConfiguration(context, values, label, validate);
       TrayService().onSubscriptionFormatConfirmation = (name) =>
@@ -90,6 +133,11 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
 
   @override
   void dispose() {
+    _router?.routerDelegate.removeListener(_scheduleAppLinkDrain);
+    widget.modalChanges?.removeListener(_scheduleAppLinkDrain);
+    unawaited(_appLinkSubscription?.cancel());
+    final activeAppLink = _activeAppLink;
+    if (activeAppLink != null) _shareService.finishAppLink(activeAppLink);
     _settingsMenu.detach(this);
     ShortCutService().detach();
     TrayService().onConfigurationChange = null;

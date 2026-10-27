@@ -72,6 +72,10 @@ final _primaryModalObservers = {
   for (final primary in AppPrimaryDestination.values)
     primary: AppModalRouteObserver(),
 };
+final _modalChanges = Listenable.merge([
+  _rootModalObserver,
+  ..._primaryModalObservers.values,
+]);
 
 abstract final class RouterPath {
   static const splash = "/splash";
@@ -114,6 +118,7 @@ abstract final class RouterPath {
         builder: (_, _, navigationShell) {
           return AdaptiveMainShell(
             navigationShell: navigationShell,
+            modalChanges: _modalChanges,
             hasActiveModal: (primary) =>
                 _rootModalObserver.hasPopupRoute ||
                 _primaryModalObservers[primary]!.hasPopupRoute,
