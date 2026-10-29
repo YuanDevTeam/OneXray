@@ -115,6 +115,59 @@ void main() {
   });
 
   test(
+    'manual S3 JSON keeps its full map through validation, preview and commit',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      const source = '''
+ {"outbounds":[{
+   "tag":"S3 node","protocol":"vless",
+   "settings":{"address":"logical.example","port":443,
+     "id":"11111111-1111-4111-8111-111111111111","encryption":"none"},
+   "mux":{"enabled":true,"concurrency":8},
+   "streamSettings":{"network":"xdrive","xdriveSettings":{
+     "service":"s3","remoteFolder":"sessions/test",
+     "secrets":["test-access-key","test-secret-key","test-session-token"],
+     "s3":{"endpoint":"https://storage.example/prefix/","region":"test-region",
+       "bucket":"tunnel","pathStyle":false,"future":{"keep":true}}}},
+   "future":{"values":[1,{"keep":true}]}
+ }]}
+''';
+      final original =
+          (jsonDecode(source) as Map<String, dynamic>)['outbounds'];
+      final validated = <Map<String, dynamic>>[];
+      final queued = <int>[];
+      final service = ServerImportService(
+        database: db,
+        parse: (_) async => fail('Manual JSON must bypass share projection'),
+        validate: (text) async {
+          validated.add(jsonDecode(text) as Map<String, dynamic>);
+          return '';
+        },
+        write: (rows) => ConfigWriter.writeRowsInTransaction(db, rows, null),
+        schedule: queued.addAll,
+      );
+      final preview = await service.preview(source, manual: true);
+      expect(validated.single['outbounds'], original);
+      expect(preview.count, 1);
+      expect(await db.coreConfigDao.allOutboundRowsWithDataBySubId(0), isEmpty);
+      expect(queued, isEmpty);
+
+      final result = await service.commit(preview);
+      final saved = (await db.coreConfigDao.allOutboundRowsWithDataBySubId(0))
+          .single;
+      expect(result.count, 1);
+      expect(readOutboundFromDbData(saved), (original as List).single);
+      expect(queued, [saved.id]);
+      expect(validated, hasLength(1));
+      expect(
+        (jsonDecode(source) as Map<String, dynamic>)['outbounds'],
+        original,
+      );
+    },
+  );
+
+  test(
     'batch subscription import retains errors and continues with later sources',
     () async {
       const downloadError = HttpException('HTTP 403');
@@ -220,8 +273,11 @@ void main() {
   );
 
   test('libXray rejection aborts manual import before persistence', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(db.close);
     var validations = 0;
     final service = ServerImportService(
+      database: db,
       validate: (_) async {
         validations++;
         return 'Invalid node';
@@ -242,6 +298,7 @@ void main() {
           ),
         ),
       );
+      expect(await db.coreConfigDao.allOutboundRowsWithDataBySubId(0), isEmpty);
     }
     expect(validations, 2);
   });

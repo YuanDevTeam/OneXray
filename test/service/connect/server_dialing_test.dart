@@ -785,7 +785,7 @@ Map<String, dynamic> _s3({
     's3': <String, dynamic>{
       'endpoint': endpoint,
       'bucket': 'tunnel',
-      if (pathStyle != null) 'pathStyle': pathStyle,
+      'pathStyle': ?pathStyle,
     },
   };
   return value;

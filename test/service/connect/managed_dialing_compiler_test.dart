@@ -841,7 +841,7 @@ Map<String, dynamic> _s3({bool? pathStyle, String? fronting}) => {
       's3': {
         'endpoint': 'https://Storage.Example.:9443/base/',
         'bucket': 'tunnel',
-        if (pathStyle != null) 'pathStyle': pathStyle,
+        'pathStyle': ?pathStyle,
       },
       'future': {'keep': true},
     },
