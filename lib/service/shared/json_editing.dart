@@ -359,8 +359,17 @@ class JsonEditing {
           'eagerWindowMs',
           'holeTimeoutMs',
           'template',
+          's3',
           'xmux',
         ];
+      }
+      if (tail == 's3' &&
+          _streamSettingsChildPath(
+            path.sublist(0, path.length - 1),
+            kind,
+            'xdriveSettings',
+          )) {
+        return const ['endpoint', 'region', 'bucket', 'pathStyle'];
       }
       if (_xdriveTemplatePath(path, kind)) {
         return const [
@@ -769,7 +778,7 @@ class JsonEditing {
     if (!managed) {
       if (field == 'service' &&
           _streamSettingsChildPath(parent, kind, 'xdriveSettings')) {
-        return const ['local', 'google-drive', 'template'];
+        return const ['local', 'google-drive', 'template', 's3'];
       }
       if (field == 'type' &&
           parent.lastOrNull == 'auth' &&

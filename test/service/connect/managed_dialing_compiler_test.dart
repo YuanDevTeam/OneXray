@@ -78,6 +78,118 @@ void main() {
     }
   });
 
+  test(
+    'managed S3 routes bootstrap storage hosts while preserving the node graph',
+    () {
+      for (final mode in TrafficMode.values) {
+        for (final pathStyle in <bool?>[null, true, false]) {
+          for (final ipv6 in [false, true]) {
+            final source = _s3(pathStyle: pathStyle);
+            final before = jsonEncode(source);
+            final entry = ResolvedServer(id: 1, sourceId: 0, outbound: source);
+            final config = ConnectionCompiler.compile(
+              settings: ConnectionSettings(
+                trafficMode: mode,
+                smart: SmartRoutingSettings(fakeDns: true),
+              ),
+              custom: mode == TrafficMode.custom
+                  ? RoutingProfileState(name: 'Custom', fakeDns: true)
+                  : null,
+              entries: [entry],
+              regions: catalog,
+              options: _options(
+                dialing: const ServerDialingSettings(
+                  domainStrategy: ServerDomainStrategy.useIp,
+                  happyEyeballs: true,
+                ),
+                ipv6: ipv6,
+              ),
+            ).config;
+            final outbound = _outbound(config, 'app-entry-0');
+            _expectBootstrap(config, [
+              pathStyle == false ? 'tunnel.storage.example' : 'storage.example',
+            ], ipv6: ipv6);
+            expect(
+              _socket(outbound)['domainStrategy'],
+              ipv6 ? 'UseIP' : 'UseIPv4',
+            );
+            expect(
+              _socket(outbound)['happyEyeballs'],
+              ipv6 ? {'tryDelayMs': 250} : isNull,
+            );
+            expect(outbound['settings'], source['settings']);
+            expect(outbound['mux'], source['mux']);
+            for (final field in ['tlsSettings', 'xdriveSettings']) {
+              expect(
+                outbound['streamSettings'][field],
+                source['streamSettings'][field],
+              );
+            }
+            expect(jsonEncode(source), before);
+            expect(entry.outbound, source);
+          }
+        }
+      }
+    },
+  );
+
+  test(
+    'S3 fronting and final exits retain the physical Fragment bootstrap target',
+    () {
+      for (final fronting in <String?>[
+        null,
+        'fronting.example',
+        '192.0.2.10',
+      ]) {
+        final source = _s3(pathStyle: false, fronting: fronting);
+        final before = jsonEncode(source);
+        final entry = ResolvedServer(id: 1, sourceId: 0, outbound: source);
+        final exit = _node(9, 'remote-exit.example');
+        final compiled = ConnectionCompiler.compile(
+          settings: ConnectionSettings(
+            smart: SmartRoutingSettings(
+              finalExitId: exit.id,
+              fragment: true,
+              fakeDns: true,
+            ),
+          ),
+          entries: [entry],
+          finalExit: exit,
+          regions: catalog,
+          options: _options(dialing: _happyEyeballs),
+        );
+        final config = compiled.config;
+        final outer = _outbound(config, 'app-exit-0');
+        final inner = _outbound(config, 'app-entry-0');
+        final helper = _outbound(config, 'fragment');
+        expect(_socket(outer)['dialerProxy'], inner['tag']);
+        expect(_socket(inner), {'dialerProxy': 'fragment'});
+        expect(_socket(helper)['domainStrategy'], 'UseIP');
+        expect(_socket(helper)['happyEyeballs'], {'tryDelayMs': 250});
+        expect(
+          helper['streamSettings']['finalmask']['tcp'].single['type'],
+          'fragment',
+        );
+        if (fronting == '192.0.2.10') {
+          expect(
+            _dnsServers(config)
+                .where((server) => server['tag'] == 'app-dns-bootstrap'),
+            isEmpty,
+          );
+        } else {
+          _expectBootstrap(config, [fronting ?? 'tunnel.storage.example']);
+        }
+        expect(compiled.nodeTags, {'app-entry-0': 1, 'app-exit-0': 9});
+        expect(
+          inner['streamSettings']['xdriveSettings'],
+          source['streamSettings']['xdriveSettings'],
+        );
+        expect(jsonEncode(source), before);
+        expect(entry.outbound, source);
+      }
+    },
+  );
+
   test('system default retains the existing managed socket and DNS output', () {
     final source = <String, dynamic>{
       'tag': 'Personal entry',
@@ -286,6 +398,17 @@ void main() {
             },
           ),
           'tag': 'xhttp-proxy',
+        },
+        {
+          ..._s3(pathStyle: false),
+          'tag': 's3-proxy',
+          'streamSettings': <String, dynamic>{
+            ..._s3(pathStyle: false)['streamSettings'],
+            'sockopt': {
+              'domainStrategy': 'UseIPv6',
+              'happyEyeballs': {'tryDelayMs': 80},
+            },
+          },
         },
       ],
     };
@@ -693,6 +816,35 @@ Map<String, dynamic> _xhttp({
     'tlsSettings': {'serverName': 'certificate.example'},
     'sockopt': ?sockopt,
     'xhttpSettings': settings,
+  },
+};
+
+Map<String, dynamic> _s3({bool? pathStyle, String? fronting}) => {
+  'tag': 'S3 entry',
+  'protocol': 'vless',
+  'settings': {
+    'address': 'logical.example',
+    'port': 443,
+    'id': '11111111-1111-4111-8111-111111111111',
+    'encryption': 'none',
+  },
+  'mux': {'enabled': true, 'concurrency': 8},
+  'streamSettings': {
+    'network': 'xdrive',
+    'security': 'tls',
+    'tlsSettings': {'serverName': 'certificate.example'},
+    if (fronting != null) ...{'address': fronting, 'port': 9443},
+    'xdriveSettings': {
+      'service': 's3',
+      'remoteFolder': 'sessions/client',
+      'secrets': ['test-access', 'test-secret'],
+      's3': {
+        'endpoint': 'https://Storage.Example.:9443/base/',
+        'bucket': 'tunnel',
+        if (pathStyle != null) 'pathStyle': pathStyle,
+      },
+      'future': {'keep': true},
+    },
   },
 };
 

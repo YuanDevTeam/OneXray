@@ -245,6 +245,161 @@ void main() {
     }
   });
 
+  test(
+    'S3 storage host replaces the logical endpoint for both transport aliases',
+    () {
+      for (final field in ['network', 'method']) {
+        for (final pathStyle in <bool?>[null, true, false]) {
+          final value = _s3(pathStyle: pathStyle, sockopt: {'mark': 7});
+          final stream = value['streamSettings'] as Map<String, dynamic>;
+          stream.remove('network');
+          stream[field] = 'XDRIVE';
+          stream['tlsSettings'] = {'serverName': 'certificate.example'};
+          final settingsBefore = JsonTool.copyMap(value['settings']);
+          final storageBefore = JsonTool.copyMap(stream['xdriveSettings']);
+          expect(
+            ManagedServerDialing.apply(
+              outbounds: [value],
+              settings: dualStack,
+              interfaceName: 'eth0',
+            ),
+            [pathStyle == false ? 'tunnel.storage.example' : 'storage.example'],
+          );
+          expect(_sockopt(value), {
+            'mark': 7,
+            'domainStrategy': 'UseIP',
+            'happyEyeballs': {'tryDelayMs': 250},
+            'interface': 'eth0',
+          });
+          expect(value['settings'], settingsBefore);
+          expect(stream['xdriveSettings'], storageBefore);
+          expect(stream['tlsSettings'], {'serverName': 'certificate.example'});
+        }
+      }
+    },
+  );
+
+  test(
+    'S3 fronting overrides the virtual storage host and IPs need no DNS',
+    () {
+      for (final fronting in ['fronting.example', '192.0.2.3', '2001:db8::3']) {
+        final value = _s3(pathStyle: false, fronting: fronting);
+        expect(
+          ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
+          fronting == 'fronting.example' ? ['fronting.example'] : isEmpty,
+        );
+        expect(_sockopt(value)['domainStrategy'], 'UseIP');
+        expect(value['streamSettings']['address'], fronting);
+      }
+      for (final endpoint in [
+        'http://192.0.2.4:9000/base/',
+        'https://[2001:db8::4]:9443/base/',
+      ]) {
+        final value = _s3(endpoint: endpoint);
+        expect(
+          ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
+          isEmpty,
+        );
+        expect(_sockopt(value)['happyEyeballs'], {'tryDelayMs': 250});
+        expect(
+          value['streamSettings']['xdriveSettings']['s3']['endpoint'],
+          endpoint,
+        );
+      }
+    },
+  );
+
+  test(
+    'S3 routed through another proxy keeps its remote storage resolution',
+    () {
+      final value = _s3(pathStyle: false, sockopt: {'dialerProxy': 'entry'});
+      final before = JsonTool.copyMap(value);
+      final entry = _node('entry.example');
+      expect(
+        ManagedServerDialing.apply(
+          outbounds: [value, entry],
+          settings: dualStack,
+        ),
+        ['entry.example'],
+      );
+      expect(value, before);
+    },
+  );
+
+  test('S3 via Fragment applies physical policy on the helper without replacing masks', () {
+    final value = _s3(pathStyle: false, sockopt: {'dialerProxy': 'fragment'});
+    final helper = _fragment()..remove('settings');
+    helper['streamSettings'] = <String, dynamic>{
+      'finalmask': {
+        'tcp': [
+          {
+            'type': 'fragment',
+            'settings': {
+              'packets': 'tlshello',
+              'length': '100-200',
+              'delay': '10-20',
+            },
+          },
+        ],
+      },
+    };
+    final maskBefore = JsonTool.copyMap(helper['streamSettings']['finalmask']);
+    final entryBefore = JsonTool.copyMap(value);
+    expect(
+      ManagedServerDialing.apply(
+        outbounds: [value, helper],
+        settings: dualStack,
+        interfaceName: 'eth0',
+      ),
+      ['tunnel.storage.example'],
+    );
+    expect(value, entryBefore);
+    expect(_sockopt(helper), {
+      'domainStrategy': 'UseIP',
+      'happyEyeballs': {'tryDelayMs': 250},
+      'interface': 'eth0',
+    });
+    expect(helper['streamSettings']['finalmask'], maskBefore);
+  });
+
+  test('S3 with system dialing only clears racing and preserves service configuration', () {
+    final value = _s3(
+      pathStyle: false,
+      sockopt: {
+        'domainStrategy': 'UseIPv6',
+        'happyEyeballs': {'tryDelayMs': 99},
+        'mark': 7,
+      },
+    );
+    final before = JsonTool.copyMap(value);
+    _sockopt(before).remove('happyEyeballs');
+    expect(
+      ManagedServerDialing.apply(
+        outbounds: [value],
+        settings: const EffectiveServerDialing(domainStrategy: 'AsIs'),
+      ),
+      isEmpty,
+    );
+    expect(value, before);
+  });
+
+  test(
+    'inactive S3 settings and other XDrive services retain endpoint behavior',
+    () {
+      final inactive = _s3();
+      inactive['streamSettings']['network'] = 'tcp';
+      final otherService = _s3();
+      otherService['streamSettings']['xdriveSettings']['service'] =
+          'google-drive';
+      for (final value in [inactive, otherService]) {
+        expect(
+          ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
+          ['logical.example'],
+        );
+      }
+    },
+  );
+
   test('transport names follow Core case-insensitive network and method', () {
     for (final field in ['network', 'method']) {
       final xhttp = _xhttp(_download('download.example'));
@@ -609,6 +764,29 @@ Map<String, dynamic> _xhttp(
   value['streamSettings']['network'] = alias;
   value['streamSettings']['${alias}Settings'] = <String, dynamic>{
     'downloadSettings': download,
+  };
+  return value;
+}
+
+Map<String, dynamic> _s3({
+  String endpoint = 'https://Storage.Example.:9443/base/',
+  bool? pathStyle,
+  String? fronting,
+  Map<String, dynamic>? sockopt,
+}) {
+  final value = _node('logical.example', sockopt: sockopt);
+  final stream = value['streamSettings'] as Map<String, dynamic>;
+  stream['network'] = 'xdrive';
+  if (fronting != null) stream['address'] = fronting;
+  stream['xdriveSettings'] = <String, dynamic>{
+    'service': 's3',
+    'remoteFolder': 'sessions/client',
+    'secrets': ['test-access', 'test-secret'],
+    's3': <String, dynamic>{
+      'endpoint': endpoint,
+      'bucket': 'tunnel',
+      if (pathStyle != null) 'pathStyle': pathStyle,
+    },
   };
   return value;
 }

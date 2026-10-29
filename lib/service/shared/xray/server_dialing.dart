@@ -100,12 +100,16 @@ abstract final class ManagedServerDialing {
         continue;
       }
       final streamAddress = stream['address'];
-      if (_network(stream) == 'xdrive' &&
-          streamAddress is String &&
-          streamAddress.isNotEmpty) {
-        // XDrive uses this address as physical fronting. TCP and the main
-        // XHTTP stream continue to dial their protocol settings destination.
-        addresses = [streamAddress];
+      if (_network(stream) == 'xdrive') {
+        if (streamAddress is String && streamAddress.isNotEmpty) {
+          // Explicit fronting overrides the storage service's endpoint.
+          addresses = [streamAddress];
+        } else {
+          final xdrive = _map(stream['xdriveSettings']);
+          if (xdrive != null && xdrive['service'] == 's3') {
+            addresses = _s3Addresses(xdrive);
+          }
+        }
       }
       route(stream, addresses);
 
@@ -181,6 +185,18 @@ abstract final class ManagedServerDialing {
     // mode from the outer object. An outer downloadSettings is then inactive.
     final effective = xhttp['extra'] == null ? xhttp : _map(xhttp['extra']);
     return _map(effective?['downloadSettings']);
+  }
+
+  /// S3 dials its HTTP endpoint, not the VLESS protocol's logical address.
+  /// Core owns validation; only extract the host for its existing DNS policy.
+  static List<String> _s3Addresses(Map<String, dynamic> xdrive) {
+    final s3 = _map(xdrive['s3']);
+    final endpoint = s3?['endpoint'];
+    final host = endpoint is String ? Uri.tryParse(endpoint)?.host : null;
+    if (host == null || host.isEmpty) return [];
+    if (s3?['pathStyle'] != false) return [host];
+    final bucket = s3?['bucket'];
+    return bucket is String ? ['$bucket.$host'] : [];
   }
 
   static String? _domain(String address) {

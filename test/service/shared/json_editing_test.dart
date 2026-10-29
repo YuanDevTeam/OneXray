@@ -302,6 +302,78 @@ void main() {
     },
   );
 
+  test('S3 completions stay within XDrive and leave values user-owned', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
+      (JsonEditorKind.outbound, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"inbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+    ]) {
+      String source(String body) =>
+          wrapper.replaceFirst('BODY', '"xdriveSettings":{$body}');
+      expect(labels(source('"service":"s|"'), kind), ['s3']);
+      expect(labels(source('"s|"'), kind), contains('s3'));
+      expect(labels(source('"s3":{"|"}'), kind), [
+        'endpoint',
+        'region',
+        'bucket',
+        'pathStyle',
+      ]);
+      expect(
+        labels(source('"s3":{"endpoint":"https://s3.example","en|"}'), kind),
+        isEmpty,
+      );
+      for (final body in [
+        '"s3":{"endpoint":"https://|"}',
+        '"s3":{"region":"us-|"}',
+        '"s3":{"pathStyle":"t|"}',
+        '"secrets":["|"]',
+      ]) {
+        expect(labels(source(body), kind), isEmpty);
+      }
+    }
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(
+        labels(
+          '{"outbounds":[{}, {"streamSettings":{"xdriveSettings":{"service":"s|"}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+      expect(
+        labels(
+          '{"outbounds":[{}, {"streamSettings":{"xdriveSettings":{"s3":{"en|"}}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+    }
+    for (final marked in [
+      '{"future":{"xdriveSettings":{"s3":{"en|"}}}}',
+      '{"streamSettings":{"future":{"xdriveSettings":{"s3":{"en|"}}}}}',
+      '{"streamSettings":{"masqueSettings":{"s3":{"en|"}}}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.outbound), isEmpty);
+    }
+    const marked =
+        '{"protocol":"vless","settings":{"future":{"keep":true}},"streamSettings":{"xdriveSettings":{"service":"s|","secrets":["fixture-key","fixture-secret"],"s3":{"endpoint":"https://store.example:8443/prefix","bucket":"fixture","pathStyle":false},"future":{"keep":[1,2]}}}}';
+    final completion = completions(marked, JsonEditorKind.outbound).single;
+    final text = marked.replaceFirst('|', '');
+    final before = jsonDecode(text) as Map<String, dynamic>;
+    final after = jsonDecode(
+      text.replaceRange(
+        completion.start,
+        completion.end,
+        completion.insertText,
+      ),
+    ) as Map<String, dynamic>;
+    before['streamSettings']['xdriveSettings']['service'] = 's3';
+    expect(after, before);
+  });
+
   test('XMUX and XDrive timing hints follow their transport owner', () {
     for (final (kind, template) in [
       (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
