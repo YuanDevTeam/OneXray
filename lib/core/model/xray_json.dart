@@ -430,8 +430,9 @@ class XrayOutboundDnsRule {
 @JsonSerializable(explicitToJson: true, includeIfNull: false)
 class XrayStreamSettings {
   XraySockopt? sockopt;
+  Map<String, dynamic>? finalmask;
 
-  XrayStreamSettings({this.sockopt});
+  XrayStreamSettings({this.sockopt, this.finalmask});
 
   factory XrayStreamSettings.fromJson(Map<String, dynamic> json) =>
       _$XrayStreamSettingsFromJson(json);

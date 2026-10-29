@@ -408,10 +408,14 @@ XrayStreamSettings _$XrayStreamSettingsFromJson(Map<String, dynamic> json) =>
       sockopt: json['sockopt'] == null
           ? null
           : XraySockopt.fromJson(json['sockopt'] as Map<String, dynamic>),
+      finalmask: json['finalmask'] as Map<String, dynamic>?,
     );
 
 Map<String, dynamic> _$XrayStreamSettingsToJson(XrayStreamSettings instance) =>
-    <String, dynamic>{'sockopt': ?instance.sockopt?.toJson()};
+    <String, dynamic>{
+      'sockopt': ?instance.sockopt?.toJson(),
+      'finalmask': ?instance.finalmask,
+    };
 
 XraySockopt _$XraySockoptFromJson(Map<String, dynamic> json) => XraySockopt(
   dialerProxy: json['dialerProxy'] as String?,

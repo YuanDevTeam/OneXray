@@ -12,13 +12,20 @@ abstract final class XrayFragment {
   static Map<String, dynamic> defaultOutbound() => XrayOutbound(
     tag: tag,
     protocol: 'freedom',
-    settings: {
-      'fragment': {
-        'packets': 'tlshello',
-        'length': '100-200',
-        'interval': '10-20',
+    streamSettings: XrayStreamSettings(
+      finalmask: {
+        'tcp': [
+          {
+            'type': 'fragment',
+            'settings': {
+              'packets': 'tlshello',
+              'length': '100-200',
+              'delay': '10-20',
+            },
+          },
+        ],
       },
-    },
+    ),
   ).toJson();
 
   /// Only the selected entry roles are linked. Exit clones and user helper

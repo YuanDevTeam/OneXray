@@ -218,7 +218,10 @@ final class AdvancedRoutingDocument {
       if (stream != null) {
         final streamPath = [...path, 'streamSettings'];
         final map = _object(stream, streamPath);
-        _keys(map, {'sockopt'}, streamPath);
+        _keys(map, {
+          'sockopt',
+          if (outbound['protocol'] == 'freedom') 'finalmask',
+        }, streamPath);
         if (map['sockopt'] != null) {
           final sockoptPath = [...streamPath, 'sockopt'];
           final sockopt = _object(map['sockopt'], sockoptPath);

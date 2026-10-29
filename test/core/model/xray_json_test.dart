@@ -237,4 +237,30 @@ void main() {
       {'action': 'hijack', 'qType': '1,28'},
     );
   });
+
+  test('managed stream settings preserve FinalMask and socket options', () {
+    final source = <String, dynamic>{
+      'tag': 'fragment',
+      'protocol': 'freedom',
+      'streamSettings': {
+        'sockopt': {'interface': 'selected-interface'},
+        'finalmask': {
+          'tcp': [
+            {
+              'type': 'fragment',
+              'settings': {
+                'packets': 'tlshello',
+                'length': '100-200',
+                'delay': '10-20',
+                'futureOption': {'preserve': true},
+              },
+            },
+          ],
+        },
+      },
+    };
+
+    expect(XrayOutbound.fromJson(source).toJson(), source);
+    expect(XrayStreamSettings().toJson(), isEmpty);
+  });
 }

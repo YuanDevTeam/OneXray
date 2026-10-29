@@ -423,8 +423,17 @@ void main() {
       expect(_socket(forwarded)['happyEyeballs'], isNull);
     }
     expect(fragment['protocol'], 'freedom');
-    expect(fragment['settings']['domainStrategy'], isNull);
-    expect(fragment['settings']['fragment'], isNotEmpty);
+    expect(fragment.containsKey('settings'), false);
+    expect(fragment['streamSettings']['finalmask']['tcp'], [
+      {
+        'type': 'fragment',
+        'settings': {
+          'packets': 'tlshello',
+          'length': '100-200',
+          'delay': '10-20',
+        },
+      },
+    ]);
     expect(_socket(fragment)['domainStrategy'], 'UseIP');
     expect(_socket(fragment)['happyEyeballs'], {'tryDelayMs': 250});
     expect(config['routing']['balancers'].single['selector'], [outer['tag']]);

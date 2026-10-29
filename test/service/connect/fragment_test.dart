@@ -66,19 +66,7 @@ void main() {
             if (enabled) {
               expect(
                 _outbound(config, 'fragment'),
-                mode == TrafficMode.custom
-                    ? helper
-                    : {
-                        'tag': 'fragment',
-                        'protocol': 'freedom',
-                        'settings': {
-                          'fragment': {
-                            'packets': 'tlshello',
-                            'length': '100-200',
-                            'interval': '10-20',
-                          },
-                        },
-                      },
+                mode == TrafficMode.custom ? helper : _defaultFragment(),
               );
             }
             expect(custom.toJson(), saved);
@@ -120,11 +108,42 @@ void main() {
       }
       expect(compiled.nodeTags.containsKey('fragment'), false);
       expect(exit.outbound, originalExit);
-      expect(_outbound(config, 'fragment')['settings']['fragment'], {
-        'packets': 'tlshello',
-        'length': '100-200',
-        'interval': '10-20',
-      });
+      expect(_outbound(config, 'fragment'), _defaultFragment());
+    }
+  });
+
+  test('ordinary FinalMask helpers persist and keep validation wiring', () {
+    for (final count in [1, 3]) {
+      final helper = _defaultFragment();
+      final original = jsonDecode(jsonEncode(helper));
+      final draft = RoutingProfileState(
+        name: 'FinalMask',
+        entryCount: count,
+        fragmentOutbound: helper,
+      );
+      final custom = RoutingProfileStateDb.readData(
+        name: draft.name,
+        data: draft.databaseData,
+      );
+      expect(custom.fragmentOutbound, original);
+      final saved = custom.toJson();
+      final runtime = ConnectionCompiler.compile(
+        settings: ConnectionSettings(trafficMode: TrafficMode.custom),
+        custom: custom,
+        entries: [for (var i = 0; i < count; i++) node(i + 1)],
+        regions: catalog,
+        options: options(),
+      ).config;
+      final validation = jsonDecode(
+        CustomRoutingService.validationJson(custom),
+      ) as Map<String, dynamic>;
+      for (final config in [runtime, validation]) {
+        _expectEntries(config, count, enabled: true);
+        expect(_outbound(config, 'fragment'), original);
+        expect(_outbound(config, 'fragment').containsKey('settings'), false);
+      }
+      expect(custom.toJson(), saved);
+      expect(helper, original);
     }
   });
 
@@ -315,6 +334,25 @@ void main() {
     );
   });
 }
+
+Map<String, dynamic> _defaultFragment() => {
+  'tag': 'fragment',
+  'protocol': 'freedom',
+  'streamSettings': {
+    'finalmask': {
+      'tcp': [
+        {
+          'type': 'fragment',
+          'settings': {
+            'packets': 'tlshello',
+            'length': '100-200',
+            'delay': '10-20',
+          },
+        },
+      ],
+    },
+  },
+};
 
 Map<String, dynamic> _fragment() => {
   'tag': 'fragment',

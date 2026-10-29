@@ -137,6 +137,135 @@ void main() {
     }
   });
 
+  test('Freedom FinalMask helpers retain native settings and entry links', () {
+    final helper = <String, dynamic>{
+      'tag': 'fragment',
+      'protocol': 'freedom',
+      'streamSettings': {
+        'sockopt': {'dialerProxy': 'direct'},
+        'finalmask': {
+          'tcp': [
+            {
+              'type': 'fragment',
+              'settings': {
+                'packets': 'tlshello',
+                'lengths': ['40-60', '100-200'],
+                'delays': ['0-2', '10-20'],
+                'maxSplit': '4-8',
+              },
+            },
+          ],
+          'udp': [
+            {
+              'type': 'noise',
+              'settings': {
+                'noise': [
+                  {
+                    'type': 'str',
+                    'packet': 'controlled-fixture',
+                    'delay': '1-2',
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    };
+    final source = template()..['outbounds'].add(helper);
+    final original = JsonTool.copyMap(source);
+    final state = AdvancedRoutingDocument.parse(jsonEncode(source)).state;
+    expect(state.toJson(), original);
+    expect(jsonDecode(state.encode()), original);
+    final runtime = ConnectionCompiler.compile(
+      settings: ConnectionSettings(trafficMode: TrafficMode.custom),
+      custom: state,
+      entries: [node(1), node(2)],
+      regions: catalog,
+      options: options(),
+    ).config;
+    final validation = jsonDecode(
+      CustomRoutingService.validationJson(state),
+    ) as Map<String, dynamic>;
+    for (final config in [runtime, validation]) {
+      final outbounds = (config['outbounds'] as List)
+          .cast<Map<String, dynamic>>();
+      expect(
+        outbounds.singleWhere((value) => value['tag'] == 'fragment'),
+        helper,
+      );
+      for (final entry in outbounds.take(2)) {
+        expect(entry['streamSettings']['sockopt']['dialerProxy'], 'fragment');
+      }
+    }
+    expect(state.toJson(), original);
+    expect(source, original);
+  });
+
+  test('advanced FinalMask ownership stays limited to Freedom helpers', () {
+    for (final protocol in ['blackhole', 'dns']) {
+      expect(
+        () => AdvancedRoutingDocument.parse(
+          jsonEncode({
+            'outbounds': [
+              {},
+              {
+                'tag': 'user-helper',
+                'protocol': protocol,
+                'streamSettings': {
+                  'finalmask': {'tcp': []},
+                },
+              },
+            ],
+          }),
+        ),
+        throwsFormatException,
+      );
+    }
+    expect(
+      () => AdvancedRoutingDocument.parse(
+        jsonEncode({
+          'outbounds': [
+            {},
+            {
+              'tag': 'user-helper',
+              'protocol': 'freedom',
+              'streamSettings': {
+                'network': 'tcp',
+                'finalmask': {'tcp': []},
+              },
+            },
+          ],
+        }),
+      ),
+      throwsFormatException,
+    );
+
+    final delegated = {
+      'outbounds': [
+        {},
+        {
+          'tag': 'user-helper',
+          'protocol': 'freedom',
+          'streamSettings': {
+            'finalmask': {
+              'tcp': [
+                {
+                  'type': 'native-mask',
+                  'settings': {'nativeParameter': true},
+                },
+              ],
+            },
+          },
+        },
+      ],
+    };
+    expect(
+      AdvancedRoutingDocument.parse(jsonEncode(delegated)).state.toJson(),
+      delegated,
+    );
+  });
+
   test('App-owned and excluded fields fail with their path', () {
     for (final key in ['env', 'log', 'policy', 'stats', 'metrics']) {
       expect(

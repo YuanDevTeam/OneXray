@@ -504,6 +504,100 @@ void main() {
     );
   });
 
+  test('TCP Fragment hints follow native mask paths in each JSON editor', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
+      (JsonEditorKind.outbound, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"inbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (
+        JsonEditorKind.advancedRouting,
+        '{"outbounds":[{},{"protocol":"freedom","streamSettings":{BODY}}]}',
+      ),
+    ]) {
+      String source(String body) =>
+          wrapper.replaceFirst('BODY', '"finalmask":{"tcp":[{$body}]}');
+      expect(labels(source('"type":"fr|"'), kind), ['fragment']);
+      expect(labels(source('"type":"fragment","se|"'), kind), ['settings']);
+      expect(labels(source('"type":"fragment","settings":{"len|"}'), kind), [
+        'length',
+        'lengths',
+      ]);
+      expect(labels(source('"type":"fragment","settings":{"del|"}'), kind), [
+        'delay',
+        'delays',
+      ]);
+      expect(labels(source('"type":"fragment","settings":{"max|"}'), kind), [
+        'maxSplit',
+      ]);
+      expect(
+        labels(source('"type":"fragment","settings":{"packets":"tl|"}'), kind),
+        ['tlshello'],
+      );
+      expect(
+        labels(source('"type":"fragment","settings":{"in|"}'), kind),
+        isEmpty,
+      );
+      expect(
+        labels(
+          source('"type":"fragment","settings":{"length":100,"len|"}'),
+          kind,
+        ),
+        ['lengths'],
+      );
+      expect(
+        labels(source('"type":"future","settings":{"len|"}'), kind),
+        isEmpty,
+      );
+    }
+  });
+
+  test('advanced FinalMask hints stay on Freedom helpers', () {
+    String source(String body, {String protocol = 'freedom'}) =>
+        '{"outbounds":[{},{"protocol":"$protocol","streamSettings":{$body}}]}';
+    expect(labels(source('"fi|"'), JsonEditorKind.advancedRouting), [
+      'finalmask',
+    ]);
+    expect(
+      labels(
+        source(
+          '"finalmask":{"udp":[{"type":"noise","settings":{"noise":[{"type":"e|"}]}}]}',
+        ),
+        JsonEditorKind.advancedRouting,
+      ),
+      ['exp'],
+    );
+    for (final body in [
+      '"finalmask":{"future":{"wsSettings":{"pa|"}}}',
+      '"finalmask":{"future":{"grpcSettings":{"ser|"}}}',
+      '"finalmask":{"future":{"mux":{"ena|"}}}',
+    ]) {
+      expect(labels(source(body), JsonEditorKind.advancedRouting), isEmpty);
+    }
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      for (final protocol in ['dns', 'blackhole']) {
+        expect(labels(source('"fi|"', protocol: protocol), kind), isEmpty);
+        expect(
+          labels(
+            source('"finalmask":{"tcp":[{"type":"fr|"}]}', protocol: protocol),
+            kind,
+          ),
+          isEmpty,
+        );
+      }
+    }
+    for (final marked in [
+      '{"future":{"streamSettings":{"finalmask":{"tcp":[{"type":"fr|"}]}}}}',
+      '{"streamSettings":{"future":{"finalmask":{"tcp":[{"type":"fr|"}]}}}}',
+      '{"streamSettings":{"finalmask":{"udp":[{"type":"fragment","settings":{"len|"}}]}}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.outbound), isEmpty);
+    }
+  });
+
   test('XDNS completes names and addrs in UDP masks without old fields', () {
     String source(String settings) =>
         '{"outbounds":[{"streamSettings":{"finalmask":{"udp":[{"type":"XDNS","settings":{$settings}}]}}}]}';

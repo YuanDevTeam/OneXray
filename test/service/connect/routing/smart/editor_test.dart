@@ -280,11 +280,10 @@ void main() {
         outbounds.first['streamSettings']['sockopt']['dialerProxy'],
         'fragment',
       );
-      expect(outbounds[1]['settings']['fragment'], {
-        'packets': 'tlshello',
-        'length': '100-200',
-        'interval': '10-20',
-      });
+      expect(
+        outbounds[1]['streamSettings']['finalmask']['tcp'].single['settings'],
+        {'packets': 'tlshello', 'length': '100-200', 'delay': '10-20'},
+      );
       expect((await coordinator.configuration).connection.smart.fragment, true);
       expect(await db.coreConfigDao.watchHasOutbounds().first, false);
     },
