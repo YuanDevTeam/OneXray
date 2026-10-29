@@ -95,7 +95,8 @@ App 设置 250 ms 竞速延迟，其余竞速参数由 Core 管理；关闭开�
 运行副本只修改实际打开物理 socket 的代理出站，不改 TLS SNI、HTTP Host 或存储中的节点原文。
 代理链的后续节点继续由上游代理解析，策略落在物理接入；使用 Fragment 时落到最终辅助出站。
 XHTTP 独立下载按实际生效的配置对象处理自己的地址与 socket，`extra` 替换和 `penetrate` 继承沿用 Core 语义；
-XDrive fronting 使用实际物理地址。普通 direct 出站和无物理拨号的中间链不统一覆盖。
+XDrive fronting 使用实际物理地址；S3 的端点和寻址规则见 [XDrive](#xdrive)。
+普通 direct 出站和无物理拨号的中间链不统一覆盖。
 WireGuard 使用 `peers[].endpoint` 的 host，保留其端口、本机隧道地址与 `remoteDNS`。
 Core 在发送 UDP 前使用 WireGuard 自身的 socket 策略本地解析 peer，即使通过代理链也应用地址族策略与引导 DNS；
 其 UDP 连接不应用仅适用于 TCP 的 HE 竞速，共享 Fragment 的 TCP 连接仍可使用 HE。
@@ -151,14 +152,33 @@ Alive 只表示探测 URL 的 HTTP 可达性，不表示 Netflix 解锁、AI 服
 ### Fragment
 
 智能与各常规自定义分别保存 Fragment 开关，默认关闭，全部使用 VPN 不受影响。
-开启时使用 `protocol: freedom`、`tag: fragment` 的辅助出站；默认 `settings.fragment` 为
-`packets: tlshello`、`length: 100-200`、`interval: 10-20`。
+开启时使用 `protocol: freedom`、`tag: fragment` 的辅助出站；新生成的默认配置使用
+`streamSettings.finalmask.tcp` 中的 `type: fragment`，其 settings 为
+`packets: tlshello`、`length: 100-200`、`delay: 10-20`。
 运行把接入节点接到该出站；智能最终出口链路保持 `最终出口 → 接入 → fragment`，balancer 仍选择完整链路。
 Windows/Linux 给 fragment 的物理 socket 绑定已选网卡。
 
 常规路由导入后保留辅助出站的自定义参数，编辑其他字段不重写它们。
 高级模板存在该 freedom 出站即开启，填槽时自动接入所选节点，参数仍由模板管理。
-Raw 保留用户链路，App 不根据 fragment tag 自动接线。
+旧 `settings.fragment`、`settings.noises` 仍交由 Core 处理，不对已保存的常规/高级、节点、Raw 或提供方配置
+执行批量迁移；重新开启 Fragment 建立默认 helper 时使用新格式。
+Raw 与提供方保留用户链路，App 不根据 fragment tag 自动接线。
+
+### XDrive
+
+手动添加节点 JSON、节点 JSON 编辑和 Raw/提供方完整配置保留 XDrive 原生传输 Map。
+普通订阅及普通粘贴的节点解析仍经过 libXray 的节点投影，该路径不支持 XDrive；
+JSON 提示与手动配置支持不表示这些解析入口支持相同传输。
+
+S3 backend 使用 `xdriveSettings.service: s3`，`s3` 对象包含 `endpoint`、`region`、`bucket` 和 `pathStyle`。
+`region` 为空时由 Core 使用 `us-east-1`，`pathStyle` 缺省为 true；false 使用 bucket 前置的虚拟主机寻址。
+`secrets` 按 AccessKeyID、SecretAccessKey、可选 SessionToken 排列，`remoteFolder` 是对象键的相对前缀。
+凭据、endpoint、bucket 及 VLESS encryption/mux 的有效性统一交由 libXray，App 不补凭据或复制校验器。
+
+S3 的普通显式服务器拨号从实际物理端点生成精确 bootstrap DNS：显式 `streamSettings.address` fronting 优先，
+否则使用 S3 endpoint 的 host；虚拟主机寻址使用 `bucket.endpoint-host`。IP 字面量不产生域名引导规则。
+端口、URL 路径、TLS SNI、HTTP Host 和保存的节点原文不改写，链式出站仍由实际物理入口承担拨号策略。
+Raw、提供方和高级模板继续遵循各自边界，不应用全局服务器拨号。
 
 ## 常规自定义路由
 
@@ -208,7 +228,8 @@ roundRobin/leastPing，以及 observatory 的探测 URL/interval/concurrency；s
 App 管理日志、metrics、统计、policy、env、运行 balancer/observatory 范围、出口网卡和 DNS 查询策略。
 额外入站开放 socks/http/tunnel；tunIn 只开放 tag/sniffing，平台部分由 App 生成。
 额外规则开放 inboundTag/localIP/localPort，不开放 process、source/sourceIP/sourcePort、attrs 或 user。
-辅助出站 streamSettings 仅开放 sockopt.dialerProxy。其他当前字段边界由模板解析器维护，不推广到完整 Raw。
+辅助出站 streamSettings 开放 sockopt.dialerProxy，Freedom 辅助出站另可配置 finalmask，内部 mask 设置由 Core 校验。
+不因此开放节点的 network/security 或物理接口覆盖；其他当前字段边界由模板解析器维护，不推广到完整 Raw。
 
 校验使用同一填槽逻辑与本地 freedom，保留 DNS/辅助出站/额外入站/规则，tunIn sniffing 用安全 SOCKS 验证。
 不测速、不 Start、不加启动预检；保存、依赖发布、回滚与普通路由共享。
@@ -283,6 +304,10 @@ App 共用[完整配置的 VPN 适配](#完整配置的-vpn-适配)，接管 tun
 DNS 查询策略、资源路径及出口网卡；其余内容保留。Raw 只补新增配置实际引用的辅助出站，不统一补 direct/block。
 不允许额外 TUN、重复 tunIn 或占用 App 保留端口。运行端口分配避开用户入站及本地 HTTP API 的保存端口；
 完整 Raw 不应用局域网共享设置，也不为共享预留端口或限制其入站 tag。
+
+Core 的 `geodata` 定时任务在校验和运行副本中移除，文件下载及索引仍由 App 管理；路由交换的 `geodata.assets`
+仅为依赖元数据。Core 调度器的 `.dat` 后缀、最多 100 项、最短一分钟及单次 256 MiB 限额只适用于该调度器，
+不作为 App 下载器的新限制，也不向交换元数据增加 cron/outbound 设置。
 
 已有 tunIn 保持数组位置、sniffing（含缺省/关闭）和非托管设置；仅覆盖 name、mtu、gateway、dns、
 autoSystemRoutingTable、autoOutboundsInterface。原生 TUN 平台生成六项，Apple/Android 仅 name/mtu，移除其余托管项。
@@ -392,6 +417,10 @@ DNS 查询不提示拨号的地址族顺序，保留 UseSystem。XDNS、MASQUE W
 MASQUE/XDrive 的 XMUX 与出站 mux 分开提示；XDNS resolver 的 TLS/QUIC 与普通 TLS/ECH 复用对应模块提示，限定各自归属。
 XDrive template 提示限定在节点/Raw 的原生传输对象，覆盖认证、操作和重试；`hrefPath/hrefMethod` 只提示在操作对象。
 HTTP 方法仅给常用候选，headers/form、URL、JSON 路径、模板变量和未知字段保持自由编辑，保存及分享不投影嵌套 Map。
+XDrive S3 字段只在对应传输对象提示，`pathStyle` 提示键而不插入字符串形式的布尔值，secrets 不生成凭据候选。
+FinalMask 的 TCP Fragment 与 UDP mask 分别按实际路径提示；高级模板只在 Freedom 辅助出站开放相关提示，旧 Freedom 字段仍可编辑。
+sockopt 提示包含 tcpKeepAliveIdle/tcpKeepAliveInterval，Freedom finalRules 提示 action/network/port/ip/blockDelay；
+这些既有 Core 能力的编辑辅助不增加运行默认值或自动放行规则，IP Geodata 候选仅进入对应 ip 字段。
 Lua 不属于 JSON 编辑提示、普通模型或资源管理范围。
 
 ## 运行协调与统计

@@ -52,7 +52,7 @@ class JsonEditing {
         ? shape.keys[_pathKey(location.path)] ?? const <String>{}
         : const <String>{};
     final geodata =
-        !location.isKey && _geodataType(location.path, shape) != null;
+        !location.isKey && _geodataType(location.path, shape, kind) != null;
     final search = geodata ? prefix.trim().toLowerCase() : prefix.toLowerCase();
     final filtered = candidates
         .toSet()
@@ -492,6 +492,7 @@ class JsonEditing {
               'mark',
               'tcpFastOpen',
               'tcpKeepAliveIdle',
+              'tcpKeepAliveInterval',
               'tcpNoDelay',
               'domainStrategy',
               'happyEyeballs',
@@ -583,11 +584,12 @@ class JsonEditing {
       return switch (protocol) {
         'vless' || 'vmess' => const ['vnext'],
         'trojan' || 'shadowsocks' || 'socks' || 'http' => const ['servers'],
-        'freedom' => const [
+        'freedom' => [
           'domainStrategy',
           'targetStrategy',
           'redirect',
           'userLevel',
+          if (_freedomSettingsPath(path, shape, kind)) 'finalRules',
           'fragment',
           'noises',
         ],
@@ -623,6 +625,9 @@ class JsonEditing {
     }
     if (_isDnsRule(path, shape)) {
       return const ['action', 'qType', 'domain', 'rCode'];
+    }
+    if (_isFreedomRule(path, shape, kind)) {
+      return const ['action', 'network', 'port', 'ip', 'blockDelay'];
     }
     if (_endsWith(path, ['vnext', '*'])) {
       return const ['address', 'port', 'users'];
@@ -735,11 +740,13 @@ class JsonEditing {
               ];
       }
     }
-    final geodataType = _geodataType(path, shape);
+    final geodataType = _geodataType(path, shape, kind);
     if (geodataType == 'domain') return domains;
     if (geodataType == 'ip') return ips;
     if (field == 'network') {
-      if (rule) return const ['tcp', 'udp', 'tcp,udp'];
+      if (rule || _isFreedomRule(parent, shape, kind)) {
+        return const ['tcp', 'udp', 'tcp,udp'];
+      }
       if (_streamSettingsPath(parent, kind) && !managed) {
         return [
           'raw',
@@ -820,6 +827,9 @@ class JsonEditing {
         return parent.last == 0 ? const ['hijack'] : const ['direct', 'return'];
       }
       return const ['hijack', 'direct', 'drop', 'return'];
+    }
+    if (field == 'action' && _isFreedomRule(parent, shape, kind)) {
+      return const ['allow', 'block'];
     }
     if (field == 'rewriteNetwork' &&
         parent.lastOrNull == 'settings' &&
@@ -1014,6 +1024,24 @@ bool _isDnsRule(List<Object> path, _Shape shape) =>
     _endsWith(path, ['settings', 'rules', '*']) &&
     shape.value([...path.sublist(0, path.length - 3), 'protocol']) == 'dns';
 
+bool _freedomSettingsPath(
+  List<Object> path,
+  _Shape shape,
+  JsonEditorKind kind,
+) {
+  if (kind == JsonEditorKind.customRouting || path.lastOrNull != 'settings') {
+    return false;
+  }
+  final owner = path.sublist(0, path.length - 1);
+  return (kind == JsonEditorKind.outbound && owner.isEmpty ||
+          _matches(owner, ['outbounds', '*'])) &&
+      shape.value([...owner, 'protocol']) == 'freedom';
+}
+
+bool _isFreedomRule(List<Object> path, _Shape shape, JsonEditorKind kind) =>
+    _endsWith(path, ['finalRules', '*']) &&
+    _freedomSettingsPath(path.sublist(0, path.length - 2), shape, kind);
+
 bool _advancedFreedomMaskPath(List<Object> path, _Shape shape) =>
     path.length >= 4 &&
     path[0] == 'outbounds' &&
@@ -1082,7 +1110,7 @@ bool _quicSettingsPath(List<Object> path, JsonEditorKind kind, _Shape shape) =>
           'finalmask',
         );
 
-String? _geodataType(List<Object> path, _Shape shape) {
+String? _geodataType(List<Object> path, _Shape shape, JsonEditorKind kind) {
   if (path.isEmpty) return null;
   final fieldPath = path.last is int ? path.sublist(0, path.length - 1) : path;
   if (fieldPath.isEmpty) return null;
@@ -1095,7 +1123,7 @@ String? _geodataType(List<Object> path, _Shape shape) {
           _matches(parent, ['inbounds', '*', 'sniffing'])) {
     return 'domain';
   }
-  if (field == 'ip' && rule ||
+  if (field == 'ip' && (rule || _isFreedomRule(parent, shape, kind)) ||
       field == 'localIP' && rule ||
       field == 'sourceIP' && rule ||
       (field == 'expectIPs' ||

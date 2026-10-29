@@ -670,6 +670,120 @@ void main() {
     }
   });
 
+  test(
+    'keepalive hints cover both native values without extending templates',
+    () {
+      for (final (kind, wrapper) in [
+        (JsonEditorKind.outbound, '{"streamSettings":{"sockopt":{BODY}}}'),
+        (
+          JsonEditorKind.raw,
+          '{"outbounds":[{"streamSettings":{"sockopt":{BODY}}}]}',
+        ),
+        (
+          JsonEditorKind.raw,
+          '{"inbounds":[{"streamSettings":{"sockopt":{BODY}}}]}',
+        ),
+      ]) {
+        expect(labels(wrapper.replaceFirst('BODY', '"tcpKeepAlive|"'), kind), [
+          'tcpKeepAliveIdle',
+          'tcpKeepAliveInterval',
+        ]);
+        expect(
+          labels(
+            wrapper.replaceFirst(
+              'BODY',
+              '"tcpKeepAliveIdle":90,"tcpKeepAlive|"',
+            ),
+            kind,
+          ),
+          ['tcpKeepAliveInterval'],
+        );
+      }
+      expect(
+        labels(
+          '{"outbounds":[{},{"protocol":"freedom","streamSettings":{"sockopt":{"tcpKeepAlive|"}}}]}',
+          JsonEditorKind.advancedRouting,
+        ),
+        isEmpty,
+      );
+    },
+  );
+
+  test('Freedom final rules get owned fields and native action candidates', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"protocol":"freedom","settings":{BODY}}'),
+      (
+        JsonEditorKind.outbound,
+        '{"outbounds":[{"protocol":"freedom","settings":{BODY}}]}',
+      ),
+      (
+        JsonEditorKind.raw,
+        '{"outbounds":[{"protocol":"freedom","settings":{BODY}}]}',
+      ),
+      (
+        JsonEditorKind.advancedRouting,
+        '{"outbounds":[{},{"protocol":"freedom","settings":{BODY}}]}',
+      ),
+    ]) {
+      String source(String body) => wrapper.replaceFirst('BODY', body);
+      expect(labels(source('"fi|"'), kind), ['finalRules']);
+      expect(labels(source('"finalRules":[{"|"}]'), kind), [
+        'action',
+        'network',
+        'port',
+        'ip',
+        'blockDelay',
+      ]);
+      expect(labels(source('"finalRules":[{"action":"|"}]'), kind), [
+        'allow',
+        'block',
+      ]);
+      expect(labels(source('"finalRules":[{"network":"|"}]'), kind), [
+        'tcp',
+        'udp',
+        'tcp,udp',
+      ]);
+      expect(
+        labels(source('"finalRules":[{"blockDelay":"|"}]'), kind),
+        isEmpty,
+      );
+      final suggestions = completions(
+        source('"finalRules":[{"ip":["private|"]}]'),
+        kind,
+        domains: ['geosite:PRIVATE'],
+        ips: ['geoip:PRIVATE', 'ext:fixture.dat:PRIVATE'],
+      );
+      expect(
+        suggestions.map((s) => s.label),
+        unorderedEquals(['geoip:PRIVATE', 'ext:fixture.dat:PRIVATE']),
+      );
+      expect(labels(source('"frag|"'), kind), ['fragment']);
+      expect(labels(source('"noi|"'), kind), ['noises']);
+    }
+    for (final marked in [
+      '{"protocol":"dns","settings":{"finalRules":[{"action":"|"}]}}',
+      '{"future":{"protocol":"freedom","settings":{"finalRules":[{"action":"|"}]}}}',
+      '{"inbounds":[{"protocol":"freedom","settings":{"finalRules":[{"action":"|"}]}}]}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.raw), isEmpty);
+    }
+    expect(
+      labels(
+        '{"outbounds":[{},{"protocol":"freedom","settings":{"fi|"}}]}',
+        JsonEditorKind.customRouting,
+      ),
+      isEmpty,
+    );
+    expect(
+      completions(
+        '{"protocol":"socks","settings":{"finalRules":[{"ip":["private|"]}]}}',
+        JsonEditorKind.outbound,
+        ips: ['geoip:PRIVATE'],
+      ),
+      isEmpty,
+    );
+  });
+
   test('XDNS completes names and addrs in UDP masks without old fields', () {
     String source(String settings) =>
         '{"outbounds":[{"streamSettings":{"finalmask":{"udp":[{"type":"XDNS","settings":{$settings}}]}}}]}';
