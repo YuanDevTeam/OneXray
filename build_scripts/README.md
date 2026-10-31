@@ -76,8 +76,11 @@ the Pub executable directory, including Fastforge.
 
 [setup-uv](https://github.com/astral-sh/setup-uv) replaces pip-based installation.
 [release-downloader](https://github.com/robinraju/release-downloader) handles
-release asset downloads and LLVM-MinGW extraction. Inno Setup remains on the
-latest stable 7.x release; its silent installation uses a short PowerShell step.
+release asset downloads and LLVM-MinGW extraction. Inno Setup uses the latest
+stable 7.0.x patch to match Komac main's current
+[parser limit](https://github.com/russellbanks/inno/blob/v0.7.1/core/src/lib.rs#L162).
+Recheck parser support before increasing the minor version. Silent installation
+uses a short PowerShell step.
 
 ## Build
 
