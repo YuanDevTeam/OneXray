@@ -1,0 +1,72 @@
+{
+    "version": "26.11.1",
+    "description": "An open-source Xray-core client with subscription management and configurable routing.",
+    "homepage": "https://onexray.com",
+    "license": {
+        "identifier": "GPL-3.0-only",
+        "url": "https://github.com/YuanDevTeam/OneXray/blob/main/LICENSE"
+    },
+    "notes": "To enable onexray:// links, run: reg import \"$dir\\install-url-protocol.reg\"",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/YuanDevTeam/OneXray/releases/download/v26.11.1/OneXray-windows-amd64.zip",
+            "hash": "c5cdfef66c02d08b9807abd2acca6818656e53f62fabdf4d0501a3d4adca86a2"
+        },
+        "arm64": {
+            "url": "https://github.com/YuanDevTeam/OneXray/releases/download/v26.11.1/OneXray-windows-arm64.zip",
+            "hash": "08d536dfce6489efd0a3535523d366ca43e1b3f55ebd8482f2735483d6a01de4"
+        }
+    },
+    "post_install": [
+        "$exe = \"$dir\\OneXray.exe\".Replace('\\', '\\\\')",
+        "@\"",
+        "Windows Registry Editor Version 5.00",
+        "",
+        "[HKEY_CURRENT_USER\\Software\\Classes\\onexray]",
+        "@=\"URL:OneXray Protocol\"",
+        "\"URL Protocol\"=\"\"",
+        "",
+        "[HKEY_CURRENT_USER\\Software\\Classes\\onexray\\DefaultIcon]",
+        "@=\"\\\"$exe\\\",0\"",
+        "",
+        "[HKEY_CURRENT_USER\\Software\\Classes\\onexray\\shell\\open\\command]",
+        "@=\"\\\"$exe\\\" \\\"%1\\\"\"",
+        "\"@ | Set-Content \"$dir\\install-url-protocol.reg\" -Encoding Unicode"
+    ],
+    "shortcuts": [
+        [
+            "OneXray.exe",
+            "OneXray"
+        ]
+    ],
+    "uninstaller": {
+        "script": [
+            "if ($cmd -ne 'uninstall') { return }",
+            "$current = \"$(Split-Path $dir)\\current\"",
+            "$executables = @(\"$dir\\OneXray.exe\", \"$current\\OneXray.exe\")",
+            "$key = 'HKCU:\\Software\\Classes\\onexray'",
+            "$command = (Get-ItemProperty -LiteralPath \"$key\\shell\\open\\command\" -ErrorAction SilentlyContinue).'(default)'",
+            "if ($command -in ($executables | ForEach-Object { '\"' + $_ + '\" \"%1\"' })) {",
+            "    Remove-Item -LiteralPath $key -Recurse -Force",
+            "}",
+            "$startup = Join-Path ([Environment]::GetFolderPath('Startup')) 'OneXray.lnk'",
+            "if (Test-Path -LiteralPath $startup) {",
+            "    $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($startup)",
+            "    if ($shortcut.TargetPath -in $executables) { Remove-Item -LiteralPath $startup -Force }",
+            "}"
+        ]
+    },
+    "checkver": {
+        "github": "https://github.com/YuanDevTeam/OneXray"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/YuanDevTeam/OneXray/releases/download/v$version/OneXray-windows-amd64.zip"
+            },
+            "arm64": {
+                "url": "https://github.com/YuanDevTeam/OneXray/releases/download/v$version/OneXray-windows-arm64.zip"
+            }
+        }
+    }
+}
