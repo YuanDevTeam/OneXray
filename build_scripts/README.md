@@ -153,6 +153,10 @@ the selected architecture from its official archive. Missing inputs fail during
 copying or CMake installation; compiler and packager failures propagate directly.
 There is no additional hash, PE scan, or source-header comparison.
 
+The [Scoop manifest and validation guide](../windows/packaging/scoop/README.md)
+reuse the stable x64/ARM64 ZIP packages for a proposed Extras listing, including
+optional URL protocol registration. Extras acceptance is a separate step.
+
 ### MSIX and development signing
 
 MSIX uses `msix:build --build-windows false` to generate assets/manifest, adds VPN
