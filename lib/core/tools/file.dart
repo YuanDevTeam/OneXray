@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/tools/logger.dart';
 import "package:path/path.dart" as p;
 import 'package:path_provider/path_provider.dart';
@@ -37,8 +40,38 @@ class FileTool {
     String name,
     String extension,
   ) async {
-    final data = await File(path).readAsBytes();
-    return saveData(data, name, extension);
+    final directory = await makeCacheDir();
+    try {
+      final source = File(path);
+      final length = await source.length();
+      final copy = File(p.join(directory, p.basename(name)));
+      final output = copy.openWrite();
+      try {
+        // Bound the copy to the starting length while the core keeps logging.
+        await output.addStream(source.openRead(0, length));
+      } finally {
+        await output.close();
+      }
+      if (await copy.length() != length) {
+        throw FileSystemException('File changed during export', path);
+      }
+
+      if (defaultTargetPlatform == TargetPlatform.iOS ||
+          defaultTargetPlatform == TargetPlatform.android) {
+        return await FileExportHostApi().saveFile(copy.path, p.basename(name));
+      }
+      final location = await FileSelectorPlatform.instance.getSaveLocation(
+        acceptedTypeGroups: [
+          XTypeGroup(extensions: [extension]),
+        ],
+        options: SaveDialogOptions(suggestedName: p.basename(name)),
+      );
+      if (location == null) return false;
+      await copy.copy(location.path);
+      return true;
+    } finally {
+      await Directory(directory).delete(recursive: true);
+    }
   }
 
   static Future<bool> saveData(

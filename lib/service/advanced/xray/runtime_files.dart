@@ -8,7 +8,6 @@ import 'package:onexray/service/connect/runtime.dart';
 
 abstract final class RuntimeDiagnosticFiles {
   static const logChunkBytes = 1024 * 1024;
-  static const logExportBytes = 64 * 1024 * 1024;
 
   static String? logPath(ConnectionRuntime? runtime, {required bool access}) {
     if (runtime == null) return null;
@@ -68,28 +67,11 @@ abstract final class RuntimeDiagnosticFiles {
     }
   }
 
-  static Future<Uint8List> readLogForExport(String path) async {
-    final file = File(path);
+  static Future<bool> exportLog(String path, String name) async {
     if (await FileSystemEntity.type(path, followLinks: false) !=
         FileSystemEntityType.file) {
       throw const FileSystemException('Log file is unavailable');
     }
-    final handle = await file.open();
-    try {
-      final length = await handle.length();
-      if (length > logExportBytes) {
-        throw const FileSystemException('Log file is too large');
-      }
-      final bytes = await handle.read(length);
-      if (bytes.length != length) {
-        throw const FileSystemException('Log changed during export');
-      }
-      return bytes;
-    } finally {
-      await handle.close();
-    }
+    return FileTool.saveFile(path, name, 'log');
   }
-
-  static Future<bool> exportLog(String path, String name) async =>
-      FileTool.saveData(await readLogForExport(path), name, 'log');
 }

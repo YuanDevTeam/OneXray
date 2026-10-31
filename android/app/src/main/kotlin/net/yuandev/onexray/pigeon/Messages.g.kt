@@ -1177,6 +1177,43 @@ interface AndroidAutomationHostApi {
   }
 }
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+interface FileExportHostApi {
+  fun saveFile(path: String, name: String, callback: (Result<Boolean>) -> Unit)
+
+  companion object {
+    /** The codec used by FileExportHostApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      MessagesPigeonCodec()
+    }
+    /** Sets up an instance of `FileExportHostApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: FileExportHostApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.FileExportHostApi.saveFile$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val pathArg = args[0] as String
+            val nameArg = args[1] as String
+            api.saveFile(pathArg, nameArg) { result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface BackupHostApi {
   fun selectBackupFile(create: Boolean, callback: (Result<BackupLocation?>) -> Unit)
   fun requireBackupAccess(identifier: String, callback: (Result<Unit>) -> Unit)

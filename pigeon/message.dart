@@ -110,6 +110,12 @@ class BackupLocation {
 }
 
 @HostApi()
+abstract class FileExportHostApi {
+  @asyncCallback
+  bool saveFile(String path, String name);
+}
+
+@HostApi()
 abstract class BackupHostApi {
   @asyncCallback
   BackupLocation? selectBackupFile(bool create);

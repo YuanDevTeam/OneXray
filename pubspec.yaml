@@ -55,6 +55,8 @@ dependencies:
   permission_handler: ^13.0.2
   # qrcode
   file_picker: ^13.1.0
+  # Reuse the existing desktop file-selector implementations for path-only saves.
+  file_selector_platform_interface: ^2.7.0
   icloud_storage_plus: 4.0.0
   saf_stream: ^4.0.2
   mobile_scanner: ^7.4.2

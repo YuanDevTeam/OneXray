@@ -42,7 +42,7 @@
 - **Across your devices.** Use iPhone, iPad, Mac, Android, Windows or Linux, with light/dark themes and five interface languages.
 - **Your servers, organized.** Import share links, Xray JSON and subscriptions. Group manual nodes and reorder them by dragging.
 - **Routing you control.** Choose Smart or Custom Routing, or use complete Raw and provider configurations, including Remnawave subscriptions.
-- **Open and private.** GPL-3.0 source, without accounts, advertising, analytics or tracking. [Privacy policy](https://onexray.com/docs/privacy/).
+- **Open and private.** GPL-3.0 source with a [VPN provider exception](#license), without accounts, advertising, analytics or tracking. [Privacy policy](https://onexray.com/docs/privacy/).
 
 ## Get started
 
@@ -104,4 +104,12 @@ Code, translations and documentation contributions are welcome. Start with the [
 
 ## License
 
-[GNU General Public License v3.0](./LICENSE).
+OneXray is licensed under the [GNU General Public License v3.0](./LICENSE), with the [OneXray VPN Provider Exception](./LICENSE-EXCEPTION).
+
+VPN service providers may build and distribute customized, closed-source clients for their own VPN services without complying with the repository's GPL requirements for the code covered by the exception. Other uses remain subject to the GPL or another applicable permission.
+
+Yuan Dev Team guarantees that it will not introduce direct third-party dependencies that require a qualifying customized client as a whole to be GPL-licensed or to disclose its source code under the GPL. Third-party licenses and their component-specific obligations still apply; the exception only covers rights Yuan Dev Team owns or is authorized to license.
+
+## Business inquiries
+
+For business partnerships, please email [yuan@yuandev.net](mailto:yuan@yuandev.net).
