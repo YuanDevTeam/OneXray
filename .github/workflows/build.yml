@@ -484,7 +484,9 @@ jobs:
     env:
       GOARCH: ${{ matrix.goarch }}
       ONEXRAY_WINDOWS_ARCH: ${{ matrix.arch }}
+      # Komac main's Inno parser currently supports 7.0.x, but rejects 7.1.x.
       INNO_SETUP_MAJOR: "7"
+      INNO_SETUP_MINOR: "0"
     defaults:
       run:
         shell: bash
@@ -576,9 +578,10 @@ jobs:
         run: |
           tag="$(gh api 'repos/jrsoftware/issrc/releases?per_page=100' | jq -er \
             --arg major "$INNO_SETUP_MAJOR" \
+            --arg minor "$INNO_SETUP_MINOR" \
             '[.[] | select(.draft == false and .prerelease == false and
-              (.tag_name | test("^is-" + $major + "_[0-9]+_[0-9]+$")))][0].tag_name //
-              error("No stable Inno Setup " + $major + " release found")')"
+              (.tag_name | test("^is-" + $major + "_" + $minor + "_[0-9]+$")))][0].tag_name //
+              error("No stable Inno Setup " + $major + "." + $minor + " release found")')"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           version="${tag#is-}"
           echo "installer=innosetup-${version//_/.}-x64.exe" >> "$GITHUB_OUTPUT"
