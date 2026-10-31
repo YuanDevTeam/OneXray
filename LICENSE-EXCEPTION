@@ -1,0 +1,61 @@
+OneXray VPN Provider Exception
+Version 1.0
+
+1. Scope
+
+OneXray is available under the GNU General Public License, version 3
+(GPLv3), in LICENSE. Yuan Dev Team grants the following additional
+permission under section 7 of GPLv3.
+
+"Covered Code" means the OneXray code for which Yuan Dev Team owns the
+copyright or has authority from the copyright holders to grant this
+Exception. This Exception applies only to those rights.
+
+2. Eligibility and permission
+
+You may rely on this Exception only if both of the following apply:
+
+  a) You are a VPN service provider.
+  b) You use the Covered Code to create a customized client for your own
+     VPN service.
+
+For that purpose, you may use, copy, modify, build and distribute the
+Covered Code and the resulting customized client under terms of your
+choice, including proprietary, closed-source terms. You need not comply
+with GPLv3's conditions for the Covered Code in that permitted use,
+including its requirements to license the client or your modifications
+under GPLv3, disclose Corresponding Source or supply Installation
+Information.
+
+This permission does not extend to closed-source clients for VPN services
+provided by others. It does not restrict anyone's rights under GPLv3.
+Uses outside this Exception remain subject to GPLv3 or another permission
+from the applicable copyright holders.
+
+3. Third-party rights
+
+This Exception does not relicense third-party code or waive obligations
+under its own licenses, including applicable copyright notices,
+attribution and component source-code requirements. Any code for which
+Yuan Dev Team cannot grant this Exception remains subject to its
+applicable license.
+
+4. Dependency guarantee
+
+Yuan Dev Team guarantees that it will not introduce into OneXray any
+direct third-party dependency whose license would require a customized
+client qualifying under this Exception, as a whole, to be licensed under
+the GPL or to disclose its source code under the GPL.
+
+A GPL-licensed dependency with an applicable Classpath or other exception
+may satisfy this guarantee. Third-party components can still have their
+own license obligations. This guarantee concerns OneXray as maintained by
+Yuan Dev Team; it does not cover code or dependencies added or changed by
+downstream developers.
+
+5. Warranty and liability
+
+Except for the express dependency guarantee above, the Covered Code is
+provided "AS IS", without warranty, and the warranty disclaimer and
+limitation of liability in sections 15 and 16 of GPLv3 apply to use under
+this Exception as well, to the extent permitted by applicable law.

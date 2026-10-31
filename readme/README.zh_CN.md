@@ -42,7 +42,7 @@
 - **跨设备使用。** 支持 iPhone、iPad、Mac、Android、Windows 和 Linux，提供浅色 / 深色主题及五种界面语言。
 - **有序管理服务器。** 导入分享链接、Xray JSON 和订阅；将手动节点整理为分组，并通过拖动调整顺序。
 - **自主控制路由。** 使用智能路由或自定义路由，也可使用完整 Raw 配置和服务商配置，包括 Remnawave 订阅。
-- **开源，保护隐私。** 源码采用 GPL-3.0 许可，无需账户，不含广告、分析或跟踪。[隐私政策](https://onexray.com/zh/docs/privacy/)。
+- **开源，保护隐私。** 源码采用 GPL-3.0 许可，并附 [VPN 服务商豁免](#许可证)，无需账户，不含广告、分析或跟踪。[隐私政策](https://onexray.com/zh/docs/privacy/)。
 
 ## 快速开始
 
@@ -104,4 +104,12 @@ macOS System Extension 版本可通过 [Homebrew](https://formulae.brew.sh/cask/
 
 ## 许可证
 
-[GNU General Public License v3.0](../LICENSE)。
+OneXray 采用 [GNU General Public License v3.0](../LICENSE)，并附 [OneXray VPN 服务商豁免条款](../LICENSE-EXCEPTION)。
+
+VPN 服务提供商为自己的 VPN 服务打造并分发自定义客户端时，可以保持闭源，无需对豁免所覆盖的代码遵循本仓库的 GPL 要求。其他用途仍须遵循 GPL 或另行适用的授权。
+
+Yuan Dev Team 保证不引入要求符合豁免条件的自定义客户端整体按 GPL 授权或按 GPL 公开源码的直接第三方依赖。第三方许可证及其针对相应组件的义务仍然适用；豁免仅覆盖 Yuan Dev Team 拥有或有权授权的权利。
+
+## 商务合作
+
+如有任何商务合作意向，请发送邮件至 [yuan@yuandev.net](mailto:yuan@yuandev.net)。

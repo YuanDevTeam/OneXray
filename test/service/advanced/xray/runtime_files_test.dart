@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/service/advanced/xray/runtime_files.dart';
 
 void main() {
-  test('local logs keep bounded reads and full export', () async {
+  test('local logs keep bounded reads across appends and truncation', () async {
     final root = await Directory('../references/runtime-log-tests').absolute
         .create(recursive: true);
     final directory = await root.createTemp('files-');
@@ -15,12 +15,6 @@ void main() {
     expect(tail!.offset, 6);
     expect(tail.size, 13);
     expect(String.fromCharCodes(tail.data), 'second\n');
-    expect(
-      String.fromCharCodes(
-        await RuntimeDiagnosticFiles.readLogForExport(file.path),
-      ),
-      'first\nsecond\n',
-    );
 
     await file.writeAsString('third\n', mode: FileMode.append);
     final next = await RuntimeDiagnosticFiles.readLog(
@@ -44,11 +38,11 @@ void main() {
       await RuntimeDiagnosticFiles.readLog('${directory.path}/missing.log'),
       isNull,
     );
-    final handle = await file.open(mode: FileMode.write);
-    await handle.truncate(RuntimeDiagnosticFiles.logExportBytes + 1);
-    await handle.close();
     await expectLater(
-      RuntimeDiagnosticFiles.readLogForExport(file.path),
+      RuntimeDiagnosticFiles.exportLog(
+        '${directory.path}/missing.log',
+        'missing.log',
+      ),
       throwsA(isA<FileSystemException>()),
     );
   });

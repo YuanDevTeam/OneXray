@@ -16,6 +16,8 @@ import net.yuandev.onexray.pigeon.AppHostApi
 import net.yuandev.onexray.pigeon.BridgeHostApi
 import net.yuandev.onexray.pigeon.BackupHostApi
 import net.yuandev.onexray.pigeon.BackupApi
+import net.yuandev.onexray.pigeon.FileExportHostApi
+import net.yuandev.onexray.pigeon.FileExportApi
 import net.yuandev.onexray.vpn.OneVpnService
 import net.yuandev.onexray.automation.AutomationApi
 import net.yuandev.onexray.pigeon.AndroidAutomationHostApi
@@ -24,6 +26,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     private val hostApi = AppHostApi(this)
     private val backupApi = BackupApi(this)
+    private val fileExportApi = FileExportApi(this)
     private var vpnStatusReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +41,7 @@ class MainActivity : FlutterFragmentActivity() {
         val flutterApi = AppFlutterApi(flutterEngine.dartExecutor)
         BridgeHostApi.setUp(flutterEngine.dartExecutor, hostApi)
         BackupHostApi.setUp(flutterEngine.dartExecutor, backupApi)
+        FileExportHostApi.setUp(flutterEngine.dartExecutor, fileExportApi)
         AndroidAutomationHostApi.setUp(flutterEngine.dartExecutor, AutomationApi(this))
 
         hostApi.onInit(flutterApi)
@@ -81,6 +85,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onDestroy() {
         backupApi.dispose()
+        fileExportApi.dispose()
         hostApi.onDestroy()
         // 防御式注销
         vpnStatusReceiver?.let {
