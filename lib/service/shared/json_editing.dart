@@ -1023,8 +1023,9 @@ bool _streamSettingsChildPath(
     _streamSettingsPath(path.sublist(0, path.length - 1), kind);
 
 List<Object>? _xhttpConfigPath(List<Object> path, JsonEditorKind kind) {
-  if (kind != JsonEditorKind.outbound && kind != JsonEditorKind.raw)
+  if (kind != JsonEditorKind.outbound && kind != JsonEditorKind.raw) {
     return null;
+  }
   final owner = path.lastOrNull == 'extra'
       ? path.sublist(0, path.length - 1)
       : path;
