@@ -529,7 +529,14 @@ class JsonEditing {
     if (tail == 'grpcSettings') {
       return const ['serviceName', 'multiMode', 'authority'];
     }
-    if (tail == 'xhttpSettings') return const ['path', 'host', 'mode', 'extra'];
+    final xhttp = _xhttpConfigPath(path, kind);
+    if (xhttp != null) {
+      return [
+        if (tail != 'extra') ...['path', 'host', 'mode', 'extra'],
+        'uplinkHTTPMethod',
+        if (kind == JsonEditorKind.raw && xhttp.first == 'inbounds') 'h2Params',
+      ];
+    }
     if (_matches(path, ['inbounds', '*', 'sniffing'])) {
       return const [
         'enabled',
@@ -743,6 +750,9 @@ class JsonEditing {
     final geodataType = _geodataType(path, shape, kind);
     if (geodataType == 'domain') return domains;
     if (geodataType == 'ip') return ips;
+    if (field == 'uplinkHTTPMethod' && _xhttpConfigPath(parent, kind) != null) {
+      return const ['POST', 'PUT', 'OPTIONS'];
+    }
     if (field == 'network') {
       if (rule || _isFreedomRule(parent, shape, kind)) {
         return const ['tcp', 'udp', 'tcp,udp'];
@@ -1010,6 +1020,19 @@ bool _streamSettingsChildPath(
 ) =>
     path.lastOrNull == field &&
     _streamSettingsPath(path.sublist(0, path.length - 1), kind);
+
+List<Object>? _xhttpConfigPath(List<Object> path, JsonEditorKind kind) {
+  if (kind != JsonEditorKind.outbound && kind != JsonEditorKind.raw)
+    return null;
+  final owner = path.lastOrNull == 'extra'
+      ? path.sublist(0, path.length - 1)
+      : path;
+  return _streamSettingsChildPath(owner, kind, 'xhttpSettings') ||
+          _streamSettingsChildPath(owner, kind, 'splithttpSettings')
+      ? owner
+      : null;
+}
+
 bool _xdriveTemplatePath(List<Object> path, JsonEditorKind kind) =>
     (kind == JsonEditorKind.outbound || kind == JsonEditorKind.raw) &&
     path.lastOrNull == 'template' &&

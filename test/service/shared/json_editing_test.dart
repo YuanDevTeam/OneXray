@@ -472,6 +472,89 @@ void main() {
     }
   });
 
+  test('XHTTP methods and server parameters follow their transport owner', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
+      (JsonEditorKind.outbound, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"inbounds":[{"streamSettings":{BODY}}]}'),
+    ]) {
+      for (final transport in ['xhttpSettings', 'splithttpSettings']) {
+        for (final extra in [false, true]) {
+          String source(String body) => wrapper.replaceFirst(
+            'BODY',
+            '"$transport":{${extra ? '"extra":{$body}' : body}}',
+          );
+          expect(labels(source('"uplink|"'), kind), ['uplinkHTTPMethod']);
+          expect(labels(source('"uplinkHTTPMethod":"|"'), kind), [
+            'POST',
+            'PUT',
+            'OPTIONS',
+          ]);
+          expect(labels(source('"uplinkHTTPMethod":"O|"'), kind), ['OPTIONS']);
+          expect(
+            labels(source('"uplinkHTTPMethod":"PUT","uplink|"'), kind),
+            isEmpty,
+          );
+          expect(
+            labels(source('"h2|"'), kind),
+            kind == JsonEditorKind.raw && wrapper.contains('inbounds')
+                ? ['h2Params']
+                : isEmpty,
+          );
+          expect(labels(source('"h2Params":{"Max|"}'), kind), isEmpty);
+          expect(labels(source('"h2Params":{},"h2|"'), kind), isEmpty);
+        }
+      }
+    }
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(
+        labels(
+          '{"inbounds":[{"streamSettings":{"xhttpSettings":{"uplink|"}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+      expect(
+        labels(
+          '{"outbounds":[{"streamSettings":{"xhttpSettings":{"extra":{"uplinkHTTPMethod":"|"}}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+    }
+    for (final marked in [
+      '{"future":{"xhttpSettings":{"uplink|"}}}',
+      '{"future":{"streamSettings":{"xhttpSettings":{"uplink|"}}}}',
+      '{"streamSettings":{"wsSettings":{"uplinkHTTPMethod":"|"}}}',
+      '{"streamSettings":{"xhttpSettings":{"future":{"uplinkHTTPMethod":"|"}}}}',
+      '{"streamSettings":{"xhttpSettings":{"extra":{"extra":{"uplinkHTTPMethod":"|"}}}}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.outbound), isEmpty);
+    }
+  });
+
+  test('accepting an XHTTP method leaves surrounding JSON intact', () {
+    const marked =
+        '{"streamSettings":{"xhttpSettings":{"path":"/test","extra":{"uplinkHTTPMethod":"O|","future":123}}}}';
+    final completion = completions(marked, JsonEditorKind.outbound).single;
+    final text = marked.replaceFirst('|', '');
+    final before = jsonDecode(text);
+    final after = jsonDecode(
+      text.replaceRange(
+        completion.start,
+        completion.end,
+        completion.insertText,
+      ),
+    );
+    before['streamSettings']['xhttpSettings']['extra']['uplinkHTTPMethod'] =
+        'OPTIONS';
+    expect(after, before);
+  });
+
   test('XDrive template keys and enums follow their exact storage owner', () {
     for (final (kind, wrapper) in [
       (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
