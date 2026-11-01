@@ -888,7 +888,15 @@ class JsonEditing {
         _matches(parent, ['inbounds', '*', 'settings']) &&
         shape.value([...parent.sublist(0, parent.length - 1), 'protocol']) ==
             'tun') {
-      return const ['dns', 'misconfigtun'];
+      return const [
+        'dns',
+        'misconfigtun',
+        'windnsclient',
+        'tcp/53',
+        'udp/53',
+        'tcp/853',
+        'udp/853',
+      ];
     }
     if (field == 'type' &&
         _matches(parent, ['routing', 'balancers', '*', 'strategy'])) {

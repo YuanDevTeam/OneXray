@@ -85,7 +85,15 @@ void main() {
     ]);
     expect(
       labels(settings('"autoSystemWfpBlockLeak":["|"]'), JsonEditorKind.raw),
-      ['dns', 'misconfigtun'],
+      [
+        'dns',
+        'misconfigtun',
+        'windnsclient',
+        'tcp/53',
+        'udp/53',
+        'tcp/853',
+        'udp/853',
+      ],
     );
     expect(
       labels(settings('"autoSystemWfpBlockLeak":["mi|"]'), JsonEditorKind.raw),
@@ -106,6 +114,41 @@ void main() {
       ),
       isEmpty,
     );
+    for (final kind in [
+      JsonEditorKind.outbound,
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(labels(settings('"autoSystemWfpBlockLeak":["|"]'), kind), isEmpty);
+    }
+    expect(
+      labels(
+        '{"future":{"protocol":"tun","settings":{"autoSystemWfpBlockLeak":["|"]}}}',
+        JsonEditorKind.raw,
+      ),
+      isEmpty,
+    );
+    expect(
+      labels(
+        settings('"autoSystemWfpBlockLeak":["tcp/8443|"]'),
+        JsonEditorKind.raw,
+      ),
+      isEmpty,
+    );
+    final marked = settings('"autoSystemWfpBlockLeak":["tcp/8|"],"mtu":1500');
+    final completion = completions(marked, JsonEditorKind.raw).single;
+    final text = marked.replaceFirst('|', '');
+    final inserted = jsonDecode(
+      text.replaceRange(
+        completion.start,
+        completion.end,
+        completion.insertText,
+      ),
+    );
+    expect(inserted['inbounds'].single['settings'], {
+      'autoSystemWfpBlockLeak': ['tcp/853'],
+      'mtu': 1500,
+    });
   });
 
   test('FakeDNS uses the canonical key and recognizes both pool forms', () {
