@@ -85,7 +85,15 @@ void main() {
     ]);
     expect(
       labels(settings('"autoSystemWfpBlockLeak":["|"]'), JsonEditorKind.raw),
-      ['dns', 'misconfigtun'],
+      [
+        'dns',
+        'misconfigtun',
+        'windnsclient',
+        'tcp/53',
+        'udp/53',
+        'tcp/853',
+        'udp/853',
+      ],
     );
     expect(
       labels(settings('"autoSystemWfpBlockLeak":["mi|"]'), JsonEditorKind.raw),
@@ -106,6 +114,41 @@ void main() {
       ),
       isEmpty,
     );
+    for (final kind in [
+      JsonEditorKind.outbound,
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(labels(settings('"autoSystemWfpBlockLeak":["|"]'), kind), isEmpty);
+    }
+    expect(
+      labels(
+        '{"future":{"protocol":"tun","settings":{"autoSystemWfpBlockLeak":["|"]}}}',
+        JsonEditorKind.raw,
+      ),
+      isEmpty,
+    );
+    expect(
+      labels(
+        settings('"autoSystemWfpBlockLeak":["tcp/8443|"]'),
+        JsonEditorKind.raw,
+      ),
+      isEmpty,
+    );
+    final marked = settings('"autoSystemWfpBlockLeak":["tcp/8|"],"mtu":1500');
+    final completion = completions(marked, JsonEditorKind.raw).single;
+    final text = marked.replaceFirst('|', '');
+    final inserted = jsonDecode(
+      text.replaceRange(
+        completion.start,
+        completion.end,
+        completion.insertText,
+      ),
+    );
+    expect(inserted['inbounds'].single['settings'], {
+      'autoSystemWfpBlockLeak': ['tcp/853'],
+      'mtu': 1500,
+    });
   });
 
   test('FakeDNS uses the canonical key and recognizes both pool forms', () {
@@ -429,6 +472,89 @@ void main() {
     }
   });
 
+  test('XHTTP methods and server parameters follow their transport owner', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
+      (JsonEditorKind.outbound, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"outbounds":[{"streamSettings":{BODY}}]}'),
+      (JsonEditorKind.raw, '{"inbounds":[{"streamSettings":{BODY}}]}'),
+    ]) {
+      for (final transport in ['xhttpSettings', 'splithttpSettings']) {
+        for (final extra in [false, true]) {
+          String source(String body) => wrapper.replaceFirst(
+            'BODY',
+            '"$transport":{${extra ? '"extra":{$body}' : body}}',
+          );
+          expect(labels(source('"uplink|"'), kind), ['uplinkHTTPMethod']);
+          expect(labels(source('"uplinkHTTPMethod":"|"'), kind), [
+            'POST',
+            'PUT',
+            'OPTIONS',
+          ]);
+          expect(labels(source('"uplinkHTTPMethod":"O|"'), kind), ['OPTIONS']);
+          expect(
+            labels(source('"uplinkHTTPMethod":"PUT","uplink|"'), kind),
+            isEmpty,
+          );
+          expect(
+            labels(source('"h2|"'), kind),
+            kind == JsonEditorKind.raw && wrapper.contains('inbounds')
+                ? ['h2Params']
+                : isEmpty,
+          );
+          expect(labels(source('"h2Params":{"Max|"}'), kind), isEmpty);
+          expect(labels(source('"h2Params":{},"h2|"'), kind), isEmpty);
+        }
+      }
+    }
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(
+        labels(
+          '{"inbounds":[{"streamSettings":{"xhttpSettings":{"uplink|"}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+      expect(
+        labels(
+          '{"outbounds":[{"streamSettings":{"xhttpSettings":{"extra":{"uplinkHTTPMethod":"|"}}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+    }
+    for (final marked in [
+      '{"future":{"xhttpSettings":{"uplink|"}}}',
+      '{"future":{"streamSettings":{"xhttpSettings":{"uplink|"}}}}',
+      '{"streamSettings":{"wsSettings":{"uplinkHTTPMethod":"|"}}}',
+      '{"streamSettings":{"xhttpSettings":{"future":{"uplinkHTTPMethod":"|"}}}}',
+      '{"streamSettings":{"xhttpSettings":{"extra":{"extra":{"uplinkHTTPMethod":"|"}}}}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.outbound), isEmpty);
+    }
+  });
+
+  test('accepting an XHTTP method leaves surrounding JSON intact', () {
+    const marked =
+        '{"streamSettings":{"xhttpSettings":{"path":"/test","extra":{"uplinkHTTPMethod":"O|","future":123}}}}';
+    final completion = completions(marked, JsonEditorKind.outbound).single;
+    final text = marked.replaceFirst('|', '');
+    final before = jsonDecode(text);
+    final after = jsonDecode(
+      text.replaceRange(
+        completion.start,
+        completion.end,
+        completion.insertText,
+      ),
+    );
+    before['streamSettings']['xhttpSettings']['extra']['uplinkHTTPMethod'] =
+        'OPTIONS';
+    expect(after, before);
+  });
+
   test('XDrive template keys and enums follow their exact storage owner', () {
     for (final (kind, wrapper) in [
       (JsonEditorKind.outbound, '{"streamSettings":{BODY}}'),
@@ -708,6 +834,73 @@ void main() {
       );
     },
   );
+
+  test('MPTCP is a socket key without boolean string value suggestions', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{"sockopt":{BODY}}}'),
+      (
+        JsonEditorKind.outbound,
+        '{"outbounds":[{"streamSettings":{"sockopt":{BODY}}}]}',
+      ),
+      (
+        JsonEditorKind.raw,
+        '{"outbounds":[{"streamSettings":{"sockopt":{BODY}}}]}',
+      ),
+      (
+        JsonEditorKind.raw,
+        '{"inbounds":[{"streamSettings":{"sockopt":{BODY}}}]}',
+      ),
+      (
+        JsonEditorKind.raw,
+        '{"outbounds":[{"streamSettings":{"tlsSettings":{"echSockopt":{BODY}}}}]}',
+      ),
+    ]) {
+      expect(labels(wrapper.replaceFirst('BODY', '"tcpMp|"'), kind), [
+        'tcpMptcp',
+      ]);
+      expect(
+        labels(wrapper.replaceFirst('BODY', '"tcpMptcp":true,"tcpMp|"'), kind),
+        isEmpty,
+      );
+      expect(
+        labels(wrapper.replaceFirst('BODY', '"tcpMptcp":"|"'), kind),
+        isEmpty,
+      );
+    }
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(
+        labels(
+          '{"outbounds":[{},{"protocol":"freedom","streamSettings":{"sockopt":{"tcpMp|"}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+    }
+    for (final marked in [
+      '{"future":{"sockopt":{"tcpMp|"}}}',
+      '{"future":{"streamSettings":{"sockopt":{"tcpMp|"}}}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.raw), isEmpty);
+    }
+    const marked =
+        '{"streamSettings":{"sockopt":{"tcpMp|":false,"interface":"eth0"}}}';
+    final completion = completions(marked, JsonEditorKind.outbound).single;
+    final text = marked.replaceFirst('|', '');
+    final inserted = jsonDecode(
+      text.replaceRange(
+        completion.start,
+        completion.end,
+        completion.insertText,
+      ),
+    );
+    expect(inserted['streamSettings']['sockopt'], {
+      'tcpMptcp': false,
+      'interface': 'eth0',
+    });
+  });
 
   test('Freedom final rules get owned fields and native action candidates', () {
     for (final (kind, wrapper) in [
