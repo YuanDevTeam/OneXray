@@ -380,7 +380,13 @@ TUN 地址只读，隧道 IPv4/IPv6 DNS 与 Apple DoT 域名可编辑，独立�
 Windows/Linux 给 Xray 明确绑定已选网卡，Vole 不新增绑定要求，Raw 不能覆盖。
 Windows EXE 使用 Xray 原生 TUN/Wintun，MSIX 使用私有 SOCKS 和 Vole UWP 系统隧道。
 
-EXE 默认 autoSystemWfpBlockLeak: [dns]，Raw 可用 [] 关闭；不启用 misconfigtun，也不承诺阻断所有 DoH。
+EXE 默认 `autoSystemWfpBlockLeak: ["dns"]`，Raw/提供方显式列表保留，`[]` 可关闭该项；不启用 `misconfigtun`。
+Core v26.10.31 起，`dns` 包含 UDP/TCP 53、Windows DNS Client、TCP/UDP 853（DoT/DoQ）；
+也可用 `windnsclient`、`tcp/<端口>`、`udp/<端口>` 细分选择，端口合法性与平台前置条件由 Core 检查。
+WFP 阻断绕过 TUN 的连接，不改变路由；局域网 DoT/DoQ resolver 若经更具体的 LAN 路由直达，可能被阻断。
+已有的 tunIn 853 代理规则只处理实际进入 TUN 的流量，不保证这些旁路请求自动转入 TUN。
+需要旧范围的 Raw 可显式使用 `["udp/53", "tcp/53", "windnsclient"]`；App 不自动迁移用户列表，
+也不承诺阻断所有 DoH。MSIX 使用 Vole，不应用这套 Xray 原生 TUN/WFP 设置。
 Linux 不默认接管系统 DNS；Raw 的 autoSystemDnsToGateway 依赖可工作的 systemd-resolved/resolvectl、
 独立 Core DNS 及相应 DNS 出站规则，App 不探测发行版或失败回退。
 强杀后系统 DNS 可能需手动恢复；这些 Core 平台能力不在 Dart 重复实现。
@@ -419,8 +425,18 @@ XDrive template 提示限定在节点/Raw 的原生传输对象，覆盖认证�
 HTTP 方法仅给常用候选，headers/form、URL、JSON 路径、模板变量和未知字段保持自由编辑，保存及分享不投影嵌套 Map。
 XDrive S3 字段只在对应传输对象提示，`pathStyle` 提示键而不插入字符串形式的布尔值，secrets 不生成凭据候选。
 FinalMask 的 TCP Fragment 与 UDP mask 分别按实际路径提示；高级模板只在 Freedom 辅助出站开放相关提示，旧 Freedom 字段仍可编辑。
-sockopt 提示包含 tcpKeepAliveIdle/tcpKeepAliveInterval，Freedom finalRules 提示 action/network/port/ip/blockDelay；
+sockopt 提示包含 tcpKeepAliveIdle/tcpKeepAliveInterval 与 tcpMptcp，Freedom finalRules 提示 action/network/port/ip/blockDelay；
 这些既有 Core 能力的编辑辅助不增加运行默认值或自动放行规则，IP Geodata 候选仅进入对应 ip 字段。
+Core v26.10.31 默认关闭系统 TCP listener 的 MPTCP，App 托管 LAN 入站沿用此默认值；
+Raw/提供方显式 `tcpMptcp` 布尔值继续保留，不向运行配置统一注入 false，也不改变出站拨号策略。
+Raw TUN 的 WFP 值提示包含 DNS Client 与 53/853 端口示例；其它端口仍可自由输入，不将候选当作白名单。
+XHTTP 的 `xhttpSettings` 与兼容别名 `splithttpSettings` 在真实传输对象及 `extra` 下提示 `uplinkHTTPMethod`，
+提供 POST/PUT/OPTIONS 常用候选，其它方法仍可输入，GET 的模式约束由 Core 检查。默认仍为 POST；
+OPTIONS 上行修复需要远端服务端升级，单独更新客户端不能修复旧服务端。
+存在 `extra` 时，Core 以其替换配置主体，只从外层继承 host/path/mode；App 保留原图，不合并或搬移内外字段。
+`h2Params` 只在 Raw XHTTP 入站及其 extra 提示键，用于服务端 HTTP/2；不作为普通节点或出站的调优项。
+其内部 JSON、未知子字段保持自由编辑，不维护 Go HTTP2Config 子结构字典；参数在监听启动时解析，
+`testXray` 构造成功不代表 HTTP/2 参数已启动或生效。
 Lua 不属于 JSON 编辑提示、普通模型或资源管理范围。
 
 ## 运行协调与统计

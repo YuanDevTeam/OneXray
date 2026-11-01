@@ -1146,7 +1146,7 @@ void main() {
     },
   );
 
-  test('Raw retains explicit core TUN DNS and WFP options', () {
+  test('Raw and provider retain explicit core TUN DNS and WFP options', () {
     for (final platform in [
       ConnectionPlatform.linux,
       ConnectionPlatform.windows,
@@ -1154,38 +1154,52 @@ void main() {
       for (final filters in <List<String>>[
         [],
         ['dns', 'misconfigtun'],
+        ['windnsclient', 'tcp/53', 'udp/853', 'TCP/08443'],
       ]) {
-        final source = <String, dynamic>{
-          'inbounds': [
-            {
-              'tag': 'tunIn',
-              'protocol': 'tun',
-              'settings': {
-                'autoSystemDnsToGateway': true,
-                'autoSystemWfpBlockLeak': filters,
+        for (final provider in [false, true]) {
+          final source = <String, dynamic>{
+            'inbounds': [
+              {
+                'tag': 'tunIn',
+                'protocol': 'tun',
+                'settings': {
+                  'autoSystemDnsToGateway': true,
+                  'autoSystemWfpBlockLeak': filters,
+                },
               },
-            },
-          ],
-          'outbounds': [
-            {'protocol': 'freedom'},
-          ],
-        };
-        final before = jsonEncode(source);
-        final config = ConnectionCompiler.compile(
-          settings: ConnectionSettings(expert: true),
-          entries: [],
-          raw: source,
-          regions: catalog,
-          options: options(
-            platform: platform,
-            ipv6: false,
-            interfaceName: 'Ethernet',
-          ),
-        ).config;
-        final settings = config['inbounds'].single['settings'] as Map;
-        expect(settings['autoSystemDnsToGateway'], true);
-        expect(settings['autoSystemWfpBlockLeak'], filters);
-        expect(jsonEncode(source), before);
+            ],
+            'outbounds': [
+              {'protocol': 'freedom'},
+            ],
+          };
+          final before = jsonEncode(source);
+          final config = ConnectionCompiler.compile(
+            settings: ConnectionSettings(
+              expert: !provider,
+              selection: const ServerSelection.server(99),
+            ),
+            entries: [],
+            raw: provider ? null : source,
+            profile: provider
+                ? ResolvedProfile(
+                    id: 99,
+                    sourceId: 7,
+                    name: 'Provider',
+                    config: source,
+                  )
+                : null,
+            regions: catalog,
+            options: options(
+              platform: platform,
+              ipv6: false,
+              interfaceName: 'Ethernet',
+            ),
+          ).config;
+          final settings = config['inbounds'].single['settings'] as Map;
+          expect(settings['autoSystemDnsToGateway'], true);
+          expect(settings['autoSystemWfpBlockLeak'], filters);
+          expect(jsonEncode(source), before);
+        }
       }
     }
   });
@@ -1736,9 +1750,59 @@ void main() {
     _fixture('raw', plan);
   });
 
-  test('Raw and provider runtime copies preserve XDrive template maps', () {
+  test('Raw and provider runtime copies preserve authored transport maps', () {
     final source = <String, dynamic>{
-      'outbounds': [xdriveTemplateOutbound()],
+      'inbounds': [
+        {
+          'tag': 'http-server',
+          'protocol': 'http',
+          'listen': '127.0.0.1',
+          'port': 18185,
+          'streamSettings': {
+            'network': 'splithttp',
+            'sockopt': {'tcpMptcp': false},
+            'splithttpSettings': {
+              'path': '/inbound',
+              'extra': {
+                'uplinkHTTPMethod': 'OPTIONS',
+                'h2Params': {
+                  'MaxConcurrentStreams': 128,
+                  'futureH2': {'keep': true},
+                },
+              },
+            },
+          },
+        },
+      ],
+      'outbounds': [
+        xdriveTemplateOutbound(),
+        {
+          'tag': 'xhttp-entry',
+          'protocol': 'socks',
+          'settings': {
+            'servers': [
+              {'address': '127.0.0.1', 'port': 12345},
+            ],
+          },
+          'streamSettings': {
+            'network': 'xhttp',
+            'sockopt': {'tcpMptcp': true},
+            'xhttpSettings': {
+              'path': '/outbound',
+              'uplinkHTTPMethod': 'PUT',
+              'h2Params': {'MaxConcurrentStreams': 64},
+              'extra': {
+                'uplinkHTTPMethod': 'OPTIONS',
+                'h2Params': {
+                  'MaxConcurrentStreams': 256,
+                  'futureH2': {'keep': true},
+                },
+                'futureTransport': {'keep': true},
+              },
+            },
+          },
+        },
+      ],
       'futureRoot': {'keep': true},
     };
     final before = jsonEncode(source);
@@ -1769,6 +1833,8 @@ void main() {
         'enabled': true,
         'concurrency': 8,
       });
+      expect(compiled['outbounds'][1], source['outbounds'][1]);
+      expect(compiled['inbounds'].last, source['inbounds'][0]);
       expect(jsonEncode(source), before);
     }
   });

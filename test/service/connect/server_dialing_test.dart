@@ -531,18 +531,44 @@ void main() {
   });
 
   test('XHTTP extra replaces outer settings instead of merging downloads', () {
-    final outer = _download('unused.example');
-    final effective = _download('download.example');
-    final value = _xhttp(outer);
-    value['streamSettings']['xhttpSettings']['extra'] = {
-      'downloadSettings': effective,
-    };
-    expect(
-      ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
-      ['entry.example', 'download.example'],
-    );
-    expect(outer.containsKey('sockopt'), isFalse);
-    expect(_streamSockopt(effective)['happyEyeballs'], {'tryDelayMs': 250});
+    for (final alias in ['xhttp', 'splithttp']) {
+      final outer = _download('unused.example');
+      final beforeOuter = JsonTool.copyMap(outer);
+      final effective = _download(
+        'download.example',
+        sockopt: {'tcpMptcp': false},
+      );
+      final value = _xhttp(outer, alias: alias, sockopt: {'tcpMptcp': true});
+      final transport =
+          value['streamSettings']['${alias}Settings'] as Map<String, dynamic>;
+      final extraParameters = {
+        'uplinkHTTPMethod': 'OPTIONS',
+        'h2Params': {
+          'MaxConcurrentStreams': 256,
+          'futureH2': {'keep': true},
+        },
+        'futureTransport': {'keep': true},
+      };
+      transport.addAll({
+        'uplinkHTTPMethod': 'PUT',
+        'h2Params': {'MaxConcurrentStreams': 64},
+        'extra': {...extraParameters, 'downloadSettings': effective},
+      });
+      expect(
+        ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
+        ['entry.example', 'download.example'],
+      );
+      expect(outer, beforeOuter);
+      expect(_sockopt(value)['tcpMptcp'], true);
+      expect(_streamSockopt(effective)['tcpMptcp'], false);
+      expect(_streamSockopt(effective)['happyEyeballs'], {'tryDelayMs': 250});
+      expect(transport['uplinkHTTPMethod'], 'PUT');
+      expect(transport['h2Params'], {'MaxConcurrentStreams': 64});
+      expect({
+        for (final entry in (transport['extra'] as Map).entries)
+          if (entry.key != 'downloadSettings') entry.key: entry.value,
+      }, extraParameters);
+    }
 
     final inactive = _download('inactive.example');
     final extraWithoutDownload = _xhttp(inactive);
