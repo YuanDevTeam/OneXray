@@ -9,7 +9,7 @@
         android:name="android.permission.FOREGROUND_SERVICE"
         tools:ignore="ForegroundServicesPolicy" />
     <uses-permission
-        android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+        android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED"
         android:minSdkVersion="34" />
 
     <uses-permission
@@ -94,16 +94,13 @@
         <service
             android:name=".vpn.OneVpnService"
             android:exported="true"
-            android:foregroundServiceType="specialUse"
+            android:foregroundServiceType="systemExempted"
             android:permission="android.permission.BIND_VPN_SERVICE"
             android:process=":native"
             tools:ignore="VpnServicePolicy">
             <intent-filter>
                 <action android:name="android.net.VpnService" />
             </intent-filter>
-            <property
-                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="VPN service" />
         </service>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

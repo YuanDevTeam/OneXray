@@ -345,7 +345,7 @@ class OneVpnService : VpnService() {
             startForeground(
                 NOTIFICATION_ID,
                 notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)
