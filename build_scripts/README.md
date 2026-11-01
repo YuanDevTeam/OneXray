@@ -110,11 +110,12 @@ version/pub get → native libraries/Core/Geodata → FFI generation → platfor
 build number through the environment, without rewriting Fastfile. Linux collects
 only the current version's ZIP/DEB.
 
-Android uploads remain internal drafts. Play API commits may send all pending
-store changes for review, including edits marked "Save for later" in Play Console.
-Remove any production release being replaced before dispatching an Android build.
-After the upload, check the publishing overview and withdraw any automatically
-submitted store edits until APK verification is complete. Validate the Play-signed
+Android uploads remain internal drafts with `changes_not_sent_for_review: true`
+and automatic parameter rescue disabled. If Play rejects that commit option,
+the upload fails rather than retrying with automatic review submission. Check
+pending changes and any active review before dispatching an Android build, and
+remove a production release being replaced. After upload, confirm that changes
+remain unsent in the publishing overview. Validate the Play-signed
 APK before selecting the new version code for production and submitting changes.
 
 FFI generation runs `dart run tool/ffigen.dart` after refreshing the native
