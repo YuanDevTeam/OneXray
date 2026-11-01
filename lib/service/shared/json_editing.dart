@@ -491,6 +491,7 @@ class JsonEditing {
               'dialerProxy',
               'mark',
               'tcpFastOpen',
+              'tcpMptcp',
               'tcpKeepAliveIdle',
               'tcpKeepAliveInterval',
               'tcpNoDelay',

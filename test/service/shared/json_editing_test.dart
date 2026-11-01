@@ -835,6 +835,73 @@ void main() {
     },
   );
 
+  test('MPTCP is a socket key without boolean string value suggestions', () {
+    for (final (kind, wrapper) in [
+      (JsonEditorKind.outbound, '{"streamSettings":{"sockopt":{BODY}}}'),
+      (
+        JsonEditorKind.outbound,
+        '{"outbounds":[{"streamSettings":{"sockopt":{BODY}}}]}',
+      ),
+      (
+        JsonEditorKind.raw,
+        '{"outbounds":[{"streamSettings":{"sockopt":{BODY}}}]}',
+      ),
+      (
+        JsonEditorKind.raw,
+        '{"inbounds":[{"streamSettings":{"sockopt":{BODY}}}]}',
+      ),
+      (
+        JsonEditorKind.raw,
+        '{"outbounds":[{"streamSettings":{"tlsSettings":{"echSockopt":{BODY}}}}]}',
+      ),
+    ]) {
+      expect(labels(wrapper.replaceFirst('BODY', '"tcpMp|"'), kind), [
+        'tcpMptcp',
+      ]);
+      expect(
+        labels(wrapper.replaceFirst('BODY', '"tcpMptcp":true,"tcpMp|"'), kind),
+        isEmpty,
+      );
+      expect(
+        labels(wrapper.replaceFirst('BODY', '"tcpMptcp":"|"'), kind),
+        isEmpty,
+      );
+    }
+    for (final kind in [
+      JsonEditorKind.customRouting,
+      JsonEditorKind.advancedRouting,
+    ]) {
+      expect(
+        labels(
+          '{"outbounds":[{},{"protocol":"freedom","streamSettings":{"sockopt":{"tcpMp|"}}}]}',
+          kind,
+        ),
+        isEmpty,
+      );
+    }
+    for (final marked in [
+      '{"future":{"sockopt":{"tcpMp|"}}}',
+      '{"future":{"streamSettings":{"sockopt":{"tcpMp|"}}}}',
+    ]) {
+      expect(labels(marked, JsonEditorKind.raw), isEmpty);
+    }
+    const marked =
+        '{"streamSettings":{"sockopt":{"tcpMp|":false,"interface":"eth0"}}}';
+    final completion = completions(marked, JsonEditorKind.outbound).single;
+    final text = marked.replaceFirst('|', '');
+    final inserted = jsonDecode(
+      text.replaceRange(
+        completion.start,
+        completion.end,
+        completion.insertText,
+      ),
+    );
+    expect(inserted['streamSettings']['sockopt'], {
+      'tcpMptcp': false,
+      'interface': 'eth0',
+    });
+  });
+
   test('Freedom final rules get owned fields and native action candidates', () {
     for (final (kind, wrapper) in [
       (JsonEditorKind.outbound, '{"protocol":"freedom","settings":{BODY}}'),
