@@ -7,12 +7,14 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/model.dart';
+import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/connect/controller.dart';
@@ -855,6 +857,163 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
+  for (final settingsAction in ['cancel', 'open', 'failed', 'throws']) {
+    testWidgets(
+      'pending system approval retry gives actionable guidance: $settingsAction',
+      (tester) async {
+        final permission = PlatformPermissionResult(
+          kind: PlatformPermissionKind.macosSystemExtension,
+          state: PlatformPermissionState.awaitingUserApproval,
+        );
+        final coordinator = _Coordinator();
+        coordinator.state.value = ConnectionView(
+          issue: 'permissionRequired',
+          permission: permission,
+        );
+        var requests = 0;
+        final controller = ConnectController(
+          database: coordinator.db,
+          coordinator: coordinator,
+          requestPermission: () async {
+            requests++;
+            return permission;
+          },
+        );
+        addTearDown(controller.close);
+        addTearDown(coordinator.dispose);
+        addTearDown(coordinator.db.close);
+        const channel = MethodChannel('plugins.flutter.io/url_launcher');
+        final messenger = tester.binding.defaultBinaryMessenger;
+        final opened = <String>[];
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          opened.add((call.arguments as Map)['url'] as String);
+          if (settingsAction == 'throws') {
+            throw PlatformException(
+              code: 'open_failed',
+              message: 'Settings launch failed',
+            );
+          }
+          return settingsAction == 'open';
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        await tester.pumpWidget(_testApp(_connectionScreen(controller)));
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Try again'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+
+        expect(requests, 1);
+        expect(coordinator.connectCount, 0);
+        expect(find.byType(ShadDialog), findsOneWidget);
+        expect(find.text('Open system settings'), findsOneWidget);
+        final l = AppLocalizations.of(tester.element(find.byType(ShadDialog)))!;
+        expect(find.text(l.systemExtensionApprovalHint), findsOneWidget);
+        await tester.pump(const Duration(seconds: 3));
+        expect(find.byType(ShadDialog), findsOneWidget);
+
+        await tester.tap(
+          find.text(
+            settingsAction == 'cancel' ? 'Cancel' : 'Open system settings',
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(controller.pendingChange, isNull);
+        expect(coordinator.connectCount, 0);
+        expect(
+          opened,
+          settingsAction == 'cancel' ? isEmpty : ['x-apple.systempreferences:'],
+        );
+        if (settingsAction == 'failed') {
+          expect(
+            find.textContaining(
+              'The system settings page could not be opened.',
+            ),
+            findsOneWidget,
+          );
+        } else if (settingsAction == 'throws') {
+          expect(find.textContaining('Settings launch failed'), findsOneWidget);
+        } else {
+          expect(find.byType(ShadToast), findsNothing);
+        }
+        expect(tester.takeException(), isNull);
+        await tester.pump(const Duration(seconds: 3));
+        await tester.pumpAndSettle();
+      },
+    );
+  }
+
+  testWidgets('approved permission retry continues connecting', (tester) async {
+    final coordinator = _Coordinator();
+    coordinator.state.value = ConnectionView(
+      issue: 'permissionRequired',
+      permission: PlatformPermissionResult(
+        kind: PlatformPermissionKind.macosSystemExtension,
+        state: PlatformPermissionState.awaitingUserApproval,
+      ),
+    );
+    var requests = 0;
+    final controller = ConnectController(
+      database: coordinator.db,
+      coordinator: coordinator,
+      requestPermission: () async {
+        requests++;
+        return PlatformPermissionResult(
+          kind: PlatformPermissionKind.appleVpn,
+          state: PlatformPermissionState.granted,
+        );
+      },
+    );
+    addTearDown(controller.close);
+    addTearDown(coordinator.dispose);
+    addTearDown(coordinator.db.close);
+    await tester.pumpWidget(_testApp(_connectionScreen(controller)));
+    await tester.tap(find.widgetWithText(FilledButton, 'Try again'));
+    await tester.pumpAndSettle();
+    expect(requests, 1);
+    expect(coordinator.connectCount, 1);
+    expect(controller.pendingChange, isNull);
+    expect(find.byType(ShadDialog), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed activation preserves its diagnostic without connecting', (
+    tester,
+  ) async {
+    final coordinator = _Coordinator();
+    coordinator.state.value = ConnectionView(
+      issue: 'permissionRequired',
+      permission: PlatformPermissionResult(
+        kind: PlatformPermissionKind.macosSystemExtension,
+        state: PlatformPermissionState.awaitingUserApproval,
+      ),
+    );
+    final controller = ConnectController(
+      database: coordinator.db,
+      coordinator: coordinator,
+      requestPermission: () async => PlatformPermissionResult(
+        kind: PlatformPermissionKind.macosSystemExtension,
+        state: PlatformPermissionState.failed,
+        message: 'Activation failed: fixture diagnostic',
+      ),
+    );
+    addTearDown(controller.close);
+    addTearDown(coordinator.dispose);
+    addTearDown(coordinator.db.close);
+    await tester.pumpWidget(_testApp(_connectionScreen(controller)));
+    await tester.tap(find.widgetWithText(FilledButton, 'Try again'));
+    await tester.pumpAndSettle();
+    expect(coordinator.connectCount, 0);
+    expect(controller.pendingChange, isNull);
+    expect(find.byType(ShadDialog), findsNothing);
+    expect(
+      find.textContaining('Activation failed: fixture diagnostic'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('a native stop failure still uses the disconnect action', (
     tester,
   ) async {
@@ -1003,6 +1162,8 @@ Widget _testApp(Widget home) => MaterialApp(
   locale: const Locale('en'),
   supportedLocales: AppLocalizations.supportedLocales,
   localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+  builder: (context, child) =>
+      ShadTheme(data: AppTheme.shad(Brightness.light), child: child!),
   home: home,
 );
 

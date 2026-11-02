@@ -216,6 +216,7 @@
   "menuBarQuitAndStopVpn": "Выход+VPN",
   "homePageOpenSettings": "Нет прав. Открыть?",
   "permissionDialogTitle": "Требуется разрешение",
+  "systemExtensionApprovalHint": "Разрешите системное расширение OneXray в системных настройках и повторите попытку.\nmacOS 15 и новее: Основные → Объекты входа и расширения → Сетевые расширения.\nmacOS 14 и старше: Конфиденциальность и безопасность.",
   "dnsPageTitle": "DNS",
   "xrayRawPageTitle": "Raw JSON",
   "subscriptionDownloadFailed": "Не удалось загрузить подписку",

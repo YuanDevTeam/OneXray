@@ -1,12 +1,15 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/failure.dart';
 import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/shared/failure.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 Future<bool> runConnectionAction(
   BuildContext context,
@@ -24,10 +27,27 @@ Future<bool> runConnectionAction(
         coordinator.state.value.issue != 'cancelled' &&
         context.mounted) {
       final l = AppLocalizations.of(context)!;
-      ContextAlert.showToast(
-        context,
-        connectionFailureMessage(l, error: error),
-      );
+      final permission = error is ConnectionHostException
+          ? error.permission
+          : null;
+      if (connectionFailureReason(error) == 'permissionRequired' &&
+          permission?.kind == PlatformPermissionKind.macosSystemExtension &&
+          permission?.state != PlatformPermissionState.failed) {
+        await ContextAlert.showPermissionDialog(
+          context,
+          title: l.prototypeSystemApprovalRequired,
+          message: l.systemExtensionApprovalHint,
+          openSettings: () => launchUrl(
+            Uri.parse('x-apple.systempreferences:'),
+            mode: LaunchMode.externalApplication,
+          ),
+        );
+      } else {
+        ContextAlert.showToast(
+          context,
+          connectionFailureMessage(l, error: error),
+        );
+      }
     }
     return false;
   }

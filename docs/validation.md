@@ -207,7 +207,8 @@ Pigeon、FFI、Drift 或本地化变更先生成对应输出；只改测试时�
   覆盖冷启动抑制自动连接、运行中停止不被启动阻塞、重复动作、回前台读取、未知输入及导航 URL 边界。
   这些测试不执行实际 App Intent、不证明 WidgetKit 展示或 NetworkExtension 状态。
 - macOS SE 激活：`bash tool/test_system_extension_activation.sh` 编译生产 Swift，
-  验证并发请求合并及完成后的重新激活；使用可控系统回复，不申请真实扩展授权或启动 VPN。
+  验证待批准时重试、已安装时跳过、强制替换及并发请求合并；使用可控系统回复，不申请真实扩展授权或启动 VPN。
+  页面测试核对授权未完成时不连接、批准说明持续显示、取消与打开设置，以及设置打开失败的反馈。
 - Android 原生：在 `android/` 执行 `./gradlew :app:testDebugUnitTest`，
   Robolectric 调用正式 Receiver、保存配置、Widget 资源与 VPN 状态桥；
   状态桥回归使用真实 command/changed 与可控 Binder 重演停止确认后旧事件迟到，

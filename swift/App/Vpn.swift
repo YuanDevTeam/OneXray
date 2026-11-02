@@ -269,21 +269,21 @@ class VPNManager {
     }
 
     private func requestSystemExtensionIfNeeded() async -> SystemExtensionState {
-        await systemExtensionActivation.request { await self.runSystemExtensionSetup() }
-    }
-
-    private func runSystemExtensionSetup() async -> SystemExtensionState {
         #if DEBUG
         let force = true
         #else
         let force = false
         #endif
+        return await systemExtensionActivation.request(
+            forceReplace: force,
+            query: { await SystemExtensionManager.isInstalled() },
+            activate: { await self.runSystemExtensionSetup(forceReplace: force) }
+        )
+    }
+
+    private func runSystemExtensionSetup(forceReplace: Bool) async -> SystemExtensionState {
         do {
-            let installed = await SystemExtensionManager.isInstalled()
-            if (installed == .installed || installed == .waitForApproval) && !force {
-                return installed
-            }
-            if let result = try await SystemExtensionManager.activate(forceReplace: force) {
+            if let result = try await SystemExtensionManager.activate(forceReplace: forceReplace) {
                 if result == .completed {
                     return .installed
                 } else {
