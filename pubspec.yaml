@@ -82,8 +82,7 @@ dependencies:
   # desktop
   nativeapi: ^0.5.7
   tray_manager: ^0.8.2
-  # 0.6's Windows backend cannot resolve our hidden startup window reliably.
-  window_manager: ^0.5.2
+  window_manager: ^0.6.0
   macos_window_utils: ^1.9.1
   win32: ^6.4.0
 
