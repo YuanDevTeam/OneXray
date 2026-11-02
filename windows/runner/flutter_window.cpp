@@ -1,8 +1,5 @@
 #include "flutter_window.h"
 
-#include <flutter/standard_method_codec.h>
-
-#include <cstdint>
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
@@ -10,11 +7,7 @@
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
-FlutterWindow::~FlutterWindow() {
-  if (window_channel_) {
-    window_channel_->SetMethodCallHandler(nullptr);
-  }
-}
+FlutterWindow::~FlutterWindow() {}
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
@@ -34,44 +27,20 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
-  window_channel_ =
-      std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
-          flutter_controller_->engine()->messenger(),
-          "onexray/desktop_window", &flutter::StandardMethodCodec::GetInstance());
-  window_channel_->SetMethodCallHandler(
-      [this](const flutter::MethodCall<flutter::EncodableValue>& call,
-             std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
-                 result) {
-        if (call.method_name() != "getMainWindowHandle") {
-          result->NotImplemented();
-          return;
-        }
-        const HWND handle = GetHandle();
-        if (handle == nullptr) {
-          result->Error("window_unavailable",
-                        "The main window is not available.");
-          return;
-        }
-        result->Success(flutter::EncodableValue(
-            static_cast<std::int64_t>(
-                reinterpret_cast<std::intptr_t>(handle))));
-      });
-
   flutter_controller_->engine()->SetNextFrameCallback([]() {
-    // Dart's startup coordinator decides when the prepared window is shown.
+    // Showing is controlled by windowManager.waitUntilReadyToShow in Dart.
   });
 
-  // Keep rendering independent of the startup coordinator's visibility decision.
+  // Flutter can complete the first frame before the window manager callback is
+  // registered. The following call ensures a frame is pending for the Dart-side
+  // waitUntilReadyToShow path. It is a no-op if the first frame hasn't
+  // completed yet.
   flutter_controller_->ForceRedraw();
 
   return true;
 }
 
 void FlutterWindow::OnDestroy() {
-  if (window_channel_) {
-    window_channel_->SetMethodCallHandler(nullptr);
-    window_channel_ = nullptr;
-  }
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

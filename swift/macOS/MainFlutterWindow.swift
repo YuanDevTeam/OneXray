@@ -1,9 +1,9 @@
 import Cocoa
 import FlutterMacOS
+import window_manager
 
 class MainFlutterWindow: NSWindow {
     private var flutterApi: AppFlutterApi?
-    private var didSuppressInitialOrder = false
 
     override func awakeFromNib() {
         MainActor.assumeIsolated {
@@ -33,11 +33,6 @@ class MainFlutterWindow: NSWindow {
 
     override public func order(_ place: NSWindow.OrderingMode, relativeTo otherWin: Int) {
         super.order(place, relativeTo: otherWin)
-        guard !didSuppressInitialOrder else {
-            return
-        }
-        // Preserve Nib/Flutter startup; Dart decides the final window visibility.
-        didSuppressInitialOrder = true
-        setIsVisible(false)
+        hiddenWindowAtLaunch()
     }
 }

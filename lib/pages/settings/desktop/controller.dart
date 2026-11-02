@@ -11,7 +11,7 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/service/launch/app_startup.dart';
-import 'package:onexray/service/shared/menu/window/service.dart';
+import 'package:window_manager/window_manager.dart';
 
 class DesktopSettingsPageState {
   final LaunchAtLoginStatus launchAtLogin;
@@ -182,12 +182,12 @@ class DesktopSettingsController extends PageCubit<DesktopSettingsPageState>
     final previous = state.hideDockIcon;
     emit(state.copyWith(changingBehavior: true));
     try {
-      await WindowService().setHideDockIcon(enabled);
+      await windowManager.setSkipTaskbar(enabled);
       await PreferencesKey().saveHideDockIcon(enabled);
       emit(state.copyWith(hideDockIcon: enabled));
     } catch (error) {
       try {
-        await WindowService().setHideDockIcon(previous);
+        await windowManager.setSkipTaskbar(previous);
       } catch (_) {}
       if (context != null && context.mounted) {
         _behaviorFailed(context, error);

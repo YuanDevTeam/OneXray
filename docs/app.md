@@ -55,10 +55,7 @@ UI-only 改动保持字段、语义、平台可见性、持久化和验证不变
 
 `PageAppBar` 仅为进入 macOS 原生标题栏区域的可见按钮注册点击转发；隐藏或退出页面后移除。
 弹窗不穿透遮罩，空白标题栏保留系统拖动和双击语义。`macos_window_utils` 管理原生材质及标题栏，
-`window_manager` / `nativeapi` 管理窗口事件，保留宿主 delegate，不启用 utils 的第二套窗口 delegate。
-窗口服务在首次准备时缓存主 `Window`，尺寸、显隐、事件及标题栏控件共用它。
-Windows runner 通过自身 HWND 绑定隐藏主窗口；macOS/Linux 首次查找应用窗口后固定使用该对象。
-普通窗口关闭请求由服务取消并隐藏；强制关闭和显式退出仍遵循应用退出流程。
+`window_manager` 管理窗口事件，不同时启用两套窗口 delegate。
 Windows/Linux 保留独立纯色控制栏，布局扣除控制栏高度；Windows Snap Layout 在对应系统验收。
 Linux runner 在创建 Flutter View 前关闭 Impeller，其他平台不受影响。
 
@@ -239,10 +236,6 @@ Windows/Linux 网卡不默认选第一张，必须存在；其他平台隐藏。
 MSIX 使用 package StartupTask，Linux 使用 XDG autostart。只管理自身有效安装，不跨模式清理。
 Windows 模式为编译期选择，默认 EXE；初始化不为权限检查启动 Core，实际需要时才请求 UAC。
 打包模式与命令见 [构建手册](../build_scripts/README.md)。
-
-窗口先在隐藏状态完成准备，再由启动流程决定显示。macOS/macOS SE 的首次 Nib 排序保留 Flutter 引擎启动时序，
-App 仅抑制首次显示；后续显示和恢复不再受该标记影响。隐藏 Dock 使用应用级 activation policy，
-不改变窗口菜单列表；隐藏 Dock 时系统也隐藏应用菜单栏，托盘保留恢复入口。
 
 关闭主窗口仅隐藏。macOS/MSIX 的 Quit 仅退出 App，Quit and Stop VPN 停止成功后退出；
 EXE/ZIP/Linux 的 Quit 先停止 VPN。需要停止的退出失败时保持 App 运行并显示重试入口。

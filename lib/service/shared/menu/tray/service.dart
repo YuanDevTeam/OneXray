@@ -30,7 +30,7 @@ import 'package:onexray/service/launch/app_startup.dart';
 import 'package:onexray/service/shared/notification/service.dart';
 import 'package:collection/collection.dart';
 import 'package:onexray/core/tools/platform.dart';
-import 'package:onexray/service/shared/menu/window/service.dart';
+import 'package:window_manager/window_manager.dart';
 
 final class TrayService {
   static final TrayService _singleton = TrayService._internal();
@@ -322,7 +322,8 @@ final class TrayService {
           await _coordinator.disconnect();
           break;
         case _TrayMenuKey.showApp:
-          await WindowService().showAndFocus();
+          await windowManager.show();
+          await windowManager.focus();
           break;
         case _TrayMenuKey.quitApp:
           if (!_canQuitWithoutStoppingVpn) {
