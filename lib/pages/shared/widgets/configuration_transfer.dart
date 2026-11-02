@@ -226,7 +226,6 @@ class ConfigurationTransferController
       if (await FileTool.saveData(
         Uint8List.fromList(utf8.encode(json)),
         '${basename.isEmpty ? 'xray' : basename}.json',
-        'json',
       )) {
         emit(
           state.copyWith(

@@ -273,7 +273,7 @@ class LinuxFfiApi extends BaseFfiApi {
     final homeDir = Platform.environment['HOME'];
     return homeDir == null
         ? _coreBin
-        : p.join(homeDir, 'work', 'vpn', _coreBin);
+        : p.join(homeDir, 'work', 'vpn', 'OneXray', _coreBin);
   }
 
   void _bindProcess(Process process) {

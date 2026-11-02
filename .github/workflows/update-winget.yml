@@ -129,7 +129,7 @@ jobs:
 
       - name: Install uv
         if: steps.verify.outputs.should_update == 'true'
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.x"
           enable-cache: false
@@ -142,8 +142,7 @@ jobs:
 
       - name: Install Komac from main
         if: steps.verify.outputs.should_update == 'true'
-        # Stable 2.16.0 cannot parse Inno Setup 7 installers. Upstream main
-        # includes support: https://github.com/russellbanks/Komac/pull/1866
+        # Track upstream main and build with its committed Cargo lockfile.
         uses: baptiste0928/cargo-install@v3
         with:
           crate: komac

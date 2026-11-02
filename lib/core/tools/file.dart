@@ -74,17 +74,8 @@ class FileTool {
     }
   }
 
-  static Future<bool> saveData(
-    Uint8List data,
-    String name,
-    String extension,
-  ) async {
-    final outputFile = await FilePicker.saveFile(
-      fileName: name,
-      type: FileType.custom,
-      allowedExtensions: [extension],
-      bytes: data,
-    );
+  static Future<bool> saveData(Uint8List data, String name) async {
+    final outputFile = await FilePicker.saveFile(fileName: name, bytes: data);
 
     if (outputFile == null) {
       return false;

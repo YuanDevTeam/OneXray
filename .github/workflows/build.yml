@@ -162,7 +162,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.x"
           enable-cache: false
@@ -237,7 +237,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.x"
           enable-cache: false
@@ -316,7 +316,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.x"
           enable-cache: false
@@ -378,8 +378,7 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          # Gradle 9.7 supports Java up to 26; Java 27 requires Gradle 9.8.
-          java-version: "26"
+          java-version: "27"
           check-latest: true
 
       - uses: actions/setup-go@v7
@@ -393,7 +392,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.x"
           enable-cache: false
@@ -528,7 +527,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.x"
           enable-cache: false
@@ -679,7 +678,7 @@ jobs:
           check-latest: true
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.x"
           enable-cache: false

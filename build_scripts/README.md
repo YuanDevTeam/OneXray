@@ -44,8 +44,8 @@ packaging. Check target architecture support before replacing a setup step.
 
 Use the latest supported major tag for Actions. When upstream does not publish
 major or minor aliases, use an available release tag: `setup-uv` currently needs
-`v10.3.0` because neither `v10` nor `v10.3` exists. Keep tool versions within the
-project's compatibility limits, including Java 26 for the current Gradle wrapper.
+`v10.3.3` because neither `v10` nor `v10.3` exists. Keep tool versions within the
+project's compatibility limits; the current Gradle wrapper supports Java 27.
 
 | Workload | Runner image |
 | --- | --- |
@@ -78,7 +78,7 @@ the Pub executable directory, including Fastforge.
 [release-downloader](https://github.com/robinraju/release-downloader) handles
 release asset downloads and LLVM-MinGW extraction. Inno Setup uses the latest
 stable 7.0.x patch to match Komac main's current
-[parser limit](https://github.com/russellbanks/inno/blob/v0.7.1/core/src/lib.rs#L162).
+[parser limit](https://github.com/russellbanks/inno/blob/v0.7.3/core/src/lib.rs#L162).
 Recheck parser support before increasing the minor version. Silent installation
 uses a short PowerShell step.
 
@@ -210,7 +210,7 @@ build jobs together.
   [cargo-install](https://github.com/baptiste0928/cargo-install) builds Komac from
   upstream `main` with stable Rust and `locked: true`, using that branch's Cargo
   lockfile. The Action resolves `main` on each run and caches binaries by the
-  resolved revision. This includes Inno Setup 7 support missing from Komac 2.16.0.
+  resolved revision.
   The workflow pipes `komac update --dry-run` output through `awk` to save separate
   YAML files by manifest type and locale; dry-run returns before handling `--output`.
   [winget_manifest.py](winget_manifest.py) retains identity, release URL and user
