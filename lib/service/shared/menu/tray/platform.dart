@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:onexray/core/tools/logger.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/service/shared/menu/tray/entry.dart';
 import 'package:tray_manager/tray_manager.dart' as native;
@@ -36,15 +37,30 @@ final class NativeTrayPlatform implements TrayPlatform {
     if (tray == null) throw StateError('Unable to create the tray icon');
     _tray = tray;
     _onMenuVisibility = onMenuVisibility;
-    tray.setContextMenuTrigger(native.ContextMenuTrigger.none);
+    // Linux tray icons are StatusNotifierItems: the panel draws the menu from
+    // the exported dbusmenu, and nativeapi's openContextMenu() always returns
+    // false there. With the trigger `none` the item exports /NO_DBUSMENU, so no
+    // menu ever appears. Let the panel open the menu on any click instead.
+    final hostShowsMenu = AppPlatform.isLinux;
+    tray.setContextMenuTrigger(
+      hostShowsMenu
+          ? native.ContextMenuTrigger.clicked
+          : native.ContextMenuTrigger.none,
+    );
     tray.iconSize = nativeapi.Size(width: 18, height: 18);
     tray.setTooltip('OneXray');
     if (AppPlatform.isMacOS) tray.setTitle('');
     _listener = tray.addListener((event) {
-      if (event is native.TrayIconClickedEvent ||
-          event is native.TrayIconRightClickedEvent) {
-        onClick();
+      if (event is! native.TrayIconClickedEvent &&
+          event is! native.TrayIconRightClickedEvent) {
+        return;
       }
+      if (hostShowsMenu) {
+        // Some hosts still call Activate/ContextMenu next to the exported menu.
+        ygLogger('Tray ${event.runtimeType} ignored: the panel shows the menu');
+        return;
+      }
+      onClick();
     });
   }
 
