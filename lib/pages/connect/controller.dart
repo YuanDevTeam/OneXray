@@ -9,6 +9,7 @@ import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
+import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/shared/alert.dart';
@@ -20,6 +21,7 @@ import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
@@ -112,16 +114,22 @@ class ConnectPageState {
 }
 
 class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
-  ConnectController({AppDatabase? database, ConnectionCoordinator? coordinator})
-    : db = database ?? AppDatabase(),
-      coordinator = coordinator ?? ConnectionCoordinator.instance,
-      super(ConnectPageState()) {
+  ConnectController({
+    AppDatabase? database,
+    ConnectionCoordinator? coordinator,
+    Future<PlatformPermissionResult> Function()? requestPermission,
+  }) : db = database ?? AppDatabase(),
+       coordinator = coordinator ?? ConnectionCoordinator.instance,
+       _requestPermission =
+           requestPermission ?? AppHostApi().requestPlatformPermission,
+       super(ConnectPageState()) {
     this.coordinator.state.addListener(_connectionChanged);
     _connectionChanged();
   }
 
   final AppDatabase db;
   final ConnectionCoordinator coordinator;
+  final Future<PlatformPermissionResult> Function() _requestPermission;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   bool _viewInitialized = false;
   bool _pageVisible = false;
@@ -398,7 +406,15 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
       } else {
         await run(context, () async {
           if (view.issue == 'permissionRequired' && view.permission != null) {
-            await AppHostApi().requestPlatformPermission();
+            final permission = await _requestPermission();
+            if (permission.state != PlatformPermissionState.granted &&
+                permission.state != PlatformPermissionState.notRequired) {
+              throw ConnectionHostException(
+                'permissionRequired',
+                permission: permission,
+                cause: permission.message,
+              );
+            }
           }
           await coordinator.connect();
         });

@@ -216,6 +216,7 @@
     },
     "homePageOpenSettings": "مجوز رد شده است. تنظیمات را برای اجازه دادن باز کنید؟",
     "permissionDialogTitle": "مجوز لازم است",
+    "systemExtensionApprovalHint": "افزونهٔ سیستمی OneXray را در تنظیمات سیستم مجاز کنید، سپس دوباره تلاش کنید.\nدر macOS 15 و جدیدتر: عمومی ← موارد ورود و افزونه‌ها ← افزونه‌های شبکه.\nدر macOS 14 و قدیمی‌تر: حریم خصوصی و امنیت.",
     "dnsPageTitle": "DNS",
     "xrayRawPageTitle": "Raw JSON",
     "subscriptionDownloadFailed": "بارگیری اشتراک ناموفق بود",

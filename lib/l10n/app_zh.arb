@@ -216,6 +216,7 @@
   },
   "homePageOpenSettings": "权限被禁止，跳转至设置以打开权限？",
   "permissionDialogTitle": "需要权限",
+  "systemExtensionApprovalHint": "请在系统设置中允许 OneXray 的系统扩展，然后重试。\nmacOS 15 及更新版本：通用 → 登录项与扩展 → 网络扩展。\nmacOS 14 及更早版本：隐私与安全性。",
   "dnsPageTitle": "DNS",
   "xrayRawPageTitle": "Raw JSON",
   "subscriptionDownloadFailed": "订阅下载失败",

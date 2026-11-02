@@ -10,19 +10,24 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 class ContextAlert {
-  static Future<void> showPermissionDialog(BuildContext context) async {
-    final openSettings = await _showDialog<bool>(
+  static Future<void> showPermissionDialog(
+    BuildContext context, {
+    String? title,
+    String? message,
+    Future<bool> Function()? openSettings,
+  }) async {
+    final confirmed = await _showDialog<bool>(
       context: context,
       variant: ShadDialogVariant.alert,
       builder: (ctx) => ShadDialog.alert(
         title: _dialogTitle(
           ctx,
           icon: LucideIcons.shieldAlert,
-          title: AppLocalizations.of(ctx)!.permissionDialogTitle,
+          title: title ?? AppLocalizations.of(ctx)!.permissionDialogTitle,
         ),
         description: _dialogDescription(
           ctx,
-          AppLocalizations.of(ctx)!.homePageOpenSettings,
+          message ?? AppLocalizations.of(ctx)!.homePageOpenSettings,
         ),
         backgroundColor: _dialogBackground(ctx),
         closeIcon: const SizedBox.shrink(),
@@ -47,10 +52,10 @@ class ContextAlert {
         ],
       ),
     );
-    if (openSettings == true) {
+    if (confirmed == true) {
       Object failure = 'The system settings page could not be opened.';
       try {
-        if (await openAppSettings()) return;
+        if (await (openSettings ?? openAppSettings)()) return;
       } catch (error) {
         failure = error;
       }

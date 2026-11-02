@@ -242,6 +242,10 @@
   },
   "homePageOpenSettings": "Permission is denied. Open Settings to allow it?",
   "permissionDialogTitle": "Permission Required",
+  "systemExtensionApprovalHint": "Allow OneXray’s system extension in System Settings, then try again.\nmacOS 15 or later: General → Login Items & Extensions → Network Extensions.\nmacOS 14 or earlier: Privacy & Security.",
+  "@systemExtensionApprovalHint": {
+    "description": "Guidance shown after macOS system extension activation still requires approval."
+  },
   "dnsPageTitle": "DNS",
   "xrayRawPageTitle": "Raw JSON",
   "subscriptionDownloadFailed": "Failed to download the subscription",
