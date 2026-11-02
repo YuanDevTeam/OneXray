@@ -246,11 +246,7 @@ class ShareController extends PageCubit<SharePageState> {
     if (qrcode == null || state.savingQr) return;
     emit(state.copyWith(savingQr: true));
     try {
-      final success = await FileTool.saveData(
-        qrcode,
-        '${state.name}.png',
-        '.png',
-      );
+      final success = await FileTool.saveData(qrcode, '${state.name}.png');
       if (context.mounted && success) {
         _showActionResult(
           context,

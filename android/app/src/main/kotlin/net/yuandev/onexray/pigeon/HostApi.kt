@@ -1,6 +1,5 @@
 package net.yuandev.onexray.pigeon
 
-import android.Manifest
 import android.app.Activity.RESULT_OK
 import android.content.Context
 import android.graphics.Bitmap
@@ -10,8 +9,8 @@ import android.os.Build
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
 import com.elvishew.xlog.XLog
-import com.hjq.permissions.Permission
 import com.hjq.permissions.XXPermissions
+import com.hjq.permissions.permission.PermissionLists
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -215,13 +214,10 @@ class AppHostApi(
     private fun checkInstalledAppPermission(callback: (Boolean) -> Unit) {
         // android 11, level 30
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val permissions = mutableListOf<String>()
-            permissions.add(Manifest.permission.QUERY_ALL_PACKAGES)
-            permissions.add(Permission.GET_INSTALLED_APPS)
             XXPermissions.with(context)
-                .permission(permissions)
-                .request { _, allGranted ->
-                    callback(allGranted)
+                .permission(PermissionLists.getGetInstalledAppsPermission())
+                .request { _, deniedList ->
+                    callback(deniedList.isEmpty())
                 }
         } else {
             callback(true)

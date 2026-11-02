@@ -39,7 +39,6 @@ abstract final class RuntimeDiagnosticFiles {
   static Future<bool> exportConfiguration(String text) => FileTool.saveData(
     Uint8List.fromList(utf8.encode(text)),
     'OneXray-runtime.json',
-    'json',
   );
 
   static Future<({Uint8List data, int offset, int size})?> readLog(

@@ -103,20 +103,21 @@ tasks.matching { it.name.startsWith("package") && it.name.endsWith("UnitTestForU
 dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.17")
-    val coreVersion = "1.19.0"
+    val coreVersion = "1.19.1"
     implementation("androidx.core:core-ktx:$coreVersion")
     implementation("androidx.core:core-splashscreen:1.2.0")
 
-    implementation("androidx.fragment:fragment-ktx:1.9.0")
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
     implementation("androidx.activity:activity-ktx:1.13.0")
 
     val kotlinxCoroutinesVersion = "1.11.0"
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$kotlinxCoroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlinxCoroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlinxCoroutinesVersion")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxCoroutinesVersion")
+    val kotlinxSerializationVersion = "1.12.0"
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$kotlinxSerializationVersion")
 
-    implementation("com.github.getActivity:XXPermissions:21.3")
+    implementation("com.github.getActivity:XXPermissions:28.3")
     implementation("com.elvishew:xlog:1.11.1")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
