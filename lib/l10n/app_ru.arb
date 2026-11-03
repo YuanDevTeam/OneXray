@@ -364,7 +364,7 @@
   "prototypeAutomaticSelection": "Автовыбор",
   "prototypeAutomaticOneEntry": "Автовыбор · 1 входной узел",
   "prototypeAutomaticEntries": "Автовыбор · входных узлов: {count}",
-  "prototypeChooseBySpeedAvailability": "Выбирать по скорости и доступности",
+  "prototypeChooseBySpeedAvailability": "Сначала учитываются сохранённые успешные задержки; узлы без измерения и с ошибкой теста тоже доступны.",
   "prototypeFastLatency": "Быстрый · {latency} мс",
   "prototypeAvailableLatency": "Доступен · {latency} мс",
   "prototypeSlowLatency": "Медленный · {latency} мс",
@@ -494,9 +494,9 @@
   "prototypeCustomConnectionReason": "Ваши правила определяют, какой трафик идёт через VPN, напрямую или блокируется. Выбор серверов в правилах не сохраняется.",
   "prototypeNamedCustomConnectionReason": "{name} определяет, какой трафик идёт через VPN, напрямую или блокируется. Правила не сохраняют выбор серверов.",
   "prototypeRunningEntriesReason": "Для этого подключения выбраны {entries}. Повторная проверка не меняет текущее подключение.",
-  "prototypeMultipleEntriesReason": "OneXray выбрал входные узлы с лучшей скоростью и доступностью: {count}. Новые соединения распределяются между ними.",
+  "prototypeMultipleEntriesReason": "OneXray выбрал {count} доступных для чтения входных узлов. Сохранённые успешные задержки влияют только на порядок.",
   "prototypeFixedEntryReason": "Вы выбрали сервер {server} вручную.",
-  "prototypeAutomaticEntryReason": "По последней проверке {server} показал лучшую скорость и доступность среди подходящих серверов.",
+  "prototypeAutomaticEntryReason": "{server} выбран по сохранённым успешным задержкам и стабильному порядку. Проверка перед подключением не требуется.",
   "prototypeNoAnalyticsLocalLogs": "OneXray не собирает и не передаёт аналитику. При включении журналы хранятся на этом устройстве.",
   "prototypeEditSubscription": "Изменить подписку",
   "prototypeEditServer": "Изменить сервер",
@@ -535,7 +535,7 @@
   "prototypeNoDirectRegions": "Нет регионов прямого доступа",
   "prototypeMoreRegions": "{name} и ещё {count}",
   "prototypeAutomaticEntryServers": "Входные узлы при автовыборе",
-  "prototypeAutomaticEntryServersHint": "Использовать лучшие доступные серверы. При выборе нескольких распределять между ними новые соединения.",
+  "prototypeAutomaticEntryServersHint": "Сначала учитываются сохранённые успешные задержки; узлы без измерения и с ошибкой теста тоже доступны.",
   "prototypeVpnFinalExit": "Конечный выход VPN",
   "prototypeVpnFinalExitHint": "Необязательно. Трафик VPN выходит в интернет через этот постоянный сервер.",
   "prototypeNotSet": "Не задано",
@@ -1001,5 +1001,21 @@
   "xrayDiagnosticsHint": "Просмотр ошибок подключения, конфигурации и журналов.",
   "xrayRefreshStatus": "Обновить статус",
   "xrayNoConnectionError": "Текущих ошибок подключения нет.",
-  "xrayNoRuntimeConfiguration": "Рабочая конфигурация пока отсутствует. Подключитесь, чтобы просмотреть параметры запуска."
+  "xrayNoRuntimeConfiguration": "Рабочая конфигурация пока отсутствует. Подключитесь, чтобы просмотреть параметры запуска.",
+  "clearAllAppData": "Удалить все данные приложения",
+  "logsUnavailableSystemExtension": "В версии System Extension журналы недоступны.",
+  "connectionScopeFallback": "Для «{origin}» нет доступных для чтения кандидатов. Выбран «{target}» из всех серверов. Следующие подключения используют автовыбор.",
+  "@connectionScopeFallback": {
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "serverNoMatchingResources": "Нет подходящих ресурсов",
+  "connectionRuntimeTitle": "Активное подключение",
+  "serverLatencyFailed": "Ошибка теста"
 }

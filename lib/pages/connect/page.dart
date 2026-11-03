@@ -85,7 +85,9 @@ class _ConnectPageState extends State<ConnectPage> {
                     ? state.configuration.connection.rawId
                     : null,
                 location: controller.selectionTitle(l),
+                targetKind: controller.selectionKindLabel(l),
                 runningPath: controller.runningRoute?.path,
+                fallbackMessage: controller.fallbackMessage(l),
                 locationDetail: controller.selectionDetail(l),
                 locationHealth: controller.selectionHealth(l),
                 method: controller.homeMethodTitle(l),

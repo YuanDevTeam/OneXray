@@ -364,7 +364,7 @@
     "prototypeAutomaticSelection": "انتخاب خودکار",
     "prototypeAutomaticOneEntry": "انتخاب خودکار · ۱ گره ورودی",
     "prototypeAutomaticEntries": "انتخاب خودکار · {count} گره ورودی",
-    "prototypeChooseBySpeedAvailability": "انتخاب بر اساس سرعت و دسترس‌پذیری",
+    "prototypeChooseBySpeedAvailability": "تأخیرهای موفق ذخیره‌شده اولویت دارند؛ گره‌های آزمایش‌نشده یا دارای خطای آزمایش نیز قابل انتخاب‌اند.",
     "prototypeFastLatency": "سریع · {latency} میلی‌ثانیه",
     "prototypeAvailableLatency": "در دسترس · {latency} میلی‌ثانیه",
     "prototypeSlowLatency": "کند · {latency} میلی‌ثانیه",
@@ -494,9 +494,9 @@
     "prototypeCustomConnectionReason": "قوانین سفارشی شما تعیین می‌کنند کدام ترافیک از VPN عبور کند، مستقیم متصل شود یا مسدود شود. انتخاب سرور در قوانین ذخیره نمی‌شود.",
     "prototypeNamedCustomConnectionReason": "{name} تعیین می‌کند کدام ترافیک از VPN عبور کند، مستقیم متصل شود یا مسدود شود. انتخاب سرور در قوانین ذخیره نمی‌شود.",
     "prototypeRunningEntriesReason": "برای این اتصال، {entries} انتخاب شد. آزمایش دوباره، اتصال فعلی را تغییر نمی‌دهد.",
-    "prototypeMultipleEntriesReason": "OneXray تعداد {count} سرور ورودی با بهترین سرعت و دسترس‌پذیری را انتخاب کرد. اتصال‌های جدید میان آن‌ها توزیع می‌شوند.",
+    "prototypeMultipleEntriesReason": "OneXray تعداد {count} گرهٔ ورودی قابل‌خواندن را انتخاب کرد. تأخیرهای موفق ذخیره‌شده فقط ترتیب را تغییر می‌دهند.",
     "prototypeFixedEntryReason": "شما {server} را مستقیماً انتخاب کردید.",
-    "prototypeAutomaticEntryReason": "{server} در میان سرورهای واجد شرایط، بهترین سرعت و دسترس‌پذیری اخیر را داشت.",
+    "prototypeAutomaticEntryReason": "{server} با تأخیرهای موفق ذخیره‌شده و ترتیب ثابت انتخاب شد. پیش از اتصال نیازی به آزمایش نیست.",
     "prototypeNoAnalyticsLocalLogs": "OneXray داده‌های تحلیلی را جمع‌آوری یا بارگذاری نمی‌کند. گزارش‌های اختیاری روی همین دستگاه می‌مانند.",
     "prototypeEditSubscription": "ویرایش اشتراک",
     "prototypeEditServer": "ویرایش سرور",
@@ -535,7 +535,7 @@
     "prototypeNoDirectRegions": "بدون منطقهٔ اتصال مستقیم",
     "prototypeMoreRegions": "{name} و {count} مورد دیگر",
     "prototypeAutomaticEntryServers": "انتخاب خودکار سرورهای ورودی",
-    "prototypeAutomaticEntryServersHint": "از بهترین سرورهای در دسترس استفاده شود و اگر بیش از یک سرور انتخاب شده باشد، اتصال‌های جدید میان آن‌ها توزیع شوند.",
+    "prototypeAutomaticEntryServersHint": "تأخیرهای موفق ذخیره‌شده اولویت دارند؛ گره‌های آزمایش‌نشده یا دارای خطای آزمایش نیز قابل انتخاب‌اند.",
     "prototypeVpnFinalExit": "خروجی نهایی VPN",
     "prototypeVpnFinalExitHint": "اختیاری. ترافیک VPN از طریق این سرور ثابت به اینترنت می‌رسد.",
     "prototypeNotSet": "تنظیم نشده",
@@ -1001,5 +1001,21 @@
   "xrayDiagnosticsHint": "خطاهای اتصال، پیکربندی اجرا و گزارش‌ها را ببینید.",
   "xrayRefreshStatus": "تازه‌سازی وضعیت",
   "xrayNoConnectionError": "اکنون خطایی در اتصال وجود ندارد.",
-  "xrayNoRuntimeConfiguration": "هنوز پیکربندی اجرایی موجود نیست. برای مشاهدهٔ ورودی واقعی راه‌اندازی متصل شوید."
+  "xrayNoRuntimeConfiguration": "هنوز پیکربندی اجرایی موجود نیست. برای مشاهدهٔ ورودی واقعی راه‌اندازی متصل شوید.",
+  "clearAllAppData": "پاک کردن همهٔ داده‌های برنامه",
+  "logsUnavailableSystemExtension": "گزارش‌ها در نسخهٔ System Extension در دسترس نیستند.",
+  "connectionScopeFallback": "«{origin}» نامزد قابل‌خواندن ندارد. «{target}» از همهٔ سرورها انتخاب شد. اتصال‌های بعدی از انتخاب خودکار استفاده می‌کنند.",
+  "@connectionScopeFallback": {
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "serverNoMatchingResources": "منبع مطابقی یافت نشد",
+  "connectionRuntimeTitle": "اتصال فعال",
+  "serverLatencyFailed": "آزمایش ناموفق"
 }

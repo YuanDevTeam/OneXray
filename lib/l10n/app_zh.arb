@@ -364,7 +364,7 @@
   "prototypeAutomaticSelection": "自动选择",
   "prototypeAutomaticOneEntry": "自动选择 · 1 个接入节点",
   "prototypeAutomaticEntries": "自动选择 · {count} 个接入节点",
-  "prototypeChooseBySpeedAvailability": "根据速度和可用性自动选择",
+  "prototypeChooseBySpeedAvailability": "已有成功延迟优先；未测或测速失败的节点仍可选择。",
   "prototypeFastLatency": "快 · {latency} ms",
   "prototypeAvailableLatency": "可用 · {latency} ms",
   "prototypeSlowLatency": "慢 · {latency} ms",
@@ -494,9 +494,9 @@
   "prototypeCustomConnectionReason": "自定义规则决定哪些流量使用 VPN、保持直连或被阻止；规则不保存服务器选择。",
   "prototypeNamedCustomConnectionReason": "{name}决定哪些流量使用 VPN、保持直连或被阻止；规则不保存服务器选择。",
   "prototypeRunningEntriesReason": "本次连接选用了 {entries}。重新测速不会改变当前连接。",
-  "prototypeMultipleEntriesReason": "OneXray 选择了速度与可用性最佳的 {count} 个接入节点，新连接会在它们之间分配。",
+  "prototypeMultipleEntriesReason": "OneXray 选择了 {count} 个可读取的接入节点，已有成功延迟仅用于排序。",
   "prototypeFixedEntryReason": "你直接选择了 {server}。",
-  "prototypeAutomaticEntryReason": "{server} 是符合条件的服务器中近期速度与可用性最佳的选择。",
+  "prototypeAutomaticEntryReason": "按已有成功延迟和稳定顺序选择了 {server}，启动前不要求测速。",
   "prototypeNoAnalyticsLocalLogs": "OneXray 不收集或上传分析数据；可选日志只保留在本设备。",
   "prototypeEditSubscription": "编辑订阅",
   "prototypeEditServer": "编辑节点",
@@ -535,7 +535,7 @@
   "prototypeNoDirectRegions": "未选择直连地区",
   "prototypeMoreRegions": "{name}等 {count} 个地区",
   "prototypeAutomaticEntryServers": "自动接入节点",
-  "prototypeAutomaticEntryServersHint": "选择速度与可用性最佳的节点；选择多个时，新连接会自动分配。",
+  "prototypeAutomaticEntryServersHint": "已有成功延迟优先；未测或测速失败的节点仍可选择。",
   "prototypeVpnFinalExit": "VPN 最终出口",
   "prototypeVpnFinalExitHint": "可选。VPN 流量最终通过这台固定服务器访问互联网。",
   "prototypeNotSet": "未设置",
@@ -1001,5 +1001,21 @@
   "xrayDiagnosticsHint": "查看连接错误、运行配置与日志。",
   "xrayRefreshStatus": "刷新状态",
   "xrayNoConnectionError": "当前没有连接错误。",
-  "xrayNoRuntimeConfiguration": "尚无运行配置。建立连接后可查看实际启动输入。"
+  "xrayNoRuntimeConfiguration": "尚无运行配置。建立连接后可查看实际启动输入。",
+  "clearAllAppData": "清除全部 App 数据",
+  "logsUnavailableSystemExtension": "System Extension 版本不提供日志。",
+  "connectionScopeFallback": "“{origin}”没有可读取的候选节点，已从全部服务器选择“{target}”。后续连接将使用自动选择。",
+  "@connectionScopeFallback": {
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "serverNoMatchingResources": "没有匹配的资源",
+  "connectionRuntimeTitle": "正在运行",
+  "serverLatencyFailed": "测速失败"
 }

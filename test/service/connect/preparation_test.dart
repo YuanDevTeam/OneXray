@@ -640,6 +640,44 @@ void main() {
       );
     });
 
+    test('personal Raw runtime retains its prepared name after rename and accepts older metadata', () async {
+      final id = await db.coreConfigDao.insertRow(
+        CoreConfigCompanion.insert(
+          name: 'Original personal Raw',
+          type: 'raw',
+          tags: '',
+          delay: PingDelayConstants.unknown,
+          subId: 0,
+          data: Value(base64Encode(utf8.encode(jsonEncode(_providerConfig)))),
+        ),
+      );
+      final input = ConnectionConfiguration(
+        connection: ConnectionSettings(expert: true, rawId: id),
+      );
+      final runtime = await _providerPreparation(db).prepare(input);
+      final row = (await db.coreConfigDao.searchRow(id))!;
+      await db.coreConfigDao.updateRow(
+        row.copyWith(name: 'Renamed personal Raw'),
+      );
+      expect(runtime.rawName, 'Original personal Raw');
+      expect(runtime.profile, isNull);
+      expect(runtime.entries, isEmpty);
+      expect(
+        ConnectionRuntime.fromRequest(runtime.request).rawName,
+        'Original personal Raw',
+      );
+      final oldMetadata =
+          jsonDecode(runtime.request.metadataJson!) as Map<String, dynamic>;
+      oldMetadata.remove('rawName');
+      final oldRequest = runtime.request.toJson()
+        ..['metadataJson'] = jsonEncode(oldMetadata);
+      expect(
+        ConnectionRuntime.fromRequest(StartVpnRequest.fromJson(oldRequest))
+            .rawName,
+        isNull,
+      );
+    });
+
     for (final mode in [TrafficMode.smart, TrafficMode.custom]) {
       test(
         'fixed provider bypasses $mode routing, probes and final exit',
@@ -1030,11 +1068,12 @@ void main() {
             SelectionKind.server,
           );
           expect(runtime.notice, isNull);
-          if (healthy != null)
+          if (healthy != null) {
             expect(
               runtime.entries.any((entry) => entry.id == healthy),
               isFalse,
             );
+          }
         },
       );
     }

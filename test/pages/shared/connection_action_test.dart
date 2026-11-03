@@ -87,7 +87,7 @@ void main() {
     ),
     (
       const ConnectionResolutionException(
-        ConnectionResolutionFailure.insufficientHealthyServers,
+        ConnectionResolutionFailure.insufficientCandidates,
         requiredCount: 3,
         availableCount: 1,
       ),

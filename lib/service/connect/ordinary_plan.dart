@@ -76,7 +76,7 @@ class OrdinaryPlanService {
         ? current.connection.rememberedOrdinarySelection
         : selection;
     final valid = candidate != null && await _ordinary(candidate);
-    final restored = valid ? candidate! : const ServerSelection.automatic();
+    final restored = valid ? candidate : const ServerSelection.automatic();
     return OrdinaryPlanRestore(
       ConnectionConfiguration(
         connection: ConnectionSettings.fromJson({

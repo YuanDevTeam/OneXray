@@ -8,6 +8,7 @@ import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/shared/widgets/configuration_transfer.dart';
+import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/custom/editor.dart';
@@ -31,6 +32,10 @@ class JsonConfigurationEditorState {
   final int? sharingDataCount;
   final String name;
   final String text;
+  final String savedName;
+  final String savedText;
+  final bool confirmingClose;
+  final bool closeAllowed;
   final ConfigurationTransferState transfer;
 
   const JsonConfigurationEditorState({
@@ -44,8 +49,17 @@ class JsonConfigurationEditorState {
     this.sharingDataCount,
     this.name = '',
     this.text = '',
+    this.savedName = '',
+    this.savedText = '',
+    this.confirmingClose = false,
+    this.closeAllowed = false,
     this.transfer = const ConfigurationTransferState(),
   });
+
+  bool get dirty => name != savedName || text != savedText;
+  bool get closeBlocked => (loaded && busy) || transfer.busy;
+  bool get canPop =>
+      closeAllowed || (!closeBlocked && !confirmingClose && !dirty);
 
   JsonConfigurationEditorState copyWith({
     bool? loaded,
@@ -58,6 +72,10 @@ class JsonConfigurationEditorState {
     Object? sharingDataCount = _unchanged,
     String? name,
     String? text,
+    String? savedName,
+    String? savedText,
+    bool? confirmingClose,
+    bool? closeAllowed,
     ConfigurationTransferState? transfer,
   }) => JsonConfigurationEditorState(
     loaded: loaded ?? this.loaded,
@@ -74,6 +92,10 @@ class JsonConfigurationEditorState {
         : sharingDataCount as int?,
     name: name ?? this.name,
     text: text ?? this.text,
+    savedName: savedName ?? this.savedName,
+    savedText: savedText ?? this.savedText,
+    confirmingClose: confirmingClose ?? this.confirmingClose,
+    closeAllowed: closeAllowed ?? this.closeAllowed,
     transfer: transfer ?? this.transfer,
   );
 }
@@ -101,10 +123,12 @@ class JsonConfigurationEditorController
   JsonConfigurationEditorController({
     required this.configurationId,
     RawEditorService? service,
-    this._customService,
-    this._transferService,
+    CustomRoutingEditorService? customService,
+    ConfigurationTransferService? transferService,
     this.kind = ConfigurationKind.raw,
   }) : _rawService = service,
+       _customService = customService,
+       _transferService = transferService,
        super(const JsonConfigurationEditorState()) {
     text.addListener(_textChanged);
     name.addListener(_nameChanged);
@@ -116,7 +140,12 @@ class JsonConfigurationEditorController
   RawEditorDraft? _draft;
   CustomRoutingEditorDraft? _routingDraft;
   bool get advanced => kind == ConfigurationKind.customAdvanced;
-  bool get canDelete => advanced && _routingDraft?.original != null && !working;
+  bool get canDelete =>
+      advanced &&
+      _routingDraft?.original != null &&
+      !working &&
+      !state.confirmingClose &&
+      !state.closeAllowed;
   bool _saving = false;
   int _textRevision = 0;
   int _draftRevision = 0;
@@ -143,6 +172,8 @@ class JsonConfigurationEditorController
   bool get loaded => state.loaded;
   bool get canSave =>
       !working &&
+      !state.confirmingClose &&
+      !state.closeAllowed &&
       loaded &&
       state.text.trim().isNotEmpty &&
       state.name.trim().isNotEmpty;
@@ -183,9 +214,48 @@ class JsonConfigurationEditorController
     }
   }
 
-  void closePage(BuildContext context) => Navigator.of(context).pop();
+  Future<void> closePage(BuildContext context) async {
+    if (!isPageActive ||
+        !context.mounted ||
+        state.closeBlocked ||
+        state.confirmingClose ||
+        state.closeAllowed ||
+        ModalRoute.of(context)?.isCurrent != true)
+      return;
+    if (state.dirty) {
+      final l = AppLocalizations.of(context)!;
+      emit(state.copyWith(confirmingClose: true));
+      var discard = false;
+      try {
+        discard = await AppConfirmationDialog(
+          title: l.jsonEditorDiscardTitle,
+          content: l.jsonEditorDiscardMessage,
+          cancelLabel: l.jsonEditorKeepEditing,
+          confirmLabel: l.jsonEditorDiscardChanges,
+          destructive: true,
+        ).show(context);
+      } finally {
+        emit(state.copyWith(confirmingClose: false));
+      }
+      if (!discard || !isPageActive || !context.mounted || state.closeBlocked)
+        return;
+    }
+    _finishClose(context);
+  }
+
+  void _finishClose(BuildContext context, {int? result}) {
+    if (!isPageActive ||
+        !context.mounted ||
+        state.closeAllowed ||
+        ModalRoute.of(context)?.isCurrent != true)
+      return;
+    emit(state.copyWith(closeAllowed: true));
+    Navigator.of(context).pop(result);
+  }
 
   Future<void> load(BuildContext context) async {
+    final initialName = name.text;
+    final initialText = text.text;
     try {
       if (advanced) {
         final draft = configurationId == null
@@ -200,14 +270,19 @@ class JsonConfigurationEditorController
         }
         if (!isPageActive) return;
         _routingDraft = draft;
-        name.text = draft.state.name;
-        text.text = draft.state.encode();
+        final loadedText = draft.state.encode();
+        emit(
+          state.copyWith(savedName: draft.state.name, savedText: loadedText),
+        );
+        if (name.text == initialName) name.text = draft.state.name;
+        if (text.text == initialText) text.text = loadedText;
       } else {
         final draft = await service.load(configurationId);
         if (!isPageActive) return;
         _draft = draft;
-        name.text = draft.name;
-        text.text = draft.text;
+        emit(state.copyWith(savedName: draft.name, savedText: draft.text));
+        if (name.text == initialName) name.text = draft.name;
+        if (text.text == initialText) text.text = draft.text;
       }
     } catch (error) {
       if (context.mounted) {
@@ -294,6 +369,11 @@ class JsonConfigurationEditorController
         );
       }
       if (id != null) await transfers.completeImport();
+      if (id != null && isPageActive) {
+        emit(
+          state.copyWith(savedName: submittedName, savedText: submittedText),
+        );
+      }
       if (id != null &&
           isPageActive &&
           context.mounted &&
@@ -303,7 +383,7 @@ class JsonConfigurationEditorController
           context,
           l10n.prototypeNameSaved(submittedName.trim()),
         );
-        Navigator.of(context).pop(id);
+        _finishClose(context, result: id);
       } else if (id != null && isPageActive) {
         // Keep newer edits visible, but advance the saved baseline so a later
         // save updates this row instead of duplicating it or reporting conflict.
@@ -396,7 +476,7 @@ class JsonConfigurationEditorController
             : Future.value(false),
       );
       if (deleted && isPageActive && context.mounted) {
-        Navigator.of(context).pop();
+        _finishClose(context);
       }
     } catch (error) {
       emit(state.copyWith(error: appFailureMessage(l10n, error)));

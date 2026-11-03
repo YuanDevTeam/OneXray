@@ -15,6 +15,8 @@ import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/connect/dialogs.dart';
+import 'package:onexray/pages/connect/target_picker.dart';
+import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/theme.dart';
@@ -27,6 +29,7 @@ import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
 
 import 'package:onexray/service/servers/catalog.dart';
+import 'package:onexray/service/servers/server.dart';
 import 'package:onexray/pages/servers/catalog.dart';
 import 'package:onexray/pages/shared/connection_action.dart';
 
@@ -247,17 +250,10 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   }
 
   String selectionTitle(AppLocalizations l10n) {
-    final providerName = runningProfile?.name ?? selectedProvider?.name;
-    if (providerName != null) return providerName;
     final settings = configuration.connection;
-    if (settings.trafficMode != TrafficMode.allVpn &&
-        settings.selection.kind != SelectionKind.server) {
-      final count = runningRoute?.entryCount ?? _configuredEntryCount(settings);
-      if (count != null) {
-        return count == 1
-            ? l10n.prototypeAutomaticOneEntry
-            : l10n.prototypeAutomaticEntries(count);
-      }
+    if (settings.expert) {
+      return raws.where((r) => r.id == settings.rawId).firstOrNull?.name ??
+          l10n.prototypeNotSelected;
     }
     return _selectionName(l10n, settings.selection);
   }
@@ -296,12 +292,52 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   bool get providerConfiguration =>
       runningProfile != null || selectedProvider != null;
 
-  String? selectionDetail(AppLocalizations l10n) => providerConfiguration
-      ? l10n.providerRoutingNotice
-      : runningRoute?.path ??
-            (configuration.connection.selection.kind == SelectionKind.server
-                ? null
-                : l10n.prototypeChooseBySpeedAvailability);
+  String selectionKindLabel(AppLocalizations l) =>
+      configuration.connection.expert || selectedProvider != null
+      ? l.serverCompleteConfigurationsTab
+      : configuration.connection.selection.kind == SelectionKind.server
+      ? l.serverSelectionFixedNode
+      : l.serverSelectionAutomaticScope;
+
+  int candidateCount(ServerSelection selection) {
+    final settings = _ordinarySettings(configuration.connection);
+    final seen = <int>{};
+    return servers
+        .where(
+          (row) =>
+              row.id > 0 &&
+              seen.add(row.id) &&
+              row.id != settings.finalExitId &&
+              catalog.outboundEligible(row) &&
+              switch (selection.kind) {
+                SelectionKind.automatic => true,
+                SelectionKind.source => row.subId == selection.id,
+                SelectionKind.server => row.id == selection.id,
+              },
+        )
+        .length;
+  }
+
+  String? fallbackMessage(AppLocalizations l) {
+    final runtime = connectionView.runtime;
+    final fallback = runtime?.selectionFallback;
+    if (runtime == null ||
+        fallback == null ||
+        connectionView.phase != ConnectionPhase.connected) {
+      return null;
+    }
+    return l.connectionScopeFallback(
+      fallback.sourceName ?? _selectionName(l, fallback.originalSelection),
+      runtime.profile?.name ?? runtime.entries.map((e) => e.name).join(' + '),
+    );
+  }
+
+  String? selectionDetail(AppLocalizations l10n) {
+    final settings = configuration.connection;
+    if (settings.expert) return l10n.prototypeCompleteXrayConfiguration;
+    if (selectedProvider != null) return l10n.providerRoutingNotice;
+    return '${l10n.connectionCandidates(candidateCount(settings.selection))} · ${l10n.connectionRequiredEntries(_configuredEntryCount(settings) ?? 1)}';
+  }
 
   // The runtime chooses the node identity; the badge shows that node's latest
   // successful probe, not a measurement of this session or a new selection.
@@ -436,10 +472,13 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     BuildContext context,
     Map<String, dynamic> values, {
     Future<void> Function()? writeAssets,
+    Future<void> Function()? validateAssets,
     String? label,
   }) async {
     if (connectionView.busy || pendingChange != null) return false;
     if (providerConfiguration &&
+        !values.containsKey('selection') &&
+        !values.containsKey('expert') &&
         (values.containsKey('trafficMode') || values.containsKey('customId'))) {
       return false;
     }
@@ -451,17 +490,48 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
         ? 'method'
         : 'expert';
     try {
+      if (validateAssets != null &&
+          !await runConnectionAction(context, coordinator, validateAssets)) {
+        return false;
+      }
+      if (!context.mounted || !isPageActive) return false;
+      final current = await coordinator.configuration;
+      if (!context.mounted || !isPageActive) return false;
+      final next = ConnectionConfiguration(
+        connection: ConnectionSettings.fromJson({
+          ...current.connection.toJson(),
+          ...values,
+        }),
+        policy: current.policy,
+      );
+      if (next.encode() == current.encode() && writeAssets == null) {
+        configuration = current;
+        return true;
+      }
       final saved = await applyConnectionChange(
         context,
         coordinator,
         values,
-        writeAssets: writeAssets,
+        validateAssets: validateAssets,
+        writeAssets: validateAssets == null
+            ? writeAssets
+            : () async {
+                await validateAssets();
+                await writeAssets?.call();
+              },
         label: (next) =>
             label ?? _changeLabel(AppLocalizations.of(context)!, values, next),
       );
       if (saved == null) return false;
       configuration = saved;
       return true;
+    } catch (error, stackTrace) {
+      if (context.mounted && isPageActive) {
+        await runConnectionAction(context, coordinator, () async {
+          Error.throwWithStackTrace(error, stackTrace);
+        });
+      }
+      return false;
     } finally {
       pendingChange = null;
     }
@@ -492,7 +562,41 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   }
 
   Future<void> selectRaw(BuildContext context, int id) async {
-    await change(context, {'expert': true, 'rawId': id});
+    await change(
+      context,
+      {'expert': true, 'rawId': id},
+      validateAssets: () async {
+        await RawEditorService(
+          database: db,
+          coordinator: coordinator,
+        ).validateSelection(id);
+      },
+    );
+  }
+
+  Future<void> _validateSelection(ServerSelection selection) async {
+    await ServerAssetService(
+      database: db,
+      coordinator: coordinator,
+    ).validateSelection(selection);
+    if (selection.kind == SelectionKind.source && selection.id! > 0) {
+      final source = await db.subscriptionDao.searchRow(selection.id!);
+      if (source?.mode != SubscriptionMode.appManaged.name) {
+        throw const FormatException('The selected subscription mode changed');
+      }
+    }
+    if (selection.kind == SelectionKind.server) {
+      final settings = _ordinarySettings(
+        (await coordinator.configuration).connection,
+      );
+      if (selection.id == settings.finalExitId &&
+          (await db.coreConfigDao.searchActiveServerRow(selection.id!))?.type ==
+              CoreConfigType.outbound.name) {
+        throw const ConnectionResolutionException(
+          ConnectionResolutionFailure.selfReference,
+        );
+      }
+    }
   }
 
   Future<void> deleteRaw(BuildContext context, CoreConfigData row) async {
@@ -544,8 +648,50 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
       context.pushScoped(AppPageDestination.serversImport);
   Future<void> editRaw(BuildContext context, [int? id]) =>
       context.pushScoped(AppPageDestination.rawEditor, extra: id);
-  Future<void> chooseServer(BuildContext context) =>
-      context.pushScoped(AppPageDestination.servers);
+  Future<void> chooseServer(BuildContext context) async {
+    if (connectionView.busy || pendingChange != null) return;
+    final l = AppLocalizations.of(context)!;
+    final choice = await showConnectDialog<ConnectionTargetChoice>(
+      context,
+      (_) => ConnectionTargetPicker(
+        settings: configuration.connection,
+        catalog: catalog,
+        raws: raws,
+        candidateCount: candidateCount,
+        selectionName: (s) => _selectionName(l, s),
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    if (choice.manage) {
+      await context.pushScoped(AppPageDestination.servers);
+    } else if (choice.restore) {
+      OrdinaryPlanRestore? restored;
+      if (!await runConnectionAction(context, coordinator, () async {
+        restored = await coordinator.restoreOrdinaryPlan();
+      })) {
+        return;
+      }
+      final plan = restored;
+      if (!context.mounted || plan == null) return;
+      final selection = plan.configuration.connection.selection;
+      if (await change(context, {
+            'expert': false,
+            'selection': selection.toJson(),
+          }, validateAssets: () => _validateSelection(selection)) &&
+          plan.requiresSelection &&
+          context.mounted) {
+        ContextAlert.showToast(context, l.connectionRememberedPlanUnavailable);
+      }
+    } else if (choice.rawId != null) {
+      await selectRaw(context, choice.rawId!);
+    } else if (choice.selection != null) {
+      final selection = choice.selection!;
+      await change(context, {
+        'expert': false,
+        'selection': selection.toJson(),
+      }, validateAssets: () => _validateSelection(selection));
+    }
+  }
 
   Future<void> showRawActions(BuildContext context, CoreConfigData row) async {
     if (deletingRawIds.contains(row.id)) return;
@@ -605,47 +751,8 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     }
   }
 
-  Future<void> chooseTrafficMethod(BuildContext context) async {
-    if (providerConfiguration) return;
-    final selected = await showConnectDialog<ConnectTrafficChoice>(
-      context,
-      (context) => ConnectTrafficMethodDialog(
-        current: configuration.connection,
-        customRoutes: [
-          for (final profile in customRoutes)
-            (
-              id: profile.id!,
-              name: profile.name,
-              ruleCount: _ruleCount(profile),
-              advanced: profile.advanced,
-            ),
-        ],
-      ),
-    );
-    if (selected != null && context.mounted) {
-      if (selected.edit) {
-        var destination = AppPageDestination.smartRouting;
-        if (selected.mode == TrafficMode.custom) {
-          final advanced = selected.id == null
-              ? await showCustomRoutingModeDialog(context)
-              : customRoutes
-                    .firstWhere((profile) => profile.id == selected.id)
-                    .advanced;
-          if (advanced == null || !context.mounted) return;
-          destination = advanced
-              ? AppPageDestination.advancedRouting
-              : AppPageDestination.customRouting;
-        }
-        if (!context.mounted) return;
-        await context.pushScoped(destination, extra: selected.id);
-        return;
-      }
-      await change(context, {
-        'trafficMode': selected.mode.name,
-        'customId': selected.id,
-      });
-    }
-  }
+  Future<void> chooseTrafficMethod(BuildContext context) =>
+      context.pushScoped(AppPageDestination.routing);
 
   Future<void> showWhy(BuildContext context) async {
     final l = AppLocalizations.of(context)!;
@@ -755,30 +862,29 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     );
   }
 
-  /// Explain existing successful measurements without probing or selecting a
+  ConnectionSettings _ordinarySettings(ConnectionSettings settings) =>
+      ConnectionSettings.fromJson({...settings.toJson(), 'expert': false});
+
+  /// Explain the cached candidate order without probing or selecting a
   /// runtime input. The actual connection still resolves through the coordinator.
   List<CoreConfigData> _previewEntries(ConnectionSettings settings) {
+    settings = _ordinarySettings(settings);
     final count = _configuredEntryCount(settings);
-    if (count == null || settings.expert) return [];
-    final rows =
-        servers.where((row) {
-          if (!catalog.outboundEligible(row) ||
-              row.id <= 0 ||
-              row.id == settings.finalExitId ||
-              !PingDelayConstants.isSuccessful(row.delay)) {
-            return false;
-          }
-          final matches = switch (settings.selection.kind) {
-            SelectionKind.automatic => true,
-            SelectionKind.source => row.subId == settings.selection.id,
-            SelectionKind.server => row.id == settings.selection.id,
-          };
-          if (!matches) return false;
-          return catalog.display(row).readable;
-        }).toList()..sort((a, b) {
-          final delay = a.delay.compareTo(b.delay);
-          return delay == 0 ? a.id.compareTo(b.id) : delay;
-        });
+    if (count == null) return [];
+    final rows = servers.where((row) {
+      if (!catalog.outboundEligible(row) ||
+          row.id <= 0 ||
+          row.id == settings.finalExitId) {
+        return false;
+      }
+      final matches = switch (settings.selection.kind) {
+        SelectionKind.automatic => true,
+        SelectionKind.source => row.subId == settings.selection.id,
+        SelectionKind.server => row.id == settings.selection.id,
+      };
+      if (!matches) return false;
+      return catalog.display(row).readable;
+    }).toList()..sort(ConnectionResolver.compareCandidates);
     return rows.length < count ? [] : rows.take(count).toList();
   }
 

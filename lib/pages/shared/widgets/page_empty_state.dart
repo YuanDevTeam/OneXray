@@ -43,7 +43,7 @@ class PageEmptyState extends StatelessWidget {
         padding: padding,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: mobile
+            minHeight: mobile && constraints.hasBoundedHeight
                 ? (constraints.maxHeight - padding.vertical).clamp(
                     0.0,
                     double.infinity,

@@ -199,18 +199,24 @@ class ConnectionPreparation {
         .ensureOutboundInterface(policy.xrayOutboundInterfaceName);
     final tun = policy.toTun(platform);
     String? raw = rawDraft;
+    String? rawName;
     RoutingConfiguration? custom = customDraft;
-    if (settings.expert && raw == null) {
+    if (settings.expert) {
       final row = settings.rawId == null
           ? null
           : await db.coreConfigDao.searchRow(settings.rawId!);
-      if (row == null || row.type != 'raw') {
-        throw const FormatException('Raw configuration is unavailable');
+      if (row != null && row.type == 'raw') {
+        rawName = row.name;
       }
-      if (row.data == null) {
-        throw const FormatException('Raw configuration is empty');
+      if (raw == null) {
+        if (row == null || row.type != 'raw') {
+          throw const FormatException('Raw configuration is unavailable');
+        }
+        if (row.data == null) {
+          throw const FormatException('Raw configuration is empty');
+        }
+        raw = utf8.decode(base64Decode(row.data!));
       }
-      raw = utf8.decode(base64Decode(row.data!));
     } else if (profile == null &&
         !settings.expert &&
         settings.trafficMode == TrafficMode.custom &&
@@ -432,6 +438,7 @@ class ConnectionPreparation {
       platform: platform,
       request: request,
       notice: notice,
+      rawName: rawName,
       selectionFallback: selectionFallback,
     );
   }

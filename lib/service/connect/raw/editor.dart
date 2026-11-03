@@ -68,6 +68,13 @@ class RawEditorService {
     );
   }
 
+  /// Called before selection confirmation and again inside its asset commit.
+  Future<void> validateSelection(int id) async {
+    final row = await db.coreConfigDao.searchRow(id);
+    if (row == null) throw const RawEditorException('missing');
+    XrayRawDb.readSelectionFromDbData(row);
+  }
+
   /// Null means the user declined reconnection. No asset is written before it.
   Future<int?> save(
     RawEditorDraft draft, {

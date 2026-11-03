@@ -13,6 +13,7 @@ import 'package:onexray/core/pigeon/messages.g.dart' show VpnStatus;
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/controller.dart';
 import 'package:onexray/pages/connect/view.dart';
+import 'package:onexray/pages/connect/target_picker.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/compiler.dart';
@@ -142,8 +143,8 @@ class _Fixture {
       ..servers = await db.coreConfigDao.allActiveServerRows()
       ..ready = true;
     await connect.initialize();
-    // Let the initial persisted configuration stream arrive before opening a
-    // local Raw browsing draft in the widget's zone.
+    // Let the initial persisted configuration stream arrive before opening the
+    // target picker's browsing state in the widget's zone.
     await db.connectionConfigDao.watch().first;
     if (!connect.servers.any((row) => row.id == 65) || connect.raws.isEmpty) {
       await connect.stream
@@ -196,7 +197,7 @@ Widget _screen(ConnectController controller) => MaterialApp(
           onConnection: () => controller.connectionAction(context),
           onExpert: (value) => controller.toggleExpert(context, value),
           onAddServers: () {},
-          onServer: () {},
+          onServer: () => controller.chooseServer(context),
           onMethod: () {},
           onWhy: () {},
           onRawAdd: () {},
@@ -211,7 +212,7 @@ Widget _screen(ConnectController controller) => MaterialApp(
 void main() {
   for (final initiallyExpert in [true, false]) {
     testWidgets(
-      'external provider selection leaves the Raw view and starts the chosen profile (persisted expert: $initiallyExpert)',
+      'external provider selection replaces the planned target and starts its profile (Raw initially selected: $initiallyExpert)',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(390, 844));
         addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -225,20 +226,16 @@ void main() {
         await tester.pumpAndSettle();
         final context = tester.element(find.byType(ConnectView));
         final l = AppLocalizations.of(context)!;
-        if (!initiallyExpert) {
-          await tester.runAsync(() async {
-            final opened = fixture.connect.stream.firstWhere(
-              (state) => state.expertView,
-            );
-            await fixture.connect.toggleExpert(context, true);
-            await opened.timeout(const Duration(seconds: 5));
-          });
-        }
-        await tester.pumpAndSettle();
-        expect(fixture.connect.expertView, isTrue);
         expect(
-          tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value,
-          isTrue,
+          fixture.connect.configuration.connection.expert,
+          initiallyExpert,
+        );
+        expect(find.byType(ShadSwitch), findsNothing);
+        expect(
+          find.text(
+            initiallyExpert ? 'Personal Raw' : l.prototypeAutomaticSelection,
+          ),
+          findsOneWidget,
         );
         await tester.runAsync(() async {
           await fixture.servers.choose(
@@ -267,10 +264,7 @@ void main() {
         });
         await tester.pumpAndSettle();
         expect(fixture.connect.expertView, isFalse);
-        expect(
-          tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value,
-          isFalse,
-        );
+        expect(find.byType(ShadSwitch), findsNothing);
         expect(find.text('Provider profile'), findsOneWidget);
         await tester.runAsync(() async {
           final connected = fixture.connect.stream.firstWhere(
@@ -300,7 +294,7 @@ void main() {
   }
 
   testWidgets(
-    'unrelated persisted settings keep the uncommitted Raw browsing draft',
+    'unrelated persisted settings preserve picker browsing; cancel does not commit its target',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -312,15 +306,21 @@ void main() {
       addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
       await tester.pumpWidget(_screen(fixture.connect));
       await tester.pumpAndSettle();
-      final context = tester.element(find.byType(ConnectView));
-      await tester.runAsync(() async {
-        final opened = fixture.connect.stream.firstWhere(
-          (state) => state.expertView,
-        );
-        await fixture.connect.toggleExpert(context, true);
-        await opened.timeout(const Duration(seconds: 5));
-      });
+      final l = AppLocalizations.of(tester.element(find.byType(ConnectView)))!;
+      await tester.tap(find.text(l.prototypeAutomaticSelection));
       await tester.pumpAndSettle();
+      expect(find.byType(ConnectionTargetPicker), findsOneWidget);
+      await tester.tap(
+        find.widgetWithText(ChoiceChip, l.serverCompleteConfigurationsTab),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const ValueKey('connection-target-search')),
+        'Personal',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Personal Raw'), findsOneWidget);
+      expect(fixture.connect.configuration.connection.expert, isFalse);
       await tester.runAsync(() async {
         final before = await fixture.coordinator.configuration;
         expect(before.connection.expert, isFalse);
@@ -349,8 +349,37 @@ void main() {
         expect(saved.connection.selection.kind, SelectionKind.automatic);
       });
       await tester.pumpAndSettle();
-      expect(fixture.connect.expertView, isTrue);
-      expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isTrue);
+      expect(find.byType(ConnectionTargetPicker), findsOneWidget);
+      expect(
+        tester
+                .widget<TextField>(
+                  find.byKey(const ValueKey('connection-target-search')),
+                )
+                .controller
+                ?.text ??
+            tester
+                .widget<EditableText>(
+                  find.descendant(
+                    of: find.byKey(const ValueKey('connection-target-search')),
+                    matching: find.byType(EditableText),
+                  ),
+                )
+                .controller
+                .text,
+        'Personal',
+      );
+      expect(find.text('Personal Raw'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ShadButton, l.prototypeCancel));
+      await tester.pumpAndSettle();
+      expect(find.byType(ConnectionTargetPicker), findsNothing);
+      expect(fixture.connect.expertView, isFalse);
+      expect(fixture.connect.configuration.connection.expert, isFalse);
+      expect(
+        fixture.connect.configuration.connection.selection.kind,
+        SelectionKind.automatic,
+      );
+      expect(fixture.connect.configuration.policy.ipv6Enabled, isFalse);
+      expect(fixture.connect.configuration.connection.smart.blockAds, isTrue);
       expect(fixture.started, isEmpty);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

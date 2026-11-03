@@ -364,7 +364,7 @@
   "prototypeAutomaticSelection": "自動選擇",
   "prototypeAutomaticOneEntry": "自動選擇 · 1 個接入節點",
   "prototypeAutomaticEntries": "自動選擇 · {count} 個接入節點",
-  "prototypeChooseBySpeedAvailability": "根據速度和可用性自動選擇",
+  "prototypeChooseBySpeedAvailability": "已有成功延遲優先；未測或測速失敗的節點仍可選擇。",
   "prototypeFastLatency": "快 · {latency} ms",
   "prototypeAvailableLatency": "可用 · {latency} ms",
   "prototypeSlowLatency": "慢 · {latency} ms",
@@ -494,9 +494,9 @@
   "prototypeCustomConnectionReason": "自訂規則決定哪些流量使用 VPN、保持直連或被封鎖；規則不儲存伺服器選擇。",
   "prototypeNamedCustomConnectionReason": "{name} 決定哪些流量使用 VPN、保持直連或遭到封鎖；規則不儲存伺服器選擇。",
   "prototypeRunningEntriesReason": "本次連線選用了 {entries}。重新測速不會改變目前連線。",
-  "prototypeMultipleEntriesReason": "OneXray 選擇了速度與可用性最佳的 {count} 個接入節點，新連線會在它們之間分配。",
+  "prototypeMultipleEntriesReason": "OneXray 選擇了 {count} 個可讀取的接入節點，已有成功延遲僅用於排序。",
   "prototypeFixedEntryReason": "你直接選擇了 {server}。",
-  "prototypeAutomaticEntryReason": "{server} 是符合條件的伺服器中近期速度與可用性最佳的選擇。",
+  "prototypeAutomaticEntryReason": "依已有成功延遲和穩定順序選擇了 {server}，啟動前不要求測速。",
   "prototypeNoAnalyticsLocalLogs": "OneXray 不收集或上傳分析資料；選用記錄只保留在本裝置。",
   "prototypeEditSubscription": "編輯訂閱",
   "prototypeEditServer": "編輯節點",
@@ -535,7 +535,7 @@
   "prototypeNoDirectRegions": "未選擇直連地區",
   "prototypeMoreRegions": "{name}及其他 {count} 個地區",
   "prototypeAutomaticEntryServers": "自動接入節點",
-  "prototypeAutomaticEntryServersHint": "選擇速度與可用性最佳的節點；選擇多個時，新連線會自動分配。",
+  "prototypeAutomaticEntryServersHint": "已有成功延遲優先；未測或測速失敗的節點仍可選擇。",
   "prototypeVpnFinalExit": "VPN 最終出口",
   "prototypeVpnFinalExitHint": "非必要。VPN 流量會經由這台固定伺服器存取網際網路。",
   "prototypeNotSet": "未設定",
@@ -1001,5 +1001,21 @@
   "xrayDiagnosticsHint": "查看連線錯誤、執行設定與日誌。",
   "xrayRefreshStatus": "重新整理狀態",
   "xrayNoConnectionError": "目前沒有連線錯誤。",
-  "xrayNoRuntimeConfiguration": "尚無執行設定。建立連線後可查看實際啟動輸入。"
+  "xrayNoRuntimeConfiguration": "尚無執行設定。建立連線後可查看實際啟動輸入。",
+  "clearAllAppData": "清除全部 App 資料",
+  "logsUnavailableSystemExtension": "System Extension 版本不提供日誌。",
+  "connectionScopeFallback": "「{origin}」沒有可讀取的候選節點，已從全部伺服器選擇「{target}」。後續連線將使用自動選擇。",
+  "@connectionScopeFallback": {
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "serverNoMatchingResources": "沒有符合的資源",
+  "connectionRuntimeTitle": "正在執行",
+  "serverLatencyFailed": "測速失敗"
 }

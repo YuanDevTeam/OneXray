@@ -682,7 +682,7 @@
       }
     }
   },
-  "prototypeChooseBySpeedAvailability": "Choose by speed and availability",
+  "prototypeChooseBySpeedAvailability": "Prefer cached successful delays; unmeasured and failed tests remain eligible.",
   "@prototypeChooseBySpeedAvailability": {
     "description": "Approved prototype copy: Choose by speed and availability"
   },
@@ -1309,7 +1309,7 @@
       }
     }
   },
-  "prototypeMultipleEntriesReason": "OneXray selected {count} entry servers with the best speed and availability. New connections are distributed between them.",
+  "prototypeMultipleEntriesReason": "OneXray selected {count} readable entry nodes. Cached successful delays only affect their order.",
   "@prototypeMultipleEntriesReason": {
     "description": "Approved prototype copy: OneXray selected {count} entry servers with the best speed and availability. New connections are distributed between them.",
     "placeholders": {
@@ -1327,7 +1327,7 @@
       }
     }
   },
-  "prototypeAutomaticEntryReason": "{server} had the best recent speed and availability among eligible servers.",
+  "prototypeAutomaticEntryReason": "Selected {server} using cached successful delays and a stable order. No test is required before connecting.",
   "@prototypeAutomaticEntryReason": {
     "description": "Approved prototype copy: {server} had the best recent speed and availability among eligible servers.",
     "placeholders": {
@@ -1510,7 +1510,7 @@
   "@prototypeAutomaticEntryServers": {
     "description": "Approved prototype copy: Automatic entry servers"
   },
-  "prototypeAutomaticEntryServersHint": "Use the best available servers and distribute new connections when more than one is selected.",
+  "prototypeAutomaticEntryServersHint": "Cached successful delays rank first; unmeasured and failed tests remain eligible.",
   "@prototypeAutomaticEntryServersHint": {
     "description": "Approved prototype copy: Use the best available servers and distribute new connections when more than one is selected."
   },
@@ -3179,5 +3179,21 @@
   "xrayDiagnosticsHint": "Review connection errors, runtime configuration and logs.",
   "xrayRefreshStatus": "Refresh status",
   "xrayNoConnectionError": "There is no current connection error.",
-  "xrayNoRuntimeConfiguration": "No runtime configuration yet. Connect to view the actual startup configuration."
+  "xrayNoRuntimeConfiguration": "No runtime configuration yet. Connect to view the actual startup configuration.",
+  "clearAllAppData": "Clear all app data",
+  "logsUnavailableSystemExtension": "Logs are unavailable in the System Extension edition.",
+  "connectionScopeFallback": "“{origin}” has no readable candidates. Selected “{target}” from all servers. Future connections use Automatic selection.",
+  "@connectionScopeFallback": {
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "serverNoMatchingResources": "No matching resources",
+  "connectionRuntimeTitle": "Active connection",
+  "serverLatencyFailed": "Test failed"
 }

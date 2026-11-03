@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/core/errors/json_diagnostic.dart';
@@ -23,10 +24,12 @@ import 'package:onexray/service/shared/share/configuration_transfer.dart';
 class JsonConfigurationEditorPage extends StatefulWidget {
   final int? configurationId;
   final ConfigurationKind kind;
+  final JsonConfigurationEditorController Function()? createController;
   const JsonConfigurationEditorPage({
     super.key,
     this.configurationId,
     this.kind = ConfigurationKind.raw,
+    this.createController,
   });
   @override
   State<JsonConfigurationEditorPage> createState() =>
@@ -34,10 +37,12 @@ class JsonConfigurationEditorPage extends StatefulWidget {
 }
 
 class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
-  late final controller = JsonConfigurationEditorController(
-    configurationId: widget.configurationId,
-    kind: widget.kind,
-  );
+  late final controller =
+      widget.createController?.call() ??
+      JsonConfigurationEditorController(
+        configurationId: widget.configurationId,
+        kind: widget.kind,
+      );
   bool _started = false;
 
   @override
@@ -68,191 +73,225 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
             final mobile =
                 MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
             final palette = ColorManager.palette(context);
-            final gap = mobile ? 16.0 : 20.0;
-            return Scaffold(
-              appBar: PageAppBar(
-                title: Text(
-                  controller.advanced
-                      ? l10n.routingAdvancedJson
-                      : widget.configurationId == null
-                      ? l10n.prototypeAddRawJson
-                      : l10n.prototypeEditRawJson,
-                ),
-                leading: BackButton(
-                  onPressed: () => controller.closePage(context),
-                ),
-                actions: [
-                  PageHelpButton(
-                    title: controller.advanced
-                        ? l10n.routingAdvancedJson
-                        : l10n.xrayRawPageTitle,
-                    messages: controller.advanced
-                        ? [l10n.routingAdvancedNotice]
-                        : [
-                            l10n.prototypeRawManagedSettingsNotice,
-                            l10n.prototypeRawAdditionalSettingsNotice,
-                          ],
-                  ),
-                ],
-              ),
-              body: SafeArea(
-                bottom: false,
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    mobile ? 14 : AppSpacing.page,
-                    mobile ? 12 : AppSpacing.desktopPageTop,
-                    mobile ? 14 : AppSpacing.page,
-                    mobile ? 12 : AppSpacing.desktopPageBottom,
-                  ),
-                  child: ResponsiveContent(
-                    desktopMaxWidth: 900,
-                    child: RoutingCard(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: mobile ? 12 : 20,
-                        vertical: mobile ? 14 : 20,
+            const gap = 16.0;
+            return CallbackShortcuts(
+              bindings: {
+                const SingleActivator(LogicalKeyboardKey.escape): () =>
+                    controller.closePage(context),
+              },
+              child: Focus(
+                autofocus: true,
+                child: PopScope(
+                  canPop: state.canPop,
+                  onPopInvokedWithResult: (didPop, result) {
+                    if (!didPop) controller.closePage(context);
+                  },
+                  child: Scaffold(
+                    appBar: PageAppBar(
+                      title: Text(
+                        controller.advanced
+                            ? l10n.routingAdvancedJson
+                            : widget.configurationId == null
+                            ? l10n.prototypeAddRawJson
+                            : l10n.prototypeEditRawJson,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          ConfigurationTransferTools(
-                            controller: controller.transfers,
-                            disabled: state.busy || !state.loaded,
-                          ),
-                          if (state.sharingDataCount case final count?
-                              when count > 0)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: _RawNote(
-                                l10n.prototypeSharingDataSourceLinks(count),
-                              ),
+                      leading: BackButton(
+                        onPressed:
+                            state.closeBlocked ||
+                                state.confirmingClose ||
+                                state.closeAllowed
+                            ? null
+                            : () => controller.closePage(context),
+                      ),
+                      actions: [
+                        PageHelpButton(
+                          title: controller.advanced
+                              ? l10n.routingAdvancedJson
+                              : l10n.xrayRawPageTitle,
+                          messages: controller.advanced
+                              ? [l10n.routingAdvancedNotice]
+                              : [
+                                  l10n.prototypeRawManagedSettingsNotice,
+                                  l10n.prototypeRawAdditionalSettingsNotice,
+                                ],
+                        ),
+                      ],
+                    ),
+                    body: SafeArea(
+                      bottom: false,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.fromLTRB(
+                          mobile ? 14 : AppSpacing.page,
+                          mobile ? 12 : AppSpacing.desktopPageTop,
+                          mobile ? 14 : AppSpacing.page,
+                          mobile ? 12 : AppSpacing.desktopPageBottom,
+                        ),
+                        child: ResponsiveContent(
+                          desktopMaxWidth: AppLayout.routingMaxWidth,
+                          child: RoutingCard(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: mobile ? 12 : 20,
+                              vertical: mobile ? 14 : 20,
                             ),
-                          SizedBox(height: gap),
-                          Text(
-                            l10n.prototypeConfigurationName,
-                            style: AppTypography.rawField.copyWith(
-                              color: palette.mutedStrong,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 42,
-                            child: TextField(
-                              controller: controller.name,
-                              maxLength: 32,
-                              enabled: state.loaded,
-                              style: AppTypography.rawField,
-                              decoration: InputDecoration(
-                                hintText: l10n.prototypeConfigurationName,
-                                hintStyle: AppTypography.rawField.copyWith(
-                                  color: palette.mutedForeground,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                ConfigurationTransferTools(
+                                  controller: controller.transfers,
+                                  disabled: state.busy || !state.loaded,
                                 ),
-                                counterText: '',
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: gap),
-                          Text(
-                            controller.advanced
-                                ? l10n.routingAdvancedTemplate
-                                : l10n.prototypeCompleteXrayConfiguration,
-                            style: AppTypography.rawField.copyWith(
-                              color: palette.mutedStrong,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: AppJsonEditor.heightForViewport(
-                              context,
-                              mobile ? 392 : 412,
-                            ),
-                            child: AbsorbPointer(
-                              absorbing: !state.loaded,
-                              child: AppJsonEditor(
-                                controller: controller.text,
-                                kind: controller.advanced
-                                    ? JsonEditorKind.advancedRouting
-                                    : JsonEditorKind.raw,
-                                diagnostic:
-                                    state.diagnostic ??
-                                    (state.error == null
-                                        ? null
-                                        : JsonDiagnostic(state.error!)),
-                                domainSuggestions: state.domainSuggestions,
-                                ipSuggestions: state.ipSuggestions,
-                              ),
-                            ),
-                          ),
-                          if (controller.advanced)
-                            Align(
-                              alignment: AlignmentDirectional.centerStart,
-                              child: TextButton.icon(
-                                onPressed: () =>
-                                    controller.openDocumentation(context),
-                                icon: const Icon(LucideIcons.bookOpen),
-                                label: Text(l10n.prototypeDocumentation),
-                              ),
-                            ),
-                          if (!state.loaded && state.busy)
-                            const LinearProgressIndicator(),
-                          if (!state.loaded && state.error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Semantics(
-                                liveRegion: true,
-                                child: ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    maxHeight:
-                                        MediaQuery.sizeOf(context).height / 4,
-                                  ),
-                                  child: SingleChildScrollView(
-                                    child: SelectableText(
-                                      state.error!,
-                                      style: AppTypography.rawNote.copyWith(
-                                        color: palette.destructive,
+                                if (state.sharingDataCount case final count?
+                                    when count > 0)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: _RawNote(
+                                      l10n.prototypeSharingDataSourceLinks(
+                                        count,
                                       ),
                                     ),
                                   ),
+                                SizedBox(height: gap),
+                                Text(
+                                  l10n.prototypeConfigurationName,
+                                  style: AppTypography.rawField.copyWith(
+                                    color: palette.mutedStrong,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: AppLayout.touchExtent(44),
+                                  child: TextField(
+                                    controller: controller.name,
+                                    maxLength: 32,
+                                    enabled: state.loaded,
+                                    style: AppTypography.rawField,
+                                    decoration: InputDecoration(
+                                      hintText: l10n.prototypeConfigurationName,
+                                      hintStyle: AppTypography.rawField
+                                          .copyWith(
+                                            color: palette.mutedForeground,
+                                          ),
+                                      counterText: '',
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: gap),
+                                Text(
+                                  controller.advanced
+                                      ? l10n.routingAdvancedTemplate
+                                      : l10n.prototypeCompleteXrayConfiguration,
+                                  style: AppTypography.rawField.copyWith(
+                                    color: palette.mutedStrong,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: AppJsonEditor.heightForViewport(
+                                    context,
+                                    mobile ? 392 : 412,
+                                  ),
+                                  child: AbsorbPointer(
+                                    absorbing: !state.loaded,
+                                    child: AppJsonEditor(
+                                      controller: controller.text,
+                                      kind: controller.advanced
+                                          ? JsonEditorKind.advancedRouting
+                                          : JsonEditorKind.raw,
+                                      diagnostic:
+                                          state.diagnostic ??
+                                          (state.error == null
+                                              ? null
+                                              : JsonDiagnostic(state.error!)),
+                                      domainSuggestions:
+                                          state.domainSuggestions,
+                                      ipSuggestions: state.ipSuggestions,
+                                    ),
+                                  ),
+                                ),
+                                if (controller.advanced)
+                                  Align(
+                                    alignment: AlignmentDirectional.centerStart,
+                                    child: TextButton.icon(
+                                      onPressed: () =>
+                                          controller.openDocumentation(context),
+                                      icon: const Icon(LucideIcons.bookOpen),
+                                      label: Text(l10n.prototypeDocumentation),
+                                    ),
+                                  ),
+                                if (!state.loaded && state.busy)
+                                  const LinearProgressIndicator(),
+                                if (!state.loaded && state.error != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: Semantics(
+                                      liveRegion: true,
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxHeight:
+                                              MediaQuery.sizeOf(context)
+                                                  .height /
+                                              4,
+                                        ),
+                                        child: SingleChildScrollView(
+                                          child: SelectableText(
+                                            state.error!,
+                                            style: AppTypography.rawNote
+                                                .copyWith(
+                                                  color: palette.destructive,
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
-                        ],
+                          ),
+                        ),
                       ),
+                    ),
+                    bottomNavigationBar: PageActionBar(
+                      children: [
+                        if (widget.configurationId != null &&
+                            controller.advanced)
+                          ShadButton.destructive(
+                            enabled: controller.canDelete,
+                            onPressed: controller.canDelete
+                                ? () => controller.delete(context)
+                                : null,
+                            child: ButtonProgress(
+                              busy: state.deleting,
+                              child: Text(l10n.prototypeDelete),
+                            ),
+                          ),
+                        if (!mobile)
+                          ShadButton.outline(
+                            onPressed:
+                                state.closeBlocked ||
+                                    state.confirmingClose ||
+                                    state.closeAllowed
+                                ? null
+                                : () => controller.closePage(context),
+                            child: Text(l10n.prototypeCancel),
+                          ),
+                        ShadButton(
+                          enabled: controller.canSave,
+                          onPressed: controller.canSave
+                              ? () => controller.save(context)
+                              : null,
+                          child: ButtonProgress(
+                            busy: state.loaded && state.busy && !state.deleting,
+                            child: Text(l10n.prototypeSave),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-              bottomNavigationBar: PageActionBar(
-                children: [
-                  if (widget.configurationId != null && controller.advanced)
-                    ShadButton.destructive(
-                      enabled: controller.canDelete,
-                      onPressed: controller.canDelete
-                          ? () => controller.delete(context)
-                          : null,
-                      child: ButtonProgress(
-                        busy: state.deleting,
-                        child: Text(l10n.prototypeDelete),
-                      ),
-                    ),
-                  if (!mobile)
-                    ShadButton.outline(
-                      onPressed: () => controller.closePage(context),
-                      child: Text(l10n.prototypeCancel),
-                    ),
-                  ShadButton(
-                    enabled: controller.canSave,
-                    onPressed: controller.canSave
-                        ? () => controller.save(context)
-                        : null,
-                    child: ButtonProgress(
-                      busy: state.loaded && state.busy && !state.deleting,
-                      child: Text(l10n.prototypeSave),
-                    ),
-                  ),
-                ],
               ),
             );
           },

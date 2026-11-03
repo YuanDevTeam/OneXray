@@ -11,6 +11,8 @@ import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/connect/json_editor/controller.dart';
+import 'package:onexray/pages/connect/json_editor/page.dart';
+import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/json_editor.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
@@ -200,6 +202,142 @@ void main() {
 
   for (final advanced in [false, true]) {
     final label = advanced ? 'advanced' : 'Raw';
+    for (final restored in [false, true]) {
+      testWidgets(
+        '$label clean or manually restored document exits without confirmation: $restored',
+        (tester) async {
+          final fixture = _DiagnosticFixture(advanced);
+          addTearDown(fixture.dispose);
+          final session = await _mountFullEditor(tester, fixture);
+          final controller = fixture.controller;
+          final initialName = controller.name.text;
+          final initialText = controller.text.text;
+          expect(controller.state.dirty, isFalse);
+          controller.text.selection = const CodeLineSelection.collapsed(
+            index: 0,
+            offset: 0,
+          );
+          expect(controller.state.dirty, isFalse);
+          if (restored) {
+            controller.name.text = 'Temporary';
+            controller.text.text = '$initialText\n';
+            expect(controller.state.dirty, isTrue);
+            controller.name.text = initialName;
+            controller.text.text = initialText;
+            expect(controller.state.dirty, isFalse);
+          }
+          await tester.pumpAndSettle();
+          if (restored) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          } else {
+            await tester.tap(find.byType(BackButton));
+          }
+          await tester.pumpAndSettle();
+          expect(find.byType(AppConfirmationDialog), findsNothing);
+          expect(find.byType(JsonConfigurationEditorPage), findsNothing);
+          expect(await session.result.future, isNull);
+          expect(fixture.raw.submitted, isEmpty);
+          expect(fixture.custom.submitted, isEmpty);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    for (final exit in ['close', 'cancel', 'back', 'escape']) {
+      testWidgets(
+        '$label modified document shares its discard guard through $exit',
+        (tester) async {
+          final fixture = _DiagnosticFixture(advanced);
+          addTearDown(fixture.dispose);
+          final session = await _mountFullEditor(tester, fixture);
+          final controller = fixture.controller;
+          final l = AppLocalizations.of(session.context)!;
+          controller.name.text = 'Unsaved';
+          controller.text.text = '{"outbounds":[{}]}';
+          await tester.pumpAndSettle();
+          final text = controller.text.text;
+          await _requestFullEditorExit(tester, exit);
+          expect(find.byType(AppConfirmationDialog), findsOneWidget);
+          expect(controller.state.confirmingClose, isTrue);
+          await controller.closePage(session.context);
+          await tester.pump();
+          expect(find.byType(AppConfirmationDialog), findsOneWidget);
+          await tester.tap(find.text(l.jsonEditorKeepEditing));
+          await tester.pumpAndSettle();
+          expect(find.byType(JsonConfigurationEditorPage), findsOneWidget);
+          expect(controller.name.text, 'Unsaved');
+          expect(controller.text.text, text);
+          expect(controller.state.dirty, isTrue);
+          expect(session.result.isCompleted, isFalse);
+          await _requestFullEditorExit(tester, exit);
+          await tester.tap(find.text(l.jsonEditorDiscardChanges));
+          await tester.pumpAndSettle();
+          expect(await session.result.future, isNull);
+          expect(find.byType(JsonConfigurationEditorPage), findsNothing);
+          expect(fixture.raw.submitted, isEmpty);
+          expect(fixture.custom.submitted, isEmpty);
+          expect(await fixture.db.coreConfigDao.allRawRowsWithData, isEmpty);
+          expect(await fixture.db.routingProfileDao.allRows, isEmpty);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+
+    testWidgets(
+      '$label saving blocks all exits and a failed save retains its dirty draft',
+      (tester) async {
+        final fixture = _DiagnosticFixture(advanced);
+        addTearDown(fixture.dispose);
+        final session = await _mountFullEditor(tester, fixture);
+        final controller = fixture.controller;
+        final l = AppLocalizations.of(session.context)!;
+        controller.name.text = 'Submitted';
+        controller.text.text = '{"outbounds":[{}]}';
+        final completion = Completer<int?>();
+        fixture.onSave(() => completion.future);
+        final saving = controller.save(session.context);
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(controller.state.canPop, isFalse);
+        for (final exit in ['close', 'cancel', 'back', 'escape']) {
+          await _requestFullEditorExit(tester, exit, settle: false);
+          expect(find.byType(AppConfirmationDialog), findsNothing);
+          expect(find.byType(JsonConfigurationEditorPage), findsOneWidget);
+          expect(session.result.isCompleted, isFalse);
+        }
+        completion.completeError(
+          const FormatException('Configuration rejected'),
+        );
+        await saving;
+        await tester.pumpAndSettle();
+        expect(controller.error, contains('Configuration rejected'));
+        expect(controller.state.dirty, isTrue);
+        expect(controller.state.closeAllowed, isFalse);
+        await _requestFullEditorExit(tester, 'back');
+        await tester.tap(find.text(l.jsonEditorDiscardChanges));
+        await tester.pumpAndSettle();
+        expect(await session.result.future, isNull);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      '$label successful save returns directly without asking to discard',
+      (tester) async {
+        final fixture = _DiagnosticFixture(advanced);
+        addTearDown(fixture.dispose);
+        final session = await _mountFullEditor(tester, fixture);
+        fixture.controller.name.text = 'Submitted';
+        fixture.controller.text.text = '{"outbounds":[{}]}';
+        fixture.onSave(() async => 7);
+        await fixture.controller.save(session.context);
+        await tester.pumpAndSettle();
+        expect(await session.result.future, 7);
+        expect(find.byType(JsonConfigurationEditorPage), findsNothing);
+        expect(find.byType(AppConfirmationDialog), findsNothing);
+        expect(fixture.controller.state.dirty, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
     testWidgets(
       '$label releases committed Geodata imports before saving newer edits',
       (tester) async {
@@ -443,6 +581,9 @@ void main() {
         expect(find.text('Diagnostic draft'), findsOneWidget);
         expect(controller.text.text, newer);
         expect(controller.state.text, newer);
+        expect(controller.state.savedText, submitted);
+        expect(controller.state.savedName, 'Submitted');
+        expect(controller.state.dirty, isTrue);
         expect(controller.error, isNull);
         expect(controller.canSave, true);
 
@@ -469,7 +610,7 @@ void main() {
 }
 
 class _DiagnosticFixture {
-  _DiagnosticFixture(bool advanced, {ConfigurationTransferService? transfer}) {
+  _DiagnosticFixture(this.advanced, {ConfigurationTransferService? transfer}) {
     coordinator = ConnectionCoordinator(database: db);
     raw = _DiagnosticRawSave(database: db, coordinator: coordinator);
     custom = _DiagnosticAdvancedSave(database: db, coordinator: coordinator);
@@ -482,6 +623,7 @@ class _DiagnosticFixture {
     );
   }
   final db = AppDatabase.forTesting(NativeDatabase.memory());
+  final bool advanced;
   late final ConnectionCoordinator coordinator;
   late final _DiagnosticRawSave raw;
   late final _DiagnosticAdvancedSave custom;
@@ -500,6 +642,79 @@ class _DiagnosticFixture {
     await controller.close();
     coordinator.dispose();
     await db.close();
+  }
+}
+
+Future<({BuildContext context, Completer<int?> result})> _mountFullEditor(
+  WidgetTester tester,
+  _DiagnosticFixture fixture,
+) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(1200, 1000);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetPhysicalSize);
+  final result = Completer<int?>();
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.light,
+      locale: const Locale('en'),
+      localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      builder: (_, child) => ShadTheme(
+        data: AppTheme.shad(Brightness.light),
+        child: ShadToaster(child: child!),
+      ),
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () async => result.complete(
+              await Navigator.of(context).push<int>(
+                MaterialPageRoute(
+                  builder: (_) => JsonConfigurationEditorPage(
+                    kind: fixture.advanced
+                        ? ConfigurationKind.customAdvanced
+                        : ConfigurationKind.raw,
+                    createController: () => fixture.controller,
+                  ),
+                ),
+              ),
+            ),
+            child: const Text('Open full editor'),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.tap(find.text('Open full editor'));
+  await tester.pumpAndSettle();
+  return (
+    context: tester.element(find.byType(JsonConfigurationEditorPage)),
+    result: result,
+  );
+}
+
+Future<void> _requestFullEditorExit(
+  WidgetTester tester,
+  String exit, {
+  bool settle = true,
+}) async {
+  final l = AppLocalizations.of(
+    tester.element(find.byType(JsonConfigurationEditorPage)),
+  )!;
+  switch (exit) {
+    case 'close':
+      await tester.tap(find.byType(BackButton));
+    case 'cancel':
+      await tester.tap(find.widgetWithText(ShadButton, l.prototypeCancel));
+    case 'back':
+      await tester.binding.handlePopRoute();
+    case 'escape':
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+  }
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump(const Duration(milliseconds: 100));
   }
 }
 
