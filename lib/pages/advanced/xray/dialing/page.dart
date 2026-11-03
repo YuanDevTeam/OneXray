@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -7,7 +8,6 @@ import 'package:onexray/pages/advanced/xray/dialing/controller.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/dialing.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 
 class ServerDialingPage extends StatelessWidget {
   const ServerDialingPage({super.key, this.createController});
@@ -97,10 +97,7 @@ class ServerDialingPage extends StatelessWidget {
                             controller.happyEyeballsAvailable,
                         trailing: Semantics(
                           label: 'Happy Eyeballs',
-                          enabled:
-                              !controller.blocked &&
-                              controller.happyEyeballsAvailable,
-                          child: ShadSwitch(
+                          child: AppSwitch(
                             key: const ValueKey(
                               'server-dialing-happy-eyeballs',
                             ),

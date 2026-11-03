@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:material_ui/material_ui.dart';
@@ -314,7 +315,7 @@ class XrayRuntimePage extends StatelessWidget {
                                     if (state.lanProxySaving)
                                       const ButtonProgressIndicator()
                                     else
-                                      ShadSwitch(
+                                      AppSwitch(
                                         key: const ValueKey('lan-proxy-switch'),
                                         value: controller.lanProxyEnabled,
                                         enabled:
@@ -516,7 +517,7 @@ class XrayRuntimePage extends StatelessWidget {
         ? AppTypography.settingsFieldTitle
         : AppTypography.settingsRow,
     minHeight: mobile ? 52 : 56,
-    trailing: ShadSwitch(
+    trailing: AppSwitch(
       value: value,
       enabled: !controller.busy,
       onChanged: controller.busy

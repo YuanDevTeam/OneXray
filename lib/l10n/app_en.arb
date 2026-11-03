@@ -2783,9 +2783,9 @@
   "@prototypeClearAllDataQuestion": {
     "description": "Approved prototype copy: Clear all app data?"
   },
-  "prototypeClearAllDataWarning": "This removes saved servers, subscriptions, Age keys, routing configurations, Raw JSON, custom Geodata, and app preferences.",
+  "prototypeClearAllDataWarning": "This deletes all connection resources (servers and groups, subscriptions and Age keys, routing configurations, Raw JSON, and custom Geodata), local runtime records, and caches. It resets connection, startup, update, and backup settings, unlinks the backup location, and revokes API and Android automation access.\n\nThe theme, language, app icon, Dock visibility preference, privacy acceptance, first-run setup state, and system permissions are kept. External backup files will not be deleted.",
   "@prototypeClearAllDataWarning": {
-    "description": "Approved prototype copy: This removes saved servers, subscriptions, Age keys, routing configurations, Raw JSON, custom Geodata, and app preferences."
+    "description": "Full data cleanup confirmation: deleted resources and settings, revoked external access, preserved device preferences and permissions, and external backup files."
   },
   "prototypeConfirmClearData": "Confirm clear data",
   "@prototypeConfirmClearData": {
@@ -2938,6 +2938,10 @@
   "prototypeLocalServer": "Local server",
   "@prototypeLocalServer": {
     "description": "Approved prototype copy: Local server"
+  },
+  "importPreviewPending": "Pending confirmation",
+  "@importPreviewPending": {
+    "description": "Heading for detected import items that have not been added; the user must confirm before they are saved."
   },
   "prototypeImportedLinks": "Imported links",
   "@prototypeImportedLinks": {

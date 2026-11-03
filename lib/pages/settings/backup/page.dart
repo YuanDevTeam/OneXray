@@ -17,7 +17,7 @@ import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/settings/backup/service.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
-import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch;
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/service/shared/failure.dart';
 
 class BackupPage extends StatelessWidget {
@@ -273,11 +273,7 @@ class BackupPage extends StatelessWidget {
                                   ),
                                 Semantics(
                                   label: l.backupAutomatic,
-                                  enabled:
-                                      !backup.changingAutomatic &&
-                                      state.action !=
-                                          BackupPageAction.restoring,
-                                  child: ShadSwitch(
+                                  child: AppSwitch(
                                     value: backup.automatic,
                                     enabled:
                                         !backup.changingAutomatic &&

@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/core/pigeon/model.dart';
@@ -292,7 +293,7 @@ class SubscriptionFormView extends StatelessWidget {
         onTap: onHwidChanged == null
             ? null
             : () => onHwidChanged!(!hwidEnabled),
-        trailing: ShadSwitch(
+        trailing: AppSwitch(
           value: hwidEnabled,
           enabled: onHwidChanged != null,
           onChanged: onHwidChanged,

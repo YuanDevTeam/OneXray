@@ -501,16 +501,25 @@ class ServerImportPreviewPage extends StatelessWidget {
                   margin: const EdgeInsets.all(20),
                   padding: const EdgeInsets.all(17),
                   decoration: BoxDecoration(
-                    color: palette.runningSurface,
+                    color: committed == null
+                        ? palette.card
+                        : palette.runningSurface,
+                    border: committed == null
+                        ? Border.all(color: palette.border)
+                        : null,
                     borderRadius: BorderRadius.circular(AppRadii.card),
                   ),
                   child: Row(
                     spacing: 13,
                     children: [
                       Icon(
-                        LucideIcons.circleCheck,
+                        committed == null
+                            ? LucideIcons.list
+                            : LucideIcons.circleCheck,
                         size: 26,
-                        color: palette.running,
+                        color: committed == null
+                            ? palette.mutedStrong
+                            : palette.running,
                       ),
                       Expanded(
                         child: Column(
@@ -518,7 +527,9 @@ class ServerImportPreviewPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              l10n.prototypeImportedLinks,
+                              committed == null
+                                  ? l10n.importPreviewPending
+                                  : l10n.prototypeImportedLinks,
                               style: AppTypography.importSummary,
                             ),
                             Text(
@@ -608,6 +619,7 @@ class ServerImportPreviewPage extends StatelessWidget {
                           child: _stat(
                             context,
                             l10n.prototypeUsableNodes(preview.count),
+                            committed: committed != null,
                           ),
                         ),
                       ],
@@ -647,17 +659,19 @@ class ServerImportPreviewPage extends StatelessWidget {
     ),
   );
 
-  Widget _stat(BuildContext context, String text) {
+  Widget _stat(BuildContext context, String text, {required bool committed}) {
     final palette = ColorManager.palette(context);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: palette.runningSurface,
+        color: committed ? palette.runningSurface : palette.surfaceHover,
         borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: Text(
         text,
-        style: AppTypography.importStat.copyWith(color: palette.running),
+        style: AppTypography.importStat.copyWith(
+          color: committed ? palette.running : palette.mutedStrong,
+        ),
       ),
     );
   }

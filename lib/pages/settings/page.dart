@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/core/tools/platform.dart';
@@ -509,7 +510,7 @@ class _StartupSettingRow extends StatelessWidget {
           : AppTypography.settingsRow,
       enabled: onChanged != null,
       onTap: onChanged == null ? null : () => onChanged!(!value),
-      trailing: ShadSwitch(
+      trailing: AppSwitch(
         value: value,
         width: mobile ? 40 : 46,
         height: mobile ? 23 : 27,

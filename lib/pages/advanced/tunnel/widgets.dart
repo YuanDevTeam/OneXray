@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
@@ -10,7 +11,6 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 
 class PolicyDetailScaffold extends StatelessWidget {
   final String title;
@@ -172,7 +172,7 @@ class PolicyToggle extends StatelessWidget {
         horizontal: mobile ? 13 : 14,
         vertical: 10,
       ),
-      trailing: ShadSwitch(
+      trailing: AppSwitch(
         value:
             (section == null
                     ? controller.value

@@ -853,6 +853,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ServerImportPreviewPage), findsOneWidget);
       expect(find.text('1 subscriptions imported.'), findsOneWidget);
+      expect(find.text('Pending confirmation'), findsOneWidget);
+      expect(find.text('Imported links'), findsNothing);
+      expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
       expect(imported, 1);
       expect(writes, 0);
       controller.closePage(
@@ -1258,8 +1261,14 @@ void main() {
         );
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
+        expect(find.text('Pending confirmation'), findsOneWidget);
+        expect(find.text('Imported links'), findsNothing);
+        expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
         await _tapVisible(tester, find.text('Confirm add'));
         await tester.pumpAndSettle();
+        expect(find.text('Pending confirmation'), findsNothing);
+        expect(find.text('Imported links'), findsOneWidget);
+        expect(find.byIcon(LucideIcons.circleCheck), findsOneWidget);
         expect(find.text('Servers added'), findsOneWidget);
         expect(find.text('Data source'), findsOneWidget);
         expect(find.text('Done'), findsOneWidget);
@@ -1288,12 +1297,25 @@ void main() {
     );
   }
   testWidgets(
-    'new subscription submits automatic or explicitly selected mode',
+    'new subscription submits mode and reports the saved resource type',
     (tester) async {
-      for (final mode in [null, SubscriptionMode.providerManaged]) {
+      for (final (mode, savedMode) in const [
+        (null, SubscriptionMode.appManaged),
+        (null, SubscriptionMode.providerManaged),
+        (SubscriptionMode.providerManaged, SubscriptionMode.providerManaged),
+        (SubscriptionMode.appManaged, SubscriptionMode.appManaged),
+      ]) {
         SubscriptionInput? submitted;
         final controller = ServerImportController(
-          loadSubscription: (_) async => null,
+          loadSubscription: (_) async => SubscriptionData(
+            id: 8,
+            name: 'Provider',
+            url: 'https://example.test/subscription',
+            timestamp: DateTime(2026),
+            panel: SubscriptionPanel.remnawave.name,
+            mode: savedMode.name,
+            hwidEnabled: false,
+          ),
           insertSubscription: (input, {confirmOrdinary}) async {
             submitted = input;
             return const SubscriptionInsertResult(
@@ -1335,8 +1357,26 @@ void main() {
         expect(submitted!.mode, mode);
         expect(submitted!.userAgent, 'Example/test');
         expect(find.byType(ServerImportFormPage), findsNothing);
+        expect(
+          find.text(
+            savedMode == SubscriptionMode.providerManaged
+                ? l.providerConfigurationCount(3)
+                : l.prototypeUsableNodes(3),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            savedMode == SubscriptionMode.providerManaged
+                ? l.prototypeUsableNodes(3)
+                : l.providerConfigurationCount(3),
+          ),
+          findsNothing,
+        );
         expect(tester.takeException(), isNull);
         await controller.close();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
       }
     },
   );

@@ -7,7 +7,7 @@ import 'package:onexray/pages/shared/widgets/menu_picker.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/service/connect/routing/options.dart';
-import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch;
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 
 /// Ordinary routing forms edit business values, never generated Core JSON.
 class RoutingDnsSettingsForm extends StatelessWidget {
@@ -380,7 +380,7 @@ class _OptionSwitch extends StatelessWidget {
     divider: divider,
     trailing: Semantics(
       label: title,
-      child: ShadSwitch(value: value, enabled: enabled, onChanged: onChanged),
+      child: AppSwitch(value: value, enabled: enabled, onChanged: onChanged),
     ),
   );
 }

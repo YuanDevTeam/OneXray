@@ -3,6 +3,7 @@ import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/menu_picker.dart';
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/pages/shared/widgets/section.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -289,7 +290,7 @@ class SwitchSettingRow extends StatelessWidget {
       leading: leading,
       enabled: onChanged != null,
       onTap: onChanged == null ? null : () => onChanged!(!value),
-      trailing: ShadSwitch(
+      trailing: AppSwitch(
         value: value,
         enabled: onChanged != null,
         onChanged: onChanged,

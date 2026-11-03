@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
@@ -11,7 +12,6 @@ import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/advanced/tunnel/android/automation/service.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 
 class AndroidAutomationPage extends StatelessWidget {
   const AndroidAutomationPage({super.key, this.createController});
@@ -59,7 +59,7 @@ class AndroidAutomationPage extends StatelessWidget {
                                 titleMaxLines: 5,
                                 trailing: ButtonProgress(
                                   busy: state.writing == 'enable',
-                                  child: ShadSwitch(
+                                  child: AppSwitch(
                                     key: const ValueKey('automation-enable'),
                                     value: state.saved!.enabled,
                                     enabled: state.writing == null,

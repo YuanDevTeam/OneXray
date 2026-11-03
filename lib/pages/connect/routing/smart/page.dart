@@ -1,3 +1,5 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
+
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
@@ -299,7 +301,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
     below: below,
     trailing: Semantics(
       label: title,
-      child: ShadSwitch(
+      child: AppSwitch(
         value: value,
         enabled: state.original != null && !state.busy,
         onChanged: (value) => controller.update(key, value),

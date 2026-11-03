@@ -977,7 +977,22 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         }
         return;
       }
-      ContextAlert.showToast(context, l10n.prototypeUsableNodes(result.count));
+      var message = l10n.prototypeSubscriptionSaved;
+      try {
+        // Automatic detection and conversion can change the requested mode.
+        // Describe the committed resource type rather than the selected panel.
+        final saved = await _loadSubscription(result.subId);
+        if (saved?.mode == SubscriptionMode.providerManaged.name) {
+          message = l10n.providerConfigurationCount(result.count);
+        } else if (saved?.mode == SubscriptionMode.appManaged.name) {
+          message = l10n.prototypeUsableNodes(result.count);
+        }
+      } catch (_) {
+        // The import already committed. Missing display metadata must not turn
+        // a successful write into an "add failed" result.
+      }
+      if (!isPageActive || !context.mounted) return;
+      ContextAlert.showToast(context, message);
       Navigator.of(context).pop(
         ServerImportResult(count: result.count, subscriptionId: result.subId),
       );

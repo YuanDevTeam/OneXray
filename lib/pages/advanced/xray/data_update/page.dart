@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
@@ -173,7 +174,7 @@ class AutoUpdatePage extends StatelessWidget {
     ),
     enabled: onChanged != null,
     onTap: onChanged == null ? null : () => onChanged(!value),
-    trailing: ShadSwitch(
+    trailing: AppSwitch(
       value: value,
       enabled: onChanged != null,
       onChanged: onChanged,

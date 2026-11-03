@@ -5,7 +5,7 @@ import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
-import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch;
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 
 class RoutingFakeDnsRow extends StatelessWidget {
   final bool value;
@@ -32,7 +32,7 @@ class RoutingFakeDnsRow extends StatelessWidget {
       divider: divider,
       trailing: Semantics(
         label: l.routingFakeDns,
-        child: ShadSwitch(value: value, enabled: enabled, onChanged: onChanged),
+        child: AppSwitch(value: value, enabled: enabled, onChanged: onChanged),
       ),
     );
   }
@@ -63,7 +63,7 @@ class RoutingFragmentRow extends StatelessWidget {
       divider: divider,
       trailing: Semantics(
         label: l.routingFragment,
-        child: ShadSwitch(value: value, enabled: enabled, onChanged: onChanged),
+        child: AppSwitch(value: value, enabled: enabled, onChanged: onChanged),
       ),
     );
   }

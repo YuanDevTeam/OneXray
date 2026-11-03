@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
@@ -65,7 +66,7 @@ class AppleSettingToggle extends StatelessWidget {
               ),
             ),
             SizedBox(width: mobile ? 12 : 16),
-            ShadSwitch(
+            AppSwitch(
               value: value,
               enabled: onChanged != null,
               onChanged: onChanged,
