@@ -1,6 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -55,8 +54,8 @@ void main() {
       );
       expect(material.navigationRailTheme.backgroundColor, palette.sidebar);
       expect(material.navigationBarTheme.height, isNull);
-      expect(material.tabBarTheme.labelStyle?.fontSize, isNull);
-      expect(material.tabBarTheme.unselectedLabelStyle?.fontSize, isNull);
+      expect(material.tabBarTheme.labelStyle?.fontSize, 14);
+      expect(material.tabBarTheme.unselectedLabelStyle?.fontSize, 14);
 
       expect(shad.background, palette.background);
       expect(shad.foreground, palette.foreground);
@@ -100,7 +99,7 @@ void main() {
       expect(shad.input, palette.input);
       expect(material.colorScheme.outline, shad.border);
       expect(palette.border, const Color(0xFF35363E));
-      expect(palette.input, const Color(0xFF35363E));
+      expect(palette.input, const Color(0xFF50525B));
       expect(palette.primary, const Color(0xFF91B3FF));
       expect(palette.primarySolid, const Color(0xFF3268EF));
       expect(palette.foreground, const Color(0xFFF2F3F5));
@@ -115,7 +114,7 @@ void main() {
         expect(material.textTheme.bodyMedium?.fontFamily, AppFontFamily.sans);
         expect(material.textTheme.bodyMedium?.fontSize, 14);
         expect(material.textTheme.bodySmall?.fontSize, 13);
-        expect(material.textTheme.labelSmall?.fontSize, 12);
+        expect(material.textTheme.labelSmall?.fontSize, 13);
         expect(shad.textTheme.family, AppFontFamily.sans);
         expect(shad.textTheme.p.fontSize, 14);
         expect(shad.textTheme.small.fontSize, 14);
@@ -125,12 +124,12 @@ void main() {
         expect(AppTypography.panelTitle.fontSize, 16);
         expect(AppTypography.supporting.fontSize, 13);
         expect(AppTypography.navigationLabel.fontSize, 14);
-        expect(AppTypography.badge.fontSize, 12);
+        expect(AppTypography.badge.fontSize, 13);
         expect(AppTypography.code.fontSize, 12);
         expect(AppTypography.metric.fontSize, 22);
         for (final (style, size, weight) in [
-          (AppTypography.connectStatusTitle, 17, FontWeight.w700),
-          (AppTypography.connectButton, 16, FontWeight.w700),
+          (AppTypography.connectStatusTitle, 26, FontWeight.w600),
+          (AppTypography.connectButton, 14, FontWeight.w600),
           (AppTypography.connectCaption, 12, FontWeight.w600),
           (AppTypography.connectChoiceLabel, 12, FontWeight.w500),
           (AppTypography.connectChoiceTitle, 14, FontWeight.w600),
@@ -145,21 +144,15 @@ void main() {
         ]) {
           expect(style.fontSize, size);
           expect(style.fontWeight, weight);
-          expect(style.height, isNull);
+          expect(style.height, 1.45);
           expect(style.fontVariations, isNull);
           expect(style.letterSpacing, isNull);
           expect(style.fontFeatures, isNull);
           expect(style.fontFamily, isNull);
           expect(style.fontFamilyFallback, AppFontFamily.sansFallback);
         }
-        expect(AppFontFamily.windowsSansFallback, [
-          'Microsoft YaHei UI',
-          'Microsoft YaHei',
-        ]);
-        expect(
-          AppFontFamily.sansFallback,
-          AppPlatform.isWindows ? AppFontFamily.windowsSansFallback : null,
-        );
+        expect(AppFontFamily.sans, 'packages/shadcn_ui/Geist');
+        expect(AppFontFamily.mono, 'packages/shadcn_ui/GeistMono');
         expect(
           material.textTheme.bodyMedium?.fontFamilyFallback,
           AppFontFamily.sansFallback,
@@ -184,7 +177,7 @@ void main() {
           expect(filled.foregroundColor!.resolve({}), Colors.white);
           expect(
             material.textButtonTheme.style!.foregroundColor!.resolve({}),
-            palette.primary,
+            palette.primaryText,
           );
           expect(shad.primaryButtonTheme.backgroundColor, palette.primarySolid);
           expect(
@@ -211,9 +204,9 @@ void main() {
             material.switchTheme.trackColor!.resolve({}),
           );
           expect(shad.switchTheme.thumbColor, Colors.white);
-          expect(shad.switchTheme.width, 42);
-          expect(shad.switchTheme.height, 24);
-          expect(shad.switchTheme.margin, 2);
+          expect(shad.switchTheme.width, 44);
+          expect(shad.switchTheme.height, 26);
+          expect(shad.switchTheme.margin, 3);
           expect(material.dialogTheme.barrierColor, palette.overlay);
           expect(
             material.navigationRailTheme.indicatorColor,
@@ -352,8 +345,8 @@ void main() {
         primary.overlayColor!.resolve({WidgetState.pressed}),
         Colors.transparent,
       );
-      expect(primary.textStyle!.resolve({})!.fontSize, 16);
-      expect(tester.getSize(find.byType(FilledButton)).height, 45);
+      expect(primary.textStyle!.resolve({})!.fontSize, 14);
+      expect(tester.getSize(find.byType(FilledButton)).height, 48);
       expect(tester.takeException(), isNull);
     }
   });
@@ -410,7 +403,7 @@ void main() {
             tester.widget<Material>(outline).shape! as RoundedRectangleBorder;
         final filledShape =
             tester.widget<Material>(filled).shape! as RoundedRectangleBorder;
-        expect(outlineShape.borderRadius, filledShape.borderRadius);
+        expect(filledShape.borderRadius, BorderRadius.circular(AppRadii.cta));
         expect(
           outlineShape.borderRadius,
           BorderRadius.circular(AppRadii.control),

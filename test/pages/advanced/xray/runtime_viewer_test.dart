@@ -148,7 +148,7 @@ void main() {
       final line = tester.widget<Text>(find.text('first line'));
       expect(line.textDirection, TextDirection.ltr);
       expect(line.style!.fontSize, 12);
-      expect(line.style!.height, isNull);
+      expect(line.style!.height, 1.45);
       expect(
         tester.widget<AppBar>(find.byType(AppBar)).actions ?? const <Widget>[],
         isEmpty,

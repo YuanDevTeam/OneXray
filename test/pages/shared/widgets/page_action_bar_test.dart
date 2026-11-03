@@ -65,11 +65,11 @@ void main() {
     final variant = shad ? 'Shad' : 'Material';
 
     for (final (platform, buttonHeight) in [
-      (TargetPlatform.iOS, 46.0),
+      (TargetPlatform.iOS, 48.0),
       (TargetPlatform.android, 48.0),
     ]) {
       testWidgets(
-        '$variant ${platform.name} footer keeps equal buttons and 12px text',
+        '$variant ${platform.name} footer keeps equal buttons and prototype 14px text',
         (tester) async {
           tester.view.devicePixelRatio = 1;
           tester.view.physicalSize = const Size(427, 900);
@@ -97,9 +97,9 @@ void main() {
           expect(cancel.height, buttonHeight);
           expect(save.height, buttonHeight);
           expect(save.left - cancel.right, AppSpacing.actionGap);
-          expect(cancel.top - bar.top, closeTo(9, 0.01));
-          expect(bar.bottom - cancel.bottom, closeTo(24 + 9, 0.01));
-          expect(bar.height, closeTo(buttonHeight + 18 + 24, 0.01));
+          expect(cancel.top - bar.top, closeTo(8, 0.01));
+          expect(bar.bottom - cancel.bottom, closeTo(24 + 8, 0.01));
+          expect(bar.height, closeTo(buttonHeight + 16 + 24, 0.01));
           for (final key in [_cancel, _save]) {
             final label = tester.widget<RichText>(
               find.descendant(
@@ -107,7 +107,7 @@ void main() {
                 matching: find.byType(RichText),
               ),
             );
-            expect(label.text.style!.fontSize, 12);
+            expect(label.text.style!.fontSize, 14);
           }
           await tester.tap(find.byKey(_cancel));
           await tester.tap(find.byKey(_save));

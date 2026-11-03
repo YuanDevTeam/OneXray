@@ -27,8 +27,8 @@
 
 颜色、文字角色、尺寸和间距分别由 `lib/pages/theme/` 的公共配置管理，Material 与 Shad 共用语义角色。
 App 不在运行时读取原型配置；优先调整共享主题，页面不重复定义字体或 AppBar 样式。
-字号为不小于 12 的整数、字重为整百值，不额外设置行高、字距或 `fontVariations`。
-代码字体使用已打包的 GeistMono；Windows 中文回退到 Microsoft YaHei UI / Microsoft YaHei。
+字号为不小于 12 的整数、字重为整百值，正文共享原型的 1.45 行高，不额外设置字距或 `fontVariations`。
+界面复用 shadcn 内置 Geist，代码使用 GeistMono；其余字形使用系统回退，Windows 保留 Microsoft YaHei UI / Microsoft YaHei。不新增自定义字体资源。
 
 主题、语言默认跟随系统，已保存的选择优先；未支持的语言回退英语。
 简体中文、繁体中文、英语、俄语、波斯语复用已批准文案。Linux ARM64 对 CJK 请求实际回退英语，

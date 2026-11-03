@@ -162,7 +162,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         row,
-        80,
+        tester
+            .state<ScrollableState>(scrollable)
+            .position
+            .viewportDimension
+            .clamp(120.0, 320.0),
         scrollable: scrollable,
         maxScrolls: 180,
       );

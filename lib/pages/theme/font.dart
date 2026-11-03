@@ -15,29 +15,30 @@ abstract final class AppFontFamily {
 }
 
 abstract final class AppTypography {
-  // Semantic roles from the prototype's src/theme/tokens.json. Use logical
-  // pixels and leave system text scaling and locale-specific glyphs to Flutter.
+  // Match the prototype's type scale and rhythm. Reuse shadcn's bundled faces
+  // and leave script-specific glyph fallback to the platform.
   static TextStyle _style(int size, [int weight = 400]) => TextStyle(
     fontSize: size.toDouble(),
     fontWeight: FontWeight.values[weight ~/ 100 - 1],
     fontFamilyFallback: AppFontFamily.sansFallback,
+    height: 1.45,
   );
 
   static final pageTitle = _style(26, 600);
   static final panelTitle = _style(16, 600);
   static final sectionTitle = _style(16, 600);
-  static final rowTitle = _style(14, 600);
+  static final rowTitle = _style(14, 500);
   static final rowValue = _style(14);
   static final supporting = _style(13);
   static final metadata = _style(13);
   static final control = _style(14, 600);
   static final navigationLabel = _style(14, 500);
   static final selectedNavigationLabel = _style(14, 600);
-  static final badge = _style(12, 600);
+  static final badge = _style(13, 500);
   static final code = _style(12);
   static final metric = _style(22, 500);
 
-  static final pageAction = _style(12, 600);
+  static final pageAction = _style(14, 600);
   static final settingsSectionTitle = _style(16, 600);
   static final settingsSectionDesktopTitle = _style(16, 600);
   static final settingsRow = _style(14, 600);
@@ -53,14 +54,14 @@ abstract final class AppTypography {
   static final desktopSettingsHint = _style(12, 400);
   static final desktopSettingsNote = _style(12, 400);
   static final desktopSettingsDanger = _style(14, 600);
-  static final settingsHint = _style(12, 400);
+  static final settingsHint = _style(13, 400);
   static final settingsThemeOption = _style(14, 400);
-  static final settingsThemeOptionMobile = _style(13, 400);
+  static final settingsThemeOptionMobile = _style(14, 400);
   static final settingsVersion = _style(13, 400);
   static final settingsNote = _style(12, 400);
   static final settingsDetailNote = _style(12, 400);
   static final settingsSelect = _style(14, 400);
-  static final settingsInput = _style(13, 400);
+  static final settingsInput = _style(14, 400);
   static final routingCardTitle = _style(16, 600);
   static final routingCardDescription = _style(12, 400);
   static final routingRowTitle = _style(13, 700);
@@ -263,15 +264,15 @@ abstract final class AppTypography {
   static final serverGroupCode = _style(13, 700);
   static final serverGroupTitle = _style(18, 700);
   static final serverGroupSummary = _style(12, 400);
-  static final serverNodeTitle = _style(13, 700);
+  static final serverNodeTitle = _style(14, 500);
   static final serverProtocol = _style(12, 600);
   static final serverGroupAction = _style(13, 600);
   static final serverGroupUseCount = _style(12, 700);
   static final serverConnectedBadge = _style(12, 700);
 
-  static final connectStatusTitle = _style(17, 700);
+  static final connectStatusTitle = _style(26, 600);
   static final connectStatusDetail = _style(13, 400);
-  static final connectButton = _style(16, 700);
+  static final connectButton = _style(14, 600);
   static final connectCaption = _style(12, 600);
   static final connectChoiceLabel = _style(12, 500);
   static final connectChoiceTitle = _style(14, 600);
@@ -290,11 +291,11 @@ abstract final class AppTypography {
   static final connectRawRowTitle = _style(13, 600);
   static final connectRawRowDetail = _style(12, 400);
 
-  static final desktopBrand = _style(25, 700);
+  static final desktopBrand = _style(20, 600);
   static final desktopUpdateLabel = _style(13, 600);
-  static final connectDesktopStatusTitle = _style(21, 700);
-  static final connectDesktopStatusDetail = _style(15, 400);
-  static final connectDesktopAction = _style(20, 700);
+  static final connectDesktopStatusTitle = _style(26, 600);
+  static final connectDesktopStatusDetail = _style(13, 400);
+  static final connectDesktopAction = _style(14, 600);
   static final connectDesktopCaption = _style(14, 600);
   static final connectDesktopChoiceLabel = _style(16, 500);
   static final connectDesktopChoiceTitle = _style(16, 600);
@@ -325,16 +326,17 @@ abstract final class AppTypography {
   static final serverMenuHint = _style(12, 400);
 
   static final shad = ShadTextTheme.custom(
+    canMerge: false,
     h1Large: pageTitle,
     h1: pageTitle,
-    h2: panelTitle,
-    h3: sectionTitle,
+    h2: _style(20, 600),
+    h3: _style(18, 600),
     h4: sectionTitle,
     p: rowValue,
     blockquote: rowValue,
     table: rowValue,
     list: rowValue,
-    lead: supporting,
+    lead: _style(15),
     large: panelTitle,
     small: control,
     muted: supporting,
