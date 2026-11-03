@@ -175,11 +175,10 @@ class ServerExitPickerView extends StatelessWidget {
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.routingEditorMaxWidth,
             children: [
-              if (!mobile)
-                OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l.prototypeCancel),
-                ),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(l.prototypeCancel),
+              ),
               FilledButton(
                 onPressed: controller.canFinish
                     ? () => controller.complete(context)

@@ -1,4 +1,5 @@
 {
+  "configurationContentTitle": "設定內容",
   "connectionPlanCaption": "本次連線使用",
   "connectionPlanConnectedCaption": "變更後確認套用並重新連線",
   "connectionSessionTitle": "本次工作階段",

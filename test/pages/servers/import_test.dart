@@ -18,6 +18,7 @@ import 'package:onexray/pages/servers/subscription/form_view.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:onexray/service/shared/db/config_writer.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
@@ -27,11 +28,76 @@ import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/connect/raw/validator.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:re_editor/re_editor.dart' show CodeEditor;
 
 void main() {
   setUp(() {
     final bus = AppEventBus();
     addTearDown(bus.close);
+  });
+
+  testWidgets('manual JSON card keeps its input and add above the keyboard', (
+    tester,
+  ) async {
+    _mobileViewport(tester);
+    final controller = ServerImportController(
+      loadSubscription: (_) async => null,
+    );
+    addTearDown(controller.close);
+    const source = '{"tag":"Manual draft","protocol":"freedom"}';
+    controller.jsonText.text = source;
+    await tester.pumpWidget(
+      _app(
+        ServerImportFormPage(
+          controller: controller,
+          action: ServerImportAction.json,
+        ),
+      ),
+    );
+    await tester.pump();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(ServerImportFormPage)),
+    )!;
+    final editor = find.byType(OutboundJsonEditor);
+    final card = find.ancestor(of: editor, matching: find.byType(ShadCard));
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.text(l.configurationContentTitle),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text(l.prototypeXrayNodeJson)),
+      findsOneWidget,
+    );
+    expect(tester.getRect(editor).left, greaterThan(tester.getRect(card).left));
+    expect(tester.getRect(editor).right, lessThan(tester.getRect(card).right));
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pump();
+    tester
+        .widget<CodeEditor>(find.byType(CodeEditor))
+        .focusNode!
+        .requestFocus();
+    await tester.pump();
+    await tester.ensureVisible(editor);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final add = find.widgetWithText(FilledButton, l.prototypeAdd);
+    expect(add.hitTestable(), findsOneWidget);
+    expect(tester.widget<FilledButton>(add).onPressed, isNotNull);
+    expect(tester.getRect(add).bottom, lessThanOrEqualTo(544));
+    expect(
+      tester
+          .getRect(find.byType(CodeEditor))
+          .overlaps(Rect.fromLTRB(0, 0, 390, tester.getRect(add).top)),
+      isTrue,
+    );
+    expect(controller.jsonText.text, source);
+    expect(tester.takeException(), isNull);
   });
 
   test(

@@ -1,4 +1,5 @@
 {
+  "configurationContentTitle": "配置内容",
   "connectionPlanCaption": "本次连接使用",
   "connectionPlanConnectedCaption": "更改后确认应用并重新连接",
   "connectionSessionTitle": "本次会话",

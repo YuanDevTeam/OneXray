@@ -300,11 +300,10 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                 ),
               PageActionBar(
                 children: [
-                  if (!mobile)
-                    ShadButton.outline(
-                      onPressed: () => controller.cancel(context),
-                      child: Text(l.prototypeCancel),
-                    ),
+                  ShadButton.outline(
+                    onPressed: () => controller.cancel(context),
+                    child: Text(l.prototypeCancel),
+                  ),
                   ShadButton(
                     enabled:
                         !state.busy &&

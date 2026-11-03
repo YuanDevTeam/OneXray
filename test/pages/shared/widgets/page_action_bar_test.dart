@@ -12,6 +12,8 @@ Widget _app({
   required bool shad,
   bool mobile = true,
   double bottomInset = 0,
+  double keyboardInset = 0,
+  bool saveEnabled = true,
   String saveLabel = 'Save',
   VoidCallback? onCancel,
   VoidCallback? onSave,
@@ -22,6 +24,7 @@ Widget _app({
       textScaler: TextScaler.noScaling,
       padding: EdgeInsets.only(bottom: bottomInset),
       viewPadding: EdgeInsets.only(bottom: bottomInset),
+      viewInsets: EdgeInsets.only(bottom: keyboardInset),
     ),
     child: ShadTheme(
       data: AppTheme.shad(Brightness.light, mobile: mobile),
@@ -40,7 +43,7 @@ Widget _app({
               ),
               ShadButton(
                 key: _save,
-                onPressed: onSave ?? () {},
+                onPressed: saveEnabled ? (onSave ?? () {}) : null,
                 child: Text(saveLabel),
               ),
             ]
@@ -52,7 +55,7 @@ Widget _app({
               ),
               FilledButton(
                 key: _save,
-                onPressed: onSave ?? () {},
+                onPressed: saveEnabled ? (onSave ?? () {}) : null,
                 child: Text(saveLabel),
               ),
             ],
@@ -145,26 +148,104 @@ void main() {
       }),
     );
 
-    testWidgets('$variant desktop footer preserves compact right alignment', (
-      tester,
-    ) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(1200, 900);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.view.resetPhysicalSize);
-      await tester.pumpWidget(_app(shad: shad, mobile: false));
-      await tester.pumpAndSettle();
+    for (final (platform, height) in [
+      (TargetPlatform.macOS, 42.0),
+      (TargetPlatform.iOS, 44.0),
+    ]) {
+      testWidgets('$variant wide footer uses natural widths on $platform', (
+        tester,
+      ) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(1200, 900);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final actions = <String>[];
+        await tester.pumpWidget(
+          _app(
+            shad: shad,
+            mobile: false,
+            onCancel: () => actions.add('cancel'),
+            onSave: () => actions.add('save'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final cancel = tester.getRect(find.byKey(_cancel));
+        final save = tester.getRect(find.byKey(_save));
+        for (final key in [_cancel, _save]) {
+          final bounds = tester.getRect(find.byKey(key));
+          final label = tester.getRect(
+            find.descendant(
+              of: find.byKey(key),
+              matching: find.byType(RichText),
+            ),
+          );
+          expect(
+            bounds.width,
+            closeTo(
+              label.width +
+                  AppSpacing.buttonHorizontal * 2 +
+                  (shad && key == _cancel ? 2 : 0),
+              .01,
+            ),
+          );
+          expect(bounds.width, lessThan(150));
+          expect(bounds.height, height);
+        }
+        expect(cancel.width, greaterThan(save.width));
+        expect(save.left - cancel.right, AppSpacing.actionGap);
+        expect(
+          save.right,
+          (1200 + AppLayout.standardMaxWidth) / 2 - AppSpacing.page,
+        );
+        expect(
+          tester.getSize(find.byType(PageActionBar)).height,
+          AppLayout.pageActionMinHeight,
+        );
+        await tester.tap(find.byKey(_cancel));
+        await tester.tap(find.byKey(_save));
+        await tester.pump();
+        expect(actions, ['cancel', 'save']);
+        expect(tester.takeException(), isNull);
+      }, variant: TargetPlatformVariant.only(platform));
+    }
 
-      final cancel = tester.getRect(find.byKey(_cancel));
-      final save = tester.getRect(find.byKey(_save));
-      expect(cancel.width, AppLayout.pageActionButtonMinWidth);
-      expect(save.width, AppLayout.pageActionButtonMinWidth);
-      expect(save.left - cancel.right, AppSpacing.actionGap);
-      expect(
-        save.right,
-        (1200 + AppLayout.standardMaxWidth) / 2 - AppSpacing.page,
-      );
-      expect(tester.takeException(), isNull);
-    });
+    testWidgets(
+      '$variant iPad short footer avoids the keyboard and preserves disabled actions',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(1032, 360);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        var cancels = 0;
+        var saves = 0;
+        await tester.pumpWidget(
+          _app(
+            shad: shad,
+            mobile: false,
+            bottomInset: 20,
+            keyboardInset: 160,
+            saveEnabled: false,
+            onCancel: () => cancels++,
+            onSave: () => saves++,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final action = tester.getRect(find.byKey(_save));
+        expect(action.height, 44);
+        expect(action.bottom, lessThanOrEqualTo(360 - 160 - 20));
+        expect(find.byKey(_cancel).hitTestable(), findsOneWidget);
+        await tester.tap(find.byKey(_save));
+        await tester.tap(find.byKey(_cancel));
+        await tester.pumpAndSettle();
+        expect(saves, 0);
+        expect(cancels, 1);
+        expect(
+          tester.getSize(find.byType(PageActionBar)).height,
+          72 + 20 + 160,
+        );
+        expect(tester.takeException(), isNull);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
   }
 }

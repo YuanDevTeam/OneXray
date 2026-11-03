@@ -9,13 +9,14 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/servers/editor/controller.dart';
 import 'package:onexray/pages/servers/editor/page.dart';
+import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/server.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:re_editor/re_editor.dart';
-import 'package:shadcn_ui/shadcn_ui.dart' show ShadTheme, ShadToaster;
+import 'package:shadcn_ui/shadcn_ui.dart' show ShadCard, ShadTheme, ShadToaster;
 
 const _initial = '{"tag":"Original","protocol":"freedom"}';
 const _edited =
@@ -54,10 +55,11 @@ void main() {
   });
 
   Future<({BuildContext context, Completer<int?> result})> openEditor(
-    WidgetTester tester,
-  ) async {
+    WidgetTester tester, {
+    Size size = const Size(1200, 1000),
+  }) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.physicalSize = size;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     final result = Completer<int?>();
@@ -127,6 +129,57 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
   }
+
+  testWidgets('node JSON card keeps its draft and save above the keyboard', (
+    tester,
+  ) async {
+    final session = await openEditor(tester, size: const Size(390, 844));
+    final l = AppLocalizations.of(session.context)!;
+    final editor = find.byType(OutboundJsonEditor);
+    final card = find.ancestor(of: editor, matching: find.byType(ShadCard));
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.text(l.configurationContentTitle),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: card,
+        matching: find.text(l.prototypeXrayOutboundJson),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.getRect(editor).left, greaterThan(tester.getRect(card).left));
+    expect(tester.getRect(editor).right, lessThan(tester.getRect(card).right));
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+    addTearDown(tester.view.resetViewInsets);
+    await tester.pump();
+    tester
+        .widget<CodeEditor>(find.byType(CodeEditor))
+        .focusNode!
+        .requestFocus();
+    await tester.pump();
+    await tester.ensureVisible(editor);
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final save = find.widgetWithText(FilledButton, l.prototypeSave);
+    expect(save.hitTestable(), findsOneWidget);
+    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+    expect(tester.getRect(save).bottom, lessThanOrEqualTo(544));
+    expect(
+      tester
+          .getRect(find.byType(CodeEditor))
+          .overlaps(Rect.fromLTRB(0, 0, 390, tester.getRect(save).top)),
+      isTrue,
+    );
+    expect(controller.text.text, _initial);
+    expect(controller.state.dirty, isFalse);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final restored in [false, true]) {
     testWidgets('clean editor closes without saving (restored: $restored)', (

@@ -7,7 +7,6 @@ import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/servers/editor/controller.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
-import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
 
 class ServerEditorPage extends StatelessWidget {
@@ -30,8 +29,6 @@ class ServerEditorPage extends StatelessWidget {
         final controller = context.read<ServerEditorController>();
         final l = AppLocalizations.of(context)!;
         final p = ColorManager.palette(context);
-        final mobile =
-            MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return PopScope(
           canPop: state.canPop,
           onPopInvokedWithResult: (didPop, result) {
@@ -41,13 +38,8 @@ class ServerEditorPage extends StatelessWidget {
             title: l.prototypeEditServer,
             subtitle: state.name,
             onClose: () => controller.closePage(context),
-            body: Padding(
-              padding: EdgeInsets.fromLTRB(
-                mobile ? 16 : 28,
-                16,
-                mobile ? 16 : 28,
-                0,
-              ),
+            body: ServerFormSection(
+              title: l.configurationContentTitle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

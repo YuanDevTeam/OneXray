@@ -74,6 +74,37 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                 MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
             final palette = ColorManager.palette(context);
             const gap = 16.0;
+            final canClose =
+                !state.closeBlocked &&
+                !state.confirmingClose &&
+                !state.closeAllowed;
+            final delete = widget.configurationId != null && controller.advanced
+                ? ShadButton.destructive(
+                    enabled: controller.canDelete,
+                    onPressed: controller.canDelete
+                        ? () => controller.delete(context)
+                        : null,
+                    child: ButtonProgress(
+                      busy: state.deleting,
+                      child: Text(l10n.prototypeDelete),
+                    ),
+                  )
+                : null;
+            final cancel = ShadButton.outline(
+              enabled: canClose,
+              onPressed: canClose ? () => controller.closePage(context) : null,
+              child: Text(l10n.prototypeCancel),
+            );
+            final save = ShadButton(
+              enabled: controller.canSave,
+              onPressed: controller.canSave
+                  ? () => controller.save(context)
+                  : null,
+              child: ButtonProgress(
+                busy: state.loaded && state.busy && !state.deleting,
+                child: Text(l10n.prototypeSave),
+              ),
+            );
             return CallbackShortcuts(
               bindings: {
                 const SingleActivator(LogicalKeyboardKey.escape): () =>
@@ -256,38 +287,27 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                     ),
                     bottomNavigationBar: PageActionBar(
                       children: [
-                        if (widget.configurationId != null &&
-                            controller.advanced)
-                          ShadButton.destructive(
-                            enabled: controller.canDelete,
-                            onPressed: controller.canDelete
-                                ? () => controller.delete(context)
-                                : null,
-                            child: ButtonProgress(
-                              busy: state.deleting,
-                              child: Text(l10n.prototypeDelete),
-                            ),
-                          ),
-                        if (!mobile)
-                          ShadButton.outline(
-                            onPressed:
-                                state.closeBlocked ||
-                                    state.confirmingClose ||
-                                    state.closeAllowed
-                                ? null
-                                : () => controller.closePage(context),
-                            child: Text(l10n.prototypeCancel),
-                          ),
-                        ShadButton(
-                          enabled: controller.canSave,
-                          onPressed: controller.canSave
-                              ? () => controller.save(context)
-                              : null,
-                          child: ButtonProgress(
-                            busy: state.loaded && state.busy && !state.deleting,
-                            child: Text(l10n.prototypeSave),
-                          ),
-                        ),
+                        if (mobile && delete != null)
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              delete,
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(child: cancel),
+                                  const SizedBox(width: AppSpacing.actionGap),
+                                  Expanded(child: save),
+                                ],
+                              ),
+                            ],
+                          )
+                        else ...[
+                          ?delete,
+                          cancel,
+                          save,
+                        ],
                       ],
                     ),
                   ),

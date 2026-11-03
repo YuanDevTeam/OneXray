@@ -247,11 +247,10 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.routingEditorMaxWidth,
             children: [
-              if (!mobile)
-                OutlinedButton(
-                  onPressed: () => controller.cancel(context),
-                  child: Text(l.prototypeCancel),
-                ),
+              OutlinedButton(
+                onPressed: () => controller.cancel(context),
+                child: Text(l.prototypeCancel),
+              ),
               FilledButton(
                 onPressed: state.busy || state.failed
                     ? null

@@ -733,9 +733,13 @@ void main() {
     );
     await tester.binding.setSurfaceSize(const Size(1200, 800));
     await tester.pumpAndSettle();
+    final saveButton = tester.getRect(find.byType(FilledButton));
+    final saveLabel = tester.getRect(find.text('Save'));
+    expect(saveButton.width, greaterThan(saveLabel.width));
+    expect(saveButton.width, lessThan(150));
     expect(
-      tester.getSize(find.byType(FilledButton)).width,
-      greaterThanOrEqualTo(AppLayout.pageActionButtonMinWidth),
+      saveButton.width,
+      lessThan(tester.getSize(find.byType(TextButton)).width),
     );
     expect(
       tester.getSize(find.byType(PageActionBar)).height,

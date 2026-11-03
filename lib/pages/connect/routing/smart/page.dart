@@ -105,11 +105,10 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
                 ),
               PageActionBar(
                 children: [
-                  if (!mobile)
-                    OutlinedButton(
-                      onPressed: () => controller.cancel(context),
-                      child: Text(l.prototypeCancel),
-                    ),
+                  OutlinedButton(
+                    onPressed: () => controller.cancel(context),
+                    child: Text(l.prototypeCancel),
+                  ),
                   FilledButton(
                     onPressed: state.busy || state.original == null
                         ? null

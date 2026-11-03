@@ -251,7 +251,7 @@ class ServerImportFormPage extends StatelessWidget {
                     child: _subscription(context),
                   )
                 else if (manual)
-                  _manual(context, mobile: mobile)
+                  _manual(context)
                 else
                   _paste(context),
                 _ImportFeedback(state: state, showError: !manual),
@@ -355,11 +355,11 @@ class ServerImportFormPage extends StatelessWidget {
     );
   }
 
-  Widget _manual(BuildContext context, {required bool mobile}) {
+  Widget _manual(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    return Padding(
-      padding: EdgeInsets.fromLTRB(mobile ? 16 : 28, 16, mobile ? 16 : 28, 0),
+    return ServerFormSection(
+      title: l10n.configurationContentTitle,
       child: Column(
         spacing: 7,
         crossAxisAlignment: CrossAxisAlignment.stretch,

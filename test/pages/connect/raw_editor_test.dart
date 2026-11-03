@@ -200,6 +200,123 @@ void main() {
     },
   );
 
+  for (final (advanced, existing) in [
+    (false, false),
+    (true, false),
+    (true, true),
+  ]) {
+    testWidgets(
+      '${advanced ? "advanced" : "Raw"} mobile footer keeps cancel guarded with large text and keyboard (existing: $existing)',
+      (tester) async {
+        final fixture = _DiagnosticFixture(
+          advanced,
+          configurationId: existing ? 7 : null,
+        );
+        addTearDown(fixture.dispose);
+        final session = await _mountFullEditor(
+          tester,
+          fixture,
+          size: const Size(320, 844),
+          textScale: 1.5,
+          locale: const Locale('ru'),
+        );
+        final controller = fixture.controller;
+        final l = AppLocalizations.of(session.context)!;
+        controller.name.text = 'Unsaved';
+        controller.text.text = '{"outbounds":[{}]}';
+        await tester.pump();
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        addTearDown(tester.view.resetViewInsets);
+        tester
+            .widget<CodeEditor>(find.byType(CodeEditor))
+            .focusNode!
+            .requestFocus();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+
+        final cancel = find.widgetWithText(ShadButton, l.prototypeCancel);
+        final save = find.widgetWithText(ShadButton, l.prototypeSave);
+        final delete = find.widgetWithText(ShadButton, l.prototypeDelete);
+        for (final action in [cancel, save, if (existing) delete]) {
+          expect(action.hitTestable(), findsOneWidget);
+          final rect = tester.getRect(action);
+          expect(rect.height, greaterThanOrEqualTo(48));
+          expect(rect.left, greaterThanOrEqualTo(0));
+          expect(rect.right, lessThanOrEqualTo(320));
+          expect(rect.bottom, lessThanOrEqualTo(544));
+        }
+        expect(
+          tester.getRect(cancel).top,
+          closeTo(tester.getRect(save).top, .01),
+        );
+        if (existing) {
+          expect(
+            tester.getRect(cancel).top - tester.getRect(delete).bottom,
+            closeTo(8, .01),
+          );
+          expect(tester.widget<ShadButton>(delete).enabled, isTrue);
+        } else {
+          expect(delete, findsNothing);
+        }
+        expect(tester.takeException(), isNull);
+
+        await _requestFullEditorExit(tester, 'cancel', settle: false);
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(AppConfirmationDialog), findsOneWidget);
+        expect(controller.state.confirmingClose, isTrue);
+        expect(tester.widget<ShadButton>(cancel).enabled, isFalse);
+        expect(tester.widget<ShadButton>(cancel).onPressed, isNull);
+        await tester.tap(find.text(l.jsonEditorKeepEditing));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(controller.name.text, 'Unsaved');
+        expect(controller.text.text, '{"outbounds":[{}]}');
+        expect(session.result.isCompleted, isFalse);
+
+        final completion = Completer<int?>();
+        addTearDown(() {
+          if (!completion.isCompleted) completion.complete(null);
+        });
+        fixture.onSave(() => completion.future);
+        final saving = controller.save(session.context);
+        await tester.pump(const Duration(milliseconds: 100));
+        expect(controller.state.busy, isTrue);
+        for (final action in [cancel, save, if (existing) delete]) {
+          expect(tester.widget<ShadButton>(action).enabled, isFalse);
+          expect(tester.widget<ShadButton>(action).onPressed, isNull);
+        }
+        expect(session.result.isCompleted, isFalse);
+        completion.completeError(
+          const FormatException('Configuration rejected'),
+        );
+        await saving.timeout(const Duration(seconds: 3));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(controller.state.dirty, isTrue);
+        expect(tester.widget<ShadButton>(cancel).enabled, isTrue);
+
+        await _requestFullEditorExit(tester, 'cancel', settle: false);
+        await tester.pump(const Duration(milliseconds: 300));
+        await tester.tap(find.text(l.jsonEditorDiscardChanges));
+        await tester.pump();
+        // The dialog and editor reverse in sequence. The popped result can
+        // complete before the editor's own route transition has been removed.
+        for (
+          var frame = 0;
+          frame < 20 &&
+              find.byType(JsonConfigurationEditorPage).evaluate().isNotEmpty;
+          frame++
+        ) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        expect(session.result.isCompleted, isTrue);
+        expect(await session.result.future, isNull);
+        expect(find.byType(JsonConfigurationEditorPage), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final advanced in [false, true]) {
     final label = advanced ? 'advanced' : 'Raw';
     for (final restored in [false, true]) {
@@ -610,12 +727,30 @@ void main() {
 }
 
 class _DiagnosticFixture {
-  _DiagnosticFixture(this.advanced, {ConfigurationTransferService? transfer}) {
+  _DiagnosticFixture(
+    this.advanced, {
+    this.configurationId,
+    ConfigurationTransferService? transfer,
+  }) {
     coordinator = ConnectionCoordinator(database: db);
     raw = _DiagnosticRawSave(database: db, coordinator: coordinator);
     custom = _DiagnosticAdvancedSave(database: db, coordinator: coordinator);
+    if (advanced && configurationId != null) {
+      custom.current = CustomRoutingEditorDraft(
+        original: RoutingProfileData(
+          id: configurationId!,
+          name: 'Saved advanced',
+          advanced: true,
+          data: '{"outbounds":[{}]}',
+        ),
+        state: AdvancedRoutingDocument.parse(
+          '{"outbounds":[{}]}',
+          name: 'Saved advanced',
+        ).state,
+      );
+    }
     controller = JsonConfigurationEditorController(
-      configurationId: null,
+      configurationId: configurationId,
       kind: advanced ? ConfigurationKind.customAdvanced : ConfigurationKind.raw,
       service: raw,
       customService: custom,
@@ -624,6 +759,7 @@ class _DiagnosticFixture {
   }
   final db = AppDatabase.forTesting(NativeDatabase.memory());
   final bool advanced;
+  final int? configurationId;
   late final ConnectionCoordinator coordinator;
   late final _DiagnosticRawSave raw;
   late final _DiagnosticAdvancedSave custom;
@@ -647,22 +783,29 @@ class _DiagnosticFixture {
 
 Future<({BuildContext context, Completer<int?> result})> _mountFullEditor(
   WidgetTester tester,
-  _DiagnosticFixture fixture,
-) async {
+  _DiagnosticFixture fixture, {
+  Size size = const Size(1200, 1000),
+  double textScale = 1,
+  Locale locale = const Locale('en'),
+}) async {
   tester.view.devicePixelRatio = 1;
-  tester.view.physicalSize = const Size(1200, 1000);
+  tester.view.physicalSize = size;
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
   final result = Completer<int?>();
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.light,
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: AppLocalePolicy.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      builder: (_, child) => ShadTheme(
-        data: AppTheme.shad(Brightness.light),
-        child: ShadToaster(child: child!),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context)
+            .copyWith(textScaler: TextScaler.linear(textScale)),
+        child: ShadTheme(
+          data: AppTheme.shad(Brightness.light),
+          child: ShadToaster(child: child!),
+        ),
       ),
       home: Builder(
         builder: (context) => Scaffold(
@@ -671,6 +814,7 @@ Future<({BuildContext context, Completer<int?> result})> _mountFullEditor(
               await Navigator.of(context).push<int>(
                 MaterialPageRoute(
                   builder: (_) => JsonConfigurationEditorPage(
+                    configurationId: fixture.configurationId,
                     kind: fixture.advanced
                         ? ConfigurationKind.customAdvanced
                         : ConfigurationKind.raw,

@@ -27,7 +27,6 @@ abstract final class AppLayout {
   static const pageActionMinHeight = 72.0;
   static const mobilePageActionMinHeight = 64.0;
   static const pageActionButtonMinHeight = 48.0;
-  static const pageActionButtonMinWidth = 150.0;
   static const buttonMinHeight = 42.0;
   static const mobileButtonMinHeight = 48.0;
   static const setupContentMaxWidth = 760.0;
