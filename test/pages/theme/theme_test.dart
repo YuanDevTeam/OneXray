@@ -30,7 +30,13 @@ void main() {
       expect(material.appBarTheme.foregroundColor, palette.foreground);
       expect(material.appBarTheme.toolbarHeight, isNull);
       expect(material.appBarTheme.centerTitle, isFalse);
-      expect(material.appBarTheme.titleTextStyle, isNull);
+      expect(
+        material.appBarTheme.titleTextStyle,
+        AppTypography.pageTitle.copyWith(
+          fontSize: 26,
+          color: palette.foreground,
+        ),
+      );
       expect(material.appBarTheme.titleSpacing, AppSpacing.page);
       expect(
         material.appBarTheme.actionsPadding,
@@ -90,11 +96,14 @@ void main() {
       expect(shad.background, palette.background);
       expect(shad.card, palette.card);
       expect(shad.popover, palette.popover);
-      expect(shad.border, const Color(0xFF2B3543));
-      expect(shad.input, const Color(0xFF2B3543));
-      expect(palette.primary, const Color(0xFF69A5FF));
-      expect(palette.primarySolid, const Color(0xFF1F6AF9));
-      expect(palette.foreground, const Color(0xFFF2F5F8));
+      expect(shad.border, palette.border);
+      expect(shad.input, palette.input);
+      expect(material.colorScheme.outline, shad.border);
+      expect(palette.border, const Color(0xFF35363E));
+      expect(palette.input, const Color(0xFF35363E));
+      expect(palette.primary, const Color(0xFF91B3FF));
+      expect(palette.primarySolid, const Color(0xFF3268EF));
+      expect(palette.foreground, const Color(0xFFF2F3F5));
     });
 
     test(
@@ -104,20 +113,21 @@ void main() {
         final shad = AppTheme.shad(Brightness.light);
 
         expect(material.textTheme.bodyMedium?.fontFamily, AppFontFamily.sans);
-        expect(material.textTheme.bodyMedium?.fontSize, 13);
-        expect(material.textTheme.bodySmall?.fontSize, 12);
+        expect(material.textTheme.bodyMedium?.fontSize, 14);
+        expect(material.textTheme.bodySmall?.fontSize, 13);
         expect(material.textTheme.labelSmall?.fontSize, 12);
         expect(shad.textTheme.family, AppFontFamily.sans);
-        expect(shad.textTheme.p.fontSize, 13);
-        expect(shad.textTheme.small.fontSize, 13);
-        expect(shad.textTheme.muted.fontSize, 12);
-        expect(AppTypography.pageTitle.fontSize, 31);
-        expect(AppTypography.panelTitle.fontSize, 19);
-        expect(AppTypography.supporting.fontSize, 12);
-        expect(AppTypography.navigationLabel.fontSize, 16);
+        expect(shad.textTheme.p.fontSize, 14);
+        expect(shad.textTheme.small.fontSize, 14);
+        expect(shad.textTheme.muted.fontSize, 13);
+        expect(AppTypography.pageTitle.fontSize, 26);
+        expect(AppTypography.pageTitle.fontWeight, FontWeight.w600);
+        expect(AppTypography.panelTitle.fontSize, 16);
+        expect(AppTypography.supporting.fontSize, 13);
+        expect(AppTypography.navigationLabel.fontSize, 14);
         expect(AppTypography.badge.fontSize, 12);
         expect(AppTypography.code.fontSize, 12);
-        expect(AppTypography.metric.fontSize, 20);
+        expect(AppTypography.metric.fontSize, 22);
         for (final (style, size, weight) in [
           (AppTypography.connectStatusTitle, 17, FontWeight.w700),
           (AppTypography.connectButton, 16, FontWeight.w700),
@@ -223,7 +233,13 @@ void main() {
     test('mobile theme uses native navigation sizes and shared gutters', () {
       final material = AppTheme.material(Brightness.light, mobile: true);
       final shad = AppTheme.shad(Brightness.light, mobile: true);
-      expect(material.appBarTheme.titleTextStyle, isNull);
+      expect(
+        material.appBarTheme.titleTextStyle,
+        AppTypography.pageTitle.copyWith(
+          fontSize: 24,
+          color: AppPalette.light.foreground,
+        ),
+      );
       expect(material.appBarTheme.centerTitle, isFalse);
       expect(material.appBarTheme.toolbarHeight, isNull);
       expect(

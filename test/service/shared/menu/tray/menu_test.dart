@@ -346,8 +346,13 @@ void main() {
       final data = _menuData(12);
       data.catalog = data.catalog.copyWith(
         servers: [
-          data.catalog.servers.first.copyWith(delay: PingDelayConstants.error),
-          ...data.catalog.servers.skip(1),
+          for (final row in data.catalog.servers)
+            if (row.id == 1)
+              row.copyWith(delay: PingDelayConstants.error)
+            else if (row.id == 2)
+              row.copyWith(data: const Value('invalid-base64!'))
+            else
+              row,
         ],
       );
       for (final configuration in [
@@ -376,7 +381,12 @@ void main() {
       final items = data.selectionItems(l, busy: false);
       expect(_item(items, 'server:3').checked, isTrue);
       expect(_item(items, 'server:3').disabled, isFalse);
-      expect(_item(items, 'server:1').disabled, isTrue);
+      expect(
+        _item(items, 'server:1').disabled,
+        isFalse,
+        reason: 'A failed measurement does not block an active readable node.',
+      );
+      expect(_item(items, 'server:2').disabled, isTrue);
       expect(
         _descendants(data.selectionItems(l, busy: true))
             .every((item) => item.disabled),
