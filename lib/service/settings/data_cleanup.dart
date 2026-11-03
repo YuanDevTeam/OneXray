@@ -9,6 +9,8 @@ import 'package:onexray/core/pigeon/constants.dart';
 import 'package:onexray/core/tools/logger.dart';
 import 'package:onexray/service/launch/app_startup.dart';
 import 'package:onexray/service/connect/coordinator.dart';
+import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/advanced/local_api/service.dart';
 import 'package:onexray/service/advanced/xray/data_update/service.dart';
@@ -41,8 +43,9 @@ final class AppDataCleanupService {
     this._ping,
     this._clearOverride,
     this._backup,
-    this._automation,
-  );
+    this._automation, {
+    String? runtimeDirectory,
+  }) : _runtimeDirectoryOverride = runtimeDirectory;
 
   @visibleForTesting
   factory AppDataCleanupService.forTesting({
@@ -53,6 +56,7 @@ final class AppDataCleanupService {
     required Future<void> Function() clear,
     BackupService? backup,
     AndroidAutomationService? automation,
+    String? runtimeDirectory,
   }) => AppDataCleanupService._(
     coordinator,
     geodata,
@@ -61,6 +65,7 @@ final class AppDataCleanupService {
     clear,
     backup,
     automation ?? AndroidAutomationService(),
+    runtimeDirectory: runtimeDirectory,
   );
 
   final ConnectionCoordinator _coordinator;
@@ -70,7 +75,108 @@ final class AppDataCleanupService {
   final Future<void> Function()? _clearOverride;
   final BackupService? _backup;
   final AndroidAutomationService _automation;
+  final String? _runtimeDirectoryOverride;
   bool _clearing = false;
+
+  /// Removes connection assets while keeping this device's settings and grants.
+  /// The caller owns confirmation; no download, startup action or reconnect runs.
+  Future<bool> clearConnectionResources() async {
+    if (_clearing) {
+      return false;
+    }
+    _clearing = true;
+    var blocked = false;
+    var deleting = false;
+    try {
+      await Future.wait([
+        _automation.setStartBlocked(true).then((_) => blocked = true),
+        _pauseProducers(pauseBackup: true),
+      ]);
+      await _geodata.withFiles(() async {
+        await _coordinator.stopForMaintenance();
+        deleting = true;
+        final original = await _coordinator.configuration;
+        final preview = await _geodata.previewRestore([]);
+        await _withClearedRuntime(
+          () => _geodata.restoreSources(preview, (writeMetadata) async {
+            final db = _coordinator.db;
+            await db.connectionConfigDao.commit(
+              configurationJson: ConnectionConfiguration(
+                connection: ConnectionSettings(),
+                policy: original.policy,
+              ).encode(),
+              writeAssets: () async {
+                await writeMetadata();
+                await db.coreConfigDao.clear();
+                await db.manualServerGroupDao.clear();
+                await db.subscriptionDao.clear();
+                await db.routingProfileDao.clear();
+              },
+            );
+          }),
+        );
+        _coordinator.clearTrafficView();
+        AppEventBus.instance.clearPingFailures();
+      });
+      return true;
+    } catch (error, stack) {
+      ygLogger('clear connection resources error: $error\n$stack');
+      throw AppFailure(
+        failureCategory(error),
+        deleting ? 'cleanup' : 'cleanupBeforeDelete',
+        cause: error,
+      );
+    } finally {
+      await _finishDataChange(blocked: blocked, resumeBackup: true);
+    }
+  }
+
+  /// Keep the stopped runtime files until the entire asset transaction commits.
+  /// As with the Geodata journal, post-commit journal removal is best effort.
+  Future<T> _withClearedRuntime<T>(Future<T> Function() action) async {
+    final directory = Directory(
+      _runtimeDirectoryOverride ?? VpnConstants.runDir,
+    );
+    final type = await FileSystemEntity.type(
+      directory.path,
+      followLinks: false,
+    );
+    if (type == FileSystemEntityType.notFound) {
+      return action();
+    }
+    if (type != FileSystemEntityType.directory) {
+      throw FileSystemException(
+        'Runtime directory must be a directory',
+        directory.path,
+      );
+    }
+    final journal = await directory.parent.createTemp(
+      '.onexray-runtime-clear-',
+    );
+    final saved = Directory('${journal.path}/run');
+    var moved = false;
+    var committed = false;
+    try {
+      await directory.rename(saved.path);
+      moved = true;
+      await directory.create();
+      final result = await action();
+      committed = true;
+      return result;
+    } finally {
+      if (!committed && moved) {
+        if (await directory.exists()) {
+          await directory.delete(recursive: true);
+        }
+        await saved.rename(directory.path);
+      }
+      try {
+        await journal.delete(recursive: true);
+      } catch (error) {
+        ygLogger('remove runtime cleanup journal error: $error');
+      }
+    }
+  }
 
   Future<bool> clearFromSettings() async {
     if (_clearing) return false;

@@ -196,7 +196,28 @@ class SettingsPage extends StatelessWidget {
                         ),
                       ),
                     SettingRow(
-                      title: l10n.prototypeClearData,
+                      title: l10n.clearConnectionResources,
+                      enabled: !state.clearingData,
+                      trailing:
+                          state.clearingData &&
+                              state.cleanupScope == 'resources'
+                          ? const ButtonProgressIndicator(size: 20)
+                          : null,
+                      minHeight: rowHeight,
+                      contentPadding: rowPadding,
+                      titleStyle: AppTypography.settingsDanger.copyWith(
+                        color: palette.destructive,
+                      ),
+                      onTap: state.clearingData
+                          ? null
+                          : () => controller.clearData(
+                              context,
+                              resourcesOnly: true,
+                            ),
+                    ),
+                    SettingRow(
+                      title: l10n.clearAllAppData,
+                      enabled: !state.clearingData,
                       minHeight: rowHeight,
                       contentPadding: rowPadding,
                       titleStyle:
@@ -204,7 +225,9 @@ class SettingsPage extends StatelessWidget {
                                   ? AppTypography.settingsDanger
                                   : AppTypography.desktopSettingsDanger)
                               .copyWith(color: palette.destructive),
-                      trailing: state.clearingData
+                      trailing:
+                          state.clearingData &&
+                              state.cleanupScope != 'resources'
                           ? const ButtonProgressIndicator(size: 20)
                           : null,
                       onTap: state.clearingData
