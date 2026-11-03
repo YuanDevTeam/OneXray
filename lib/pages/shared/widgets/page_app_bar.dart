@@ -50,17 +50,31 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
     final effectiveActions = <Widget>[...?actions];
     final router = GoRouter.maybeOf(context);
     if (router != null &&
+        route != null &&
+        route.isFirst &&
+        route.isCurrent &&
+        TickerMode.valuesOf(context).enabled &&
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint) {
-      final path = GoRouterState.of(context).uri.path;
-      if (AppPrimaryDestination.values.any(
-        (p) => p != AppPrimaryDestination.settings && p.rootPath == path,
-      )) {
+      final match = router.routerDelegate.currentConfiguration.lastOrNull;
+      final settings = route.settings;
+      // Imperative routes (including Page-backed routes not owned by GoRouter)
+      // have no GoRouterState association. Its ancestor lookup can loop on a
+      // nested Navigator, so read the active match without walking ancestors.
+      final path = match?.matchedLocation;
+      if (settings is Page<Object?> &&
+          match != null &&
+          settings.key == match.pageKey &&
+          AppPrimaryDestination.values.any(
+            (p) => p != AppPrimaryDestination.settings && p.rootPath == path,
+          )) {
         effectiveActions.add(
           IconButton(
             key: const ValueKey('mobile-settings-action'),
             tooltip: AppLocalizations.of(context)!.prototypeSettings,
             icon: const Icon(LucideIcons.settings2),
-            onPressed: () => context.pushScoped(AppPageDestination.settings),
+            onPressed: () => router.push<void>(
+              '$path/${AppPageDestination.settings.segment}',
+            ),
           ),
         );
       }

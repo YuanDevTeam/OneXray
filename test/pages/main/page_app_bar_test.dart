@@ -1,12 +1,163 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:macos_window_utils/window_manipulator.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/main/desktop_window.dart';
+import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/service/settings/language/locale.dart';
 
 void main() {
+  testWidgets('imperative routes under GoRouter keep page bars responsive', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var useUnownedPage = false;
+    final router = GoRouter(
+      initialLocation: '/connect',
+      routes: [
+        StatefulShellRoute.indexedStack(
+          builder: (_, _, shell) => shell,
+          branches: [
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/connect',
+                  builder: (context, _) => Scaffold(
+                    appBar: const PageAppBar(title: Text('Connection root')),
+                    body: TextButton(
+                      onPressed: () {
+                        final route = useUnownedPage
+                            ? const MaterialPage<void>(
+                                key: ValueKey('unowned-preview'),
+                                child: Scaffold(
+                                  appBar: PageAppBar(title: Text('Preview')),
+                                ),
+                              ).createRoute(context)
+                            : MaterialPageRoute<void>(
+                                builder: (_) => const Scaffold(
+                                  appBar: PageAppBar(title: Text('Preview')),
+                                ),
+                              );
+                        unawaited(Navigator.of(context).push<void>(route));
+                      },
+                      child: const Text('Open preview'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_routerApp(router));
+    await tester.pumpAndSettle();
+    expect(
+      MediaQuery.sizeOf(tester.element(find.byType(PageAppBar))).width,
+      390,
+    );
+    expect(
+      find.byKey(const ValueKey('mobile-settings-action')),
+      findsOneWidget,
+    );
+    // Neither an ordinary MaterialPageRoute nor a Page-backed route created
+    // outside GoRouter owns a GoRouterState association.
+    for (final pageBacked in [false, true]) {
+      useUnownedPage = pageBacked;
+      await tester.tap(find.text('Open preview'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, 'Preview'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('mobile-settings-action')),
+        findsNothing,
+      );
+      expect(router.routerDelegate.currentConfiguration.uri.path, '/connect');
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('mobile-settings-action')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('only five actual phone roots offer scoped Settings navigation', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final router = GoRouter(
+      initialLocation: '/connect',
+      routes: [
+        StatefulShellRoute.indexedStack(
+          builder: (_, _, shell) => shell,
+          branches: [
+            for (final primary in AppPrimaryDestination.values)
+              StatefulShellBranch(
+                routes: [
+                  GoRoute(
+                    path: primary.rootPath,
+                    builder: (_, _) =>
+                        Scaffold(appBar: PageAppBar(title: Text(primary.name))),
+                    routes: [
+                      for (final child in ['settings', 'detail'])
+                        GoRoute(
+                          path: child,
+                          builder: (_, _) =>
+                              Scaffold(appBar: PageAppBar(title: Text(child))),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_routerApp(router));
+    await tester.pumpAndSettle();
+    final gear = find.byKey(const ValueKey('mobile-settings-action'));
+    for (final primary in AppPrimaryDestination.values) {
+      router.go(primary.rootPath);
+      await tester.pumpAndSettle();
+      if (primary == AppPrimaryDestination.settings) {
+        expect(gear, findsNothing);
+      } else {
+        expect(gear, findsOneWidget);
+        await tester.tap(gear);
+        await tester.pumpAndSettle();
+        expect(
+          router.routerDelegate.currentConfiguration.last.matchedLocation,
+          '${primary.rootPath}/settings',
+        );
+        expect(gear, findsNothing);
+        router.pop();
+        await tester.pumpAndSettle();
+        expect(gear, findsOneWidget);
+      }
+      unawaited(router.push<void>('${primary.rootPath}/detail'));
+      await tester.pumpAndSettle();
+      expect(gear, findsNothing);
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('page bar preserves themed sizing and tabs', (tester) async {
     final theme = AppTheme.light;
     await tester.pumpWidget(
@@ -194,3 +345,11 @@ void main() {
     expect(rectangles, isEmpty);
   });
 }
+
+Widget _routerApp(GoRouter router) => MaterialApp.router(
+  routerConfig: router,
+  theme: AppTheme.light.copyWith(platform: TargetPlatform.iOS),
+  locale: const Locale('en'),
+  localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+);
