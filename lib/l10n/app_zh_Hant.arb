@@ -1,4 +1,9 @@
 {
+  "connectionPlanCaption": "本次連線使用",
+  "connectionPlanConnectedCaption": "變更後確認套用並重新連線",
+  "connectionSessionTitle": "本次工作階段",
+  "connectionSessionCaption": "此連線的上傳、下載與連線時長",
+  "connectionSessionDuration": "時長",
   "tunnelIpv6Enabled": "IPv6 已開啟",
   "tunnelIpv6Disabled": "IPv6 已關閉",
   "tunnelSystemCapture": "系統接管",
@@ -1047,5 +1052,12 @@
   "completeConfigurationRoutingTitle": "設定自帶路由",
   "completeConfigurationRoutingNotice": "使用完整設定內的路由與 DNS，一般路由偏好保持不變。",
   "xrayLogPreferences": "記錄偏好",
-  "xrayLogFiles": "日誌檔案"
+  "xrayLogFiles": "日誌檔案",
+  "xrayChecksAndDiagnostics": "檢查與診斷",
+  "xrayConnectionResources": "連線與資源",
+  "xraySharingInterfaces": "共享與介面",
+  "xrayCurrentConnection": "目前連線",
+  "xrayNotRunning": "尚未執行",
+  "xrayLogsEnabled": "記錄已開啟",
+  "xrayLogsDisabled": "記錄已關閉"
 }

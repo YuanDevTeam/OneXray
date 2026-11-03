@@ -1,4 +1,9 @@
 {
+  "connectionPlanCaption": "Для этого подключения",
+  "connectionPlanConnectedCaption": "Подтвердите изменения для применения и переподключения",
+  "connectionSessionTitle": "Текущий сеанс",
+  "connectionSessionCaption": "Передача, приём и длительность этого подключения",
+  "connectionSessionDuration": "Длительность",
   "tunnelIpv6Enabled": "IPv6 включён",
   "tunnelIpv6Disabled": "IPv6 выключен",
   "tunnelSystemCapture": "Системный VPN",
@@ -1047,5 +1052,12 @@
   "completeConfigurationRoutingTitle": "Маршруты конфигурации",
   "completeConfigurationRoutingNotice": "Используются маршруты и DNS полной конфигурации. Настройки обычной маршрутизации сохраняются.",
   "xrayLogPreferences": "Параметры записи",
-  "xrayLogFiles": "Файлы журналов"
+  "xrayLogFiles": "Файлы журналов",
+  "xrayChecksAndDiagnostics": "Проверки и диагностика",
+  "xrayConnectionResources": "Подключение и ресурсы",
+  "xraySharingInterfaces": "Общий доступ и интерфейсы",
+  "xrayCurrentConnection": "Текущее подключение",
+  "xrayNotRunning": "Не запущено",
+  "xrayLogsEnabled": "Запись включена",
+  "xrayLogsDisabled": "Запись выключена"
 }

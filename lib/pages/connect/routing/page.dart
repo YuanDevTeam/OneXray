@@ -250,54 +250,59 @@ class _RoutingPageState extends State<RoutingPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: 12,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(end: 12, top: 2),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: selected ? palette.primary : palette.mutedStrong,
+            LayoutBuilder(
+              builder: (context, constraints) => Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 12, top: 2),
+                    child: Icon(
+                      icon,
+                      size: 20,
+                      color: selected ? palette.primary : palette.mutedStrong,
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 4,
-                    children: [
-                      Text(title, style: AppTypography.sectionTitle),
-                      Text(
-                        description,
-                        style: AppTypography.supporting.copyWith(
-                          color: palette.mutedForeground,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 4,
+                      children: [
+                        Text(title, style: AppTypography.sectionTitle),
+                        Text(
+                          description,
+                          style: AppTypography.supporting.copyWith(
+                            color: palette.mutedForeground,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                if (selected)
-                  Flexible(
-                    child: Container(
-                      key: useKey,
-                      margin: const EdgeInsetsDirectional.only(start: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 9,
-                        vertical: 4,
+                  if (selected)
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: constraints.maxWidth * .42,
                       ),
-                      decoration: BoxDecoration(
-                        color: palette.selectedSurface,
-                        borderRadius: BorderRadius.circular(AppRadii.control),
-                      ),
-                      child: Text(
-                        l.prototypeCurrentSelection,
-                        style: AppTypography.badge.copyWith(
-                          color: palette.primaryText,
+                      child: Container(
+                        key: useKey,
+                        margin: const EdgeInsetsDirectional.only(start: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: palette.selectedSurface,
+                          borderRadius: BorderRadius.circular(AppRadii.control),
+                        ),
+                        child: Text(
+                          l.prototypeCurrentSelection,
+                          style: AppTypography.badge.copyWith(
+                            color: palette.primaryText,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
             if (diagnostic != null)
               Semantics(

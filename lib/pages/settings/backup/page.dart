@@ -321,7 +321,9 @@ class BackupPage extends StatelessWidget {
                           ShadAlert(
                             icon: const Icon(LucideIcons.circleHelp, size: 18),
                             description: Text(l.backupSensitiveWarning),
-                            descriptionStyle: AppTypography.supporting,
+                            descriptionStyle: AppTypography.supporting.copyWith(
+                              color: palette.mutedStrong,
+                            ),
                           ),
                           Text(
                             backup.settings.lastSuccess == null

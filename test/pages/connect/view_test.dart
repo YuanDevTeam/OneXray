@@ -176,7 +176,7 @@ void main() {
         final l = AppLocalizations.of(
           tester.element(find.byType(ConnectView)),
         )!;
-        final title = find.text(l.prototypeThisConnection);
+        final title = find.text(l.connectionSessionTitle);
         expect(title, findsOneWidget);
         expect(
           find.ancestor(of: title, matching: find.byType(InkWell)),
@@ -333,7 +333,7 @@ void main() {
                   l.prototypeConnected,
                   l.connectionPlan,
                   l.connectionRuntimeTitle,
-                  l.prototypeThisConnection,
+                  l.connectionSessionTitle,
                 ]
                 .map(
                   (title) => tester.getRect(
@@ -399,7 +399,7 @@ void main() {
       final session = tester.getRect(
         find
             .ancestor(
-              of: find.text(l.prototypeThisConnection),
+              of: find.text(l.connectionSessionTitle),
               matching: find.byType(Card),
             )
             .first,
@@ -435,7 +435,7 @@ void main() {
       expect(tester.takeException(), isNull);
       final context = tester.element(find.byType(ConnectView));
       final l = AppLocalizations.of(context)!;
-      expect(find.text(l.prototypeThisConnection), findsOneWidget);
+      expect(find.text(l.connectionSessionTitle), findsOneWidget);
       expect(find.text(l.connectionPlan), findsOneWidget);
       expect(find.text(l.prototypeServers), findsOneWidget);
       expect(

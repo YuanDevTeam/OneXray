@@ -28,6 +28,7 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.bottom,
   }) : description = null,
        headingAction = null,
+       inlineHeadingAction = false,
        _headingHeight = null;
 
   const PageAppBar._({
@@ -35,6 +36,7 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.title,
     this.description,
     this.headingAction,
+    this.inlineHeadingAction = false,
     this.leading,
     this.actions,
     this.bottom,
@@ -47,6 +49,7 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
     required Widget title,
     String? description,
     Widget? headingAction,
+    bool inlineHeadingAction = false,
     Widget? leading,
     List<Widget>? actions,
     PreferredSizeWidget? bottom,
@@ -79,7 +82,8 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
             textDirection: Directionality.of(context),
             textScaler: MediaQuery.textScalerOf(context),
           )..layout(
-            maxWidth: headingAction != null && width >= 540
+            maxWidth:
+                headingAction != null && (width >= 540 || inlineHeadingAction)
                 ? (width - 20) / 2
                 : width,
           );
@@ -107,7 +111,7 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
         8 +
         (headingAction == null
             ? blockHeight
-            : width < 540
+            : width < 540 && !inlineHeadingAction
             ? blockHeight + 16 + actionHeight
             : math.max(blockHeight, actionHeight));
     final media = MediaQuery.of(context);
@@ -126,6 +130,7 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
       title: title,
       description: effectiveDescription,
       headingAction: headingAction,
+      inlineHeadingAction: inlineHeadingAction,
       leading: leading,
       actions: actions,
       bottom: bottom,
@@ -136,6 +141,10 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget title;
   final String? description;
   final Widget? headingAction;
+
+  /// Keeps a compact page action beside a wrapping title on narrow screens.
+  /// The action is constrained to half the heading so identity remains visible.
+  final bool inlineHeadingAction;
   final double? _headingHeight;
   final Widget? leading;
   final List<Widget>? actions;
@@ -316,7 +325,7 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
     if (headingAction == null) return identity;
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < 540) {
+        if (constraints.maxWidth < 540 && !inlineHeadingAction) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [identity, const SizedBox(height: 16), headingAction!],

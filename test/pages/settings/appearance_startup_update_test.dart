@@ -253,7 +253,7 @@ void main() {
       router.pop();
       await tester.pumpAndSettle();
       expect(
-        tester.widget<SettingRow>(startup()).value,
+        tester.widget<SettingRow>(startup()).subtitle,
         l.prototypeConnectAfterAppLaunch,
       );
       expect(find.byType(ShadSwitch), findsNothing);

@@ -84,6 +84,7 @@ class ConnectView extends StatelessWidget {
       String? detail,
       VoidCallback? action, {
       bool selected = false,
+      bool includeLabel = true,
     }) => Semantics(
       selected: selected,
       button: action != null,
@@ -121,7 +122,7 @@ class ConnectView extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       [
-                        if (label != value) label,
+                        if (includeLabel && label != value) label,
                         if (detail != null && detail.isNotEmpty) detail,
                       ].join(' · '),
                       style: AppTypography.supporting.copyWith(
@@ -182,7 +183,16 @@ class ConnectView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(l.connectionPlan, style: AppTypography.panelTitle),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 4),
+                    Text(
+                      view.phase == ConnectionPhase.connected
+                          ? l.connectionPlanConnectedCaption
+                          : l.connectionPlanCaption,
+                      style: AppTypography.supporting.copyWith(
+                        color: palette.mutedForeground,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     choice(
                       expert || !methodEnabled
                           ? LucideIcons.fileJson
@@ -203,6 +213,7 @@ class ConnectView extends StatelessWidget {
                       method,
                       methodDetail,
                       methodEnabled && !expert && !_busy ? onMethod : null,
+                      includeLabel: false,
                     ),
                   ],
                 ),
@@ -259,10 +270,17 @@ class ConnectView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      l.prototypeThisConnection,
+                      l.connectionSessionTitle,
                       style: AppTypography.panelTitle,
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 4),
+                    Text(
+                      l.connectionSessionCaption,
+                      style: AppTypography.supporting.copyWith(
+                        color: palette.mutedForeground,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     trafficBuilder?.call(false) ?? TrafficReadout(view: view),
                   ],
                 ),
@@ -539,7 +557,7 @@ class TrafficReadout extends StatelessWidget {
         live ? '${formatTraffic(view.downloadSpeed, connection: true)}/s' : '—',
         index: 1,
       ),
-      metric(l.prototypeUptime, elapsed, null, index: 2),
+      metric(l.connectionSessionDuration, elapsed, null, index: 2),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

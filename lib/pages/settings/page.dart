@@ -95,7 +95,7 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     SettingRow(
                       title: l10n.prototypeStartup,
-                      value: state.connectOnLaunch
+                      subtitle: state.connectOnLaunch
                           ? l10n.prototypeConnectAfterAppLaunch
                           : l10n.settingsManualConnection,
                       showChevron: true,
@@ -126,6 +126,7 @@ class SettingsPage extends StatelessWidget {
                     if (BackupService.supported)
                       SettingRow(
                         title: l10n.backupTitle,
+                        subtitle: l10n.backupPageDescription,
                         minHeight: rowHeight,
                         contentPadding: rowPadding,
                         titleStyle: AppTypography.rowTitle,

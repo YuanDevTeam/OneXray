@@ -1,4 +1,9 @@
 {
+  "connectionPlanCaption": "本次连接使用",
+  "connectionPlanConnectedCaption": "更改后确认应用并重新连接",
+  "connectionSessionTitle": "本次会话",
+  "connectionSessionCaption": "此连接的上传、下载与连接时长",
+  "connectionSessionDuration": "时长",
   "tunnelIpv6Enabled": "IPv6 已开启",
   "tunnelIpv6Disabled": "IPv6 已关闭",
   "tunnelSystemCapture": "系统接管",
@@ -1047,5 +1052,12 @@
   "completeConfigurationRoutingTitle": "配置自带路由",
   "completeConfigurationRoutingNotice": "使用完整配置内的路由与 DNS，普通路由偏好保持不变。",
   "xrayLogPreferences": "记录偏好",
-  "xrayLogFiles": "日志文件"
+  "xrayLogFiles": "日志文件",
+  "xrayChecksAndDiagnostics": "检查与诊断",
+  "xrayConnectionResources": "连接与资源",
+  "xraySharingInterfaces": "共享与接口",
+  "xrayCurrentConnection": "当前连接",
+  "xrayNotRunning": "尚未运行",
+  "xrayLogsEnabled": "记录已开启",
+  "xrayLogsDisabled": "记录已关闭"
 }

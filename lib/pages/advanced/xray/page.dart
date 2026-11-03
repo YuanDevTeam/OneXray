@@ -95,8 +95,11 @@ class XrayRuntimePage extends StatelessWidget {
                           _section(
                             icon: LucideIcons.activity,
                             title: l.prototypeRuntimeStatus,
+                            children: [_runtimeCard(context, controller, l)],
+                          ),
+                          _section(
+                            title: l.xrayChecksAndDiagnostics,
                             children: [
-                              _runtimeCard(context, controller, l),
                               if (onDiagnostics != null)
                                 _pushRow(
                                   context,
@@ -105,21 +108,48 @@ class XrayRuntimePage extends StatelessWidget {
                                   subtitle: state.connection.failed
                                       ? l.prototypeConnectionFailed
                                       : l.xrayDiagnosticsHint,
-                                  icon: LucideIcons.stethoscope,
                                   enabled: true,
                                   onTap: () => onDiagnostics!(context),
                                 ),
+                              if (!state.systemExtension)
+                                _pushRow(
+                                  context,
+                                  mobile: mobile,
+                                  title: l.prototypeLogs,
+                                  subtitle: controller.logsEnabled
+                                      ? l.xrayLogsEnabled
+                                      : l.xrayLogsDisabled,
+                                  enabled: !disabled && onLogSettings != null,
+                                  onTap: () async {
+                                    final saved = await onLogSettings?.call(
+                                      context,
+                                    );
+                                    if (saved == true &&
+                                        controller.isPageActive) {
+                                      await controller.load(showLoading: false);
+                                    }
+                                  },
+                                ),
+                              _pushRow(
+                                context,
+                                mobile: mobile,
+                                title: l.prototypeRecentXrayConfiguration,
+                                subtitle: controller.runtime == null
+                                    ? l.xrayNoRuntimeConfiguration
+                                    : l.prototypeReadOnlyRuntimeConfiguration,
+                                enabled: controller.runtime != null,
+                                onTap: () =>
+                                    controller.openConfig(context, onConfig),
+                              ),
                             ],
                           ),
                           _section(
-                            icon: LucideIcons.settings,
-                            title: l.prototypeSettings,
+                            title: l.xrayConnectionResources,
                             children: [
                               _pushRow(
                                 context,
                                 mobile: mobile,
                                 title: l.prototypeRoutingData,
-                                icon: LucideIcons.hardDrive,
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
                                       activity.downloading
@@ -133,7 +163,6 @@ class XrayRuntimePage extends StatelessWidget {
                                 context,
                                 mobile: mobile,
                                 title: l.prototypeDataUpdates,
-                                icon: LucideIcons.refreshCw,
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
                                       activity.downloading
@@ -148,7 +177,6 @@ class XrayRuntimePage extends StatelessWidget {
                                 mobile: mobile,
                                 title: l.prototypeSpeedTest,
                                 subtitle: controller.speedSummary(l),
-                                icon: LucideIcons.zap,
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
                                       activity.pinging
@@ -163,43 +191,18 @@ class XrayRuntimePage extends StatelessWidget {
                                   context,
                                   mobile: mobile,
                                   title: l.serverDialingTitle,
-                                  icon: LucideIcons.network,
                                   enabled: !disabled,
                                   onTap: () => onServerDialing!(context),
                                 ),
                             ],
                           ),
-                          if (!state.systemExtension)
-                            _section(
-                              icon: LucideIcons.fileText,
-                              title: l.prototypeLogs,
-                              children: [
-                                _pushRow(
-                                  context,
-                                  mobile: mobile,
-                                  title: l.prototypeLogs,
-                                  icon: LucideIcons.fileText,
-                                  enabled: !disabled && onLogSettings != null,
-                                  onTap: () async {
-                                    final saved = await onLogSettings?.call(
-                                      context,
-                                    );
-                                    if (saved == true &&
-                                        controller.isPageActive) {
-                                      await controller.load(showLoading: false);
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
                           _section(
-                            icon: LucideIcons.slidersHorizontal,
-                            title: l.lanProxyConfiguration,
-                            description:
-                                '${l.lanProxySecurityHint} ${l.lanProxyNextStartNotice}',
+                            title: l.xraySharingInterfaces,
                             action: PageHelpButton(
                               title: l.lanProxyTitle,
                               messages: [
+                                l.lanProxySecurityHint,
+                                l.lanProxyNextStartNotice,
                                 l.lanProxyProtocolHint,
                                 l.lanProxyRawJsonNotice,
                               ],
@@ -209,7 +212,6 @@ class XrayRuntimePage extends StatelessWidget {
                                 title: l.lanProxyTitle,
                                 titleMaxLines: 4,
                                 titleStyle: AppTypography.rowTitle,
-                                minHeight: 64,
                                 contentPadding: const EdgeInsets.all(12),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -241,41 +243,17 @@ class XrayRuntimePage extends StatelessWidget {
                                         }
                                       },
                               ),
-                            ],
-                          ),
-                          _section(
-                            icon: LucideIcons.fileJson,
-                            title: l.prototypeRuntimeConfiguration,
-                            children: [
-                              _pushRow(
-                                context,
-                                mobile: mobile,
-                                title: l.prototypeRecentXrayConfiguration,
-                                subtitle:
-                                    l.prototypeReadOnlyRuntimeConfiguration,
-                                icon: LucideIcons.fileJson,
-                                enabled: controller.runtime != null,
-                                onTap: () =>
-                                    controller.openConfig(context, onConfig),
-                              ),
-                            ],
-                          ),
-                          if (AppPlatform.isDesktop && onLocalApi != null)
-                            _section(
-                              icon: LucideIcons.terminal,
-                              title: l.localApiTitle,
-                              children: [
+                              if (AppPlatform.isDesktop && onLocalApi != null)
                                 _pushRow(
                                   context,
                                   mobile: mobile,
                                   title: l.localApiTitle,
                                   subtitle: l.localApiSummary,
-                                  icon: LucideIcons.terminal,
                                   enabled: true,
                                   onTap: () => onLocalApi!(context),
                                 ),
-                              ],
-                            ),
+                            ],
+                          ),
                           if (controller.failed)
                             Padding(
                               padding: const EdgeInsets.all(20),
@@ -297,7 +275,7 @@ class XrayRuntimePage extends StatelessWidget {
   );
 
   Widget _section({
-    required IconData icon,
+    IconData? icon,
     required String title,
     String? description,
     Widget? action,
@@ -319,25 +297,58 @@ class XrayRuntimePage extends StatelessWidget {
     AppLocalizations l,
   ) {
     final palette = ColorManager.palette(context);
+    final runtime = controller.connected || controller.runtimeBusy
+        ? controller.state.connection.runtime
+        : null;
+    final entries =
+        runtime?.entries.map((entry) => entry.name).join(' + ') ?? '';
+    final identity = runtime == null
+        ? (controller.connected || controller.runtimeBusy
+              ? '—'
+              : l.xrayNotRunning)
+        : runtime.profile?.name ??
+              runtime.rawName ??
+              (entries.isEmpty
+                  ? l.prototypeCompleteXrayConfiguration
+                  : '$entries${runtime.finalExit == null ? '' : ' → ${runtime.finalExit!.name}'}');
+    final statusColor = controller.connected
+        ? palette.runningText
+        : controller.state.connection.failed
+        ? palette.destructive
+        : controller.runtimeBusy
+        ? palette.restartingText
+        : palette.foreground;
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        PolicyValueRow(
-          title: l.prototypeXrayCore,
-          value: controller.connected
-              ? l.prototypeRunningNormally
-              : controller.statusLabel(l),
-          valueTextDirection: null,
-          valueStyle: AppTypography.rowTitle.copyWith(
-            color: controller.connected
-                ? palette.runningText
-                : palette.foreground,
+        SettingRow(
+          key: const ValueKey('xray-core-runtime'),
+          title: 'Xray-core',
+          subtitle: controller.xrayVersion,
+          subtitleStyle: AppTypography.supporting,
+          trailing: ShadBadge.secondary(
+            backgroundColor: controller.connected
+                ? palette.runningSurface
+                : controller.state.connection.failed
+                ? palette.destructiveSurface
+                : palette.muted,
+            foregroundColor: statusColor,
+            child: Text(
+              controller.statusLabel(l),
+              style: AppTypography.badge.copyWith(color: statusColor),
+            ),
           ),
         ),
-        PolicyValueRow(
-          title: l.prototypeVersion,
-          value: controller.xrayVersion,
+        SettingRow(
+          key: const ValueKey('xray-current-connection'),
+          title: l.xrayCurrentConnection,
+          subtitle: identity,
+          subtitleStyle: AppTypography.supporting,
         ),
-        PolicyValueRow(title: l.prototypeUptime, value: controller.uptime),
+        if (controller.connected &&
+            controller.uptime.isNotEmpty &&
+            controller.uptime != '—')
+          PolicyValueRow(title: l.prototypeUptime, value: controller.uptime),
       ],
     );
   }
@@ -348,7 +359,6 @@ class XrayRuntimePage extends StatelessWidget {
     required String title,
     String? subtitle,
     Widget? trailing,
-    required IconData icon,
     required bool enabled,
     required VoidCallback onTap,
   }) => SettingRow(
@@ -359,11 +369,6 @@ class XrayRuntimePage extends StatelessWidget {
     contentPadding: const EdgeInsets.all(12),
     minHeight: mobile ? 56 : 48,
     decorateLeading: false,
-    leading: Icon(
-      icon,
-      size: 20,
-      color: ColorManager.palette(context).mutedForeground,
-    ),
     trailing: trailing ?? _chevron(context),
     enabled: enabled,
     onTap: onTap,

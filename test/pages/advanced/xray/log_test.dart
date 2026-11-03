@@ -57,6 +57,7 @@ void main() {
           app(
             XrayRuntimePage(
               createController: () => root,
+              onDiagnostics: (_) {},
               onGeodata: (_) {},
               onUpdates: (_) {},
               onSpeedTest: (_) {},
@@ -94,10 +95,66 @@ void main() {
           l.prototypeRoutingData,
           l.prototypeDataUpdates,
           l.prototypeSpeedTest,
-          l.prototypeRuntimeConfiguration,
+          l.prototypeRecentXrayConfiguration,
+          l.xrayChecksAndDiagnostics,
+          l.xrayConnectionResources,
+          l.xraySharingInterfaces,
         ]) {
           expect(find.text(text), findsOneWidget);
         }
+        final core = find.byKey(const ValueKey('xray-core-runtime'));
+        expect(tester.widget<SettingRow>(core).title, 'Xray-core');
+        expect(tester.widget<SettingRow>(core).subtitle, '26.10.31');
+        expect(
+          find.descendant(of: core, matching: find.byType(ShadBadge)),
+          findsOneWidget,
+        );
+        expect(find.text(l.prototypeVersion), findsNothing);
+        expect(
+          tester
+              .widget<SettingRow>(
+                find.byKey(const ValueKey('xray-current-connection')),
+              )
+              .subtitle,
+          l.xrayNotRunning,
+        );
+        final checks = find.byWidgetPredicate(
+          (w) => w is SettingSection && w.title == l.xrayChecksAndDiagnostics,
+        );
+        for (final title in [
+          l.xrayDiagnostics,
+          l.prototypeRecentXrayConfiguration,
+          if (!systemExtension) l.prototypeLogs,
+        ]) {
+          expect(
+            find.descendant(
+              of: checks,
+              matching: find.byWidgetPredicate(
+                (w) => w is SettingRow && w.title == title,
+              ),
+            ),
+            findsOneWidget,
+          );
+        }
+        final resources = find.byWidgetPredicate(
+          (w) => w is SettingSection && w.title == l.xrayConnectionResources,
+        );
+        for (final title in [
+          l.prototypeRoutingData,
+          l.prototypeDataUpdates,
+          l.prototypeSpeedTest,
+        ]) {
+          expect(
+            find.descendant(
+              of: resources,
+              matching: find.byWidgetPredicate(
+                (w) => w is SettingRow && w.title == title,
+              ),
+            ),
+            findsOneWidget,
+          );
+        }
+        expect(find.byType(SettingSection), findsNWidgets(4));
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox());
         await tester.pumpAndSettle();
@@ -193,6 +250,12 @@ void main() {
 class _Controller extends XrayRuntimeController {
   _Controller({required super.coordinator, required this.systemExtension});
   final bool systemExtension;
+
+  // This UI fixture supplies the same public metadata getter as production.
+  // The real reader can still publish unknown native metadata asynchronously.
+  @override
+  String get xrayVersion => '26.10.31';
+
   @override
   Future<void> load({bool showLoading = true}) async {
     final configuration = ConnectionConfiguration(

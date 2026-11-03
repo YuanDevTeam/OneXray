@@ -15,6 +15,7 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
 import 'package:onexray/service/settings/backup/assets.dart';
@@ -85,6 +86,47 @@ void main() {
     ),
     home: BackupPage(service: service),
   );
+
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'sensitive backup notice keeps a readable foreground in $brightness',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(brightness),
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (_, child) => ShadTheme(
+              data: AppTheme.shad(brightness),
+              child: ShadToaster(child: child!),
+            ),
+            home: BackupPage(service: service),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final context = tester.element(find.byType(BackupPage));
+        final l = AppLocalizations.of(context)!;
+        final notice = find.text(l.backupSensitiveWarning);
+        await tester.ensureVisible(notice);
+        await tester.pumpAndSettle();
+        final text = tester.widget<RichText>(
+          find.descendant(of: notice, matching: find.byType(RichText)),
+        );
+        final foreground = text.text.style!.color!;
+        final palette = ColorManager.palette(context);
+        expect(foreground, palette.mutedStrong);
+        final first = foreground.computeLuminance();
+        final second = palette.background.computeLuminance();
+        final contrast = first > second
+            ? (first + .05) / (second + .05)
+            : (second + .05) / (first + .05);
+        expect(contrast, greaterThanOrEqualTo(4.5));
+        expect(tester.takeException(), isNull);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
 
   for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
     for (final locale in [

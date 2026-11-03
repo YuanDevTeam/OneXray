@@ -53,7 +53,8 @@ class _ServersPageState extends State<ServersPage> {
           appBar: PageAppBar.forPage(
             context,
             title: Text(l.prototypeServers),
-            description: l.serversPageDescription,
+            description: mobile ? '' : l.serversPageDescription,
+            inlineHeadingAction: mobile,
             headingAction: Wrap(
               spacing: 10,
               runSpacing: 10,
@@ -69,7 +70,7 @@ class _ServersPageState extends State<ServersPage> {
                   key: const ValueKey('servers-add'),
                   onPressed: () => controller.addServers(context),
                   icon: const Icon(LucideIcons.plus, size: 18),
-                  label: Text(l.prototypeAddServer),
+                  label: Text(mobile ? l.prototypeAdd : l.prototypeAddServer),
                 ),
               ],
             ),

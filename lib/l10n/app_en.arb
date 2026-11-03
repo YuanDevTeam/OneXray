@@ -1,4 +1,9 @@
 {
+  "connectionPlanCaption": "Used for this connection",
+  "connectionPlanConnectedCaption": "Confirm changes to apply and reconnect",
+  "connectionSessionTitle": "This session",
+  "connectionSessionCaption": "Upload, download, and duration of this connection",
+  "connectionSessionDuration": "Duration",
   "tunnelIpv6Enabled": "IPv6 enabled",
   "tunnelIpv6Disabled": "IPv6 disabled",
   "tunnelSystemCapture": "System capture",
@@ -3228,5 +3233,12 @@
   "completeConfigurationRoutingTitle": "Configuration routing",
   "completeConfigurationRoutingNotice": "Uses routing and DNS from the complete configuration. App routing preferences are kept.",
   "xrayLogPreferences": "Recording preferences",
-  "xrayLogFiles": "Log files"
+  "xrayLogFiles": "Log files",
+  "xrayChecksAndDiagnostics": "Checks and diagnostics",
+  "xrayConnectionResources": "Connection and resources",
+  "xraySharingInterfaces": "Sharing and interfaces",
+  "xrayCurrentConnection": "Current connection",
+  "xrayNotRunning": "Not running",
+  "xrayLogsEnabled": "Recording enabled",
+  "xrayLogsDisabled": "Recording disabled"
 }

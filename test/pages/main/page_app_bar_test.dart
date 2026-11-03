@@ -111,6 +111,167 @@ void main() {
     );
   }
 
+  for (final inline in [false, true]) {
+    testWidgets('compact mobile heading action opts into one row: $inline', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var actions = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.material(Brightness.light, mobile: true),
+          locale: const Locale('zh'),
+          localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (context) => Scaffold(
+              appBar: PageAppBar.forPage(
+                context,
+                title: const Text('服务器'),
+                description: '',
+                inlineHeadingAction: inline,
+                headingAction: FilledButton.icon(
+                  key: const Key('compact-heading-action'),
+                  onPressed: () => actions++,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('导入'),
+                ),
+              ),
+              body: const SizedBox(
+                key: Key('compact-page-body'),
+                width: double.infinity,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final heading = find.byKey(const ValueKey('page-heading'));
+      final title = find.descendant(of: heading, matching: find.text('服务器'));
+      final action = find.byKey(const Key('compact-heading-action'));
+      final titleBounds = tester.getRect(title);
+      final actionBounds = tester.getRect(action);
+      expect(tester.widget<Text>(title).maxLines, isNull);
+      expect(action.hitTestable(), findsOneWidget);
+      if (inline) {
+        expect(titleBounds.overlaps(actionBounds), isFalse);
+        expect(titleBounds.center.dy, closeTo(actionBounds.center.dy, .01));
+        expect(titleBounds.right, lessThanOrEqualTo(actionBounds.left));
+        expect(
+          tester.getRect(find.byKey(const Key('compact-page-body'))).top,
+          lessThanOrEqualTo(132),
+        );
+      } else {
+        expect(actionBounds.top, greaterThanOrEqualTo(titleBounds.bottom + 16));
+      }
+      expect(actionBounds.right, lessThanOrEqualTo(390 - 16));
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(actions, 1);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final locale in [const Locale('ru'), const Locale('fa')]) {
+    testWidgets(
+      'inline heading wraps long identity and preserves short viewport actions: $locale',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(390, 360);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var imports = 0;
+        var saves = 0;
+        const titleText = 'Настройки подключения — Tokyo Singapore — настройки';
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(Brightness.light, mobile: true),
+            locale: locale,
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(2)),
+              child: Directionality(
+                textDirection: locale.languageCode == 'fa'
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
+                child: child!,
+              ),
+            ),
+            home: Builder(
+              builder: (context) => Scaffold(
+                appBar: PageAppBar.forPage(
+                  context,
+                  title: const Text(titleText),
+                  description: '',
+                  inlineHeadingAction: true,
+                  headingAction: TextButton(
+                    key: const Key('inline-import'),
+                    onPressed: () => imports++,
+                    child: const Text('Import'),
+                  ),
+                ),
+                body: const SizedBox.expand(key: Key('inline-page-body')),
+                bottomNavigationBar: PageActionBar(
+                  children: [
+                    FilledButton(
+                      key: const Key('inline-save'),
+                      onPressed: () => saves++,
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final heading = find.byKey(const ValueKey('page-heading'));
+        final title = find.descendant(
+          of: heading,
+          matching: find.text(titleText),
+        );
+        expect(tester.widget<Text>(title).maxLines, isNull);
+        expect(
+          tester.widget<Text>(title).overflow,
+          isNot(TextOverflow.ellipsis),
+        );
+        final titleBounds = tester.getRect(title);
+        expect(titleBounds.left, greaterThanOrEqualTo(16));
+        expect(titleBounds.right, lessThanOrEqualTo(374));
+        expect(
+          tester.getSize(find.byKey(const Key('inline-page-body'))).height,
+          greaterThanOrEqualTo(80),
+        );
+        final headingScrollable = find.descendant(
+          of: heading,
+          matching: find.byType(Scrollable),
+        );
+        expect(
+          tester
+              .state<ScrollableState>(headingScrollable)
+              .position
+              .maxScrollExtent,
+          greaterThan(0),
+        );
+        final action = find.byKey(const Key('inline-import'));
+        await tester.ensureVisible(action);
+        await tester.pumpAndSettle();
+        expect(action.hitTestable(), findsOneWidget);
+        await tester.tap(action);
+        await tester.tap(find.byKey(const Key('inline-save')));
+        await tester.pumpAndSettle();
+        expect(imports, 1);
+        expect(saves, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   for (final height in [844.0, 360.0]) {
     testWidgets(
       'long legal resource heading keeps content and footer reachable at 390x$height/2x',

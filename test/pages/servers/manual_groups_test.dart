@@ -412,7 +412,7 @@ void main() {
       expect(add.hitTestable(), findsOneWidget);
       expect(tester.widget<FilledButton>(add).onPressed, isNotNull);
       expect(
-        find.descendant(of: add, matching: find.text(l.prototypeAddServer)),
+        find.descendant(of: add, matching: find.text(l.prototypeAdd)),
         findsOneWidget,
       );
       expect(find.byTooltip(l.manualGroupNew), findsNothing);

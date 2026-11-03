@@ -1,4 +1,9 @@
 {
+  "connectionPlanCaption": "برای این اتصال",
+  "connectionPlanConnectedCaption": "برای اعمال تغییرات و اتصال مجدد، تأیید کنید.",
+  "connectionSessionTitle": "نشست جاری",
+  "connectionSessionCaption": "ارسال، دریافت و مدت این اتصال",
+  "connectionSessionDuration": "مدت",
   "tunnelIpv6Enabled": "IPv6 روشن است",
   "tunnelIpv6Disabled": "IPv6 خاموش است",
   "tunnelSystemCapture": "کنترل سیستم",
@@ -1047,5 +1052,12 @@
   "completeConfigurationRoutingTitle": "مسیریابی پیکربندی",
   "completeConfigurationRoutingNotice": "از مسیریابی و DNS پیکربندی کامل استفاده می‌شود. تنظیمات مسیریابی عادی حفظ می‌شوند.",
   "xrayLogPreferences": "تنظیمات ثبت رویداد",
-  "xrayLogFiles": "فایل‌های گزارش"
+  "xrayLogFiles": "فایل‌های گزارش",
+  "xrayChecksAndDiagnostics": "بررسی و عیب‌یابی",
+  "xrayConnectionResources": "اتصال و منابع",
+  "xraySharingInterfaces": "اشتراک‌گذاری و رابط‌ها",
+  "xrayCurrentConnection": "اتصال فعلی",
+  "xrayNotRunning": "در حال اجرا نیست",
+  "xrayLogsEnabled": "ثبت رویداد فعال است",
+  "xrayLogsDisabled": "ثبت رویداد غیرفعال است"
 }
