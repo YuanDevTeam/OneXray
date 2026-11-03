@@ -127,7 +127,10 @@ class JsonConfigurationEditorController
     ConfigurationTransferService? transferService,
     this.kind = ConfigurationKind.raw,
   }) : _rawService = service,
+       // Keep public injection names separate from the resolved service fields.
+       // ignore: prefer_initializing_formals
        _customService = customService,
+       // ignore: prefer_initializing_formals
        _transferService = transferService,
        super(const JsonConfigurationEditorState()) {
     text.addListener(_textChanged);
@@ -220,8 +223,9 @@ class JsonConfigurationEditorController
         state.closeBlocked ||
         state.confirmingClose ||
         state.closeAllowed ||
-        ModalRoute.of(context)?.isCurrent != true)
+        ModalRoute.of(context)?.isCurrent != true) {
       return;
+    }
     if (state.dirty) {
       final l = AppLocalizations.of(context)!;
       emit(state.copyWith(confirmingClose: true));
@@ -237,8 +241,9 @@ class JsonConfigurationEditorController
       } finally {
         emit(state.copyWith(confirmingClose: false));
       }
-      if (!discard || !isPageActive || !context.mounted || state.closeBlocked)
+      if (!discard || !isPageActive || !context.mounted || state.closeBlocked) {
         return;
+      }
     }
     _finishClose(context);
   }
@@ -247,8 +252,9 @@ class JsonConfigurationEditorController
     if (!isPageActive ||
         !context.mounted ||
         state.closeAllowed ||
-        ModalRoute.of(context)?.isCurrent != true)
+        ModalRoute.of(context)?.isCurrent != true) {
       return;
+    }
     emit(state.copyWith(closeAllowed: true));
     Navigator.of(context).pop(result);
   }

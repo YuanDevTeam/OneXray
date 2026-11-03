@@ -193,7 +193,9 @@ Widget _screen(ConnectController controller) => MaterialApp(
           locationDetail: controller.selectionDetail(l),
           method: controller.homeMethodTitle(l),
           methodDetail: controller.methodDescription(l),
-          methodEnabled: !controller.providerConfiguration,
+          methodEnabled:
+              !state.configuration.connection.expert &&
+              !controller.providerConfiguration,
           onConnection: () => controller.connectionAction(context),
           onExpert: (value) => controller.toggleExpert(context, value),
           onAddServers: () {},

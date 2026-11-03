@@ -222,6 +222,62 @@ void main() {
   });
 
   testWidgets(
+    'Raw plan explains its own routing without changing ordinary preferences',
+    (tester) async {
+      final coordinator = _Coordinator();
+      coordinator.state.value = const ConnectionView();
+      final configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          expert: true,
+          rawId: 9,
+          trafficMode: TrafficMode.allVpn,
+          selection: const ServerSelection.source(17),
+          smart: SmartRoutingSettings(entryCount: 3, finalExitId: 900),
+        ),
+      );
+      coordinator.saved = configuration;
+      final controller = ConnectController(
+        database: coordinator.db,
+        coordinator: coordinator,
+      )..configuration = configuration;
+      addTearDown(controller.close);
+      addTearDown(coordinator.dispose);
+      addTearDown(coordinator.db.close);
+      await tester.pumpWidget(
+        _testApp(
+          Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => controller.showWhy(context),
+                child: const Text('why'),
+              ),
+            ),
+          ),
+        ),
+      );
+      final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+      final before = configuration.encode();
+      expect(
+        controller.homeMethodTitle(l),
+        l.completeConfigurationRoutingTitle,
+      );
+      expect(
+        controller.methodDescription(l),
+        l.completeConfigurationRoutingNotice,
+      );
+      expect(controller.selectionDetail(l), l.xrayRawPageTitle);
+      await tester.tap(find.text('why'));
+      await tester.pumpAndSettle();
+      expect(find.text(l.prototypeRawManagedSettingsNotice), findsOneWidget);
+      expect(find.text(l.prototypeAllViaVpnDescription), findsNothing);
+      expect(controller.configuration.encode(), before);
+      expect(coordinator.saved.encode(), before);
+      expect(coordinator.applyCount, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'scope fallback uses frozen source and runtime identities only after connection',
     (tester) async {
       final coordinator = _Coordinator();

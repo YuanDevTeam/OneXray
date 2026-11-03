@@ -334,8 +334,8 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
 
   String? selectionDetail(AppLocalizations l10n) {
     final settings = configuration.connection;
-    if (settings.expert) return l10n.prototypeCompleteXrayConfiguration;
-    if (selectedProvider != null) return l10n.providerRoutingNotice;
+    if (settings.expert) return l10n.xrayRawPageTitle;
+    if (selectedProvider != null) return l10n.providerConfigurationTitle;
     return '${l10n.connectionCandidates(candidateCount(settings.selection))} · ${l10n.connectionRequiredEntries(_configuredEntryCount(settings) ?? 1)}';
   }
 
@@ -355,7 +355,10 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     return health(l10n, row);
   }
 
-  String homeMethodTitle(AppLocalizations l10n) => providerConfiguration
+  String homeMethodTitle(AppLocalizations l10n) =>
+      configuration.connection.expert
+      ? l10n.completeConfigurationRoutingTitle
+      : providerConfiguration
       ? l10n.providerConfigurationTitle
       : configuration.connection.trafficMode == TrafficMode.smart
       ? l10n.prototypeSmartRoutingRecommended
@@ -364,6 +367,9 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   int _ruleCount(RoutingConfiguration profile) => profile.ruleCount;
 
   String methodDescription(AppLocalizations l10n) {
+    if (configuration.connection.expert) {
+      return l10n.completeConfigurationRoutingNotice;
+    }
     if (providerConfiguration) return l10n.providerRoutingNotice;
     switch (configuration.connection.trafficMode) {
       case TrafficMode.smart:
@@ -756,7 +762,7 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
 
   Future<void> showWhy(BuildContext context) async {
     final l = AppLocalizations.of(context)!;
-    if (providerConfiguration) {
+    if (providerConfiguration || configuration.connection.expert) {
       await showConnectDialog<void>(
         context,
         (dialogContext) => ConnectDialog(
@@ -765,7 +771,9 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
             padding: const EdgeInsets.all(22),
             child: ConnectExplanation(
               icon: LucideIcons.shieldCheck,
-              text: l.providerRoutingNotice,
+              text: configuration.connection.expert
+                  ? l.prototypeRawManagedSettingsNotice
+                  : l.providerRoutingNotice,
             ),
           ),
           actions: [

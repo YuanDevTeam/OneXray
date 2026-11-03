@@ -92,7 +92,9 @@ class _ConnectPageState extends State<ConnectPage> {
                 locationHealth: controller.selectionHealth(l),
                 method: controller.homeMethodTitle(l),
                 methodDetail: controller.methodDescription(l),
-                methodEnabled: !controller.providerConfiguration,
+                methodEnabled:
+                    !state.configuration.connection.expert &&
+                    !controller.providerConfiguration,
                 onConnection: () => controller.connectionAction(context),
                 onAddServers: () => controller.addServers(context),
                 onExpert: (value) => controller.toggleExpert(context, value),

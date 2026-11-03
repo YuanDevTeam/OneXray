@@ -1017,5 +1017,7 @@
   },
   "serverNoMatchingResources": "沒有符合的資源",
   "connectionRuntimeTitle": "正在執行",
-  "serverLatencyFailed": "測速失敗"
+  "serverLatencyFailed": "測速失敗",
+  "completeConfigurationRoutingTitle": "設定自帶路由",
+  "completeConfigurationRoutingNotice": "使用完整設定內的路由與 DNS，一般路由偏好保持不變。"
 }

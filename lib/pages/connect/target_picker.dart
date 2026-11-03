@@ -2,8 +2,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
-import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -177,122 +177,192 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
               ),
           ],
         ];
-    return Material(
-      color: palette.card,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: SafeArea(
-        top: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(20, 12, 12, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l.prototypeServers,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: l.prototypeClose,
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(LucideIcons.x, size: 20),
-                  ),
-                ],
+    final footer = Padding(
+      padding: const EdgeInsets.all(16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final theme = Theme.of(context);
+          final cancelStyle =
+              ShadTheme.of(context).outlineButtonTheme.textStyle ??
+              theme.textTheme.labelLarge!;
+          final manageStyle =
+              theme.outlinedButtonTheme.style?.textStyle?.resolve({}) ??
+              theme.textTheme.labelLarge!;
+          double labelWidth(String label, TextStyle style) {
+            final painter = TextPainter(
+              text: TextSpan(text: label, style: style),
+              textDirection: Directionality.of(context),
+              textScaler: MediaQuery.textScalerOf(context),
+            )..layout();
+            final width = painter.width;
+            painter.dispose();
+            return width;
+          }
+
+          final halfWidth = (constraints.maxWidth - 12) / 2;
+          final stacked =
+              labelWidth(l.prototypeServers, manageStyle) + 48 > halfWidth ||
+              labelWidth(l.prototypeCancel, cancelStyle) + 48 > halfWidth;
+          final manage = OutlinedButton(
+            onPressed: () => choose(const ConnectionTargetChoice(manage: true)),
+            child: Text(l.prototypeServers),
+          );
+          final cancel = ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: AppLayout.touchExtent(
+                AppLayout.buttonMinHeight,
+                platform: theme.platform,
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final entry in [
-                    l.serverSelectionAutomaticScope,
-                    l.serverSelectionFixedNode,
-                    l.serverCompleteConfigurationsTab,
-                  ].indexed)
-                    ChoiceChip(
-                      label: Text(entry.$2),
-                      selected: tab == entry.$1,
-                      onSelected: (_) => setState(() => tab = entry.$1),
-                    ),
-                ],
-              ),
+            child: ShadButton.outline(
+              expands: true,
+              height: 0,
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l.prototypeCancel),
             ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                key: const ValueKey('connection-target-search'),
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(LucideIcons.search, size: 18),
-                  hintText: l.prototypeSearchSubscriptionsServers,
-                ),
-                onChanged: (value) => setState(() => query = value),
-              ),
-            ),
-            if (tab == 0 &&
-                (settings.expert ||
-                    widget.catalog.servers.any(
-                      (r) =>
-                          r.type == CoreConfigType.Remnawave.name &&
-                          selected(ServerSelection.server(r.id)),
-                    )))
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: TextButton(
-                  onPressed: () =>
-                      choose(const ConnectionTargetChoice(restore: true)),
-                  child: Text(l.connectionRestoreOrdinary),
-                ),
-              ),
-            Expanded(
-              child: entries.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
+          );
+          return stacked
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [manage, const SizedBox(height: 8), cancel],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: manage),
+                    const SizedBox(width: 12),
+                    Expanded(child: cancel),
+                  ],
+                );
+        },
+      ),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final short = constraints.maxHeight < 380;
+        return Material(
+          color: palette.card,
+          borderRadius: BorderRadius.circular(20),
+          clipBehavior: Clip.antiAlias,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 12, 4),
+                  child: Row(
+                    children: [
+                      Expanded(
                         child: Text(
-                          query.trim().isEmpty
-                              ? l.prototypeNoServersYet
-                              : l.serverNoMatchingResources,
+                          l.prototypeServers,
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
-                    )
-                  : ListView.builder(
-                      key: const ValueKey('connection-target-options'),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: entries.length,
-                      itemBuilder: (context, index) {
-                        final e = entries[index];
-                        return option(
-                          e.title,
-                          e.detail,
-                          e.active,
-                          () => choose(e.choice),
-                          e.icon,
-                        );
-                      },
-                    ),
-            ),
-            PageActionBar(
-              children: [
-                OutlinedButton(
-                  onPressed: () =>
-                      choose(const ConnectionTargetChoice(manage: true)),
-                  child: Text(l.prototypeServers),
+                      IconButton(
+                        tooltip: l.prototypeClose,
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(LucideIcons.x, size: 20),
+                      ),
+                    ],
+                  ),
                 ),
-                ShadButton.outline(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l.prototypeCancel),
+                Expanded(
+                  child: CustomScrollView(
+                    key: const ValueKey('connection-target-options'),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final entry in [
+                                l.serverSelectionAutomaticScope,
+                                l.serverSelectionFixedNode,
+                                l.serverCompleteConfigurationsTab,
+                              ].indexed)
+                                ChoiceChip(
+                                  label: Text(entry.$2),
+                                  selected: tab == entry.$1,
+                                  onSelected: (_) =>
+                                      setState(() => tab = entry.$1),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: TextField(
+                            key: const ValueKey('connection-target-search'),
+                            decoration: InputDecoration(
+                              prefixIcon: const Icon(
+                                LucideIcons.search,
+                                size: 18,
+                              ),
+                              hintText: l.prototypeSearchSubscriptionsServers,
+                            ),
+                            onChanged: (value) => setState(() => query = value),
+                          ),
+                        ),
+                      ),
+                      if (tab == 0 &&
+                          (settings.expert ||
+                              widget.catalog.servers.any(
+                                (r) =>
+                                    r.type == CoreConfigType.Remnawave.name &&
+                                    selected(ServerSelection.server(r.id)),
+                              )))
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: TextButton(
+                              onPressed: () => choose(
+                                const ConnectionTargetChoice(restore: true),
+                              ),
+                              child: Text(l.connectionRestoreOrdinary),
+                            ),
+                          ),
+                        ),
+                      if (entries.isEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              query.trim().isEmpty
+                                  ? l.prototypeNoServersYet
+                                  : l.serverNoMatchingResources,
+                            ),
+                          ),
+                        ),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        sliver: SliverList.builder(
+                          itemCount: entries.length,
+                          itemBuilder: (context, index) {
+                            final e = entries[index];
+                            return option(
+                              e.title,
+                              e.detail,
+                              e.active,
+                              () => choose(e.choice),
+                              e.icon,
+                            );
+                          },
+                        ),
+                      ),
+                      if (short) SliverToBoxAdapter(child: footer),
+                    ],
+                  ),
                 ),
+                if (!short) footer,
               ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

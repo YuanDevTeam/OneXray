@@ -1017,5 +1017,7 @@
   },
   "serverNoMatchingResources": "منبع مطابقی یافت نشد",
   "connectionRuntimeTitle": "اتصال فعال",
-  "serverLatencyFailed": "آزمایش ناموفق"
+  "serverLatencyFailed": "آزمایش ناموفق",
+  "completeConfigurationRoutingTitle": "مسیریابی پیکربندی",
+  "completeConfigurationRoutingNotice": "از مسیریابی و DNS پیکربندی کامل استفاده می‌شود. تنظیمات مسیریابی عادی حفظ می‌شوند."
 }

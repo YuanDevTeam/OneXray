@@ -1017,5 +1017,7 @@
   },
   "serverNoMatchingResources": "Нет подходящих ресурсов",
   "connectionRuntimeTitle": "Активное подключение",
-  "serverLatencyFailed": "Ошибка теста"
+  "serverLatencyFailed": "Ошибка теста",
+  "completeConfigurationRoutingTitle": "Маршруты конфигурации",
+  "completeConfigurationRoutingNotice": "Используются маршруты и DNS полной конфигурации. Настройки обычной маршрутизации сохраняются."
 }

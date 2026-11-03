@@ -3195,5 +3195,7 @@
   },
   "serverNoMatchingResources": "No matching resources",
   "connectionRuntimeTitle": "Active connection",
-  "serverLatencyFailed": "Test failed"
+  "serverLatencyFailed": "Test failed",
+  "completeConfigurationRoutingTitle": "Configuration routing",
+  "completeConfigurationRoutingNotice": "Uses routing and DNS from the complete configuration. App routing preferences are kept."
 }
