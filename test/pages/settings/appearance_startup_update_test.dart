@@ -16,6 +16,7 @@ import 'package:onexray/pages/settings/app_update/controller.dart';
 import 'package:onexray/pages/settings/desktop/controller.dart';
 import 'package:onexray/pages/settings/desktop/page.dart';
 import 'package:onexray/pages/settings/page.dart';
+import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/settings/theme/page.dart';
 import 'package:onexray/pages/theme/theme.dart';
@@ -120,12 +121,157 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final (locale, width, scale, vertical) in const [
-    (Locale('en'), 390.0, 1.0, true),
-    (Locale('en'), 390.0, 2.0, true),
-    (Locale('ru'), 390.0, 2.0, true),
-    (Locale('en'), 834.0, 2.0, false),
-    (Locale('fa'), 390.0, 2.0, true),
+  testWidgets('startup approval actions remain reachable and independent', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1160, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    bool? login;
+    var opened = 0;
+    await tester.pumpWidget(
+      app(
+        DesktopSettingsView(
+          state: const DesktopSettingsPageState(
+            launchAtLogin: LaunchAtLoginStatus(
+              LaunchAtLoginState.requiresApproval,
+            ),
+            loading: false,
+          ),
+          showMacOSOptions: true,
+          onLaunchAtLoginChanged: (value) => login = value,
+          onStartHiddenChanged: (_) {},
+          onHideDockIconChanged: (_) {},
+          onOpenSystemSettings: () => opened++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(
+      tester.element(find.byType(DesktopSettingsView)),
+    )!;
+    expect(
+      tester.widget<ShadSwitch>(find.byType(ShadSwitch).first).enabled,
+      isFalse,
+    );
+    await tester.tap(find.text(l.prototypeCancelRequest));
+    await tester.pump();
+    await tester.tap(find.text(l.prototypeOpenSystemSettings));
+    await tester.pump();
+    expect(login, isFalse);
+    expect(opened, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'mobile startup page persists App launch and refreshes its summary',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final previousPreferences = SharedPreferencesAsyncPlatform.instance;
+      SharedPreferencesAsyncPlatform.instance =
+          InMemorySharedPreferencesAsync.empty();
+      addTearDown(
+        () => SharedPreferencesAsyncPlatform.instance = previousPreferences,
+      );
+      await PreferencesKey().saveConnectOnAppLaunch(false);
+      const iconChannel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.onexray.BridgeHostApi.getCurrentAppIcon',
+        BridgeHostApi.pigeonChannelCodec,
+      );
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockDecodedMessageHandler(
+        iconChannel,
+        (_) async => ['IconBlue'],
+      );
+      addTearDown(
+        () => messenger.setMockDecodedMessageHandler(iconChannel, null),
+      );
+      final bus = AppEventBus();
+      addTearDown(bus.close);
+      final router = GoRouter(
+        initialLocation: '/settings',
+        routes: [
+          GoRoute(
+            path: '/settings',
+            builder: (_, _) => const SettingsPage(),
+            routes: [
+              GoRoute(
+                path: 'desktop-settings',
+                builder: (_, _) =>
+                    const DesktopSettingsPage(showDesktopOptions: false),
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        BlocProvider.value(
+          value: bus,
+          child: MaterialApp.router(
+            routerConfig: router,
+            theme: AppTheme.material(Brightness.light, mobile: true),
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (_, child) => ShadTheme(
+              data: AppTheme.shad(Brightness.light, mobile: true),
+              child: ShadToaster(child: child!),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'settings root before startup',
+      );
+      final l = AppLocalizations.of(tester.element(find.byType(SettingsPage)))!;
+      Finder startup() => find.byWidgetPredicate(
+        (widget) => widget is SettingRow && widget.title == l.prototypeStartup,
+      );
+      await tester.ensureVisible(startup());
+      await tester.pumpAndSettle();
+      await tester.tap(startup());
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'independent startup page',
+      );
+      expect(find.byType(DesktopSettingsPage), findsOneWidget);
+      expect(find.byType(ShadSwitch), findsOneWidget);
+      await tester.tap(find.byType(ShadSwitch));
+      await tester.pumpAndSettle();
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'startup after preference saved',
+      );
+      expect(await PreferencesKey().readConnectOnAppLaunch(), isTrue);
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<SettingRow>(startup()).value,
+        l.prototypeConnectAfterAppLaunch,
+      );
+      expect(find.byType(ShadSwitch), findsNothing);
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: 'settings root after startup return',
+      );
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+
+  for (final (locale, width, scale) in const [
+    (Locale('en'), 390.0, 1.0),
+    (Locale('en'), 390.0, 2.0),
+    (Locale('ru'), 390.0, 2.0),
+    (Locale('en'), 1032.0, 2.0),
+    (Locale('fa'), 390.0, 2.0),
   ]) {
     testWidgets(
       'settings appearance adapts to labels at $locale / $width / $scale',
@@ -196,15 +342,23 @@ void main() {
           final system = find.text(l.prototypeSystem);
           final light = find.text(l.prototypeLight);
           final dark = find.text(l.prototypeDark);
-          final systemRect = tester.getRect(system);
-          final lightRect = tester.getRect(light);
-          final darkRect = tester.getRect(dark);
-          if (vertical) {
-            expect(lightRect.top, greaterThanOrEqualTo(systemRect.bottom));
-            expect(darkRect.top, greaterThanOrEqualTo(lightRect.bottom));
-          } else {
-            expect(lightRect.center.dy, systemRect.center.dy);
-            expect(darkRect.center.dy, systemRect.center.dy);
+          final options = find.byType(SettingsThemeOptions);
+          expect(
+            find.descendant(of: options, matching: find.byType(Wrap)),
+            findsOneWidget,
+          );
+          final rects = [system, light, dark].map(tester.getRect).toList();
+          for (var i = 0; i < rects.length; i++) {
+            for (var j = i + 1; j < rects.length; j++) {
+              expect(rects[i].overlaps(rects[j]), isFalse);
+            }
+          }
+          for (final label in [system, light, dark]) {
+            final button = find.ancestor(
+              of: label,
+              matching: find.byType(ShadButton),
+            );
+            expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
           }
           final selected = find.ancestor(
             of: dark,
@@ -234,14 +388,9 @@ void main() {
                     widget is SettingRow && widget.title == l.prototypeAppIcon,
               ),
             );
-            if (scale == 1) {
-              expect(iconRow.value, isNotNull);
-              expect(iconRow.subtitleWidget, isNull);
-            } else {
-              expect(iconRow.value, isNull);
-              expect(iconRow.subtitleWidget, isA<Text>());
-              expect((iconRow.subtitleWidget! as Text).maxLines, isNull);
-            }
+            expect(iconRow.value, isNull);
+            expect(iconRow.subtitle, isNotEmpty);
+            expect(iconRow.subtitleWidget, isNull);
           }
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox());
@@ -253,7 +402,7 @@ void main() {
     );
   }
 
-  testWidgets('theme choice uses the shared selected indicator', (
+  testWidgets('theme choice uses the prototype selected button', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 700));
@@ -269,7 +418,21 @@ void main() {
     )!;
     expect(find.text(l.themePageSystem), findsOneWidget);
     expect(find.text(l.themePageDark), findsOneWidget);
-    expect(find.byIcon(LucideIcons.check), findsOneWidget);
+    final selected = find.ancestor(
+      of: find.text(l.prototypeDark),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is Semantics && widget.properties.selected == true,
+      ),
+    );
+    expect(selected, findsOneWidget);
+    expect(
+      tester
+          .widget<ShadButton>(
+            find.descendant(of: selected, matching: find.byType(ShadButton)),
+          )
+          .variant,
+      ShadButtonVariant.primary,
+    );
     expect(tester.takeException(), isNull);
   });
 

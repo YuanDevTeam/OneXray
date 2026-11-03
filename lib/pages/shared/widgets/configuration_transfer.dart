@@ -12,6 +12,7 @@ import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/shared/share/action.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/theme/font.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/service/advanced/xray/geodata/model.dart';
@@ -301,7 +302,18 @@ class ConfigurationTransferTools extends StatelessWidget {
               OutlinedButtonTheme(
                 data: OutlinedButtonThemeData(
                   style: Theme.of(context).outlinedButtonTheme.style?.copyWith(
-                    minimumSize: const WidgetStatePropertyAll(Size(0, 36)),
+                    minimumSize: WidgetStatePropertyAll(
+                      Size(
+                        0,
+                        AppLayout.touchExtent(
+                          MediaQuery.sizeOf(context).width <=
+                                  AppLayout.mobileBreakpoint
+                              ? 48
+                              : 42,
+                          platform: Theme.of(context).platform,
+                        ),
+                      ),
+                    ),
                     padding: const WidgetStatePropertyAll(
                       EdgeInsets.symmetric(horizontal: 10),
                     ),
@@ -311,8 +323,8 @@ class ConfigurationTransferTools extends StatelessWidget {
                   ),
                 ),
                 child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 10,
+                  runSpacing: 10,
                   children: [
                     OutlinedButton.icon(
                       onPressed: busy

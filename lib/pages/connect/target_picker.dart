@@ -1,8 +1,11 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/servers/catalog.dart';
@@ -75,19 +78,53 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
     ) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: active ? palette.selectedSurface : palette.muted,
-        borderRadius: BorderRadius.circular(12),
+        color: active ? palette.selectedSurface : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          side: active
+              ? BorderSide(color: palette.primary.withValues(alpha: .2))
+              : BorderSide.none,
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Semantics(
           selected: active,
           button: true,
           child: ListTile(
-            minTileHeight: 64,
-            leading: Icon(icon, size: 19),
-            title: Text(title),
-            subtitle: Text(detail),
+            minTileHeight: 56,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
+            leading: Icon(
+              icon,
+              size: 20,
+              color: active ? palette.primaryText : palette.mutedForeground,
+            ),
+            title: Text(
+              title,
+              style:
+                  (active
+                          ? AppTypography.control
+                          : AppTypography.serverNodeTitle)
+                      .copyWith(
+                        color: active
+                            ? palette.primaryText
+                            : palette.foreground,
+                      ),
+            ),
+            subtitle: Text(
+              detail,
+              style: AppTypography.supporting.copyWith(
+                color: palette.mutedForeground,
+              ),
+            ),
             trailing: active
-                ? Icon(LucideIcons.check, color: palette.primary, size: 20)
-                : null,
+                ? Icon(
+                    LucideIcons.circleCheck,
+                    color: palette.foreground,
+                    size: 18,
+                  )
+                : const SizedBox(width: 18),
             onTap: onTap,
           ),
         ),
@@ -178,7 +215,7 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
           ],
         ];
     final footer = Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final theme = Theme.of(context);
@@ -203,17 +240,22 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
           final stacked =
               labelWidth(l.prototypeServers, manageStyle) + 48 > halfWidth ||
               labelWidth(l.prototypeCancel, cancelStyle) + 48 > halfWidth;
+          final minimumHeight = AppLayout.touchExtent(
+            MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                ? 48
+                : 42,
+            platform: theme.platform,
+          );
           final manage = OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: Size(0, minimumHeight),
+              textStyle: AppTypography.control,
+            ),
             onPressed: () => choose(const ConnectionTargetChoice(manage: true)),
             child: Text(l.prototypeServers),
           );
           final cancel = ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: AppLayout.touchExtent(
-                AppLayout.buttonMinHeight,
-                platform: theme.platform,
-              ),
-            ),
+            constraints: BoxConstraints(minHeight: minimumHeight),
             child: ShadButton.outline(
               expands: true,
               height: 0,
@@ -240,8 +282,10 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
       builder: (context, constraints) {
         final short = constraints.maxHeight < 380;
         return Material(
-          color: palette.card,
-          borderRadius: BorderRadius.circular(20),
+          color: palette.background,
+          borderRadius: BorderRadius.circular(
+            MediaQuery.sizeOf(context).width < 640 ? 0 : 8,
+          ),
           clipBehavior: Clip.antiAlias,
           child: SafeArea(
             top: false,
@@ -249,13 +293,13 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(20, 8, 12, 4),
+                  padding: const EdgeInsetsDirectional.fromSTEB(24, 16, 8, 8),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           l.prototypeServers,
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: AppTypography.dialogTitle,
                         ),
                       ),
                       IconButton(
@@ -272,31 +316,67 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                     slivers: [
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              for (final entry in [
-                                l.serverSelectionAutomaticScope,
-                                l.serverSelectionFixedNode,
-                                l.serverCompleteConfigurationsTab,
-                              ].indexed)
-                                ChoiceChip(
-                                  label: Text(entry.$2),
-                                  selected: tab == entry.$1,
-                                  onSelected: (_) =>
-                                      setState(() => tab = entry.$1),
-                                ),
-                            ],
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: LayoutBuilder(
+                            builder: (context, tabConstraints) => Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                for (final entry in [
+                                  l.serverSelectionAutomaticScope,
+                                  l.serverSelectionFixedNode,
+                                  l.serverCompleteConfigurationsTab,
+                                ].indexed)
+                                  ChoiceChip(
+                                    label: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        minHeight: 36,
+                                        maxWidth: math.max(
+                                          1.0,
+                                          tabConstraints.maxWidth - 24,
+                                        ),
+                                      ),
+                                      child: Align(
+                                        widthFactor: 1,
+                                        heightFactor: 1,
+                                        child: Text(
+                                          entry.$2,
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                    labelStyle: AppTypography.control.copyWith(
+                                      color: palette.foreground,
+                                    ),
+                                    labelPadding: EdgeInsets.zero,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    showCheckmark: false,
+                                    side: BorderSide.none,
+                                    backgroundColor: palette.muted,
+                                    selectedColor: palette.background,
+                                    shape: const RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(4),
+                                      ),
+                                    ),
+                                    selected: tab == entry.$1,
+                                    onSelected: (_) =>
+                                        setState(() => tab = entry.$1),
+                                  ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(24),
                           child: TextField(
                             key: const ValueKey('connection-target-search'),
+                            style: AppTypography.rowValue,
                             decoration: InputDecoration(
                               prefixIcon: const Icon(
                                 LucideIcons.search,
@@ -317,7 +397,7 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                               )))
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
                             child: TextButton(
                               onPressed: () => choose(
                                 const ConnectionTargetChoice(restore: true),
@@ -338,7 +418,7 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                           ),
                         ),
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         sliver: SliverList.builder(
                           itemCount: entries.length,
                           itemBuilder: (context, index) {

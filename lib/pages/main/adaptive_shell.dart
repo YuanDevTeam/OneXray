@@ -409,17 +409,25 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
               ),
             ),
             Expanded(
-              child:
-                  nativeSidebar &&
-                      Directionality.of(context) == TextDirection.ltr
-                  ? MediaQuery.removePadding(
-                      context: context,
-                      removeTop: true,
-                      child: navigationShell,
-                    )
-                  // In RTL the content, not the sidebar, is below the native
-                  // controls on the physical left. Keep its local top inset.
-                  : navigationShell,
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+                decoration: BoxDecoration(
+                  color: palette.background,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child:
+                    nativeSidebar &&
+                        Directionality.of(context) == TextDirection.ltr
+                    ? MediaQuery.removePadding(
+                        context: context,
+                        removeTop: true,
+                        child: navigationShell,
+                      )
+                    // In RTL the content, not the sidebar, is below the native
+                    // controls on the physical left. Keep its local top inset.
+                    : navigationShell,
+              ),
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -9,6 +10,7 @@ import 'package:onexray/l10n/localizations/app_localizations_en.dart';
 import 'package:onexray/pages/connect/target_picker.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/service/settings/language/locale.dart';
@@ -86,6 +88,7 @@ void main() {
         localizationsDelegates: AppLocalePolicy.localizationsDelegates,
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context).copyWith(
+            size: size,
             viewInsets: viewInsets,
             textScaler: TextScaler.linear(textScale),
           ),
@@ -186,6 +189,72 @@ void main() {
     await reveal(tester, input);
     await tester.enterText(input, text);
     await tester.pumpAndSettle();
+  }
+
+  for (final size in const [
+    Size(390, 844),
+    Size(1032, 1376),
+    Size(1160, 720),
+  ]) {
+    testWidgets('target picker uses prototype selection roles at $size', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        ConnectionSettings(selection: const ServerSelection.source(7)),
+        size: size,
+      );
+      final active = tile('Duplicate');
+      final inactive = tile(l.prototypeAutomaticSelection);
+      await reveal(tester, active);
+      final activeTile = tester.widget<ListTile>(active);
+      expect((activeTile.title! as Text).style!.fontSize, 14);
+      expect((activeTile.title! as Text).style!.fontWeight, FontWeight.w600);
+      expect((activeTile.subtitle! as Text).style!.fontSize, 13);
+      expect((activeTile.trailing! as Icon).icon, LucideIcons.circleCheck);
+      expect((activeTile.trailing! as Icon).size, 18);
+      await reveal(tester, inactive);
+      final inactiveTile = tester.widget<ListTile>(inactive);
+      expect((inactiveTile.title! as Text).style!.fontWeight, FontWeight.w500);
+      final surface = tester.widget<Material>(
+        find.ancestor(of: inactive, matching: find.byType(Material)).first,
+      );
+      expect(surface.color, Colors.transparent);
+      expect((surface.shape! as RoundedRectangleBorder).side, BorderSide.none);
+      final pickerSurface = tester.widget<Material>(
+        find
+            .descendant(
+              of: find.byType(ConnectionTargetPicker),
+              matching: find.byType(Material),
+            )
+            .first,
+      );
+      expect(
+        pickerSurface.color,
+        ColorManager.palette(tester.element(inactive)).background,
+      );
+      expect(
+        pickerSurface.borderRadius,
+        BorderRadius.circular(size.width < 640 ? 0 : 8),
+      );
+      for (final chip in tester.widgetList<ChoiceChip>(
+        find.byType(ChoiceChip),
+      )) {
+        expect(chip.labelStyle!.fontSize, 14);
+        expect(chip.labelStyle!.fontWeight, FontWeight.w600);
+      }
+      final firstTab = find.widgetWithText(
+        ChoiceChip,
+        l.serverSelectionAutomaticScope,
+      );
+      await reveal(tester, firstTab);
+      expect(tester.getSize(firstTab).height, greaterThanOrEqualTo(48));
+      await tester.tap(find.widgetWithText(ShadButton, l.prototypeCancel));
+      await tester.pumpAndSettle();
+      expect(choice, isNull);
+      expect(completions, 1);
+      expect(tester.takeException(), isNull);
+    });
   }
 
   testWidgets(

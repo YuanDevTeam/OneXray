@@ -139,7 +139,8 @@ void main() {
           (AppTypography.connectTrafficValue, 15, FontWeight.w600),
           (AppTypography.connectRawTitle, 12, FontWeight.w700),
           (AppTypography.connectRawCount, 12, FontWeight.w600),
-          (AppTypography.dialogTitle, 18, FontWeight.w700),
+          (AppTypography.dialogTitle, 16, FontWeight.w600),
+          (AppTypography.confirmationTitle, 20, FontWeight.w600),
           (AppTypography.dialogSubtitle, 13, FontWeight.w400),
         ]) {
           expect(style.fontSize, size);

@@ -40,11 +40,11 @@ class RuntimeCodeScaffold extends StatelessWidget {
     final horizontal = mobile
         ? AppSpacing.mobilePage
         : AppSpacing.advancedDesktopGutter(width);
-    final top = mobile ? AppSpacing.mobilePage : AppSpacing.desktopPageTop;
+    const top = 20.0;
     final bottom = mobile ? 18.0 : 24.0;
     final pill = Material(
       color: palette.surfaceHover,
-      borderRadius: BorderRadius.circular(AppRadii.pill),
+      borderRadius: BorderRadius.circular(AppRadii.control),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onStatusPressed,
@@ -82,7 +82,10 @@ class RuntimeCodeScaffold extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         minimumSize: Size(
           0,
-          AppLayout.touchExtent(36, platform: Theme.of(context).platform),
+          AppLayout.touchExtent(
+            mobile ? 48 : 42,
+            platform: Theme.of(context).platform,
+          ),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 11),
         textStyle: AppTypography.runtimeCodeAction,
@@ -102,7 +105,7 @@ class RuntimeCodeScaffold extends StatelessWidget {
       ),
     );
     return Scaffold(
-      appBar: PageAppBar(title: Text(title)),
+      appBar: PageAppBar.forPage(context, title: Text(title)),
       body: SafeArea(
         child: ResponsiveContent(
           desktopMaxWidth: AppLayout.advancedMaxWidth,
@@ -143,7 +146,7 @@ class RuntimeCodeScaffold extends StatelessWidget {
                               key: const ValueKey('runtime-code-panel'),
                               clipBehavior: Clip.antiAlias,
                               decoration: BoxDecoration(
-                                color: palette.muted,
+                                color: palette.card,
                                 border: Border.all(color: palette.border),
                                 borderRadius: BorderRadius.circular(
                                   AppRadii.card,

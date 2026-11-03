@@ -29,9 +29,12 @@ class LanProxyPage extends StatelessWidget {
         final palette = ColorManager.palette(context);
         final width = MediaQuery.sizeOf(context).width;
         final mobile = width <= AppLayout.mobileBreakpoint;
-        final gutter = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
+        final gutter = mobile
+            ? AppSpacing.mobilePage
+            : AppSpacing.advancedDesktopGutter(width);
         return PolicyDetailScaffold(
           title: l.lanProxyTitle,
+          description: l.lanProxyNextStartNotice,
           help: [
             l.lanProxyProtocolHint,
             l.lanProxyRawJsonNotice,
@@ -53,22 +56,11 @@ class LanProxyPage extends StatelessWidget {
                         ),
                 )
               : Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    gutter,
-                    mobile ? 16 : 24,
-                    gutter,
-                    24,
-                  ),
+                  padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: 16,
+                    spacing: 20,
                     children: [
-                      Text(
-                        l.lanProxyNextStartNotice,
-                        style: AppTypography.settingsDetailNote.copyWith(
-                          color: palette.mutedForeground,
-                        ),
-                      ),
                       SettingSection(
                         title: l.lanProxyTitle,
                         icon: LucideIcons.network,
@@ -81,14 +73,16 @@ class LanProxyPage extends StatelessWidget {
                             valueTextDirection: TextDirection.ltr,
                           ),
                           Padding(
-                            padding: const EdgeInsets.all(14),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
-                              spacing: 9,
+                              spacing: 8,
                               children: [
                                 Text(
                                   l.lanProxyPort,
-                                  style: AppTypography.settingsInput,
+                                  style: AppTypography.fieldLabel.copyWith(
+                                    color: palette.foreground,
+                                  ),
                                 ),
                                 TextField(
                                   key: const ValueKey('lan-proxy-port'),
@@ -113,7 +107,7 @@ class LanProxyPage extends StatelessWidget {
                       ),
                       Text(
                         l.lanProxySecurityHint,
-                        style: AppTypography.settingsDetailNote.copyWith(
+                        style: AppTypography.supporting.copyWith(
                           color: palette.mutedForeground,
                         ),
                       ),

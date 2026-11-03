@@ -30,14 +30,19 @@ Widget _app(
   Widget child, {
   Locale locale = const Locale('en'),
   bool mobile = true,
+  double textScale = 1,
 }) => MaterialApp(
   theme: AppTheme.material(Brightness.light, mobile: mobile),
   locale: locale,
   localizationsDelegates: AppLocalePolicy.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
-  builder: (context, child) => ShadTheme(
-    data: AppTheme.shad(Brightness.light, mobile: mobile),
-    child: child!,
+  builder: (context, child) => MediaQuery(
+    data: MediaQuery.of(context)
+        .copyWith(textScaler: TextScaler.linear(textScale)),
+    child: ShadTheme(
+      data: AppTheme.shad(Brightness.light, mobile: mobile),
+      child: child!,
+    ),
   ),
   home: child,
 );
@@ -181,60 +186,68 @@ void main() {
     Locale('ru'),
     Locale('fa'),
   ]) {
-    testWidgets(
-      'four-condition form fits phone and preserves input direction ($locale)',
-      (tester) async {
-        _phone(tester);
-        final controller = CustomRoutingRuleController(
-          loadIndex: () async =>
-              const RoutingGeodataIndex(domainFiles: {}, ipFiles: {}),
-        );
-        addTearDown(controller.close);
-        await tester.pumpWidget(
-          _app(
-            Scaffold(
-              body: SingleChildScrollView(
-                padding: const EdgeInsets.all(14),
-                child: CustomRoutingRuleForm(controller: controller),
+    for (final textScale in [1.0, 1.5]) {
+      testWidgets(
+        'four-condition form fits phone and preserves input direction ($locale / $textScale)',
+        (tester) async {
+          _phone(tester);
+          final controller = CustomRoutingRuleController(
+            loadIndex: () async =>
+                const RoutingGeodataIndex(domainFiles: {}, ipFiles: {}),
+          );
+          addTearDown(controller.close);
+          await tester.pumpWidget(
+            _app(
+              Scaffold(
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(14),
+                  child: CustomRoutingRuleForm(controller: controller),
+                ),
               ),
+              locale: locale,
+              textScale: textScale,
             ),
-            locale: locale,
-          ),
-        );
-        await tester.pumpAndSettle();
-        final l = AppLocalizations.of(
-          tester.element(find.byType(CustomRoutingRuleForm)),
-        )!;
-        for (final title in [
-          l.prototypeWebsitesDomains,
-          l.prototypeIpAddressesRanges,
-          l.prototypeTargetPort,
-        ]) {
-          await tester.ensureVisible(find.text(title));
-          await tester.tap(find.text(title));
+          );
           await tester.pumpAndSettle();
-        }
-        for (final value in [
-          controller.domains.single.text,
-          controller.ips.single.text,
-          controller.port,
-        ]) {
-          final editable = find.descendant(
-            of: _input(value),
-            matching: find.byType(EditableText),
-          );
-          expect(
-            Directionality.of(tester.element(editable)),
-            TextDirection.ltr,
-          );
-          expect(tester.widget<EditableText>(editable).style.fontSize, 16);
-        }
-        controller.setAction(RoutingRuleAction.block);
-        await tester.pumpAndSettle();
-        expect(find.text(l.prototypeVpnRuleHint), findsNothing);
-        expect(tester.takeException(), isNull);
-      },
-    );
+          final l = AppLocalizations.of(
+            tester.element(find.byType(CustomRoutingRuleForm)),
+          )!;
+          for (final title in [
+            l.prototypeWebsitesDomains,
+            l.prototypeIpAddressesRanges,
+            l.prototypeTargetPort,
+          ]) {
+            await tester.ensureVisible(find.text(title));
+            await tester.tap(find.text(title));
+            await tester.pumpAndSettle();
+          }
+          for (final value in [
+            controller.domains.single.text,
+            controller.ips.single.text,
+            controller.port,
+          ]) {
+            final editable = find.descendant(
+              of: _input(value),
+              matching: find.byType(EditableText),
+            );
+            expect(
+              Directionality.of(tester.element(editable)),
+              TextDirection.ltr,
+            );
+            final field = tester.widget<EditableText>(editable);
+            expect(field.style.fontSize, 14);
+            final effectiveScaler =
+                field.textScaler ??
+                MediaQuery.textScalerOf(tester.element(editable));
+            expect(effectiveScaler.scale(14), closeTo(14 * textScale, .01));
+          }
+          controller.setAction(RoutingRuleAction.block);
+          await tester.pumpAndSettle();
+          expect(find.text(l.prototypeVpnRuleHint), findsNothing);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
   }
 
   testWidgets(

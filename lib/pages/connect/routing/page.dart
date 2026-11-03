@@ -9,6 +9,7 @@ import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/shared/failure.dart';
@@ -43,7 +44,17 @@ class _RoutingPageState extends State<RoutingPage> {
         final gutter = mobile ? AppSpacing.mobilePage : AppSpacing.page;
         final palette = ColorManager.palette(context);
         return Scaffold(
-          appBar: PageAppBar(title: Text(l.navigationRouting)),
+          appBar: PageAppBar.forPage(
+            context,
+            title: Text(l.navigationRouting),
+            description: l.routingPageDescription,
+            headingAction: ShadButton(
+              enabled: !state.busy && state.profiles.length < 3,
+              onPressed: () => controller.edit(context),
+              leading: const Icon(LucideIcons.plus, size: 18),
+              child: Text(l.prototypeNewCustomRoute),
+            ),
+          ),
           body: SafeArea(
             child: settings == null
                 ? Center(
@@ -75,114 +86,91 @@ class _RoutingPageState extends State<RoutingPage> {
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      spacing: 16,
+                      spacing: 20,
                       children: [
-                        Text(
-                          l.routingPageDescription,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: palette.mutedForeground),
-                        ),
                         if (state.completeConfiguration)
                           ShadAlert(
                             icon: const Icon(LucideIcons.info, size: 18),
                             description: Text(l.routingStoredPreferenceNotice),
                           ),
-                        SettingSection(
-                          title: l.prototypeTrafficMethod,
-                          padding: EdgeInsets.zero,
-                          dividerIndent: 0,
-                          children: [
-                            _choice(
-                              context,
-                              title: l.prototypeSmartRouting,
-                              description: l.prototypeSmartRoutingDescription,
-                              selected:
-                                  settings.trafficMode == TrafficMode.smart,
-                              icon: LucideIcons.sparkles,
-                              useKey: const ValueKey('routing-use-smart'),
-                              onUse: () =>
-                                  controller.select(context, TrafficMode.smart),
-                              onEdit: () => context.pushScoped(
-                                AppPageDestination.smartRouting,
-                              ),
-                            ),
-                            _choice(
-                              context,
-                              title: l.prototypeAllViaVpn,
-                              description: l.prototypeAllViaVpnDescription,
-                              selected:
-                                  settings.trafficMode == TrafficMode.allVpn,
-                              icon: LucideIcons.shield,
-                              useKey: const ValueKey('routing-use-all'),
-                              onUse: () => controller.select(
-                                context,
-                                TrafficMode.allVpn,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SettingSection(
-                          title: l.prototypeCustomRouting,
-                          description: l.prototypeCustomRouteLimit,
-                          action: ShadButton.outline(
-                            size: ShadButtonSize.sm,
-                            enabled: !state.busy && state.profiles.length < 3,
-                            onPressed: () => controller.edit(context),
-                            leading: const Icon(LucideIcons.plus, size: 16),
-                            child: Text(l.prototypeNewCustomRoute),
+                        _choice(
+                          context,
+                          title: l.prototypeSmartRouting,
+                          description: l.prototypeSmartRoutingDescription,
+                          selected: settings.trafficMode == TrafficMode.smart,
+                          icon: LucideIcons.route,
+                          useKey: const ValueKey('routing-use-smart'),
+                          onUse: () =>
+                              controller.select(context, TrafficMode.smart),
+                          onEdit: () => context.pushScoped(
+                            AppPageDestination.smartRouting,
                           ),
-                          padding: EdgeInsets.zero,
-                          dividerIndent: 0,
-                          children: [
-                            for (final row in state.profiles)
-                              _choice(
-                                context,
-                                key: ValueKey('routing-profile-${row.id}'),
-                                title: row.name,
-                                description:
-                                    state.profileErrors.containsKey(row.id)
-                                    ? l.prototypeTemporarilyUnavailable
-                                    : row.advanced
-                                    ? l.routingAdvancedJson
-                                    : '${l.routingNormalConfiguration} · ${l.prototypeRuleCount(controller.configurationFor(row)?.ruleCount ?? 0)}',
-                                canUse: controller.canUseProfile(row.id),
-                                useKey: ValueKey(
-                                  'routing-use-profile-${row.id}',
-                                ),
-                                diagnostic: state.profileErrors[row.id] == null
-                                    ? null
-                                    : appFailureMessage(
-                                        l,
-                                        state.profileErrors[row.id],
-                                      ),
-                                selected:
-                                    settings.trafficMode ==
-                                        TrafficMode.custom &&
-                                    settings.customId == row.id,
-                                icon: row.advanced
-                                    ? LucideIcons.fileJson
-                                    : LucideIcons.listOrdered,
-                                onUse: () => controller.select(
-                                  context,
-                                  TrafficMode.custom,
-                                  id: row.id,
-                                ),
-                                onEdit: () => controller.edit(context, row),
-                                onDelete: () => controller.delete(context, row),
-                              ),
-                            if (state.profiles.isEmpty)
-                              Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Text(
-                                  l.prototypeCustomRoutingDescription,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: palette.mutedForeground,
-                                      ),
-                                ),
-                              ),
-                          ],
                         ),
+                        _choice(
+                          context,
+                          title: l.prototypeAllViaVpn,
+                          description: l.prototypeAllViaVpnDescription,
+                          selected: settings.trafficMode == TrafficMode.allVpn,
+                          icon: LucideIcons.shield,
+                          useKey: const ValueKey('routing-use-all'),
+                          onUse: () =>
+                              controller.select(context, TrafficMode.allVpn),
+                        ),
+                        Text(
+                          l.prototypeCustomRouting,
+                          style: AppTypography.sectionTitle,
+                        ),
+                        Text(
+                          l.prototypeCustomRouteLimit,
+                          style: AppTypography.supporting.copyWith(
+                            color: palette.mutedForeground,
+                          ),
+                        ),
+                        for (final row in state.profiles)
+                          _choice(
+                            context,
+                            key: ValueKey('routing-profile-${row.id}'),
+                            title: row.name,
+                            description: state.profileErrors.containsKey(row.id)
+                                ? l.prototypeTemporarilyUnavailable
+                                : row.advanced
+                                ? l.routingAdvancedJson
+                                : '${l.routingNormalConfiguration} · ${l.prototypeRuleCount(controller.configurationFor(row)?.ruleCount ?? 0)}',
+                            canUse: controller.canUseProfile(row.id),
+                            useKey: ValueKey('routing-use-profile-${row.id}'),
+                            diagnostic: state.profileErrors[row.id] == null
+                                ? null
+                                : appFailureMessage(
+                                    l,
+                                    state.profileErrors[row.id],
+                                  ),
+                            selected:
+                                settings.trafficMode == TrafficMode.custom &&
+                                settings.customId == row.id,
+                            icon: row.advanced
+                                ? LucideIcons.fileJson
+                                : LucideIcons.listOrdered,
+                            onUse: () => controller.select(
+                              context,
+                              TrafficMode.custom,
+                              id: row.id,
+                            ),
+                            onEdit: () => controller.edit(context, row),
+                            onDelete: () => controller.delete(context, row),
+                          ),
+                        if (state.profiles.isEmpty)
+                          SettingSection(
+                            title: l.prototypeNoCustomRoutes,
+                            padding: EdgeInsets.zero,
+                            children: [
+                              Text(
+                                l.prototypeCustomRoutingDescription,
+                                style: AppTypography.supporting.copyWith(
+                                  color: palette.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
                         SettingSection(
                           title: l.prototypeRoutingData,
                           padding: EdgeInsets.zero,
@@ -247,9 +235,17 @@ class _RoutingPageState extends State<RoutingPage> {
     return Semantics(
       key: key,
       selected: selected,
-      child: Container(
-        color: selected ? palette.selectedSurface : null,
-        padding: const EdgeInsets.all(16),
+      child: ShadCard(
+        width: double.infinity,
+        radius: BorderRadius.circular(AppRadii.card),
+        shadows: const [],
+        backgroundColor: selected ? palette.selectedSurface : palette.card,
+        border: ShadBorder.all(
+          color: selected
+              ? palette.primary.withValues(alpha: .2)
+              : palette.border,
+        ),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: 12,
@@ -270,25 +266,35 @@ class _RoutingPageState extends State<RoutingPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     spacing: 4,
                     children: [
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
+                      Text(title, style: AppTypography.sectionTitle),
                       Text(
                         description,
-                        style: Theme.of(context).textTheme.bodyMedium
-                            ?.copyWith(color: palette.mutedForeground),
+                        style: AppTypography.supporting.copyWith(
+                          color: palette.mutedForeground,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 if (selected)
-                  Padding(
-                    padding: const EdgeInsetsDirectional.only(start: 8),
-                    child: Icon(
-                      LucideIcons.circleCheck,
-                      size: 20,
-                      color: palette.primary,
+                  Flexible(
+                    child: Container(
+                      key: useKey,
+                      margin: const EdgeInsetsDirectional.only(start: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.selectedSurface,
+                        borderRadius: BorderRadius.circular(AppRadii.control),
+                      ),
+                      child: Text(
+                        l.prototypeCurrentSelection,
+                        style: AppTypography.badge.copyWith(
+                          color: palette.primaryText,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -306,15 +312,14 @@ class _RoutingPageState extends State<RoutingPage> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                ShadButton(
-                  key: useKey,
-                  size: ShadButtonSize.sm,
-                  enabled: !controller.state.busy && !selected && canUse,
-                  onPressed: onUse,
-                  child: Text(
-                    selected ? l.prototypeCurrentSelection : l.prototypeUse,
+                if (!selected)
+                  ShadButton.outline(
+                    key: useKey,
+                    size: ShadButtonSize.sm,
+                    enabled: !controller.state.busy && canUse,
+                    onPressed: onUse,
+                    child: Text(l.prototypeUse),
                   ),
-                ),
                 if (onEdit != null)
                   ShadButton.outline(
                     size: ShadButtonSize.sm,
@@ -323,7 +328,7 @@ class _RoutingPageState extends State<RoutingPage> {
                     child: Text(l.prototypeEdit),
                   ),
                 if (onDelete != null)
-                  ShadButton.ghost(
+                  ShadButton.outline(
                     size: ShadButtonSize.sm,
                     enabled: !controller.state.busy,
                     onPressed: onDelete,

@@ -150,7 +150,9 @@ class SettingsController extends PageCubit<SettingsPageState> {
     AppPageDestination destination,
   ) async {
     await context.pushScoped(destination);
-    if (isPageActive && destination == AppPageDestination.appIcon) {
+    if (isPageActive &&
+        (destination == AppPageDestination.appIcon ||
+            destination == AppPageDestination.desktopSettings)) {
       await _readPreferences();
     }
   }

@@ -100,8 +100,11 @@ void main() {
     await tester.pumpAndSettle().timeout(_waitTimeout);
   }
 
-  ShadButton useButton(WidgetTester tester, String key) =>
-      tester.widget<ShadButton>(find.byKey(ValueKey(key)));
+  bool useEnabled(WidgetTester tester, String key) {
+    final widget = tester.widget(find.byKey(ValueKey(key)));
+    // Selected routes have a status badge instead of a disabled action.
+    return widget is ShadButton && widget.enabled;
+  }
 
   testWidgets(
     'broken and readable routes coexist while Smart and All remain usable',
@@ -121,12 +124,9 @@ void main() {
       expect(controller!.configurationFor(originalGood), isNotNull);
       expect(find.text('Good route'), findsOneWidget);
       expect(find.text('Broken route'), findsOneWidget);
-      expect(
-        useButton(tester, 'routing-use-profile-$brokenId').enabled,
-        isFalse,
-      );
-      expect(useButton(tester, 'routing-use-profile-$goodId').enabled, isTrue);
-      expect(useButton(tester, 'routing-use-smart').enabled, isTrue);
+      expect(useEnabled(tester, 'routing-use-profile-$brokenId'), isFalse);
+      expect(useEnabled(tester, 'routing-use-profile-$goodId'), isTrue);
+      expect(useEnabled(tester, 'routing-use-smart'), isTrue);
       final l = AppLocalizations.of(tester.element(find.byType(RoutingPage)))!;
       final broken = find.byKey(ValueKey('routing-profile-$brokenId'));
       expect(
@@ -159,7 +159,7 @@ void main() {
         ))!.connection.trafficMode,
         TrafficMode.smart,
       );
-      expect(useButton(tester, 'routing-use-all').enabled, isTrue);
+      expect(useEnabled(tester, 'routing-use-all'), isTrue);
       await tester.runAsync(() async {
         await tester.tap(find.byKey(const ValueKey('routing-use-all')));
         await waitFor(
@@ -200,14 +200,14 @@ void main() {
       await tester.pumpAndSettle().timeout(_waitTimeout);
       expect(controller!.state.failed, isFalse);
       expect(controller!.state.profiles, hasLength(2));
-      expect(useButton(tester, 'routing-use-profile-$goodId').enabled, isFalse);
-      expect(useButton(tester, 'routing-use-smart').enabled, isTrue);
+      expect(useEnabled(tester, 'routing-use-profile-$goodId'), isFalse);
+      expect(useEnabled(tester, 'routing-use-smart'), isTrue);
       await tester.runAsync(() async {
         await db.routingProfileDao.updateRow(originalGood);
         await waitFor((s) => !s.profileErrors.containsKey(goodId));
       });
       await tester.pumpAndSettle().timeout(_waitTimeout);
-      expect(useButton(tester, 'routing-use-profile-$goodId').enabled, isTrue);
+      expect(useEnabled(tester, 'routing-use-profile-$goodId'), isTrue);
       expect(controller!.state.profileErrors.keys, [brokenId]);
       expect(tester.takeException(), isNull);
     },
@@ -238,7 +238,7 @@ void main() {
     });
     await tester.pumpAndSettle().timeout(_waitTimeout);
     expect(find.text('Good route'), findsOneWidget);
-    expect(useButton(tester, 'routing-use-smart').enabled, isTrue);
+    expect(useEnabled(tester, 'routing-use-smart'), isTrue);
     expect(tester.takeException(), isNull);
   });
 
@@ -310,7 +310,7 @@ void main() {
     });
     await pumpPage(tester);
     final context = tester.element(find.byType(RoutingPage));
-    expect(useButton(tester, 'routing-use-smart').enabled, isTrue);
+    expect(useEnabled(tester, 'routing-use-smart'), isTrue);
     await tester.runAsync(() async {
       try {
         await controller!

@@ -5,6 +5,7 @@ import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/xray/log/page.dart';
+import 'package:onexray/pages/advanced/xray/log/settings.dart';
 import 'package:onexray/pages/advanced/xray/log/params.dart';
 import 'package:onexray/pages/advanced/xray/config/page.dart';
 import 'package:onexray/pages/advanced/xray/config/params.dart';
@@ -15,6 +16,7 @@ import 'package:onexray/pages/advanced/local_api/page.dart';
 import 'package:onexray/pages/settings/about/page.dart';
 import 'package:onexray/pages/settings/backup/page.dart';
 import 'package:onexray/pages/advanced/tunnel/apple/page.dart';
+import 'package:onexray/pages/advanced/tunnel/details.dart';
 import 'package:onexray/pages/advanced/tunnel/apple/wifi.dart';
 import 'package:onexray/pages/advanced/tunnel/android/page.dart';
 import 'package:onexray/pages/advanced/tunnel/android/automation/page.dart';
@@ -22,6 +24,7 @@ import 'package:onexray/pages/advanced/tunnel/android/apps.dart';
 import 'package:onexray/pages/advanced/tunnel/windows/page.dart';
 import 'package:onexray/pages/advanced/tunnel/interface/page.dart';
 import 'package:onexray/pages/advanced/xray/geodata/page.dart';
+import 'package:onexray/pages/advanced/xray/geodata/add.dart';
 import 'package:onexray/pages/advanced/xray/geodata/detail.dart';
 import 'package:onexray/service/advanced/policy_editor.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
@@ -265,11 +268,32 @@ final _pageRoutes = <_PageRoute>[
     ),
   ),
   _route(AppPageDestination.localApi, (_, _) => const LocalApiPage()),
+  _route(
+    AppPageDestination.xrayLogs,
+    (_, _) => XrayLogSettingsPage(
+      onLog: (context, params) =>
+          context.pushScoped(AppPageDestination.logFile, extra: params),
+    ),
+  ),
   _route(AppPageDestination.lanProxy, (_, _) => const LanProxyPage()),
   _route(AppPageDestination.serverDialing, (_, _) => const ServerDialingPage()),
   _route(
     AppPageDestination.androidAutomation,
     (_, _) => const AndroidAutomationPage(),
+  ),
+  _route(
+    AppPageDestination.tunnelDns,
+    (_, state) => _withExtra<PolicyEditorDraft>(
+      state,
+      (draft) => TunnelDnsPage(draft: draft),
+    ),
+  ),
+  _route(
+    AppPageDestination.tunnelNetwork,
+    (_, state) => _withExtra<PolicyEditorDraft>(
+      state,
+      (draft) => TunnelNetworkPage(draft: draft),
+    ),
   ),
   _route(
     AppPageDestination.appleVpn,
@@ -340,8 +364,11 @@ final _pageRoutes = <_PageRoute>[
     (_, _) => GeoDataPage(
       openFile: (context, id) =>
           context.pushScoped(AppPageDestination.routingDataFile, extra: id),
+      openAdd: (context) =>
+          context.pushScoped<bool>(AppPageDestination.routingDataAdd),
     ),
   ),
+  _route(AppPageDestination.routingDataAdd, (_, _) => const GeoDataAddPage()),
   _route(
     AppPageDestination.routingDataFile,
     (_, state) => _withExtra<int>(state, (id) => GeoDataFilePage(fileId: id)),
@@ -494,7 +521,8 @@ class _InvalidRoutePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PageAppBar(
+      appBar: PageAppBar.forPage(
+        context,
         title: Text(
           AppLocalizations.of(context)!.prototypeTemporarilyUnavailable,
         ),
@@ -555,7 +583,7 @@ class _LogRouteGateState extends State<_LogRouteGate> {
       }
       final l = AppLocalizations.of(context)!;
       return Scaffold(
-        appBar: PageAppBar(title: Text(l.prototypeLogs)),
+        appBar: PageAppBar.forPage(context, title: Text(l.prototypeLogs)),
         body: SafeArea(
           child: Center(
             child: snapshot.connectionState != ConnectionState.done

@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/theme/font.dart';
+import 'package:onexray/pages/theme/color.dart';
 
 /// Keeps editing resources local while the owning page Cubit owns the value.
 class DnsTextField extends StatefulWidget {
@@ -46,25 +47,40 @@ class _DnsTextFieldState extends State<DnsTextField> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     spacing: 8,
     children: [
-      TextField(
-        controller: controller,
-        focusNode: widget.focusNode,
-        onChanged: widget.onChanged,
-        enabled: widget.enabled,
-        textDirection: TextDirection.ltr,
-        textAlign: TextAlign.left,
-        keyboardType: TextInputType.url,
-        autocorrect: false,
-        enableSuggestions: false,
-        style: AppTypography.settingsInput,
-        decoration: InputDecoration(
-          labelText: widget.label,
-          errorText: widget.errorText,
-          errorMaxLines: 3,
+      Text(
+        widget.label,
+        style: AppTypography.fieldLabel.copyWith(
+          color: widget.enabled
+              ? ColorManager.primaryText(context)
+              : Theme.of(context).disabledColor,
+        ),
+      ),
+      Semantics(
+        label: widget.label,
+        child: TextField(
+          controller: controller,
+          focusNode: widget.focusNode,
+          onChanged: widget.onChanged,
+          enabled: widget.enabled,
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.left,
+          keyboardType: TextInputType.url,
+          autocorrect: false,
+          enableSuggestions: false,
+          style: AppTypography.settingsInput,
+          decoration: InputDecoration(
+            errorText: widget.errorText,
+            errorMaxLines: 3,
+          ),
         ),
       ),
       if (widget.hint != null)
-        Text(widget.hint!, style: Theme.of(context).textTheme.bodySmall),
+        Text(
+          widget.hint!,
+          style: AppTypography.supporting.copyWith(
+            color: ColorManager.secondaryText(context),
+          ),
+        ),
     ],
   );
 }

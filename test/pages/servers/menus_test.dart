@@ -104,7 +104,7 @@ void main() {
     Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
     Locale('fa'),
   ]) {
-    testWidgets('$locale menu fits and paints the bottom safe area', (
+    testWidgets('$locale menu is centered within the safe area', (
       tester,
     ) async {
       await _pumpMenu(tester, locale: locale);
@@ -119,15 +119,27 @@ void main() {
       final bounds = tester.getRect(surface);
       expect(MediaQuery.sizeOf(tester.element(menu)), _size);
       expect(bounds.width, _size.width);
-      expect(bounds.bottom, _size.height);
-      expect(tester.widget<Material>(surface).color, AppPalette.light.card);
+      final usableHeight = _size.height - _bottomInset;
+      expect(bounds.center.dx, closeTo(_size.width / 2, .01));
+      expect(bounds.center.dy, closeTo(usableHeight / 2, .01));
+      expect(bounds.top, greaterThanOrEqualTo(0));
+      expect(bounds.bottom, lessThanOrEqualTo(usableHeight));
+      expect(
+        tester.widget<Material>(surface).color,
+        AppPalette.light.background,
+      );
       final lastRow = find
           .ancestor(
             of: find.text(l.prototypeDelete),
             matching: find.byType(InkWell),
           )
           .first;
-      expect(tester.getRect(lastRow).bottom, _size.height - _bottomInset);
+      expect(tester.getRect(lastRow).bottom, closeTo(bounds.bottom - 24, .01));
+      expect(lastRow.hitTestable(), findsOneWidget);
+      expect(
+        find.byTooltip(l.prototypeCloseDialog).hitTestable(),
+        findsOneWidget,
+      );
       expect(
         Directionality.of(tester.element(menu)),
         locale.languageCode == 'fa' ? TextDirection.rtl : TextDirection.ltr,
@@ -140,10 +152,7 @@ void main() {
         expect(textBounds.left, greaterThanOrEqualTo(bounds.left));
         expect(textBounds.right, lessThanOrEqualTo(bounds.right));
         expect(textBounds.top, greaterThanOrEqualTo(bounds.top));
-        expect(
-          textBounds.bottom,
-          lessThanOrEqualTo(_size.height - _bottomInset),
-        );
+        expect(textBounds.bottom, lessThanOrEqualTo(bounds.bottom));
       }
       expect(tester.takeException(), isNull);
     });

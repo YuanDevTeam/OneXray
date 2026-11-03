@@ -18,7 +18,7 @@ void main() {
     localizationsDelegates: AppLocalePolicy.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
     builder: (context, child) => ShadTheme(
-      data: ShadThemeData(colorScheme: const ShadBlueColorScheme.light()),
+      data: AppTheme.shad(Brightness.light, mobile: true),
       child: child ?? const SizedBox.shrink(),
     ),
     home: Scaffold(body: child),
@@ -43,69 +43,73 @@ void main() {
     Locale('ru'),
     Locale('fa'),
   ]) {
-    testWidgets(
-      'settings language and icon choices fit ${locale.toLanguageTag()}',
-      (tester) async {
-        tester.view.physicalSize = const Size(390, 844);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        LanguageCode? language;
-        await tester.pumpWidget(
-          app(
-            locale,
-            LanguageChoiceView(
-              selected: LanguageCode.zh,
-              onSelected: (value) => language = value,
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        for (final label in ['简体中文', '繁體中文', 'English', 'Русский', 'فارسی']) {
-          expect(find.text(label), findsWidgets);
-        }
-        await tester.tap(find.text('فارسی').first);
-        expect(language, LanguageCode.fa);
-        expect(tester.takeException(), isNull);
-
-        AppIcon? icon;
-        await tester.pumpWidget(
-          app(
-            locale,
-            Builder(
-              builder: (context) => AppIconChoiceView(
-                selected: AppIcon.primary,
-                useDockIconAssets: false,
-                description: AppLocalizations.of(context)!
-                    .prototypeHomeScreenIconHint,
-                onSelected: (value) => icon = value,
+    for (final size in const [
+      Size(390, 844),
+      Size(1032, 1376),
+      Size(1160, 720),
+    ]) {
+      testWidgets(
+        'settings language and icon choices fit ${locale.toLanguageTag()} at $size',
+        (tester) async {
+          tester.view.physicalSize = size;
+          tester.view.devicePixelRatio = 1;
+          addTearDown(tester.view.resetPhysicalSize);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          LanguageCode? language;
+          await tester.pumpWidget(
+            app(
+              locale,
+              LanguageChoiceView(
+                selected: LanguageCode.zh,
+                onSelected: (value) => language = value,
               ),
             ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        final l10n = AppLocalizations.of(
-          tester.element(find.byType(AppIconChoiceView)),
-        )!;
-        expect(find.text(l10n.prototypeHomeScreenPreview), findsOneWidget);
-        for (final option in AppIcon.values) {
-          expect(find.text(appIconLabel(l10n, option)), findsOneWidget);
-        }
-        final icons = find.byType(Image);
-        expect(tester.getSize(icons.first), const Size(100, 100));
-        expect(tester.getSize(icons.at(1)), const Size(62, 62));
-        expect(
-          tester.getTopLeft(icons.at(1)).dy,
-          tester.getTopLeft(icons.at(3)).dy,
-        );
-        expect(
-          tester.getTopLeft(icons.at(4)).dy,
-          greaterThan(tester.getTopLeft(icons.at(1)).dy),
-        );
-        await tester.tap(find.text(l10n.prototypeIconBlack));
-        expect(icon, AppIcon.black);
-        expect(tester.takeException(), isNull);
-      },
-    );
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.byType(ShadSelect<LanguageCode>));
+          await tester.pumpAndSettle();
+          for (final label in ['简体中文', '繁體中文', 'English', 'Русский', 'فارسی']) {
+            expect(find.text(label), findsWidgets);
+          }
+          await tester.tap(find.text('فارسی').last);
+          await tester.pumpAndSettle();
+          expect(language, LanguageCode.fa);
+          expect(tester.takeException(), isNull);
+
+          AppIcon? icon;
+          await tester.pumpWidget(
+            app(
+              locale,
+              Builder(
+                builder: (context) => AppIconChoiceView(
+                  selected: AppIcon.primary,
+                  useDockIconAssets: false,
+                  description: AppLocalizations.of(context)!
+                      .prototypeHomeScreenIconHint,
+                  onSelected: (value) => icon = value,
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          final l10n = AppLocalizations.of(
+            tester.element(find.byType(AppIconChoiceView)),
+          )!;
+          expect(find.text(l10n.settingsHomeScreenIcon), findsOneWidget);
+          final icons = find.byType(Image);
+          expect(icons, findsOneWidget);
+          expect(tester.getSize(icons.first), const Size(96, 96));
+          await tester.tap(find.byType(ShadSelect<AppIcon>));
+          await tester.pumpAndSettle();
+          for (final option in AppIcon.values) {
+            expect(find.text(appIconLabel(l10n, option)), findsWidgets);
+          }
+          await tester.tap(find.text(l10n.prototypeIconBlack).last);
+          await tester.pumpAndSettle();
+          expect(icon, AppIcon.black);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
   }
 }

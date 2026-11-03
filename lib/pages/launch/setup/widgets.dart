@@ -200,13 +200,11 @@ class SetupActionButton extends StatelessWidget {
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final palette = ColorManager.palette(context);
     final style = ButtonStyle(
-      minimumSize: WidgetStatePropertyAll(Size(0, mobile ? 46 : 44)),
+      minimumSize: WidgetStatePropertyAll(Size(0, mobile ? 48 : 42)),
       padding: const WidgetStatePropertyAll(
         EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
-      textStyle: WidgetStatePropertyAll(
-        mobile ? AppTypography.setupAction : AppTypography.setupDesktopAction,
-      ),
+      textStyle: WidgetStatePropertyAll(AppTypography.control),
       backgroundColor: outline
           ? null
           : WidgetStateProperty.resolveWith(

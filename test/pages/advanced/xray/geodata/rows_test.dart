@@ -124,6 +124,7 @@ void main() {
 
   for (final (locale, width) in const [
     (Locale('en'), 1160.0),
+    (Locale('en'), 1032.0),
     (Locale('zh'), 390.0),
     (Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'), 390.0),
     (Locale('ru'), 1160.0),
@@ -250,24 +251,12 @@ void main() {
             ),
             file.builtIn ? findsNothing : findsOneWidget,
           );
-          if (width > 720) {
-            expect(
-              find.descendant(
-                of: group,
-                matching: find.text(l.prototypeAction),
-              ),
-              file.builtIn ? findsNothing : findsOneWidget,
-            );
-            expect(
-              find.descendant(
-                of: group,
-                matching: find.text(l.prototypeFileName),
-              ),
-              findsOneWidget,
-            );
-          }
           await tester.tap(find.text(file.fileName));
         }
+        expect(
+          tester.getRect(find.text(custom.fileName)).top,
+          greaterThan(tester.getRect(find.text(builtIn.fileName)).bottom),
+        );
         await tester.tap(find.text(l.prototypeUpdate));
         await tester.tap(find.byTooltip(l.prototypeDeleteCustomDataset));
         expect(actions, [

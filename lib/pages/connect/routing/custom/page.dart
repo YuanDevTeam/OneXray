@@ -70,7 +70,8 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         final name = state.name.trim();
         return Scaffold(
-          appBar: PageAppBar(
+          appBar: PageAppBar.forPage(
+            context,
             title: Text(name.isEmpty ? l.prototypeCustomRouting : name),
             leading: BackButton(onPressed: () => controller.cancel(context)),
             actions: [
@@ -88,9 +89,9 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                       absorbing: state.editingBlocked,
                       child: SingleChildScrollView(
                         padding: EdgeInsets.fromLTRB(
-                          mobile ? 14 : 28,
-                          mobile ? 12 : AppSpacing.desktopPageTop,
-                          mobile ? 14 : 28,
+                          mobile ? 16 : 28,
+                          16,
+                          mobile ? 16 : 28,
                           mobile ? 18 : AppSpacing.desktopPageBottom,
                         ),
                         child: ResponsiveContent(
@@ -343,7 +344,7 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
       maxLength: 32,
       constraints: const BoxConstraints(minHeight: 40),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      style: AppTypography.routeIdentityLabel,
+      style: AppTypography.rowValue,
       decoration: error == null
           ? null
           : ShadDecoration(
@@ -365,9 +366,7 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
       label: Text(l.prototypeDeleteRoute),
     );
     return RoutingCard(
-      padding: mobile
-          ? const EdgeInsets.all(12)
-          : const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 10,
@@ -380,8 +379,8 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
               Expanded(
                 child: Text(
                   l.prototypeRouteName,
-                  style: AppTypography.routeIdentityLabel.copyWith(
-                    color: palette.mutedStrong,
+                  style: AppTypography.fieldLabel.copyWith(
+                    color: palette.foreground,
                   ),
                 ),
               ),

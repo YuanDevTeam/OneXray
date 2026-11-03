@@ -8,7 +8,6 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
-import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/connect/runtime_observatory.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/failure.dart';
@@ -83,20 +82,28 @@ class ConnectView extends StatelessWidget {
       String label,
       String value,
       String? detail,
-      VoidCallback? action,
-    ) => Semantics(
+      VoidCallback? action, {
+      bool selected = false,
+    }) => Semantics(
+      selected: selected,
       button: action != null,
       child: InkWell(
         onTap: action,
         borderRadius: BorderRadius.circular(AppRadii.control),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+          decoration: BoxDecoration(
+            color: selected ? palette.selectedSurface : null,
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            border: selected ? Border.all(color: palette.border) : null,
+          ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Icon(icon, size: 19, color: palette.mutedStrong),
+              Icon(
+                icon,
+                size: 20,
+                color: selected ? palette.primaryText : palette.mutedStrong,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -104,33 +111,31 @@ class ConnectView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      label,
-                      style: AppTypography.supporting.copyWith(
-                        color: palette.mutedStrong,
+                      value,
+                      style: AppTypography.rowTitle.copyWith(
+                        color: selected
+                            ? palette.primaryText
+                            : palette.foreground,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(value, style: AppTypography.rowTitle),
-                    if (detail != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        detail,
-                        style: AppTypography.supporting.copyWith(
-                          color: palette.mutedStrong,
-                        ),
+                    Text(
+                      [
+                        if (label != value) label,
+                        if (detail != null && detail.isNotEmpty) detail,
+                      ].join(' · '),
+                      style: AppTypography.supporting.copyWith(
+                        color: palette.mutedForeground,
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
               if (action != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Icon(
-                    LucideIcons.chevronRightDir,
-                    size: 18,
-                    color: palette.mutedForeground,
-                  ),
+                Icon(
+                  LucideIcons.chevronRightDir,
+                  size: 18,
+                  color: palette.mutedForeground,
                 ),
             ],
           ),
@@ -151,7 +156,7 @@ class ConnectView extends StatelessWidget {
     }
     return SingleChildScrollView(
       key: const ValueKey('connection-single-column'),
-      padding: EdgeInsets.fromLTRB(mobile ? 16 : 28, 12, mobile ? 16 : 28, 28),
+      padding: EdgeInsets.fromLTRB(mobile ? 16 : 28, 16, mobile ? 16 : 28, 28),
       child: ResponsiveContent(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -168,16 +173,16 @@ class ConnectView extends StatelessWidget {
                   ),
                 ),
               ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(l.connectionPlan, style: AppTypography.panelTitle),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 14),
                     choice(
                       expert || !methodEnabled
                           ? LucideIcons.fileJson
@@ -189,7 +194,9 @@ class ConnectView extends StatelessWidget {
                       expert ? (raw?.name ?? l.prototypeNotSelected) : location,
                       locationDetail,
                       _busy || pendingChange != null ? null : onServer,
+                      selected: true,
                     ),
+                    const SizedBox(height: 8),
                     choice(
                       LucideIcons.route,
                       l.navigationRouting,
@@ -205,7 +212,7 @@ class ConnectView extends StatelessWidget {
                 (runningPath != null ||
                     view.runtime?.profile != null ||
                     view.runtime?.configuration.connection.expert == true)) ...[
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               Card(
                 margin: EdgeInsets.zero,
                 child: Padding(
@@ -243,7 +250,7 @@ class ConnectView extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Card(
               margin: EdgeInsets.zero,
               child: Padding(
@@ -267,7 +274,7 @@ class ConnectView extends StatelessWidget {
     );
   }
 
-  Widget _status(BuildContext context, {bool desktop = false}) {
+  Widget _status(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final connected = view.phase == ConnectionPhase.connected;
     final canDisconnect = view.canDisconnect;
@@ -309,10 +316,10 @@ class ConnectView extends StatelessWidget {
     final color = failed
         ? palette.destructive
         : connected
-        ? palette.running
+        ? palette.runningText
         : _busy
-        ? palette.primary
-        : palette.mutedStrong;
+        ? palette.primaryText
+        : palette.secondaryForeground;
     final waitingForPhase = _connectionPending && !view.busy;
     final button = FilledButton(
       onPressed:
@@ -320,152 +327,132 @@ class ConnectView extends StatelessWidget {
               (pendingChange != null && !view.busy)
           ? null
           : onConnection,
-      style: desktop
-          ? AppTheme.connectionButton(
-              context,
-              destructive: canDisconnect,
-            ).copyWith(
-              minimumSize: const WidgetStatePropertyAll(
-                Size(
-                  AppLayout.connectDesktopButtonWidth,
-                  AppLayout.connectDesktopButtonMinHeight,
-                ),
-              ),
-              textStyle: WidgetStatePropertyAll(
-                AppTypography.connectDesktopAction,
-              ),
-            )
-          : AppTheme.connectionButton(context, destructive: canDisconnect),
-      child: ButtonProgress(
-        busy: desktop && _busy,
-        child: Text(
-          waitingForPhase
-              ? l.prototypePleaseWait
-              : canDisconnect
-              ? l.prototypeDisconnect
-              : view.phase == ConnectionPhase.disconnecting
-              ? l.prototypePleaseWait
-              : view.busy
-              ? l.prototypeCancel
-              : failed
-              ? l.prototypeTryAgain
-              : l.prototypeConnect,
-        ),
+      style: AppTheme.connectionButton(context, destructive: canDisconnect),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(_busy ? LucideIcons.x : LucideIcons.power, size: 18),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              waitingForPhase
+                  ? l.prototypePleaseWait
+                  : canDisconnect
+                  ? l.prototypeDisconnect
+                  : view.phase == ConnectionPhase.disconnecting
+                  ? l.prototypePleaseWait
+                  : view.busy
+                  ? l.prototypeCancel
+                  : failed
+                  ? l.prototypeTryAgain
+                  : l.prototypeConnect,
+            ),
+          ),
+        ],
       ),
     );
-    final content = ConstrainedBox(
-      constraints: BoxConstraints(
-        minHeight: desktop
-            ? AppLayout.connectDesktopStatusMinHeight
-            : AppLayout.connectStatusMinHeight,
-      ),
-      child: Padding(
-        padding: desktop
-            ? const EdgeInsets.fromLTRB(20, 66, 20, 39)
-            : const EdgeInsets.fromLTRB(15, 25, 15, 17),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    final label = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (_busy)
-                  SizedBox.square(
-                    dimension: desktop ? 29 : 24,
-                    child: MediaQuery.disableAnimationsOf(context)
-                        ? Icon(
-                            LucideIcons.loaderCircle,
-                            color: color,
-                            size: desktop ? 29 : 24,
-                          )
-                        : CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: color,
-                          ),
-                  )
-                else if (connected)
-                  Container(
-                    width: desktop ? 29 : 24,
-                    height: desktop ? 29 : 24,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      LucideIcons.check,
-                      size: desktop ? 19 : 14,
-                      color: palette.primaryForeground,
-                    ),
-                  )
-                else
-                  Icon(
-                    failed ? LucideIcons.circleAlert : LucideIcons.shield,
-                    color: color,
-                    size: desktop ? 29 : 24,
-                  ),
-                SizedBox(width: desktop ? 12 : 10),
-                Flexible(
-                  child: Text(
-                    title,
-                    style:
-                        (desktop
-                                ? AppTypography.connectDesktopStatusTitle
-                                : AppTypography.connectStatusTitle)
-                            .copyWith(color: color),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: desktop ? 16 : 8),
-            Text(
-              detail,
-              textAlign: TextAlign.center,
-              style:
-                  (desktop
-                          ? AppTypography.connectDesktopStatusDetail
-                          : AppTypography.connectStatusDetail)
-                      .copyWith(color: palette.mutedStrong),
-            ),
-            if (view.issue == 'selectionReset')
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    l.prototypeNameActive(l.prototypeAutomaticSelection),
-                    textAlign: TextAlign.center,
-                    style: AppTypography.metadata,
-                  ),
-                ),
-              ),
-            if (view.failed && !failed)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  l.prototypeCheckNetwork,
-                  style: AppTypography.supporting.copyWith(
-                    color: palette.destructive,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            SizedBox(height: desktop ? 30 : 18),
-            if (desktop)
-              Align(
-                child: SizedBox(
-                  width: AppLayout.connectDesktopButtonWidth,
-                  child: button,
-                ),
+            if (_busy)
+              SizedBox.square(
+                dimension: 17,
+                child: MediaQuery.disableAnimationsOf(context)
+                    ? Icon(LucideIcons.loaderCircle, color: color, size: 17)
+                    : CircularProgressIndicator(strokeWidth: 2, color: color),
               )
             else
-              button,
+              Icon(LucideIcons.shield, size: 17, color: palette.primary),
+            Text(l.prototypeSystemVpn, style: AppTypography.badge),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+              decoration: BoxDecoration(
+                color: failed
+                    ? palette.destructiveSurface
+                    : connected
+                    ? palette.runningSurface
+                    : _busy
+                    ? palette.selectedSurface
+                    : palette.secondary,
+                borderRadius: BorderRadius.circular(AppRadii.control),
+              ),
+              child: Text(
+                title,
+                style: AppTypography.badge.copyWith(color: color),
+              ),
+            ),
           ],
+        ),
+        const SizedBox(height: 5),
+        Text(title, style: AppTypography.connectStatusTitle),
+        if (connected || _busy || failed) ...[
+          const SizedBox(height: 5),
+          Text(
+            detail,
+            style: AppTypography.connectStatusDetail.copyWith(
+              color: failed ? palette.destructive : palette.mutedForeground,
+            ),
+          ),
+        ],
+        if (view.issue == 'selectionReset')
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                l.prototypeNameActive(l.prototypeAutomaticSelection),
+                style: AppTypography.metadata,
+              ),
+            ),
+          ),
+        if (view.failed && !failed)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              l.prototypeCheckNetwork,
+              style: AppTypography.supporting.copyWith(
+                color: palette.destructive,
+              ),
+            ),
+          ),
+      ],
+    );
+    return Card(
+      margin: EdgeInsets.zero,
+      color: palette.card,
+      clipBehavior: Clip.antiAlias,
+      child: ColoredBox(
+        color: palette.primary.withValues(alpha: .055),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 520 ||
+                  MediaQuery.textScalerOf(context).scale(14) > 18) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [label, const SizedBox(height: 14), button],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: label),
+                  const SizedBox(width: 20),
+                  SizedBox(width: 150, child: button),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
-    return Card(margin: EdgeInsets.zero, child: content);
   }
 }
 
@@ -488,10 +475,18 @@ class TrafficReadout extends StatelessWidget {
     final elapsed = duration == null
         ? '—'
         : '${duration.inHours.toString().padLeft(2, '0')}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
-    Widget metric(String title, String value, String? detail) => Container(
-      padding: const EdgeInsets.all(12),
+    Widget metric(
+      String title,
+      String value,
+      String? detail, {
+      required int index,
+    }) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: palette.muted,
+        color: Color.alphaBlend(
+          palette.primary.withValues(alpha: .045 + index * .025),
+          palette.card,
+        ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -500,14 +495,18 @@ class TrafficReadout extends StatelessWidget {
           Text(
             title,
             style: AppTypography.supporting.copyWith(
-              color: palette.mutedStrong,
+              color: palette.mutedForeground,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            textDirection: TextDirection.ltr,
-            style: AppTypography.metric,
+          const SizedBox(height: 7),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              value,
+              textDirection: TextDirection.ltr,
+              style: AppTypography.metric,
+            ),
           ),
           if (detail != null)
             Padding(
@@ -516,7 +515,7 @@ class TrafficReadout extends StatelessWidget {
                 detail,
                 textDirection: TextDirection.ltr,
                 style: AppTypography.supporting.copyWith(
-                  color: palette.mutedStrong,
+                  color: palette.mutedForeground,
                 ),
               ),
             ),
@@ -525,26 +524,29 @@ class TrafficReadout extends StatelessWidget {
     );
     final items = [
       metric(
-        l.prototypeDownload,
-        live ? '${formatTraffic(view.downloadSpeed, connection: true)}/s' : '—',
-        !live || view.traffic == null
-            ? '—'
-            : formatTraffic(view.traffic!.downlink, connection: true),
-      ),
-      metric(
         l.prototypeUpload,
-        live ? '${formatTraffic(view.uploadSpeed, connection: true)}/s' : '—',
         !live || view.traffic == null
             ? '—'
             : formatTraffic(view.traffic!.uplink, connection: true),
+        live ? '${formatTraffic(view.uploadSpeed, connection: true)}/s' : '—',
+        index: 0,
       ),
-      metric(l.prototypeUptime, elapsed, null),
+      metric(
+        l.prototypeDownload,
+        !live || view.traffic == null
+            ? '—'
+            : formatTraffic(view.traffic!.downlink, connection: true),
+        live ? '${formatTraffic(view.downloadSpeed, connection: true)}/s' : '—',
+        index: 1,
+      ),
+      metric(l.prototypeUptime, elapsed, null, index: 2),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
+            final gap = constraints.maxWidth < 520 ? 8.0 : 12.0;
             final large = MediaQuery.textScalerOf(context).scale(14) > 18;
             if (constraints.maxWidth < 300 || large) {
               return Column(
@@ -558,7 +560,7 @@ class TrafficReadout extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (final item in items.indexed) ...[
-                    if (item.$1 > 0) const SizedBox(width: 8),
+                    if (item.$1 > 0) SizedBox(width: gap),
                     Expanded(child: item.$2),
                   ],
                 ],

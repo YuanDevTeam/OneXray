@@ -109,6 +109,16 @@ void main() {
           final l = AppLocalizations.of(
             tester.element(find.byType(PageActionBar)),
           )!;
+          Future<void> tapVisible(Finder target) async {
+            // Binding changes can reflow long labels and retain a scroll offset.
+            await tester.ensureVisible(target);
+            // Reveal uses a zero-duration jump. Flush its new geometry without
+            // waiting for the busy spinner behind a pending confirmation.
+            await tester.pump();
+            expect(target.hitTestable(), findsOneWidget);
+            await tester.tap(target.hitTestable());
+          }
+
           expect(find.text(l.backupChooseExisting), findsOneWidget);
           expect(find.text(l.backupCreateFile), findsOneWidget);
           for (final (label, request, menu) in [
@@ -127,12 +137,11 @@ void main() {
             );
             storage.bytes = null;
             if (menu) {
-              await tester.tap(find.text(l.backupSwitchToLocal));
+              await tapVisible(find.text(l.backupSwitchToLocal));
               await tester.pumpAndSettle();
             }
-            await tester.ensureVisible(find.text(label));
             final expectedWrites = storage.writes + 1;
-            await tester.tap(find.text(label));
+            await tapVisible(find.text(label));
             await pumpUntil(
               tester,
               () =>
@@ -157,18 +166,18 @@ void main() {
             final actions = find.descendant(
               of: find.byType(SettingSection).first,
               matching: find.byWidgetPredicate(
-                (widget) => widget is ButtonStyleButton,
+                (widget) => widget is ShadButton,
               ),
             );
             expect(actions, findsNWidgets(2));
           }
-          await tester.tap(find.text(l.backupUnbind));
+          await tapVisible(find.text(l.backupUnbind));
           await pumpUntil(
             tester,
             () => find.byType(AppConfirmationDialog).evaluate().isNotEmpty,
           );
           await tester.pump(const Duration(milliseconds: 400));
-          await tester.tap(
+          await tapVisible(
             find.descendant(
               of: find.byType(AppConfirmationDialog),
               matching: find.widgetWithText(FilledButton, l.backupUnbind),
@@ -220,7 +229,13 @@ void main() {
       final l = AppLocalizations.of(
         tester.element(find.byType(PageActionBar)),
       )!;
-      expect(find.text(l.backupTitle), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('page-heading')),
+          matching: find.text(l.backupTitle),
+        ),
+        findsOneWidget,
+      );
       expect(find.text(l.backupAutomatic), findsOneWidget);
       expect(storage.writes, 0);
       final sections = find.byType(SettingSection);

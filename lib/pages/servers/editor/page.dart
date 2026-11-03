@@ -43,9 +43,9 @@ class ServerEditorPage extends StatelessWidget {
             onClose: () => controller.closePage(context),
             body: Padding(
               padding: EdgeInsets.fromLTRB(
-                mobile ? 16 : 20,
-                20,
-                mobile ? 16 : 20,
+                mobile ? 16 : 28,
+                16,
+                mobile ? 16 : 28,
                 0,
               ),
               child: Column(
@@ -53,8 +53,8 @@ class ServerEditorPage extends StatelessWidget {
                 children: [
                   Text(
                     l.prototypeXrayOutboundJson,
-                    style: AppTypography.subscriptionField.copyWith(
-                      color: p.mutedStrong,
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: p.foreground,
                     ),
                   ),
                   const SizedBox(height: 7),

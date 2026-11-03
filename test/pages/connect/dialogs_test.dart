@@ -87,7 +87,7 @@ void main() {
   });
 
   for (final brightness in Brightness.values) {
-    testWidgets('bottom dialog paints its safe area in $brightness', (
+    testWidgets('centered dialog respects the safe area in $brightness', (
       tester,
     ) async {
       const size = Size(390, 844);
@@ -138,15 +138,22 @@ void main() {
             matching: find.byType(Material),
           )
           .first;
-      expect(tester.getRect(surface).bottom, size.height);
+      final bounds = tester.getRect(surface);
+      final usableHeight = size.height - bottomInset;
+      expect(bounds.width, size.width);
+      expect(bounds.center.dx, closeTo(size.width / 2, .01));
+      expect(bounds.center.dy, closeTo(usableHeight / 2, .01));
+      expect(bounds.top, greaterThanOrEqualTo(0));
+      expect(bounds.bottom, lessThanOrEqualTo(usableHeight));
       expect(
         tester.widget<Material>(surface).color,
-        AppColorTokens.fallback(brightness).palette.card,
+        AppColorTokens.fallback(brightness).palette.background,
       );
-      expect(
-        tester.getRect(find.byType(FilledButton)).bottom,
-        lessThanOrEqualTo(size.height - bottomInset),
-      );
+      final done = find.widgetWithText(FilledButton, 'Done');
+      final actionBounds = tester.getRect(done);
+      expect(actionBounds.top, greaterThanOrEqualTo(bounds.top));
+      expect(actionBounds.bottom, lessThanOrEqualTo(bounds.bottom - 24));
+      expect(done.hitTestable(), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();

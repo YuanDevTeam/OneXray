@@ -18,7 +18,7 @@ class RoutingFakeDnsRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.enabled = true,
-    this.divider = true,
+    this.divider = false,
   });
 
   @override
@@ -49,7 +49,7 @@ class RoutingFragmentRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.enabled = true,
-    this.divider = true,
+    this.divider = false,
   });
 
   @override
@@ -109,41 +109,53 @@ class RoutingCardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = ColorManager.palette(context);
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsetsDirectional.fromSTEB(18, 10, 18, 10),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: palette.border)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: AppTypography.routingCardTitle.copyWith(
-                      color: palette.foreground,
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(18, 16, 18, 16),
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(end: help.isEmpty ? 0 : 58),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 24),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        title,
+                        style: AppTypography.routingCardTitle.copyWith(
+                          color: palette.foreground,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                if (help.isNotEmpty)
-                  PageHelpButton(title: title, messages: help),
-              ],
-            ),
-          ),
-          if (description != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              description!,
-              style: AppTypography.routingCardDescription.copyWith(
-                color: palette.mutedForeground,
+                  if (description != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      description!,
+                      style: AppTypography.routingCardDescription.copyWith(
+                        color: palette.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ],
+          ),
+          if (help.isNotEmpty)
+            PositionedDirectional(
+              top: 4,
+              end: 18,
+              child: SizedBox.square(
+                dimension: 48,
+                child: Center(
+                  child: PageHelpButton(title: title, messages: help),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -167,13 +179,18 @@ class RoutingSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     label: label,
-    child: SizedBox(
-      height: 38,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: AppLayout.touchExtent(
+          38,
+          platform: Theme.of(context).platform,
+        ),
+      ),
       child: Center(
         child: TextField(
           controller: controller,
           onChanged: onChanged,
-          style: AppTypography.routingSelectionInput,
+          style: AppTypography.rowValue,
           decoration: InputDecoration(
             hintText: hint,
             isCollapsed: true,
@@ -182,7 +199,7 @@ class RoutingSearchField extends StatelessWidget {
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
             contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.routingSelectionInput.copyWith(
+            hintStyle: AppTypography.rowValue.copyWith(
               color: ColorManager.palette(context).mutedForeground,
             ),
           ),
@@ -216,7 +233,7 @@ class RoutingSettingRow extends StatelessWidget {
     this.below,
     this.onTap,
     this.enabled = true,
-    this.divider = true,
+    this.divider = false,
   });
 
   @override
@@ -259,19 +276,8 @@ class RoutingSettingRow extends StatelessWidget {
       ],
     );
     final content = Container(
-      constraints: BoxConstraints(
-        minHeight: mobile
-            ? (navigation
-                  ? 64
-                  : description == null
-                  ? 56
-                  : 69)
-            : (description == null ? 60 : 74),
-      ),
-      padding: EdgeInsetsDirectional.symmetric(
-        horizontal: mobile ? 13 : 17,
-        vertical: 11,
-      ),
+      constraints: BoxConstraints(minHeight: mobile ? 56 : 48),
+      padding: EdgeInsetsDirectional.symmetric(horizontal: 18, vertical: 10),
       decoration: divider
           ? BoxDecoration(
               border: Border(bottom: BorderSide(color: palette.border)),

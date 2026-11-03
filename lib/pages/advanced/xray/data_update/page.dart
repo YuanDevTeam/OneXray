@@ -28,9 +28,12 @@ class AutoUpdatePage extends StatelessWidget {
         final value = state.autoUpdateState;
         final width = MediaQuery.sizeOf(context).width;
         final mobile = width <= AppLayout.mobileBreakpoint;
-        final gutter = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
+        final gutter = mobile
+            ? AppSpacing.mobilePage
+            : AppSpacing.advancedDesktopGutter(width);
         return Scaffold(
-          appBar: PageAppBar(
+          appBar: PageAppBar.forPage(
+            context,
             title: Text(l.prototypeDataUpdates),
             actions: [
               const AppActivityIndicator(pinging: false),
@@ -47,7 +50,7 @@ class AutoUpdatePage extends StatelessWidget {
           ),
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.advancedMaxWidth,
-            expandDesktop: true,
+            expandDesktop: false,
             horizontalPadding: mobile ? null : gutter,
             spacing: mobile ? AppSpacing.actionGap : 13,
             children: [
@@ -88,13 +91,13 @@ class AutoUpdatePage extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(
                         gutter,
-                        mobile ? 16 : 24,
+                        20,
                         gutter,
                         mobile ? 26 : 24,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: 16,
+                        spacing: 20,
                         children: [
                           SettingSection(
                             title: l.prototypeSubscriptions,
@@ -145,7 +148,7 @@ class AutoUpdatePage extends StatelessWidget {
                           if (state.failed)
                             Text(
                               appFailureMessage(l, state.failure),
-                              style: AppTypography.settingsDetailNote.copyWith(
+                              style: AppTypography.supporting.copyWith(
                                 color: Theme.of(context).colorScheme.error,
                               ),
                             ),
@@ -166,12 +169,9 @@ class AutoUpdatePage extends StatelessWidget {
     required ValueChanged<bool>? onChanged,
   }) => SettingRow(
     title: title,
-    titleStyle: AppTypography.settingsRow,
-    minHeight: mobile ? 58 : 64,
-    contentPadding: EdgeInsetsDirectional.symmetric(
-      horizontal: mobile ? 13 : 14,
-      vertical: mobile ? 7 : 9,
-    ),
+    titleStyle: AppTypography.rowTitle,
+    minHeight: mobile ? 56 : 48,
+    contentPadding: const EdgeInsets.all(12),
     enabled: onChanged != null,
     onTap: onChanged == null ? null : () => onChanged(!value),
     trailing: AppSwitch(
@@ -189,14 +189,9 @@ class AutoUpdatePage extends StatelessWidget {
     required bool mobile,
   }) => SettingRow(
     title: l.prototypeUpdateInterval,
-    titleStyle: mobile
-        ? AppTypography.settingsRow
-        : AppTypography.settingsSelect,
-    minHeight: 62,
-    contentPadding: const EdgeInsetsDirectional.symmetric(
-      horizontal: 14,
-      vertical: 10,
-    ),
+    titleStyle: AppTypography.rowTitle,
+    minHeight: mobile ? 56 : 48,
+    contentPadding: const EdgeInsets.all(12),
     trailing: SettingSelect<AutoUpdateInterval>(
       value: value,
       entries: {

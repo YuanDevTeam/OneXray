@@ -87,7 +87,8 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                     if (!didPop) controller.closePage(context);
                   },
                   child: Scaffold(
-                    appBar: PageAppBar(
+                    appBar: PageAppBar.forPage(
+                      context,
                       title: Text(
                         controller.advanced
                             ? l10n.routingAdvancedJson
@@ -121,18 +122,15 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                       bottom: false,
                       child: SingleChildScrollView(
                         padding: EdgeInsets.fromLTRB(
-                          mobile ? 14 : AppSpacing.page,
-                          mobile ? 12 : AppSpacing.desktopPageTop,
-                          mobile ? 14 : AppSpacing.page,
+                          mobile ? 16 : AppSpacing.page,
+                          16,
+                          mobile ? 16 : AppSpacing.page,
                           mobile ? 12 : AppSpacing.desktopPageBottom,
                         ),
                         child: ResponsiveContent(
                           desktopMaxWidth: AppLayout.routingMaxWidth,
                           child: RoutingCard(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: mobile ? 12 : 20,
-                              vertical: mobile ? 14 : 20,
-                            ),
+                            padding: const EdgeInsets.all(18),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -153,21 +151,23 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                                 SizedBox(height: gap),
                                 Text(
                                   l10n.prototypeConfigurationName,
-                                  style: AppTypography.rawField.copyWith(
-                                    color: palette.mutedStrong,
+                                  style: AppTypography.fieldLabel.copyWith(
+                                    color: palette.foreground,
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                SizedBox(
-                                  height: AppLayout.touchExtent(44),
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(
+                                    minHeight: AppLayout.touchExtent(44),
+                                  ),
                                   child: TextField(
                                     controller: controller.name,
                                     maxLength: 32,
                                     enabled: state.loaded,
-                                    style: AppTypography.rawField,
+                                    style: AppTypography.rowValue,
                                     decoration: InputDecoration(
                                       hintText: l10n.prototypeConfigurationName,
-                                      hintStyle: AppTypography.rawField
+                                      hintStyle: AppTypography.rowValue
                                           .copyWith(
                                             color: palette.mutedForeground,
                                           ),
@@ -184,8 +184,8 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                                   controller.advanced
                                       ? l10n.routingAdvancedTemplate
                                       : l10n.prototypeCompleteXrayConfiguration,
-                                  style: AppTypography.rawField.copyWith(
-                                    color: palette.mutedStrong,
+                                  style: AppTypography.fieldLabel.copyWith(
+                                    color: palette.foreground,
                                   ),
                                 ),
                                 const SizedBox(height: 8),

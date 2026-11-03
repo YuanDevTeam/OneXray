@@ -8,11 +8,255 @@ import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/main/desktop_window.dart';
 import 'package:onexray/pages/main/navigation.dart';
+import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/service/advanced/xray/geodata/model.dart';
 import 'package:onexray/service/settings/language/locale.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 void main() {
+  for (final (width, height, scale, locale) in const [
+    (390.0, 844.0, 1.0, Locale('zh')),
+    (1032.0, 1376.0, 1.0, Locale('zh')),
+    (1160.0, 720.0, 1.0, Locale('zh')),
+    (390.0, 844.0, 2.0, Locale('ru')),
+    (390.0, 844.0, 2.0, Locale('fa')),
+  ]) {
+    testWidgets(
+      'page header preserves title, description and actions at $width/$scale/$locale',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, height);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var actions = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(Brightness.light, mobile: width <= 720),
+            locale: locale,
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: Directionality(
+                textDirection: locale.languageCode == 'fa'
+                    ? TextDirection.rtl
+                    : TextDirection.ltr,
+                child: child!,
+              ),
+            ),
+            home: Builder(
+              builder: (context) => Scaffold(
+                appBar: PageAppBar.forPage(
+                  context,
+                  title: const Text('Настройки подключения'),
+                  description:
+                      'Параметры соединения и данные этого устройства.',
+                  actions: [
+                    IconButton(
+                      key: const Key('page-action'),
+                      icon: const Icon(Icons.add),
+                      onPressed: () => actions++,
+                    ),
+                  ],
+                ),
+                body: const SizedBox(
+                  key: Key('page-body'),
+                  width: double.infinity,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final title = find.text('Настройки подключения');
+        final description = find.text(
+          'Параметры соединения и данные этого устройства.',
+        );
+        expect(title, findsOneWidget);
+        expect(description, findsOneWidget);
+        expect(
+          tester.getRect(description).top,
+          greaterThanOrEqualTo(tester.getRect(title).bottom),
+        );
+        expect(
+          tester.getRect(find.byKey(const Key('page-body'))).top,
+          greaterThanOrEqualTo(tester.getRect(description).bottom),
+        );
+        expect(
+          tester.getRect(title).left,
+          greaterThanOrEqualTo(width <= 720 ? 16 : 28),
+        );
+        expect(
+          tester.getRect(title).right,
+          lessThanOrEqualTo(width - (width <= 720 ? 16 : 28)),
+        );
+        expect(
+          find.ancestor(
+            of: title,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Semantics && widget.properties.header == true,
+            ),
+          ),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const Key('page-action')));
+        await tester.pumpAndSettle();
+        expect(actions, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  for (final height in [844.0, 360.0]) {
+    testWidgets(
+      'long legal resource heading keeps content and footer reachable at 390x$height/2x',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(390, height);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final fileName = '${List.filled(176, 'a').join()}.dat';
+        expect(fileName.length, 180);
+        expect(GeoDataInput.canonicalFileName(fileName), fileName);
+        final controller = TextEditingController();
+        addTearDown(controller.dispose);
+        var headingActions = 0;
+        var bodyActions = 0;
+        var saves = 0;
+        var backs = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(Brightness.light, mobile: true),
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: const TextScaler.linear(2)),
+              child: ShadTheme(
+                data: AppTheme.shad(Brightness.light, mobile: true),
+                child: child!,
+              ),
+            ),
+            home: Builder(
+              builder: (context) => Scaffold(
+                appBar: PageAppBar.forPage(
+                  context,
+                  title: Text(fileName),
+                  description: 'Resource source and update settings.',
+                  leading: BackButton(onPressed: () => backs++),
+                  headingAction: TextButton(
+                    key: const Key('resource-heading-action'),
+                    onPressed: () => headingActions++,
+                    child: const Text('Update'),
+                  ),
+                ),
+                body: ListView(
+                  key: const Key('resource-body'),
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    TextField(
+                      key: const Key('resource-source'),
+                      controller: controller,
+                      decoration: const InputDecoration(labelText: 'Source'),
+                    ),
+                    const SizedBox(height: 160),
+                    TextButton(
+                      key: const Key('resource-body-action'),
+                      onPressed: () => bodyActions++,
+                      child: const Text('Details'),
+                    ),
+                  ],
+                ),
+                bottomNavigationBar: PageActionBar(
+                  children: [
+                    FilledButton(
+                      key: const Key('resource-save'),
+                      onPressed: () => saves++,
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final heading = find.byKey(const ValueKey('page-heading'));
+        final title = find.descendant(
+          of: heading,
+          matching: find.text(fileName),
+        );
+        expect(title, findsOneWidget);
+        expect(tester.widget<Text>(title).maxLines, isNull);
+        expect(
+          tester.widget<Text>(title).overflow,
+          isNot(TextOverflow.ellipsis),
+        );
+        final headingScrollable = find.descendant(
+          of: heading,
+          matching: find.byType(Scrollable),
+        );
+        expect(
+          tester
+              .state<ScrollableState>(headingScrollable)
+              .position
+              .maxScrollExtent,
+          greaterThan(0),
+        );
+        final body = find.byKey(const Key('resource-body'));
+        expect(tester.getSize(body).height, greaterThanOrEqualTo(80));
+        final footer = tester.getRect(find.byType(PageActionBar));
+        expect(footer.top, greaterThanOrEqualTo(tester.getRect(body).bottom));
+        expect(footer.bottom, lessThanOrEqualTo(height));
+
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('resource-heading-action')),
+          120,
+          scrollable: headingScrollable,
+          maxScrolls: 60,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('resource-heading-action')));
+        await tester.pumpAndSettle();
+        expect(headingActions, 1);
+
+        final source = find.byKey(const Key('resource-source'));
+        await tester.ensureVisible(source);
+        await tester.pumpAndSettle();
+        await tester.enterText(source, 'https://example.test/resource.dat');
+        await tester.pumpAndSettle();
+        final bodyScrollable = find.descendant(
+          of: body,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Scrollable &&
+                widget.axisDirection == AxisDirection.down,
+          ),
+        );
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('resource-body-action')),
+          100,
+          scrollable: bodyScrollable,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('resource-body-action')));
+        await tester.tap(find.byKey(const Key('resource-save')));
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+        expect(bodyActions, 1);
+        expect(saves, 1);
+        expect(backs, 1);
+        expect(controller.text, 'https://example.test/resource.dat');
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('imperative routes under GoRouter keep page bars responsive', (
     tester,
   ) async {
@@ -266,6 +510,9 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         navigatorKey: navigator,
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.light.copyWith(platform: TargetPlatform.macOS),
         builder: (context, child) => MacOSWindowInsets(
           titlebarHeight: 28,
@@ -274,16 +521,19 @@ void main() {
             child: child!,
           ),
         ),
-        home: Scaffold(
-          appBar: PageAppBar(
-            title: const Text('Root'),
-            actions: [
-              IconButton(
-                key: rootAction,
-                onPressed: () {},
-                icon: const Icon(Icons.add),
-              ),
-            ],
+        home: Builder(
+          builder: (context) => Scaffold(
+            appBar: PageAppBar.forPage(
+              context,
+              title: const Text('Root'),
+              actions: [
+                IconButton(
+                  key: rootAction,
+                  onPressed: () {},
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -291,8 +541,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 20));
     navigator.currentState!.push(
       MaterialPageRoute<void>(
-        builder: (_) => Scaffold(
-          appBar: PageAppBar(
+        builder: (context) => Scaffold(
+          appBar: PageAppBar.forPage(
+            context,
             title: const Text('Detail'),
             actions: [
               IconButton(

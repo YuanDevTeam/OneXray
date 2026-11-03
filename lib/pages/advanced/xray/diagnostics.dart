@@ -43,8 +43,10 @@ class XrayDiagnosticsPage extends StatelessWidget {
           tabIndex: 1,
           onChanged: controller.reader.setVisible,
           child: Scaffold(
-            appBar: PageAppBar(
+            appBar: PageAppBar.forPage(
+              context,
               title: Text(l.xrayDiagnostics),
+              description: l.xrayDiagnosticsHint,
               actions: [
                 IconButton(
                   tooltip: l.xrayRefreshStatus,
@@ -57,16 +59,11 @@ class XrayDiagnosticsPage extends StatelessWidget {
             ),
             body: SafeArea(
               child: SettingsPageScroll(
-                padding: EdgeInsetsDirectional.fromSTEB(gutter, 16, gutter, 24),
+                padding: EdgeInsetsDirectional.fromSTEB(gutter, 20, gutter, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: 16,
+                  spacing: 20,
                   children: [
-                    Text(
-                      l.xrayDiagnosticsHint,
-                      style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(color: palette.mutedForeground),
-                    ),
                     SettingSection(
                       title: l.prototypeRuntimeStatus,
                       padding: EdgeInsets.zero,
@@ -124,7 +121,7 @@ class XrayDiagnosticsPage extends StatelessWidget {
                       children: [
                         if (controller.runtime == null)
                           Padding(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(12),
                             child: Text(
                               l.xrayNoRuntimeConfiguration,
                               style: Theme.of(context).textTheme.bodyMedium

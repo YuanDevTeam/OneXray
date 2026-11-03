@@ -5,6 +5,9 @@ import 'package:onexray/pages/settings/theme/controller.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/service/shared/event_bus/enum.dart';
+import 'package:onexray/pages/settings/widgets.dart';
+import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 class ThemePage extends StatelessWidget {
@@ -18,13 +21,29 @@ class ThemePage extends StatelessWidget {
         builder: (context, state) {
           final controller = context.read<ThemeController>();
           final l10n = AppLocalizations.of(context)!;
-          return SettingsPageScaffold(
-            title: l10n.themePageTitle,
-            onSave: () => controller.save(context),
-            saveLabel: l10n.buttonSave,
-            body: ThemeChoiceView(
-              selected: state.themeCode,
-              onSelected: controller.updateThemeCode,
+          return Scaffold(
+            appBar: PageAppBar.forPage(
+              context,
+              title: Text(l10n.themePageTitle),
+              description: l10n.settingsDevicePreferenceDescription,
+            ),
+            body: SafeArea(
+              child: ThemeChoiceView(
+                selected: state.themeCode,
+                onSelected: controller.updateThemeCode,
+              ),
+            ),
+            bottomNavigationBar: PageActionBar(
+              children: [
+                ShadButton.outline(
+                  onPressed: () => Navigator.maybePop(context),
+                  child: Text(l10n.prototypeCancel),
+                ),
+                ShadButton(
+                  onPressed: () => controller.save(context),
+                  child: Text(l10n.buttonSave),
+                ),
+              ],
             ),
           );
         },
@@ -47,22 +66,16 @@ class ThemeChoiceView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return SettingsPageScroll(
-      desktopMaxWidth: 720,
-      child: SettingSection(
-        title: "",
-        children: ThemeCode.values.map((theme) {
-          final (title, icon) = switch (theme) {
-            ThemeCode.system => (l10n.themePageSystem, LucideIcons.monitorCog),
-            ThemeCode.light => (l10n.themePageLight, LucideIcons.sun),
-            ThemeCode.dark => (l10n.themePageDark, LucideIcons.moon),
-          };
-          return SettingsChoiceRow(
-            title: title,
-            leading: Icon(icon),
-            selected: selected == theme,
-            onTap: () => onSelected(theme),
-          );
-        }).toList(),
+      padding: EdgeInsets.zero,
+      child: Padding(
+        padding: settingsContentPadding(context),
+        child: SettingSection(
+          title: l10n.themePageTitle,
+          padding: EdgeInsets.zero,
+          children: [
+            SettingsThemeOptions(selected: selected, onSelected: onSelected),
+          ],
+        ),
       ),
     );
   }

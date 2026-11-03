@@ -4,8 +4,8 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/app_update/controller.dart';
 import 'package:onexray/pages/settings/app_update/params.dart';
-import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/service/settings/app_update/service.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -69,14 +69,14 @@ class AppUpdateDialogView extends StatelessWidget {
         child: ShadCard(
           width: double.infinity,
           padding: EdgeInsets.zero,
-          radius: const BorderRadius.all(Radius.circular(8)),
+          radius: const BorderRadius.all(Radius.circular(AppRadii.card)),
           clipBehavior: Clip.antiAlias,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(20, 18, 20, 16),
+                padding: const EdgeInsetsDirectional.fromSTEB(18, 16, 18, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -90,18 +90,17 @@ class AppUpdateDialogView extends StatelessWidget {
                 ),
               ),
               if (notes.isNotEmpty) ...[
-                Divider(height: 1, color: ColorManager.border(context)),
                 Flexible(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxHeight: notesHeight),
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
                             l10n.prototypeReleaseNotes,
-                            style: AppTypography.updateNotesHeading,
+                            style: AppTypography.sectionTitle,
                           ),
                           const SizedBox(height: 10),
                           // flutter_markdown_plus still uses SDK Material.
@@ -111,8 +110,8 @@ class AppUpdateDialogView extends StatelessWidget {
                               data: notes,
                               selectable: true,
                               styleSheet: MarkdownStyleSheet(
-                                p: AppTypography.updateNotes,
-                                listBullet: AppTypography.updateNotes,
+                                p: AppTypography.supporting,
+                                listBullet: AppTypography.supporting,
                                 listIndent: 20,
                                 listBulletPadding:
                                     const EdgeInsetsDirectional.only(end: 4)
@@ -128,7 +127,6 @@ class AppUpdateDialogView extends StatelessWidget {
                   ),
                 ),
               ],
-              Divider(height: 1, color: ColorManager.border(context)),
               _UpdateActions(
                 laterLabel: l10n.appUpdateLater,
                 skipLabel: l10n.appUpdateSkipVersion,
@@ -166,18 +164,8 @@ class _VersionGrid extends StatelessWidget {
   Widget _row(BuildContext context, String label, String version) {
     return Row(
       children: [
-        Expanded(child: Text(label, style: AppTypography.updateVersionLabel)),
-        Container(
-          padding: const EdgeInsetsDirectional.symmetric(
-            horizontal: 8,
-            vertical: 4,
-          ),
-          decoration: BoxDecoration(
-            color: ColorManager.palette(context).surfaceHover,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(version, style: AppTypography.updateVersion),
-        ),
+        Expanded(child: Text(label, style: AppTypography.rowTitle)),
+        Text(version, style: AppTypography.rowValue),
       ],
     );
   }
@@ -206,18 +194,17 @@ class _UpdateActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      color: ColorManager.palette(context).muted,
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final actions = [
             ShadButton.outline(
-              height: 40,
+              height: 48,
               onPressed: onLater,
               child: Text(laterLabel),
             ),
             ShadButton.outline(
-              height: 40,
+              height: 48,
               enabled: action != AppUpdateDialogAction.skip,
               onPressed: action == AppUpdateDialogAction.skip ? null : onSkip,
               child: ButtonProgress(
@@ -225,7 +212,11 @@ class _UpdateActions extends StatelessWidget {
                 child: Text(skipLabel),
               ),
             ),
-            ShadButton(onPressed: onUpdate, child: Text(updateLabel)),
+            ShadButton(
+              height: 48,
+              onPressed: onUpdate,
+              child: Text(updateLabel),
+            ),
           ];
           if (constraints.maxWidth < 460) {
             return Column(

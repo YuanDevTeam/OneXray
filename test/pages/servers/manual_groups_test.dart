@@ -410,7 +410,11 @@ void main() {
       final l = AppLocalizations.of(tester.element(find.byType(ServersPage)))!;
       final add = find.byKey(const ValueKey('servers-add'));
       expect(add.hitTestable(), findsOneWidget);
-      expect(tester.widget<IconButton>(add).tooltip, l.prototypeAddServer);
+      expect(tester.widget<FilledButton>(add).onPressed, isNotNull);
+      expect(
+        find.descendant(of: add, matching: find.text(l.prototypeAddServer)),
+        findsOneWidget,
+      );
       expect(find.byTooltip(l.manualGroupNew), findsNothing);
       expect(
         tester.getSize(find.text(l.prototypeServers)).width,

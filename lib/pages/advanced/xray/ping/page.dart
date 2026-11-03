@@ -28,9 +28,12 @@ class PingPage extends StatelessWidget {
         final palette = ColorManager.palette(context);
         final width = MediaQuery.sizeOf(context).width;
         final mobile = width <= AppLayout.mobileBreakpoint;
-        final gutter = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
+        final gutter = mobile
+            ? AppSpacing.mobilePage
+            : AppSpacing.advancedDesktopGutter(width);
         return Scaffold(
-          appBar: PageAppBar(
+          appBar: PageAppBar.forPage(
+            context,
             title: Text(l.prototypeSpeedTest),
             actions: [
               const AppActivityIndicator(downloading: false),
@@ -45,7 +48,7 @@ class PingPage extends StatelessWidget {
           ),
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.advancedMaxWidth,
-            expandDesktop: true,
+            expandDesktop: false,
             horizontalPadding: mobile ? null : gutter,
             spacing: mobile ? AppSpacing.actionGap : 13,
             children: [
@@ -80,8 +83,9 @@ class PingPage extends StatelessWidget {
                               liveRegion: true,
                               child: SelectableText(
                                 state.error!,
-                                style: AppTypography.settingsDetailNote
-                                    .copyWith(color: palette.destructive),
+                                style: AppTypography.supporting.copyWith(
+                                  color: palette.destructive,
+                                ),
                               ),
                             ),
                           TextButton(
@@ -98,7 +102,7 @@ class PingPage extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(
                         gutter,
-                        mobile ? 16 : 24,
+                        20,
                         gutter,
                         mobile ? 26 : 24,
                       ),
@@ -115,8 +119,8 @@ class PingPage extends StatelessWidget {
                                 titleStyle: AppTypography.settingsSelect,
                                 contentPadding:
                                     const EdgeInsetsDirectional.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
+                                      horizontal: 12,
+                                      vertical: 12,
                                     ),
                                 trailing: SettingSelect<double>(
                                   value: value.timeout,
@@ -153,8 +157,8 @@ class PingPage extends StatelessWidget {
                                 titleStyle: AppTypography.settingsSelect,
                                 contentPadding:
                                     const EdgeInsetsDirectional.symmetric(
-                                      horizontal: 14,
-                                      vertical: 10,
+                                      horizontal: 12,
+                                      vertical: 12,
                                     ),
                                 trailing: SettingSelect<String>(
                                   value: value.url.name,
@@ -175,19 +179,21 @@ class PingPage extends StatelessWidget {
                               ),
                               if (value.url == PingUrl.custom)
                                 Padding(
-                                  padding: const EdgeInsets.all(14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         l.prototypeCustomUrl,
-                                        style: AppTypography.settingsInput
+                                        style: AppTypography.fieldLabel
                                             .copyWith(
                                               color: palette.foreground,
                                             ),
                                       ),
-                                      const SizedBox(height: 9),
+                                      const SizedBox(height: 8),
                                       TextField(
                                         key: const ValueKey('ping-custom-url'),
                                         controller:
@@ -209,14 +215,6 @@ class PingPage extends StatelessWidget {
                                               : null,
                                           errorMaxLines: 3,
                                           isDense: true,
-                                          constraints: const BoxConstraints(
-                                            minHeight: 40,
-                                          ),
-                                          contentPadding:
-                                              const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 8,
-                                              ),
                                           hintText: 'https://example.com/generate_204',
                                           hintTextDirection: TextDirection.ltr,
                                           hintStyle: AppTypography.settingsInput
@@ -259,7 +257,7 @@ class PingPage extends StatelessWidget {
                           const SizedBox(height: 16),
                           Text(
                             l.pingVpnAccuracyHint,
-                            style: AppTypography.settingsDetailNote.copyWith(
+                            style: AppTypography.supporting.copyWith(
                               color: palette.mutedForeground,
                             ),
                           ),
@@ -272,8 +270,9 @@ class PingPage extends StatelessWidget {
                                 liveRegion: true,
                                 child: SelectableText(
                                   state.error!,
-                                  style: AppTypography.settingsDetailNote
-                                      .copyWith(color: palette.destructive),
+                                  style: AppTypography.supporting.copyWith(
+                                    color: palette.destructive,
+                                  ),
                                 ),
                               ),
                             ),

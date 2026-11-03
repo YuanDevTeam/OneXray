@@ -138,13 +138,27 @@ class AndroidAppsPage extends StatelessWidget {
         final rows = controller.visible;
         final missing = controller.missing;
         return Scaffold(
-          appBar: PageAppBar(title: Text(l.prototypeSelectApps)),
+          appBar: PageAppBar.forPage(
+            context,
+            title: Text(l.prototypeSelectApps),
+          ),
           body: SafeArea(
             child: ResponsiveContent(
               child: CustomScrollView(
                 slivers: [
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+                    padding: EdgeInsets.fromLTRB(
+                      MediaQuery.sizeOf(context).width <=
+                              AppLayout.mobileBreakpoint
+                          ? AppSpacing.mobilePage
+                          : AppSpacing.page,
+                      20,
+                      MediaQuery.sizeOf(context).width <=
+                              AppLayout.mobileBreakpoint
+                          ? AppSpacing.mobilePage
+                          : AppSpacing.page,
+                      16,
+                    ),
                     sliver: SliverToBoxAdapter(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -166,11 +180,6 @@ class AndroidAppsPage extends StatelessWidget {
                           Semantics(
                             label: l.prototypeSearchInstalledApps,
                             child: ShadInput(
-                              constraints: const BoxConstraints(minHeight: 43),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
                               gap: 9,
                               style: AppTypography.androidBody,
                               placeholderStyle: AppTypography.androidBody
@@ -201,7 +210,18 @@ class AndroidAppsPage extends StatelessWidget {
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+                    padding: EdgeInsets.fromLTRB(
+                      MediaQuery.sizeOf(context).width <=
+                              AppLayout.mobileBreakpoint
+                          ? AppSpacing.mobilePage
+                          : AppSpacing.page,
+                      0,
+                      MediaQuery.sizeOf(context).width <=
+                              AppLayout.mobileBreakpoint
+                          ? AppSpacing.mobilePage
+                          : AppSpacing.page,
+                      24,
+                    ),
                     sliver: controller.loading || controller.failed
                         ? SliverToBoxAdapter(
                             child: Padding(
@@ -344,19 +364,14 @@ class _AndroidAppRow extends StatelessWidget {
     final palette = ColorManager.palette(context);
     return MergeSemantics(
       child: Material(
-        type: MaterialType.transparency,
+        color: selected ? palette.selectedSurface : palette.card,
         child: InkWell(
           onTap: onTap,
           child: Container(
             constraints: const BoxConstraints(minHeight: 62),
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-            decoration: BoxDecoration(
-              border: last
-                  ? null
-                  : Border(bottom: BorderSide(color: palette.border)),
-            ),
+            padding: const EdgeInsets.all(12),
             child: Row(
-              spacing: 10,
+              spacing: 12,
               children: [
                 SizedBox.square(dimension: 34, child: icon),
                 Expanded(
@@ -364,7 +379,7 @@ class _AndroidAppRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(name, style: AppTypography.androidRowTitle),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 4),
                       Text(
                         description,
                         maxLines: 1,

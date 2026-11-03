@@ -178,7 +178,7 @@ class _AppJsonEditorState extends State<AppJsonEditor>
 
   Widget _buildEditor(BuildContext context, JsonEditorState state) {
     final palette = ColorManager.palette(context);
-    final style = widget.textStyle ?? AppTypography.code;
+    final style = widget.textStyle ?? AppTypography.jsonEditor;
     final codeTheme = Map<String, TextStyle>.from(
       Theme.of(context).brightness == Brightness.dark
           ? atomOneDarkTheme
@@ -245,15 +245,22 @@ class _AppJsonEditorState extends State<AppJsonEditor>
           autofocus: false,
           autocompleteSymbols: true,
           wordWrap: false,
-          padding: const EdgeInsets.all(14),
-          border: Border.all(color: palette.border),
-          borderRadius: BorderRadius.circular(AppRadii.card),
+          padding: EdgeInsets.symmetric(
+            horizontal: 13,
+            vertical:
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                ? 14
+                : 12,
+          ),
+          border: Border.all(color: palette.input),
+          borderRadius: BorderRadius.circular(AppRadii.control),
           clipBehavior: Clip.antiAlias,
           style: CodeEditorStyle(
             fontFamily: AppFontFamily.mono,
             fontSize: style.fontSize,
+            fontHeight: style.height,
             textColor: palette.foreground,
-            backgroundColor: palette.muted,
+            backgroundColor: palette.card,
             selectionColor: palette.selection,
             cursorColor: palette.primary,
             cursorLineColor: palette.primary.withValues(alpha: .05),

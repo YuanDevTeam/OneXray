@@ -55,6 +55,9 @@ class _ServerBrowserState extends State<ServerBrowser> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final mobile =
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
+    final gutter = mobile ? AppSpacing.mobilePage : AppSpacing.page;
     if (controller.servers.isEmpty &&
         controller.sources.isEmpty &&
         controller.rawConfigurations.isEmpty &&
@@ -92,7 +95,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 0),
           child: ShadTabs<_ServerBrowserTab>(
             key: const ValueKey('server-resource-tabs'),
             value: tab,
@@ -105,17 +108,50 @@ class _ServerBrowserState extends State<ServerBrowser> {
               ShadTab(
                 value: _ServerBrowserTab.nodes,
                 content: const SizedBox.shrink(),
-                child: Text(l.serverNodesTab),
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
+                  children: [
+                    Text(l.serverNodesTab),
+                    Text(
+                      '${controller.servers.where((row) => !controller.providerRow(row)).length}',
+                      style: AppTypography.supporting,
+                    ),
+                  ],
+                ),
               ),
               ShadTab(
                 value: _ServerBrowserTab.configurations,
                 content: const SizedBox.shrink(),
-                child: Text(l.serverCompleteConfigurationsTab),
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
+                  children: [
+                    Text(l.serverCompleteConfigurationsTab),
+                    Text(
+                      '${controller.servers.where(controller.providerRow).length + controller.rawConfigurations.length}',
+                      style: AppTypography.supporting,
+                    ),
+                  ],
+                ),
               ),
               ShadTab(
                 value: _ServerBrowserTab.subscriptions,
                 content: const SizedBox.shrink(),
-                child: Text(l.prototypeSubscriptions),
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
+                  children: [
+                    Text(l.prototypeSubscriptions),
+                    Text(
+                      '${controller.sources.length}',
+                      style: AppTypography.supporting,
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -124,7 +160,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
           child: tab == _ServerBrowserTab.subscriptions
               ? SingleChildScrollView(
                   controller: widget.scroll,
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+                  padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 28),
                   child: _subscriptions(context),
                 )
               : _resources(
@@ -142,6 +178,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
       key: const ValueKey('server-search'),
       controller: controller.search,
       onChanged: controller.searchChanged,
+      style: AppTypography.rowValue,
       decoration: InputDecoration(
         hintText: l.prototypeSearchSubscriptionsServers,
         prefixIcon: const Icon(LucideIcons.search, size: 18),
@@ -171,6 +208,10 @@ class _ServerBrowserState extends State<ServerBrowser> {
 
   Widget _resources(BuildContext context, {required bool complete}) {
     final l = AppLocalizations.of(context)!;
+    final mobile =
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
+    final gutter = mobile ? AppSpacing.mobilePage : AppSpacing.page;
+    final gap = mobile ? 12.0 : 16.0;
     final ordinary = controller.servers
         .where((row) => controller.providerRow(row) == complete)
         .where(_matchesSource)
@@ -192,13 +233,13 @@ class _ServerBrowserState extends State<ServerBrowser> {
       key: PageStorageKey(('server-resources', complete)),
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+          padding: EdgeInsets.fromLTRB(gutter, 18, gutter, 10),
           sliver: SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _search(context),
-                const SizedBox(height: 12),
+                SizedBox(height: gap),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -251,22 +292,24 @@ class _ServerBrowserState extends State<ServerBrowser> {
                         key: ValueKey('server-probe-activity'),
                         downloading: false,
                       ),
-                      OutlinedButton.icon(
-                        onPressed: () => controller.choose(
-                          context,
-                          const ServerSelection.automatic(),
+                      if (!mobile)
+                        OutlinedButton.icon(
+                          onPressed: () => controller.choose(
+                            context,
+                            const ServerSelection.automatic(),
+                          ),
+                          icon: const Icon(LucideIcons.shuffle, size: 17),
+                          label: Text(l.prototypeAutomaticSelection),
                         ),
-                        icon: const Icon(LucideIcons.shuffle, size: 17),
-                        label: Text(l.prototypeAutomaticSelection),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => controller.choose(
-                          context,
-                          const ServerSelection.source(0),
+                      if (!mobile)
+                        OutlinedButton.icon(
+                          onPressed: () => controller.choose(
+                            context,
+                            const ServerSelection.source(0),
+                          ),
+                          icon: const Icon(LucideIcons.layers, size: 17),
+                          label: Text(l.prototypeManualAdditions),
                         ),
-                        icon: const Icon(LucideIcons.layers, size: 17),
-                        label: Text(l.prototypeManualAdditions),
-                      ),
                     ] else
                       FilledButton.icon(
                         onPressed: () => controller.editRaw(context),
@@ -275,34 +318,21 @@ class _ServerBrowserState extends State<ServerBrowser> {
                       ),
                   ],
                 ),
-                if (!complete) ...[
-                  const SizedBox(height: 16),
-                  SettingSection(
-                    title: '',
-                    padding: EdgeInsets.zero,
-                    children: [
-                      SettingRow(
-                        title: l.manualGroupsTitle,
-                        subtitle: l.manualGroupCount(
-                          controller.catalog.manualGroups.length,
-                        ),
-                        leading: const Icon(LucideIcons.folder, size: 19),
-                        onTap: () => context.pushScoped(
-                          AppPageDestination.serverManualGroups,
-                          extra: controller,
-                        ),
-                      ),
-                    ],
+                if (!complete && !filtered) ...[
+                  SizedBox(height: gap),
+                  SettingRow(
+                    title: l.manualGroupsTitle,
+                    subtitle: l.manualGroupCount(
+                      controller.catalog.manualGroups.length,
+                    ),
+                    leading: const Icon(LucideIcons.folder, size: 19),
+                    onTap: () => context.pushScoped(
+                      AppPageDestination.serverManualGroups,
+                      extra: controller,
+                    ),
                   ),
                 ],
-                const SizedBox(height: 18),
-                Text(
-                  complete
-                      ? l.serverCompleteConfigurationsTab
-                      : l.serverNodesTab,
-                  style: AppTypography.sectionTitle,
-                ),
-                const SizedBox(height: 4),
+                SizedBox(height: gap),
                 Text(
                   complete
                       ? l.providerConfigurationCount(count)
@@ -317,7 +347,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
         ),
         if (count == 0)
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: gutter),
             sliver: SliverToBoxAdapter(
               child: SettingSection(
                 title: '',
@@ -368,7 +398,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
           ),
         if (count > 0)
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: gutter),
             sliver: DecoratedSliver(
               decoration: BoxDecoration(
                 color: palette.card,
@@ -376,39 +406,44 @@ class _ServerBrowserState extends State<ServerBrowser> {
                 borderRadius: BorderRadius.circular(AppRadii.card),
               ),
               sliver: SliverList.builder(
-                itemCount: count,
+                itemCount: count + 2,
                 itemBuilder: (context, index) {
-                  final first = index == 0, last = index == count - 1;
-                  final child = index < ordinary.length
-                      ? ServerNodeRow(
-                          key: ValueKey(('server', ordinary[index].id)),
-                          controller: controller,
-                          row: ordinary[index],
-                          showDivider: !last,
-                        )
-                      : Column(
-                          children: [
-                            ServerRawRow(
-                              key: ValueKey((
-                                'raw',
-                                raw[index - ordinary.length].id,
-                              )),
-                              controller: controller,
-                              row: raw[index - ordinary.length],
-                            ),
-                            if (!last)
-                              Divider(height: 1, color: palette.border),
-                          ],
-                        );
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 1),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(first ? AppRadii.card - 1 : 0),
-                        bottom: Radius.circular(last ? AppRadii.card - 1 : 0),
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
                       ),
-                      child: child,
-                    ),
+                      child: Text(
+                        complete
+                            ? l.serverCompleteConfigurationsTab
+                            : l.serverNodesTab,
+                        style: AppTypography.sectionTitle,
+                      ),
+                    );
+                  }
+                  if (index == count + 1) return const SizedBox(height: 18);
+                  final resourceIndex = index - 1;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: resourceIndex < ordinary.length
+                        ? ServerNodeRow(
+                            key: ValueKey((
+                              'server',
+                              ordinary[resourceIndex].id,
+                            )),
+                            controller: controller,
+                            row: ordinary[resourceIndex],
+                            showDivider: false,
+                          )
+                        : ServerRawRow(
+                            key: ValueKey((
+                              'raw',
+                              raw[resourceIndex - ordinary.length].id,
+                            )),
+                            controller: controller,
+                            row: raw[resourceIndex - ordinary.length],
+                          ),
                   );
                 },
               ),
@@ -447,11 +482,20 @@ class ServerManualGroupsPage extends StatelessWidget {
           .where((group) => group.manual)
           .toList();
       return Scaffold(
-        appBar: PageAppBar(title: Text(l.manualGroupsTitle)),
+        appBar: PageAppBar.forPage(context, title: Text(l.manualGroupsTitle)),
         body: SafeArea(
           child: ResponsiveContent(
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                    ? 16
+                    : 28,
+                16,
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                    ? 16
+                    : 28,
+                28,
+              ),
               children: [
                 Wrap(
                   spacing: 8,
@@ -463,6 +507,22 @@ class ServerManualGroupsPage extends StatelessWidget {
                       label: Text(l.manualGroupNew),
                     ),
                     ManualGroupOrderButton(controller: controller),
+                    OutlinedButton.icon(
+                      onPressed: () => controller.choose(
+                        context,
+                        const ServerSelection.automatic(),
+                      ),
+                      icon: const Icon(LucideIcons.shuffle, size: 17),
+                      label: Text(l.prototypeAutomaticSelection),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => controller.choose(
+                        context,
+                        const ServerSelection.source(0),
+                      ),
+                      icon: const Icon(LucideIcons.layers, size: 17),
+                      label: Text(l.prototypeManualAdditions),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 18),
@@ -527,23 +587,29 @@ class ServerRawRow extends StatelessWidget {
             true &&
         controller.connectionView.runtime?.configuration.connection.rawId ==
             row.id;
-    return SettingRow(
-      title: row.name,
-      subtitle: l.xrayRawPageTitle,
-      leading: const Icon(LucideIcons.fileJson, size: 19),
-      titleTrailing: selected || running
-          ? Icon(
-              running ? LucideIcons.activity : LucideIcons.circleCheck,
-              size: 16,
-              color: ColorManager.palette(context).primary,
-            )
-          : null,
-      onTap: () => context.pushScoped(
-        AppPageDestination.serverResource,
-        extra: ServerResourceParams(
-          controller: controller,
-          resourceId: row.id,
-          raw: true,
+    final palette = ColorManager.palette(context);
+    return Material(
+      color: selected || running ? palette.selectedSurface : palette.card,
+      borderRadius: BorderRadius.circular(AppRadii.control),
+      clipBehavior: Clip.antiAlias,
+      child: SettingRow(
+        title: row.name,
+        subtitle: l.xrayRawPageTitle,
+        leading: const Icon(LucideIcons.fileJson, size: 19),
+        titleTrailing: selected || running
+            ? Icon(
+                running ? LucideIcons.activity : LucideIcons.circleCheck,
+                size: 16,
+                color: ColorManager.palette(context).primary,
+              )
+            : null,
+        onTap: () => context.pushScoped(
+          AppPageDestination.serverResource,
+          extra: ServerResourceParams(
+            controller: controller,
+            resourceId: row.id,
+            raw: true,
+          ),
         ),
       ),
     );
@@ -573,10 +639,10 @@ class ServerGroupView extends StatelessWidget {
     }
     return Padding(
       padding: mobile
-          ? const EdgeInsets.fromLTRB(15, 13, 15, 22)
+          ? const EdgeInsets.fromLTRB(16, 16, 16, 28)
           : const EdgeInsets.fromLTRB(
               AppSpacing.page,
-              AppSpacing.desktopPageTop,
+              16,
               AppSpacing.page,
               AppSpacing.desktopPageBottom,
             ),
@@ -610,13 +676,10 @@ class ServerGroupView extends StatelessWidget {
           itemBuilder: (context, index) {
             if (index == 0) {
               return Container(
-                constraints: BoxConstraints(minHeight: mobile ? 0 : 88),
+                constraints: const BoxConstraints(minHeight: 0),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 17,
                   vertical: 15,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: palette.border)),
                 ),
                 child: mobile
                     ? Column(
@@ -710,12 +773,20 @@ class ServerGroupView extends StatelessWidget {
             }
             final rowIndex = index - headerCount;
             final row = group.visibleRows[rowIndex];
-            return ServerNodeRow(
-              key: ValueKey(row.id),
-              controller: controller,
-              row: row,
-              detail: controller.sourceName(l, row),
-              showDivider: rowIndex != group.visibleRows.length - 1,
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                0,
+                18,
+                rowIndex == group.visibleRows.length - 1 ? 18 : 0,
+              ),
+              child: ServerNodeRow(
+                key: ValueKey(row.id),
+                controller: controller,
+                row: row,
+                detail: controller.sourceName(l, row),
+                showDivider: false,
+              ),
             );
           },
         ),
@@ -732,15 +803,6 @@ class ServerGroupView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!mobile) ...[
-            Text(
-              group.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.serverGroupTitle,
-            ),
-            const SizedBox(height: 4),
-          ],
           Text(
             controller.summary(l, group),
             style: AppTypography.serverGroupSummary.copyWith(
@@ -762,15 +824,10 @@ class ServerGroupView extends StatelessWidget {
     return Row(
       mainAxisSize: mobile ? MainAxisSize.max : MainAxisSize.min,
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: palette.surfaceHover,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(LucideIcons.layers3, size: 20, color: palette.primary),
+        Icon(
+          group.source == null ? LucideIcons.folder : LucideIcons.rss,
+          size: 20,
+          color: palette.mutedForeground,
         ),
         const SizedBox(width: 13),
         if (mobile) Expanded(child: label) else Flexible(child: label),
@@ -801,9 +858,12 @@ class ServerGroupView extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               minimumSize: Size(
                 0,
-                mobile
-                    ? AppLayout.mobileButtonMinHeight
-                    : AppLayout.buttonMinHeight,
+                AppLayout.touchExtent(
+                  mobile
+                      ? AppLayout.mobileButtonMinHeight
+                      : AppLayout.buttonMinHeight,
+                  platform: Theme.of(context).platform,
+                ),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 15),
               foregroundColor: palette.foreground,
@@ -940,11 +1000,14 @@ class ServerUseButton extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               minimumSize: Size(
                 0,
-                mobile
-                    ? AppLayout.mobileButtonMinHeight
-                    : inline
-                    ? 32
-                    : 36,
+                AppLayout.touchExtent(
+                  mobile
+                      ? AppLayout.mobileButtonMinHeight
+                      : inline
+                      ? 32
+                      : 36,
+                  platform: Theme.of(context).platform,
+                ),
               ),
               padding: EdgeInsets.symmetric(
                 horizontal: !mobile && inline ? 7 : 9,
@@ -1024,7 +1087,7 @@ class ServerNodeRow extends StatelessWidget {
     required this.controller,
     required this.row,
     this.detail,
-    this.showDivider = true,
+    this.showDivider = false,
   });
 
   @override
@@ -1088,102 +1151,138 @@ class ServerNodeRow extends StatelessWidget {
   }) {
     final l = AppLocalizations.of(context)!;
     final p = ColorManager.palette(context);
-    return Column(
-      children: [
-        Material(
-          color: chosen || running ? p.selectedSurface : p.card,
-          child: InkWell(
-            onTap: () => context.pushScoped(
-              AppPageDestination.serverResource,
-              extra: ServerResourceParams(
-                controller: controller,
-                resourceId: row.id,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 300;
+        return Column(
+          children: [
+            Material(
+              color: chosen || running ? p.selectedSurface : p.card,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.control),
+                side: chosen || running
+                    ? BorderSide(color: p.primary.withValues(alpha: .2))
+                    : BorderSide.none,
               ),
-            ),
-            child: Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 8, 12),
-              child: Row(
-                children: [
-                  Icon(
-                    controller.providerRow(row)
-                        ? LucideIcons.fileJson
-                        : LucideIcons.server,
-                    size: 20,
-                    color: p.foreground,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => context.pushScoped(
+                  AppPageDestination.serverResource,
+                  extra: ServerResourceParams(
+                    controller: controller,
+                    resourceId: row.id,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          controller.serverName(row),
-                          style: AppTypography.serverNodeTitle.copyWith(
-                            color: p.foreground,
-                          ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 0, 12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        controller.providerRow(row)
+                            ? LucideIcons.fileJson
+                            : LucideIcons.server,
+                        size: 20,
+                        color: chosen || running
+                            ? p.primaryText
+                            : p.mutedForeground,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              controller.serverName(row),
+                              style: AppTypography.serverNodeTitle.copyWith(
+                                color: chosen || running
+                                    ? p.primaryText
+                                    : p.foreground,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              [
+                                if (protocol.isNotEmpty) protocol,
+                                detail ?? controller.sourceName(l, row),
+                              ].join(' · '),
+                              style: AppTypography.metadata.copyWith(
+                                color: p.mutedForeground,
+                              ),
+                            ),
+                            if (compact && !controller.providerRow(row)) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                controller.health(l, row),
+                                style: AppTypography.metadata.copyWith(
+                                  color: ColorManager.nodeLatency(
+                                    context,
+                                    row.delay,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          [
-                            if (protocol.isNotEmpty) protocol,
-                            detail ?? controller.sourceName(l, row),
-                          ].join(' · '),
-                          style: AppTypography.metadata.copyWith(
-                            color: p.mutedForeground,
-                          ),
-                        ),
-                        if (!controller.providerRow(row)) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            controller.health(l, row),
-                            style: AppTypography.metadata.copyWith(
-                              color: ColorManager.nodeLatency(
-                                context,
-                                row.delay,
+                      ),
+                      if (!compact && !controller.providerRow(row))
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(start: 8),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 88),
+                            child: Text(
+                              controller.health(l, row),
+                              textAlign: TextAlign.end,
+                              style: AppTypography.metadata.copyWith(
+                                color: ColorManager.nodeLatency(
+                                  context,
+                                  row.delay,
+                                ),
                               ),
                             ),
                           ),
-                        ],
-                      ],
-                    ),
+                        ),
+                      if (running || chosen)
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                            start: 8,
+                            end: 4,
+                          ),
+                          child: Icon(
+                            running
+                                ? LucideIcons.activity
+                                : LucideIcons.circleCheck,
+                            size: 17,
+                            color: p.primary,
+                          ),
+                        ),
+                      if (!controller.providerRow(row))
+                        IconButton(
+                          tooltip: row.favorite
+                              ? l.prototypeRemoveFavorite
+                              : l.prototypeAddFavorite,
+                          onPressed: controller.serverBusy(row)
+                              ? null
+                              : () => controller.toggleFavorite(context, row),
+                          isSelected: row.favorite,
+                          icon: controller.favoritingIds.contains(row.id)
+                              ? const ButtonProgressIndicator()
+                              : const Icon(LucideIcons.star, size: 17),
+                          selectedIcon: const Icon(
+                            LucideIcons.star600,
+                            size: 17,
+                          ),
+                        ),
+                      ServerMenu(controller: controller, row: row),
+                    ],
                   ),
-                  if (running || chosen)
-                    Padding(
-                      padding: const EdgeInsetsDirectional.only(
-                        start: 8,
-                        end: 4,
-                      ),
-                      child: Icon(
-                        running
-                            ? LucideIcons.activity
-                            : LucideIcons.circleCheck,
-                        size: 17,
-                        color: p.primary,
-                      ),
-                    ),
-                  if (!controller.providerRow(row))
-                    IconButton(
-                      tooltip: row.favorite
-                          ? l.prototypeRemoveFavorite
-                          : l.prototypeAddFavorite,
-                      onPressed: controller.serverBusy(row)
-                          ? null
-                          : () => controller.toggleFavorite(context, row),
-                      isSelected: row.favorite,
-                      icon: controller.favoritingIds.contains(row.id)
-                          ? const ButtonProgressIndicator()
-                          : const Icon(LucideIcons.star, size: 17),
-                      selectedIcon: const Icon(LucideIcons.star600, size: 17),
-                    ),
-                  ServerMenu(controller: controller, row: row),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-        if (showDivider) Divider(height: 1, color: p.border),
-      ],
+            if (showDivider) Divider(height: 1, color: p.border),
+          ],
+        );
+      },
     );
   }
 }
@@ -1223,7 +1322,9 @@ class ServerMenu extends StatelessWidget {
         foregroundColor: ColorManager.palette(context).mutedStrong,
         iconSize: 18,
         padding: EdgeInsets.zero,
-        minimumSize: const Size(42, 42),
+        minimumSize: Size.square(
+          AppLayout.touchExtent(36, platform: Theme.of(context).platform),
+        ),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: const RoundedRectangleBorder(),
       ),
@@ -1265,7 +1366,9 @@ class SourceMenu extends StatelessWidget {
         foregroundColor: ColorManager.palette(context).mutedStrong,
         iconSize: 18,
         padding: EdgeInsets.zero,
-        minimumSize: const Size(36, 42),
+        minimumSize: Size.square(
+          AppLayout.touchExtent(36, platform: Theme.of(context).platform),
+        ),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: const RoundedRectangleBorder(),
       ),

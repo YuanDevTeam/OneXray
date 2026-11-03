@@ -39,7 +39,8 @@ class _ConnectPageState extends State<ConnectPage> {
     child: PageVisibility(
       onChanged: controller.setPageVisible,
       child: Scaffold(
-        appBar: PageAppBar(
+        appBar: PageAppBar.forPage(
+          context,
           title: Text(AppLocalizations.of(context)!.prototypeConnect),
           actions: const [AppActivityIndicator()],
         ),

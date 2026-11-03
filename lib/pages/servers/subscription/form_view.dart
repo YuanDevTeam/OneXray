@@ -129,21 +129,27 @@ class SubscriptionFormView extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _fields(context),
-      const SizedBox(height: 12),
-      _editableField(
-        context,
-        label: AppLocalizations.of(context)!.subscriptionUserAgentTitle,
-        controller: userAgentController,
-        hintText: AppLocalizations.of(context)!.subscriptionUserAgentHint,
-        textDirection: TextDirection.ltr,
-        errorText: userAgentErrorText,
-        focusNode: userAgentFocusNode,
-        onChanged: onUserAgentChanged,
+      SettingSection(
+        title: AppLocalizations.of(context)!.subscriptionInformationTitle,
+        padding: EdgeInsets.zero,
+        children: [
+          _fields(context),
+          const SizedBox(height: 12),
+          _editableField(
+            context,
+            label: AppLocalizations.of(context)!.subscriptionUserAgentTitle,
+            controller: userAgentController,
+            hintText: AppLocalizations.of(context)!.subscriptionUserAgentHint,
+            textDirection: TextDirection.ltr,
+            errorText: userAgentErrorText,
+            focusNode: userAgentFocusNode,
+            onChanged: onUserAgentChanged,
+          ),
+        ],
       ),
-      const SizedBox(height: 14),
+      const SizedBox(height: 16),
       _configurationCard(context),
-      const SizedBox(height: 14),
+      const SizedBox(height: 16),
       _SubscriptionAdvanced(
         configured: hwidEnabled || hasAgeKeys,
         hasError: ageKeyPairErrorText != null,
@@ -245,7 +251,9 @@ class SubscriptionFormView extends StatelessWidget {
                     Expanded(
                       child: Text(
                         title,
-                        style: AppTypography.subscriptionAgeTitle,
+                        style: AppTypography.fieldLabel.copyWith(
+                          color: ColorManager.palette(context).foreground,
+                        ),
                       ),
                     ),
                     if (help != null)
@@ -266,7 +274,9 @@ class SubscriptionFormView extends StatelessWidget {
                 ? null
                 : PageHelpButton(title: title, messages: [help]),
             titleMaxLines: 3,
-            titleStyle: AppTypography.subscriptionAgeTitle,
+            titleStyle: AppTypography.fieldLabel.copyWith(
+              color: ColorManager.palette(context).foreground,
+            ),
             contentPadding: const EdgeInsets.all(13),
             trailing: trailing,
           ),
@@ -617,8 +627,8 @@ class SubscriptionFormView extends StatelessWidget {
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            style: AppTypography.subscriptionField,
-            placeholderStyle: AppTypography.subscriptionField.copyWith(
+            style: AppTypography.rowValue,
+            placeholderStyle: AppTypography.rowValue.copyWith(
               color: palette.mutedForeground,
             ),
             textDirection: textDirection,
@@ -698,8 +708,8 @@ class SubscriptionFormView extends StatelessWidget {
   Widget _fieldLabel(BuildContext context, String text) {
     final label = Text(
       text,
-      style: AppTypography.subscriptionField.copyWith(
-        color: ColorManager.palette(context).mutedStrong,
+      style: AppTypography.fieldLabel.copyWith(
+        color: ColorManager.palette(context).foreground,
       ),
     );
     // macOS's native text input bridge does not expose the merged field label.

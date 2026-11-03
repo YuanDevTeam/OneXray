@@ -16,6 +16,7 @@ import 'package:onexray/pages/connect/routing/smart/exit_picker.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
+import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/outbound/map.dart';
 
@@ -204,8 +205,8 @@ void main() {
     expect(find.text(l.prototypeAddServers), findsNothing);
     expect(find.text(l.prototypeManageSources), findsNothing);
     expect(find.text(l.prototypeFavorites), findsNothing);
-    expect(find.text('VLESS | XHTTP | TLS'), findsNWidgets(4));
-    expect(find.text('outbound'), findsNWidgets(4));
+    expect(find.textContaining('VLESS | XHTTP | TLS'), findsNWidgets(4));
+    expect(find.textContaining('outbound'), findsNWidgets(4));
     expect(find.text(l.countryRegionName('SG')), findsNothing);
     await tester.tap(find.text('Server 3'));
     await tester.pumpAndSettle();
@@ -248,7 +249,7 @@ void main() {
         expect(controller.selectedId, 4);
         expect(results, isEmpty);
         expect(
-          find.text(
+          find.textContaining(
             delay == PingDelayConstants.unknown
                 ? l.prototypeNotTested
                 : l.serverLatencyFailed,
@@ -273,7 +274,7 @@ void main() {
     expect(tester.getCenter(card).dx, 580);
     expect(
       tester.getTopLeft(card).dy,
-      kToolbarHeight + AppSpacing.desktopPageTop,
+      tester.getBottomLeft(find.byType(PageAppBar)).dy + 16,
     );
     expect(
       tester.widget<PageActionBar>(find.byType(PageActionBar)).maxWidth,

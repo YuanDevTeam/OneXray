@@ -121,7 +121,14 @@ void main() {
         );
         await tester.tap(title);
         expect(choices, 0);
-        expect(find.text('App routing preferences are kept.'), findsOneWidget);
+        final explanation = find.textContaining(
+          'App routing preferences are kept.',
+        );
+        expect(explanation, findsOneWidget);
+        expect(
+          tester.renderObject<RenderParagraph>(explanation).didExceedMaxLines,
+          isFalse,
+        );
         expect(tester.takeException(), isNull);
       }
     },
@@ -269,7 +276,7 @@ void main() {
           ConnectionPhase.disconnecting => l.prototypePleaseWait,
           ConnectionPhase.failed => l.prototypeTryAgain,
         };
-        expect(find.text(title), findsOneWidget);
+        expect(find.text(title), findsNWidgets(2));
         expect(
           tester
               .widget<FilledButton>(find.widgetWithText(FilledButton, action))
@@ -462,7 +469,7 @@ void main() {
         );
         expect(find.text(l.prototypeConnectionFailed), findsNothing);
         expect(find.text(l.prototypeCheckNetwork), findsNothing);
-        expect(find.text(l.prototypeConnected), findsOneWidget);
+        expect(find.text(l.prototypeConnected), findsNWidgets(2));
         expect(tester.takeException(), isNull);
       },
     );

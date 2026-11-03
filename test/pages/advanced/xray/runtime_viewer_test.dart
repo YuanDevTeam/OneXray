@@ -14,6 +14,7 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 
 const _panel = ValueKey('runtime-code-panel');
 const _logLines = ValueKey('runtime-log-lines');
@@ -86,11 +87,7 @@ void main() {
         );
         expect(
           export.top,
-          closeTo(
-            tester.getRect(find.byType(AppBar)).bottom +
-                AppSpacing.desktopPageTop,
-            .01,
-          ),
+          closeTo(tester.getRect(find.byType(PageAppBar)).bottom + 20, .01),
         );
         expect(export.bottom + 12, closeTo(panel.top, .01));
         expect(panel.height, greaterThanOrEqualTo(420));
@@ -131,7 +128,7 @@ void main() {
       final export = find.widgetWithText(OutlinedButton, l.prototypeExport);
       expect(
         tester.getSize(export).height,
-        greaterThanOrEqualTo(AppLayout.touchExtent(36)),
+        greaterThanOrEqualTo(AppLayout.touchExtent(48)),
       );
       expect(tester.getRect(export).left, AppSpacing.mobilePage);
       expect(panel.width, 427 - AppSpacing.mobilePage * 2);
@@ -147,10 +144,11 @@ void main() {
       );
       final line = tester.widget<Text>(find.text('first line'));
       expect(line.textDirection, TextDirection.ltr);
-      expect(line.style!.fontSize, 12);
+      expect(line.style!.fontSize, 13);
       expect(line.style!.height, 1.45);
       expect(
-        tester.widget<AppBar>(find.byType(AppBar)).actions ?? const <Widget>[],
+        tester.widget<PageAppBar>(find.byType(PageAppBar)).actions ??
+            const <Widget>[],
         isEmpty,
       );
       expect(tester.takeException(), isNull);

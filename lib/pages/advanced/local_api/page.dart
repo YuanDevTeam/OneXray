@@ -30,12 +30,18 @@ class LocalApiPage extends StatelessWidget {
         final palette = ColorManager.palette(context);
         final width = MediaQuery.sizeOf(context).width;
         final compact = width <= AppLayout.mobileBreakpoint;
-        final gutter = compact ? 14.0 : AppSpacing.advancedDesktopGutter(width);
+        final gutter = compact
+            ? AppSpacing.mobilePage
+            : AppSpacing.advancedDesktopGutter(width);
         return Scaffold(
-          appBar: PageAppBar(title: Text(l.localApiTitle)),
+          appBar: PageAppBar.forPage(
+            context,
+            title: Text(l.localApiTitle),
+            description: l.localApiSummary,
+          ),
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.advancedMaxWidth,
-            expandDesktop: true,
+            expandDesktop: false,
             horizontalPadding: compact ? null : gutter,
             children: [
               OutlinedButton(
@@ -61,12 +67,7 @@ class LocalApiPage extends StatelessWidget {
                     desktopMaxWidth: AppLayout.advancedMaxWidth,
                     padding: EdgeInsets.zero,
                     child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        gutter,
-                        compact ? 16 : 48,
-                        gutter,
-                        24,
-                      ),
+                      padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -74,8 +75,6 @@ class LocalApiPage extends StatelessWidget {
                             SettingSection(
                               title: l.localApiTitle,
                               icon: LucideIcons.terminal,
-                              description: l.localApiSummary,
-                              descriptionBelow: true,
                               padding: EdgeInsets.zero,
                               children: [
                                 SettingRow(
@@ -91,20 +90,40 @@ class LocalApiPage extends StatelessWidget {
                                   ),
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.all(14),
-                                  child: TextField(
-                                    key: const ValueKey('local-api-port'),
-                                    controller: controller.portController,
-                                    enabled: !state.busy,
-                                    keyboardType: TextInputType.number,
-                                    textDirection: TextDirection.ltr,
-                                    textAlign: TextAlign.left,
-                                    autocorrect: false,
-                                    decoration: InputDecoration(
-                                      labelText: l.localApiPort,
-                                      hintText: '18587',
-                                      hintTextDirection: TextDirection.ltr,
-                                    ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        l.localApiPort,
+                                        style: AppTypography.fieldLabel
+                                            .copyWith(
+                                              color: palette.foreground,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Semantics(
+                                        label: l.localApiPort,
+                                        child: TextField(
+                                          key: const ValueKey('local-api-port'),
+                                          controller: controller.portController,
+                                          enabled: !state.busy,
+                                          keyboardType: TextInputType.number,
+                                          textDirection: TextDirection.ltr,
+                                          textAlign: TextAlign.left,
+                                          autocorrect: false,
+                                          style: AppTypography.rowValue,
+                                          decoration: const InputDecoration(
+                                            hintText: '18587',
+                                            hintTextDirection:
+                                                TextDirection.ltr,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 SettingRow(
@@ -131,14 +150,14 @@ class LocalApiPage extends StatelessWidget {
                                   ),
                                 ),
                                 Padding(
-                                  padding: const EdgeInsets.all(14),
+                                  padding: const EdgeInsets.all(12),
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.stretch,
                                     children: [
                                       Text(
                                         l.localApiEndpoint,
-                                        style: AppTypography.settingsRow,
+                                        style: AppTypography.rowTitle,
                                       ),
                                       const SizedBox(height: 8),
                                       SelectableText(
@@ -155,7 +174,7 @@ class LocalApiPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                             SettingSection(
                               title: l.localApiToken,
                               icon: LucideIcons.keyRound,
@@ -164,7 +183,7 @@ class LocalApiPage extends StatelessWidget {
                                 messages: [l.localApiTokenHint],
                               ),
                               descriptionBelow: true,
-                              padding: const EdgeInsets.all(14),
+                              padding: EdgeInsets.zero,
                               children: [
                                 Align(
                                   alignment: AlignmentDirectional.centerStart,
@@ -209,7 +228,7 @@ class LocalApiPage extends StatelessWidget {
                             const SizedBox(height: 24),
                             Text(
                               l.localApiAppRequired,
-                              style: AppTypography.settingsDetailNote.copyWith(
+                              style: AppTypography.supporting.copyWith(
                                 color: palette.mutedForeground,
                               ),
                             ),
@@ -220,8 +239,9 @@ class LocalApiPage extends StatelessWidget {
                               child: Text(
                                 state.error!,
                                 key: const ValueKey('local-api-error'),
-                                style: AppTypography.settingsDetailNote
-                                    .copyWith(color: palette.destructive),
+                                style: AppTypography.supporting.copyWith(
+                                  color: palette.destructive,
+                                ),
                               ),
                             ),
                           if (!state.loaded)

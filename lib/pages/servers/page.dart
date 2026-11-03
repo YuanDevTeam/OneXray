@@ -50,30 +50,29 @@ class _ServersPageState extends State<ServersPage> {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         final page = Scaffold(
-          appBar: PageAppBar(
+          appBar: PageAppBar.forPage(
+            context,
             title: Text(l.prototypeServers),
-            actions: [
-              if (!mobile)
-                IconButton(
-                  tooltip: l.manualGroupNew,
-                  onPressed: () => controller.createManualGroup(context),
-                  icon: const Icon(LucideIcons.folderPlus, size: 20),
-                ),
-              if (mobile)
-                IconButton(
-                  key: const ValueKey('servers-add'),
-                  tooltip: l.prototypeAddServer,
-                  onPressed: () => controller.addServers(context),
-                  icon: const Icon(LucideIcons.plus, size: 20),
-                )
-              else
+            description: l.serversPageDescription,
+            headingAction: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (!mobile)
+                  IconButton(
+                    tooltip: l.manualGroupNew,
+                    onPressed: () => controller.createManualGroup(context),
+                    icon: const Icon(LucideIcons.folderPlus, size: 20),
+                  ),
                 FilledButton.icon(
                   key: const ValueKey('servers-add'),
                   onPressed: () => controller.addServers(context),
                   icon: const Icon(LucideIcons.plus, size: 18),
                   label: Text(l.prototypeAddServer),
                 ),
-            ],
+              ],
+            ),
           ),
           body: SafeArea(
             child: ServerLoadState(
@@ -130,7 +129,8 @@ class ServerGroupPage extends StatelessWidget {
             }
           }
           return Scaffold(
-            appBar: PageAppBar(
+            appBar: PageAppBar.forPage(
+              context,
               title: Text(
                 group?.name ?? l.prototypeServers,
                 maxLines: 1,

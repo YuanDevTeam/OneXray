@@ -446,7 +446,13 @@ class _OptionPicker extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     spacing: 6,
     children: [
-      if (label != null) Text(label!, style: AppTypography.routingRowTitle),
+      if (label != null)
+        Text(
+          label!,
+          style: AppTypography.fieldLabel.copyWith(
+            color: ColorManager.palette(context).foreground,
+          ),
+        ),
       AppMenuButton<String>(
         entries: [
           for (final option in labels.entries)
@@ -460,6 +466,7 @@ class _OptionPicker extends StatelessWidget {
               Expanded(
                 child: Text(
                   labels[value] ?? value,
+                  style: AppTypography.rowValue,
                   semanticsLabel: semanticLabel == null
                       ? null
                       : '$semanticLabel: ${labels[value] ?? value}',

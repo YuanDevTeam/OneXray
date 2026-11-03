@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:material_ui/material_ui.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/core/db/database/database.dart';
@@ -37,8 +35,8 @@ class PendingGeoDataRow extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: palette.border),
-        borderRadius: BorderRadius.circular(6),
+        color: palette.secondary,
+        borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -56,7 +54,7 @@ class PendingGeoDataRow extends StatelessWidget {
           ),
           Text(
             l.geodataPendingDownload,
-            style: AppTypography.settingsDetailNote.copyWith(
+            style: AppTypography.supporting.copyWith(
               color: palette.mutedForeground,
             ),
           ),
@@ -115,271 +113,70 @@ class GeoDataRows extends StatelessWidget {
       busy || updating.contains(file.row.id) || deleting.contains(file.row.id);
 
   @override
-  Widget build(BuildContext context) {
-    if (MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint) {
-      return _mobileList(context);
-    }
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [for (final file in files) _resourceRow(context, file)],
+  );
+
+  Widget _resourceRow(BuildContext context, GeoDataFile file) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    final headers = [
-      l.prototypeFileName,
-      l.prototypeSource,
-      l.prototypeSize,
-      l.prototypeLastSuccessfulUpdate,
-      if (custom) l.prototypeAction,
-    ];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final usableWidth =
-            constraints.maxWidth - 24 - (headers.length - 1) * 14;
-        final actionsWidth = custom
-            ? math.max(84.0, usableWidth * .8 / 5)
-            : 0.0;
-        final dataWidth = usableWidth - actionsWidth;
-        final widths = [
-          for (final ratio in const [1.05, 1.3, .7, 1.15])
-            dataWidth * ratio / 4.2,
-          if (custom) actionsWidth,
-        ];
-        Widget line(List<Widget> cells, {bool header = false}) => Container(
-          constraints: BoxConstraints(minHeight: header ? 42 : 56),
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: palette.border)),
-          ),
-          child: Row(
-            children: [
-              for (var index = 0; index < cells.length; index++) ...[
-                if (index > 0) const SizedBox(width: 14),
-                SizedBox(width: widths[index], child: cells[index]),
-              ],
-            ],
-          ),
-        );
-        Widget value(String text, {bool ltr = false}) => Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textDirection: ltr ? TextDirection.ltr : null,
-          style: AppTypography.geodataTableBody,
-        );
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: palette.border)),
-          ),
-          child: Column(
-            children: [
-              line([
-                for (final title in headers)
-                  Text(
-                    title,
-                    style: AppTypography.geodataTableHeading.copyWith(
-                      color: palette.mutedForeground,
-                    ),
-                  ),
-              ], header: true),
-              for (final file in files)
-                Semantics(
-                  container: true,
-                  label: file.builtIn
-                      ? l.prototypeDefaultRoutingData
-                      : l.prototypeCustomRuleDataset(file.row.id),
-                  child: line([
-                    _name(context, file),
-                    value(file.sourceHost, ltr: true),
-                    value(
-                      file.bytes == null ? "—" : formatTraffic(file.bytes!),
-                      ltr: true,
-                    ),
-                    value(
-                      DateFormat.yMd(Localizations.localeOf(context).toString())
-                          .add_Hm()
-                          .format(file.row.timestamp.toLocal()),
-                    ),
-                    if (custom) _actions(context, file),
-                  ]),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _mobileList(BuildContext context) {
-    final palette = ColorManager.palette(context);
-    Widget group(List<GeoDataFile> rows) => Container(
-      decoration: BoxDecoration(
-        color: palette.card,
-        border: Border.all(color: palette.border),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var index = 0; index < rows.length; index++) ...[
-            if (index > 0) Divider(height: 0, color: palette.border),
-            _mobileRow(context, rows[index]),
-          ],
-        ],
-      ),
-    );
-    if (!custom) return group(files);
-    return Column(
-      spacing: 8,
-      children: [
-        for (final file in files) group([file]),
-      ],
-    );
-  }
-
-  Widget _mobileRow(BuildContext context, GeoDataFile file) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final date = file.row.timestamp.toLocal();
-    Widget field(String label, String value, {bool ltr = false}) => Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 3,
-      children: [
-        Text(
-          label,
-          style: AppTypography.geodataMeta.copyWith(
-            color: palette.mutedForeground,
-          ),
-        ),
-        Text(
-          value,
-          style: AppTypography.geodataValue,
-          textDirection: ltr ? TextDirection.ltr : null,
-        ),
-      ],
-    );
     return Semantics(
       container: true,
       label: file.builtIn
           ? l.prototypeDefaultRoutingData
           : l.prototypeCustomRuleDataset(file.row.id),
-      child: Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 9,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 8,
+          children: [
+            _name(context, file),
+            Semantics(
+              label: l.prototypeSource,
+              child: Text(
+                file.sourceHost,
+                textDirection: TextDirection.ltr,
+                style: AppTypography.supporting.copyWith(
+                  color: palette.mutedForeground,
+                ),
+              ),
+            ),
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
               children: [
-                Padding(
-                  padding: EdgeInsetsDirectional.only(
-                    end: custom
-                        ? updating.contains(file.row.id)
-                              ? 106
-                              : 82
-                        : 0,
-                  ),
-                  child: InkWell(
-                    onTap: () => onOpen(file),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        spacing: 3,
-                        children: [
-                          Text(
-                            l.prototypeFileName,
-                            style: AppTypography.geodataMeta.copyWith(
-                              color: palette.mutedForeground,
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  file.fileName,
-                                  textDirection: TextDirection.ltr,
-                                  style: AppTypography.geodataValue.copyWith(
-                                    color: palette.primary,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                LucideIcons.chevronRightDir,
-                                size: 15,
-                                color: palette.primary,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                Semantics(
+                  label: l.prototypeSize,
+                  child: Text(
+                    file.bytes == null ? '—' : formatTraffic(file.bytes!),
+                    textDirection: TextDirection.ltr,
+                    style: AppTypography.supporting.copyWith(
+                      color: palette.mutedForeground,
                     ),
                   ),
                 ),
-                field(l.prototypeSource, file.sourceHost, ltr: true),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 12,
-                  children: [
-                    Expanded(
-                      child: field(
-                        l.prototypeSize,
-                        file.bytes == null ? "—" : formatTraffic(file.bytes!),
-                        ltr: true,
-                      ),
+                Semantics(
+                  label: l.prototypeLastSuccessfulUpdate,
+                  child: Text(
+                    DateFormat.yMd(Localizations.localeOf(context).toString())
+                        .add_Hm()
+                        .format(file.row.timestamp.toLocal()),
+                    style: AppTypography.supporting.copyWith(
+                      color: palette.mutedForeground,
                     ),
-                    Expanded(
-                      child: field(
-                        l.prototypeLastSuccessfulUpdate,
-                        DateFormat.yMd(
-                          Localizations.localeOf(context).toString(),
-                        ).add_Hm().format(date),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
-          if (custom)
-            PositionedDirectional(
-              top: 7,
-              end: 8,
-              child: Row(
-                children: [
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(0, 30),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      textStyle: AppTypography.geodataAction,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.standard,
-                    ),
-                    onPressed: _busy(file) ? null : () => onUpdate(file),
-                    child: AppActivityBuilder(
-                      builder: (context, activity) => ButtonProgress(
-                        busy:
-                            activity.downloading &&
-                            (busy || updating.contains(file.row.id)),
-                        child: Text(l.prototypeUpdate),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: l.prototypeDeleteCustomDataset,
-                    style: IconButton.styleFrom(
-                      foregroundColor: palette.destructive,
-                      minimumSize: const Size.square(30),
-                      maximumSize: const Size.square(30),
-                      padding: EdgeInsets.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: _busy(file) ? null : () => onDelete(file),
-                    icon: deleting.contains(file.row.id)
-                        ? const ButtonProgressIndicator()
-                        : const Icon(LucideIcons.trash2, size: 16),
-                  ),
-                ],
+            if (custom)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: _actions(context, file),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -387,9 +184,18 @@ class GeoDataRows extends StatelessWidget {
   Widget _name(BuildContext context, GeoDataFile file) => TextButton(
     style: TextButton.styleFrom(
       alignment: AlignmentDirectional.centerStart,
-      minimumSize: Size.zero,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      textStyle: AppTypography.geodataTableBody,
+      minimumSize: Size(
+        0,
+        AppLayout.touchExtent(
+          MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+              ? 48
+              : 42,
+          platform: Theme.of(context).platform,
+        ),
+      ),
+      padding: EdgeInsets.zero,
+      textStyle: AppTypography.rowTitle,
+      foregroundColor: ColorManager.palette(context).foreground,
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     ),
     onPressed: () => onOpen(file),
@@ -406,30 +212,33 @@ class GeoDataRows extends StatelessWidget {
   Widget _actions(BuildContext context, GeoDataFile file) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      spacing: 2,
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        Flexible(
-          child: TextButton(
-            style: TextButton.styleFrom(
-              minimumSize: const Size(0, 36),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              textStyle: AppTypography.geodataDesktopAction,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        TextButton(
+          style: TextButton.styleFrom(
+            minimumSize: Size(
+              0,
+              MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                  ? 48
+                  : 42,
             ),
-            onPressed: _busy(file) ? null : () => onUpdate(file),
-            child: AppActivityBuilder(
-              builder: (context, activity) => ButtonProgress(
-                busy:
-                    activity.downloading &&
-                    (busy || updating.contains(file.row.id)),
-                child: Text(
-                  l.prototypeUpdate,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            textStyle: AppTypography.geodataDesktopAction,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          onPressed: _busy(file) ? null : () => onUpdate(file),
+          child: AppActivityBuilder(
+            builder: (context, activity) => ButtonProgress(
+              busy:
+                  activity.downloading &&
+                  (busy || updating.contains(file.row.id)),
+              child: Text(
+                l.prototypeUpdate,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ),
@@ -438,9 +247,9 @@ class GeoDataRows extends StatelessWidget {
           tooltip: l.prototypeDeleteCustomDataset,
           style: IconButton.styleFrom(
             foregroundColor: palette.destructive,
-            fixedSize: const Size.square(30),
-            minimumSize: const Size.square(30),
-            maximumSize: const Size.square(30),
+            minimumSize: Size.square(
+              AppLayout.touchExtent(40, platform: Theme.of(context).platform),
+            ),
             padding: EdgeInsets.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),

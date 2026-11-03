@@ -56,7 +56,8 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return Scaffold(
-          appBar: PageAppBar(
+          appBar: PageAppBar.forPage(
+            context,
             title: Text(l.prototypeSmartRouting),
             leading: BackButton(onPressed: () => controller.cancel(context)),
           ),
@@ -74,7 +75,7 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
                     desktopMaxWidth: AppLayout.routingMaxWidth,
                     padding: EdgeInsetsDirectional.fromSTEB(
                       mobile ? AppSpacing.mobilePage : AppSpacing.page,
-                      mobile ? 12 : AppSpacing.desktopPageTop,
+                      16,
                       mobile ? AppSpacing.mobilePage : AppSpacing.page,
                       mobile ? 18 : AppSpacing.desktopPageBottom,
                     ),

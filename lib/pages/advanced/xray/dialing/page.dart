@@ -27,7 +27,9 @@ class ServerDialingPage extends StatelessWidget {
         final l = AppLocalizations.of(context)!;
         final width = MediaQuery.sizeOf(context).width;
         final mobile = width <= AppLayout.mobileBreakpoint;
-        final gutter = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
+        final gutter = mobile
+            ? AppSpacing.mobilePage
+            : AppSpacing.advancedDesktopGutter(width);
         return PolicyDetailScaffold(
           title: l.serverDialingTitle,
           controller: controller,
@@ -53,13 +55,10 @@ class ServerDialingPage extends StatelessWidget {
                         ),
                 )
               : Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    gutter,
-                    mobile ? 16 : 24,
-                    gutter,
-                    24,
-                  ),
-                  child: Column(
+                  padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 24),
+                  child: SettingSection(
+                    title: l.serverDialingTitle,
+                    padding: EdgeInsets.zero,
                     children: [
                       SettingRow(
                         title: l.serverDialingDomainStrategy,
@@ -85,7 +84,6 @@ class ServerDialingPage extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const Divider(height: 1),
                       SettingRow(
                         title: 'Happy Eyeballs',
                         titleMaxLines: 3,

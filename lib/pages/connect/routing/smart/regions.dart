@@ -161,7 +161,10 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return Scaffold(
-          appBar: PageAppBar(title: Text(l.prototypeDirectRegions)),
+          appBar: PageAppBar.forPage(
+            context,
+            title: Text(l.prototypeDirectRegions),
+          ),
           body: SafeArea(
             child: ResponsiveContent(
               desktopMaxWidth:
@@ -218,10 +221,9 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
                                     ),
                                     child: Text(
                                       l.prototypeNoRegionsFound,
-                                      style: AppTypography.routingSelectionInput
-                                          .copyWith(
-                                            color: palette.mutedForeground,
-                                          ),
+                                      style: AppTypography.supporting.copyWith(
+                                        color: palette.mutedForeground,
+                                      ),
                                     ),
                                   ),
                                 )
@@ -318,7 +320,13 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
               TextButton(
                 onPressed: state.selected.isEmpty ? null : controller.clear,
                 style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 32),
+                  minimumSize: Size(
+                    0,
+                    AppLayout.touchExtent(
+                      32,
+                      platform: Theme.of(context).platform,
+                    ),
+                  ),
                   padding: EdgeInsets.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: AppTypography.routingSelectionCount,

@@ -28,7 +28,8 @@ class ManualOrderPage extends StatelessWidget {
         return PopScope(
           canPop: !state.busy,
           child: Scaffold(
-            appBar: PageAppBar(
+            appBar: PageAppBar.forPage(
+              context,
               title: Text(
                 params.title,
                 maxLines: 1,
@@ -67,89 +68,107 @@ class ManualOrderPage extends StatelessWidget {
                         ),
                       ),
                     Expanded(
-                      child: ReorderableListView.builder(
-                        key: const PageStorageKey('manual-order'),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        buildDefaultDragHandles: false,
-                        onReorderItem: controller.reorder,
-                        itemCount: state.items.length,
-                        itemBuilder: (context, index) {
-                          final item = state.items[index];
-                          final handle = Tooltip(
-                            message: l.manualOrderDrag,
-                            // A tooltip long press would compete with the drag handle.
-                            triggerMode: TooltipTriggerMode.manual,
-                            child: Container(
-                              width: 40,
-                              height: 48,
-                              alignment: Alignment.center,
-                              color: Colors.transparent,
-                              child: Icon(
-                                LucideIcons.gripVertical,
-                                size: 20,
-                                color: ColorManager.palette(context)
-                                    .mutedForeground,
-                              ),
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          mobile ? 16 : 28,
+                          16,
+                          mobile ? 16 : 28,
+                          28,
+                        ),
+                        child: Material(
+                          color: ColorManager.palette(context).card,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadii.card),
+                            side: BorderSide(
+                              color: ColorManager.palette(context).border,
                             ),
-                          );
-                          return Material(
-                            key: ValueKey(item.id),
-                            color: ColorManager.palette(context).card,
-                            child: ListTile(
-                              leading: mobile
-                                  ? ReorderableDelayedDragStartListener(
-                                      index: index,
-                                      enabled: !state.busy,
-                                      child: handle,
-                                    )
-                                  : ReorderableDragStartListener(
-                                      index: index,
-                                      enabled: !state.busy,
-                                      child: handle,
-                                    ),
-                              title: Text(
-                                item.name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    key: ValueKey('move-up-${item.id}'),
-                                    tooltip: l.manualOrderMoveUp,
-                                    onPressed: state.busy || index == 0
-                                        ? null
-                                        : () => controller.reorder(
-                                            index,
-                                            index - 1,
-                                          ),
-                                    icon: const Icon(
-                                      LucideIcons.arrowUp,
-                                      size: 18,
-                                    ),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: ReorderableListView.builder(
+                            key: const PageStorageKey('manual-order'),
+                            padding: const EdgeInsets.all(18),
+                            buildDefaultDragHandles: false,
+                            onReorderItem: controller.reorder,
+                            itemCount: state.items.length,
+                            itemBuilder: (context, index) {
+                              final item = state.items[index];
+                              final handle = Tooltip(
+                                message: l.manualOrderDrag,
+                                // A tooltip long press would compete with the drag handle.
+                                triggerMode: TooltipTriggerMode.manual,
+                                child: Container(
+                                  width: 40,
+                                  height: 48,
+                                  alignment: Alignment.center,
+                                  color: Colors.transparent,
+                                  child: Icon(
+                                    LucideIcons.gripVertical,
+                                    size: 20,
+                                    color: ColorManager.palette(context)
+                                        .mutedForeground,
                                   ),
-                                  IconButton(
-                                    key: ValueKey('move-down-${item.id}'),
-                                    tooltip: l.manualOrderMoveDown,
-                                    onPressed:
-                                        state.busy ||
-                                            index == state.items.length - 1
-                                        ? null
-                                        : () => controller.reorder(
-                                            index,
-                                            index + 1,
-                                          ),
-                                    icon: const Icon(
-                                      LucideIcons.arrowDown,
-                                      size: 18,
-                                    ),
+                                ),
+                              );
+                              return Material(
+                                key: ValueKey(item.id),
+                                color: ColorManager.palette(context).card,
+                                child: ListTile(
+                                  leading: mobile
+                                      ? ReorderableDelayedDragStartListener(
+                                          index: index,
+                                          enabled: !state.busy,
+                                          child: handle,
+                                        )
+                                      : ReorderableDragStartListener(
+                                          index: index,
+                                          enabled: !state.busy,
+                                          child: handle,
+                                        ),
+                                  title: Text(
+                                    item.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        key: ValueKey('move-up-${item.id}'),
+                                        tooltip: l.manualOrderMoveUp,
+                                        onPressed: state.busy || index == 0
+                                            ? null
+                                            : () => controller.reorder(
+                                                index,
+                                                index - 1,
+                                              ),
+                                        icon: const Icon(
+                                          LucideIcons.arrowUp,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        key: ValueKey('move-down-${item.id}'),
+                                        tooltip: l.manualOrderMoveDown,
+                                        onPressed:
+                                            state.busy ||
+                                                index == state.items.length - 1
+                                            ? null
+                                            : () => controller.reorder(
+                                                index,
+                                                index + 1,
+                                              ),
+                                        icon: const Icon(
+                                          LucideIcons.arrowDown,
+                                          size: 18,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ),
                   ],

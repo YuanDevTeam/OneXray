@@ -66,6 +66,16 @@ void main() {
       final l = AppLocalizations.of(
         tester.element(find.byType(VpnTunnelPane)),
       )!;
+      expect(
+        find.byKey(const ValueKey('tunnel-system-capture')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('tunnel-connection-parameters')),
+        findsOneWidget,
+      );
+      expect(find.byType(TextField), findsNothing);
+      expect(find.byType(PolicyActions), findsNothing);
       final row = find.byWidgetPredicate(
         (widget) =>
             widget is PolicyValueRow && widget.title == l.prototypeSystemVpn,

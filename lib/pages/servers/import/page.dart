@@ -9,6 +9,7 @@ import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/servers/import/controller.dart';
 import 'package:onexray/pages/servers/subscription/form_view.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -71,7 +72,12 @@ class _ServersImportPageState extends State<ServersImportPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: EdgeInsets.all(mobile ? 14 : 20),
+                  padding: EdgeInsets.fromLTRB(
+                    mobile ? 16 : 28,
+                    16,
+                    mobile ? 16 : 28,
+                    0,
+                  ),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final width = constraints.maxWidth;
@@ -237,9 +243,9 @@ class ServerImportFormPage extends StatelessWidget {
                 if (subscription)
                   Padding(
                     padding: EdgeInsets.fromLTRB(
-                      mobile ? 16 : 20,
-                      20,
-                      mobile ? 16 : 20,
+                      mobile ? 16 : 28,
+                      16,
+                      mobile ? 16 : 28,
                       0,
                     ),
                     child: _subscription(context),
@@ -292,47 +298,57 @@ class ServerImportFormPage extends StatelessWidget {
   Widget _paste(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
+    final gutter =
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+        ? 16.0
+        : 28.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Column(
-        spacing: 8,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 0),
+      child: SettingSection(
+        title: l10n.prototypeImportLinks,
+        padding: EdgeInsets.zero,
         children: [
-          Text(
-            l10n.prototypeImportLinks,
-            style: AppTypography.importField.copyWith(
-              color: palette.mutedStrong,
-            ),
-          ),
-          SizedBox(
-            height: 120,
-            child: Directionality(
-              textDirection: TextDirection.ltr,
-              child: ShadInput(
-                controller: controller.text,
-                placeholder: const Text(
-                  'vless://, vmess://, trojan://, ss://, https://, onexray://',
+          Column(
+            spacing: 8,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.prototypePasteLink,
+                style: AppTypography.fieldLabel.copyWith(
+                  color: palette.foreground,
                 ),
-                expands: true,
-                editableTextSize: const Size(double.infinity, 98),
-                maxLines: null,
-                minLines: null,
-                autocorrect: false,
-                enableSuggestions: false,
-                keyboardType: TextInputType.multiline,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                style: AppTypography.importField,
               ),
-            ),
-          ),
-          Text(
-            l10n.prototypeImportLinksHint,
-            style: AppTypography.importHint.copyWith(
-              color: palette.mutedForeground,
-            ),
+              SizedBox(
+                height: 120,
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: ShadInput(
+                    controller: controller.text,
+                    placeholder: const Text(
+                      'vless://, vmess://, trojan://, ss://, https://, onexray://',
+                    ),
+                    expands: true,
+                    editableTextSize: const Size(double.infinity, 98),
+                    maxLines: null,
+                    minLines: null,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    keyboardType: TextInputType.multiline,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    style: AppTypography.rowValue,
+                  ),
+                ),
+              ),
+              Text(
+                l10n.prototypeImportLinksHint,
+                style: AppTypography.importHint.copyWith(
+                  color: palette.mutedForeground,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -343,16 +359,14 @@ class ServerImportFormPage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
     return Padding(
-      padding: EdgeInsets.fromLTRB(mobile ? 16 : 20, 20, mobile ? 16 : 20, 0),
+      padding: EdgeInsets.fromLTRB(mobile ? 16 : 28, 16, mobile ? 16 : 28, 0),
       child: Column(
         spacing: 7,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             l10n.prototypeXrayNodeJson,
-            style: AppTypography.subscriptionField.copyWith(
-              color: palette.mutedStrong,
-            ),
+            style: AppTypography.fieldLabel.copyWith(color: palette.foreground),
           ),
           OutboundJsonEditor(
             controller: controller.jsonText,
@@ -732,7 +746,8 @@ class ServerImportScannerPage extends StatelessWidget {
     value: controller,
     child: BlocBuilder<ServerImportController, ServerImportPageState>(
       builder: (context, state) => Scaffold(
-        appBar: PageAppBar(
+        appBar: PageAppBar.forPage(
+          context,
           title: Text(AppLocalizations.of(context)!.prototypeScanQrCode),
           actions: [
             IconButton(

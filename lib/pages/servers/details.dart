@@ -11,6 +11,7 @@ import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/servers/subscription/user_info.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/pages/main/navigation.dart';
@@ -65,11 +66,20 @@ class ServerResourcePage extends StatelessWidget {
       final busy =
           row != null && (controller.busy || controller.serverBusy(row));
       return Scaffold(
-        appBar: PageAppBar(title: Text(name)),
+        appBar: PageAppBar.forPage(context, title: Text(name)),
         body: SafeArea(
           child: ResponsiveContent(
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                    ? 16
+                    : 28,
+                16,
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                    ? 16
+                    : 28,
+                28,
+              ),
               children: [
                 if (row == null)
                   Padding(
@@ -131,7 +141,7 @@ class ServerResourcePage extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   SettingSection(
                     title: raw
                         ? l.xrayRawPageTitle
@@ -181,7 +191,7 @@ class ServerResourcePage extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   if (raw || provider) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -194,7 +204,7 @@ class ServerResourcePage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                   ],
                   SettingSection(
                     title: l.prototypeMoreActions,
@@ -301,13 +311,23 @@ class ServerSourcePage extends StatelessWidget {
           ? null
           : SubscriptionUserInfo.fromSubscription(source);
       return Scaffold(
-        appBar: PageAppBar(
+        appBar: PageAppBar.forPage(
+          context,
           title: Text(source?.name ?? l.prototypeSubscriptions),
         ),
         body: SafeArea(
           child: ResponsiveContent(
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                    ? 16
+                    : 28,
+                16,
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                    ? 16
+                    : 28,
+                28,
+              ),
               children: [
                 if (source == null)
                   Padding(
@@ -358,7 +378,7 @@ class ServerSourcePage extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   SettingSection(
                     title: l.prototypeSubscriptions,
                     padding: EdgeInsets.zero,
@@ -393,14 +413,14 @@ class ServerSourcePage extends StatelessWidget {
                     ],
                   ),
                   if (package != null) ...[
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
                     SettingSection(
                       title: '',
                       padding: EdgeInsets.zero,
                       children: [SubscriptionPackageDetails(info: package)],
                     ),
                   ],
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   SettingSection(
                     title: controller.providerSource(source)
                         ? l.providerConfigurationTitle
@@ -435,7 +455,7 @@ class ServerSourcePage extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   SettingSection(
                     title: l.prototypeMoreActions,
                     padding: EdgeInsets.zero,

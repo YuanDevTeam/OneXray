@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/launch/setup/page.dart';
-import 'package:onexray/pages/launch/setup/widgets.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/launch/setup.dart';
@@ -59,14 +58,21 @@ void main() {
       );
       await tester.pumpAndSettle();
       final l = AppLocalizations.of(tester.element(find.byType(SetupView)))!;
-      for (final element in find.byType(SetupPoint).evaluate()) {
-        final bounds = tester.getRect(
-          find.byElementPredicate((item) => item == element),
+      final card = find.byType(ShadCard);
+      expect(card, findsOneWidget);
+      for (final text in [
+        l.prototypeWelcome,
+        l.prototypeNoDataCollection,
+        l.prototypeBringOwnServers,
+        l.prototypeAgreeAndContinue,
+      ]) {
+        expect(
+          find.descendant(of: card, matching: find.text(text)),
+          findsOneWidget,
         );
-        expect(bounds.left, greaterThanOrEqualTo(24));
-        expect(bounds.right, lessThanOrEqualTo(366));
-        expect(bounds.center.dx, closeTo(195, .1));
       }
+      expect(tester.getRect(card).left, greaterThanOrEqualTo(24));
+      expect(tester.getRect(card).right, lessThanOrEqualTo(366));
       await tester.ensureVisible(find.text(l.prototypePrivacyPolicy));
       await tester.tap(find.text(l.prototypePrivacyPolicy));
       await tester.tap(find.text(l.prototypeAgreeAndContinue));
@@ -103,15 +109,21 @@ void main() {
         expect(find.text(l.prototypeSetUpVpn), findsNothing);
         expect(find.text(l.prototypeAddServers), findsNothing);
         expect(find.text(l.prototypeVpnPermission), findsNothing);
-        if (mobile) expect(find.text('2 / 2'), findsOneWidget);
-
-        final footerBefore = tester.getRect(find.byType(SetupFooter));
+        expect(find.byType(ShadCard), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(ShadCard),
+            matching: find.text(l.prototypeGoToHome),
+          ),
+          findsOneWidget,
+        );
         await tester.drag(
           find.byType(SingleChildScrollView),
           const Offset(0, -300),
         );
         await tester.pumpAndSettle();
-        expect(tester.getRect(find.byType(SetupFooter)), footerBefore);
+        await tester.ensureVisible(find.text(l.prototypeGoToHome));
+        await tester.pumpAndSettle();
         await tester.tap(find.text(l.prototypeGoToHome));
         expect(actions, [SetupAction.finish]);
         expect(tester.takeException(), isNull);

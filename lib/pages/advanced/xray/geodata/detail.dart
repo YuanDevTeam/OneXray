@@ -48,7 +48,8 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                 MediaQuery.sizeOf(context).width,
               );
         return Scaffold(
-          appBar: PageAppBar(
+          appBar: PageAppBar.forPage(
+            context,
             title: Text(file?.fileName ?? l.prototypeRoutingData),
             actions: const [AppActivityIndicator(pinging: false)],
           ),
@@ -76,7 +77,7 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                             child: Padding(
                               padding: EdgeInsets.fromLTRB(
                                 gutter,
-                                mobile ? 16 : 24,
+                                20,
                                 gutter,
                                 12,
                               ),
@@ -113,7 +114,7 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                                     dividerIndent: 0,
                                     children: [
                                       Padding(
-                                        padding: const EdgeInsets.all(14),
+                                        padding: const EdgeInsets.all(12),
                                         child: Row(
                                           spacing: 12,
                                           children: [
@@ -165,7 +166,7 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                                           file.row.type == 'ip'
                                               ? 'GeoIP'
                                               : 'GeoSite',
-                                          style: AppTypography.settingsRow,
+                                          style: AppTypography.rowTitle,
                                         ),
                                       ),
                                       SettingRow(
@@ -177,7 +178,7 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                                         ),
                                         trailing: Text(
                                           '${file.index.categoryCount}',
-                                          style: AppTypography.settingsRow,
+                                          style: AppTypography.rowTitle,
                                         ),
                                       ),
                                     ],
@@ -187,13 +188,6 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                                     label: l.prototypeSearchCategories,
                                     child: ShadInput(
                                       onChanged: controller.searchChanged,
-                                      constraints: const BoxConstraints(
-                                        minHeight: 43,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
-                                      ),
                                       gap: 10,
                                       style: AppTypography.geodataBody,
                                       placeholderStyle: AppTypography
@@ -213,7 +207,7 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                                         border: ShadBorder.all(
                                           color: palette.border,
                                           radius: BorderRadius.circular(
-                                            AppRadii.card,
+                                            AppRadii.control,
                                           ),
                                         ),
                                       ),
@@ -232,13 +226,14 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                             ),
                             sliver: DecoratedSliver(
                               decoration: BoxDecoration(
+                                color: palette.card,
                                 border: Border.all(color: palette.border),
                                 borderRadius: BorderRadius.circular(
                                   AppRadii.card,
                                 ),
                               ),
                               sliver: SliverPadding(
-                                padding: const EdgeInsets.all(1),
+                                padding: const EdgeInsets.all(18),
                                 sliver: codes.isEmpty
                                     ? SliverToBoxAdapter(
                                         child: Container(
@@ -316,14 +311,9 @@ class GeoDataCategorySliver extends StatelessWidget {
     final palette = ColorManager.palette(context);
     return Container(
       constraints: const BoxConstraints(minHeight: 66),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        border: index == codes.length - 1
-            ? null
-            : Border(bottom: BorderSide(color: palette.border)),
-      ),
+      padding: const EdgeInsets.all(12),
       child: Row(
-        spacing: 10,
+        spacing: 12,
         children: [
           Expanded(
             child: Column(
@@ -337,7 +327,7 @@ class GeoDataCategorySliver extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.geodataCategory,
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
                   reference,
                   textDirection: TextDirection.ltr,

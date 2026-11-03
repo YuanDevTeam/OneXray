@@ -56,7 +56,6 @@ class AppleVpnPage extends StatelessWidget {
             l.prototypeBypassCellularServicesHint,
             l.prototypeBypassApplePushHint,
             l.prototypeAllowDeviceCommunicationHint,
-            l.prototypeUseDnsOverTlsHint,
             l.prototypeAlwaysOnHint,
             l.prototypeConnectOnDemandHint,
           ],
@@ -104,7 +103,7 @@ class AppleVpnView extends StatelessWidget {
           final width = MediaQuery.sizeOf(context).width;
           final mobile = width <= AppLayout.mobileBreakpoint;
           final gutter = mobile
-              ? 14.0
+              ? AppSpacing.mobilePage
               : AppSpacing.advancedDesktopGutter(width);
           Widget toggle(
             String field,
@@ -124,12 +123,7 @@ class AppleVpnView extends StatelessWidget {
                 : (value) => controller.update(field, value, section: 'apple'),
           );
           return Padding(
-            padding: EdgeInsets.fromLTRB(
-              gutter,
-              mobile ? 16 : 24,
-              gutter,
-              mobile ? 18 : 24,
-            ),
+            padding: EdgeInsets.fromLTRB(gutter, 20, gutter, mobile ? 18 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -149,7 +143,7 @@ class AppleVpnView extends StatelessWidget {
                           ),
                   ),
                 SettingSection(
-                  title: '',
+                  title: l.prototypeSystemVpnPolicy,
                   padding: EdgeInsets.zero,
                   dividerIndent: 0,
                   children: [
@@ -204,59 +198,40 @@ class AppleVpnView extends StatelessWidget {
                         supported: apple['captureAllTraffic'] == false,
                         showDescription: true,
                       ),
-                    toggle(
-                      'dnsOverTls',
-                      l.prototypeUseDnsOverTls,
-                      l.prototypeUseDnsOverTlsHint,
-                    ),
                   ],
                 ),
-                SizedBox(height: mobile ? 16 : 20),
-                Text(
-                  l.prototypeBypassNetworks,
-                  style: mobile
-                      ? AppTypography.appleAutoTitle
-                      : AppTypography.appleAutoTitleDesktop,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  apple['captureAllTraffic'] == true
+                const SizedBox(height: 20),
+                SettingSection(
+                  title: l.prototypeBypassNetworks,
+                  description: apple['captureAllTraffic'] == true
                       ? l.appleExcludedNetworksInactive
                       : l.appleExcludedNetworksHint,
-                  style: AppTypography.platformDetailBody.copyWith(
-                    color: palette.mutedForeground,
-                  ),
+                  padding: EdgeInsets.zero,
+                  children: [
+                    if (apple['captureAllTraffic'] == false) ...[
+                      ExcludedNetworks(
+                        rowKeyPrefix: 'apple-cidr-row',
+                        values: controller.strings('apple', 'excludedCidrs'),
+                        enabled: !controller.blocked,
+                        onChanged: (values) => controller.update(
+                          'excludedCidrs',
+                          values,
+                          section: 'apple',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        l.appleExcludedNetworksInputHint,
+                        style: AppTypography.windowsNetworkNote.copyWith(
+                          color: palette.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-                if (apple['captureAllTraffic'] == false) ...[
-                  const SizedBox(height: 16),
-                  ExcludedNetworks(
-                    rowKeyPrefix: 'apple-cidr-row',
-                    values: controller.strings('apple', 'excludedCidrs'),
-                    enabled: !controller.blocked,
-                    onChanged: (values) => controller.update(
-                      'excludedCidrs',
-                      values,
-                      section: 'apple',
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    l.appleExcludedNetworksInputHint,
-                    style: AppTypography.windowsNetworkNote.copyWith(
-                      color: palette.mutedForeground,
-                    ),
-                  ),
-                ],
-                SizedBox(height: mobile ? 16 : 20),
-                Text(
-                  l.prototypeAutomaticConnectionDisconnection,
-                  style: mobile
-                      ? AppTypography.appleAutoTitle
-                      : AppTypography.appleAutoTitleDesktop,
-                ),
-                SizedBox(height: mobile ? 8 : 10),
+                const SizedBox(height: 20),
                 SettingSection(
-                  title: '',
+                  title: l.prototypeAutomaticConnectionDisconnection,
                   padding: EdgeInsets.zero,
                   dividerIndent: 0,
                   children: [
@@ -273,9 +248,7 @@ class AppleVpnView extends StatelessWidget {
                       ),
                       if (apple['onDemandEnabled'] == true)
                         Padding(
-                          padding: mobile
-                              ? const EdgeInsets.all(10)
-                              : const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                          padding: const EdgeInsets.only(top: 12),
                           child: AppleWifiPreview(
                             controller: controller,
                             showNetwork: true,

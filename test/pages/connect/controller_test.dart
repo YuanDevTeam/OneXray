@@ -814,9 +814,14 @@ void main() {
           find.widgetWithText(ChoiceChip, l.serverSelectionAutomaticScope),
         );
         await tester.pumpAndSettle();
-        await tester.tap(
-          find.widgetWithText(ListTile, l.prototypeManualAdditions),
+        final manualScope = find.widgetWithText(
+          ListTile,
+          l.prototypeManualAdditions,
         );
+        await tester.ensureVisible(manualScope);
+        await tester.pumpAndSettle();
+        expect(manualScope.hitTestable(), findsOneWidget);
+        await tester.tap(manualScope);
         await tester.pumpAndSettle();
         await tester.tap(find.text('Apply and reconnect'));
         await tester.pumpAndSettle();
@@ -863,9 +868,14 @@ void main() {
         find.widgetWithText(ChoiceChip, l.serverSelectionAutomaticScope),
       );
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.widgetWithText(ListTile, l.prototypeManualAdditions),
+      final manualScope = find.widgetWithText(
+        ListTile,
+        l.prototypeManualAdditions,
       );
+      await tester.ensureVisible(manualScope);
+      await tester.pumpAndSettle();
+      expect(manualScope.hitTestable(), findsOneWidget);
+      await tester.tap(manualScope);
       await tester.pumpAndSettle();
       expect(coordinator.applyCount, 0);
       await tester.tap(find.widgetWithText(OutlinedButton, l.prototypeCancel));

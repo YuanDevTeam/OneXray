@@ -2,6 +2,7 @@ import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -32,13 +33,8 @@ class AppleSettingToggle extends StatelessWidget {
     final palette = ColorManager.palette(context);
     return MergeSemantics(
       child: Container(
-        constraints: BoxConstraints(minHeight: mobile ? 64 : 61),
-        padding: EdgeInsetsDirectional.fromSTEB(
-          nested ? (mobile ? 20 : 32) : (mobile ? 12 : 16),
-          mobile ? 9 : 10,
-          mobile ? 12 : 16,
-          mobile ? 9 : 10,
-        ),
+        constraints: BoxConstraints(minHeight: mobile ? 56 : 48),
+        padding: EdgeInsetsDirectional.fromSTEB(nested ? 24 : 12, 12, 12, 12),
         child: Row(
           children: [
             Expanded(
@@ -52,7 +48,7 @@ class AppleSettingToggle extends StatelessWidget {
                         : AppTypography.appleSettingTitleDesktop,
                   ),
                   if (description != null) ...[
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Text(
                       description!,
                       style:
@@ -65,7 +61,7 @@ class AppleSettingToggle extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(width: mobile ? 12 : 16),
+            const SizedBox(width: 12),
             AppSwitch(
               value: value,
               enabled: onChanged != null,
@@ -144,18 +140,12 @@ class AppleWifiPreview extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: palette.card,
-        border: Border.all(color: palette.border),
+        color: palette.secondary,
         borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var index = 0; index < sections.length; index++) ...[
-            if (index > 0) Divider(height: 0, color: palette.border),
-            sections[index],
-          ],
-        ],
+        children: [...sections],
       ),
     );
   }
@@ -585,76 +575,47 @@ class _AppleWifiEditorSectionState extends State<AppleWifiEditorSection> {
     final mobile = _mobile(context);
     final palette = ColorManager.palette(context);
     final l = AppLocalizations.of(context)!;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return SettingSection(
+      title: widget.title,
+      description: widget.description,
+      padding: EdgeInsets.zero,
       children: [
-        Text(
-          widget.title,
-          style: mobile
-              ? AppTypography.appleWifiHeading
-              : AppTypography.appleWifiHeadingDesktop,
-        ),
-        SizedBox(height: mobile ? 4 : 5),
-        Text(
-          widget.description,
-          style:
-              (mobile
-                      ? AppTypography.appleWifiDescription
-                      : AppTypography.appleWifiDescriptionDesktop)
-                  .copyWith(color: palette.mutedForeground),
-        ),
-        SizedBox(height: mobile ? 13 : 17),
-        Container(
-          padding: EdgeInsets.all(mobile ? 12 : 20),
-          decoration: BoxDecoration(
-            border: Border.all(color: palette.border),
-            borderRadius: BorderRadius.circular(AppRadii.card),
+        for (var index = 0; index < widget.values.length; index++) ...[
+          _WifiInputRow(
+            key: ObjectKey(fields[index]),
+            controller: fields[index],
+            label: '${widget.title} ${index + 1}',
+            removeLabel: '${l.prototypeRemoveWifi} ${index + 1}',
+            enabled: widget.enabled,
+            conflict:
+                widget.values[index].trim().isNotEmpty &&
+                widget.otherValues.contains(widget.values[index]),
+            onChanged: (_) => _publish(),
+            onRemove: () => _remove(index),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          const SizedBox(height: 12),
+        ],
+        OutlinedButton(
+          onPressed: widget.enabled ? _add : null,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: palette.foreground,
+            side: BorderSide(color: palette.border),
+            minimumSize: Size(0, mobile ? 48 : 42),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            textStyle: mobile
+                ? AppTypography.appleWifiAdd
+                : AppTypography.appleWifiAddDesktop,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              for (var index = 0; index < widget.values.length; index++) ...[
-                _WifiInputRow(
-                  key: ObjectKey(fields[index]),
-                  controller: fields[index],
-                  label: '${widget.title} ${index + 1}',
-                  removeLabel: '${l.prototypeRemoveWifi} ${index + 1}',
-                  enabled: widget.enabled,
-                  conflict:
-                      widget.values[index].trim().isNotEmpty &&
-                      widget.otherValues.contains(widget.values[index]),
-                  onChanged: (_) => _publish(),
-                  onRemove: () => _remove(index),
-                ),
-                SizedBox(height: mobile ? 9 : 12),
-              ],
-              OutlinedButton(
-                onPressed: widget.enabled ? _add : null,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: palette.primary,
-                  side: BorderSide(color: palette.primary),
-                  minimumSize: Size(0, mobile ? 47 : 54),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadii.control),
-                  ),
-                  textStyle: mobile
-                      ? AppTypography.appleWifiAdd
-                      : AppTypography.appleWifiAddDesktop,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(LucideIcons.plus, size: 18),
-                    const SizedBox(width: 9),
-                    Flexible(child: Text(l.prototypeAddWifi)),
-                  ],
-                ),
-              ),
+              const Icon(LucideIcons.plus, size: 18),
+              const SizedBox(width: 9),
+              Flexible(child: Text(l.prototypeAddWifi)),
             ],
           ),
         ),

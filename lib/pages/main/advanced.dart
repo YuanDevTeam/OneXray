@@ -16,12 +16,15 @@ class TunnelRootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: PageAppBar(
+    appBar: PageAppBar.forPage(
+      context,
       title: Text(AppLocalizations.of(context)!.prototypeVpnTunnel),
     ),
     body: VpnTunnelPane(
       openTunnel: (context, destination, draft) =>
           context.pushScoped<bool>(switch (destination) {
+            TunnelDestination.dns => AppPageDestination.tunnelDns,
+            TunnelDestination.network => AppPageDestination.tunnelNetwork,
             TunnelDestination.apple => AppPageDestination.appleVpn,
             TunnelDestination.android => AppPageDestination.androidVpn,
             TunnelDestination.windows => AppPageDestination.windowsVpn,
@@ -36,7 +39,8 @@ class XrayRootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: PageAppBar(
+    appBar: PageAppBar.forPage(
+      context,
       title: Text(
         AppLocalizations.of(context)!.prototypeXrayRuntimeDiagnostics,
       ),
@@ -48,6 +52,8 @@ class XrayRootPage extends StatelessWidget {
           context.pushScoped(AppPageDestination.routingData),
       onUpdates: (context) => context.pushScoped(AppPageDestination.autoUpdate),
       onSpeedTest: (context) => context.pushScoped(AppPageDestination.ping),
+      onLogSettings: (context) =>
+          context.pushScoped<bool>(AppPageDestination.xrayLogs),
       onLocalApi: (context) => context.pushScoped(AppPageDestination.localApi),
       onLanProxy: (context) async {
         await context.pushScoped(AppPageDestination.lanProxy);

@@ -95,9 +95,8 @@ void main() {
           (widget) => widget is SettingRow && widget.title == title,
         );
         final sections = [
-          l.prototypeAppearance,
-          l.prototypeLanguage,
-          l.prototypeStartup,
+          l.settingsAppearanceAndLanguage,
+          l.settingsStartupAndSystem,
           l.prototypeData,
           l.prototypeAbout,
         ].map((title) => tester.getRect(section(title))).toList();
