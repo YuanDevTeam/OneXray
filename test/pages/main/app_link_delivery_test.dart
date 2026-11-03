@@ -59,11 +59,13 @@ void main() {
                     routes: [
                       GoRoute(
                         path: AppPageDestination.serversImport.segment,
-                        builder: (_, state) {
-                          importCount++;
-                          received.add(state.extra! as String);
-                          return Scaffold(body: Text(state.extra! as String));
-                        },
+                        builder: (_, state) => _ImportDraftPage(
+                          input: state.extra! as String,
+                          onOpened: (input) {
+                            importCount++;
+                            received.add(input);
+                          },
+                        ),
                       ),
                     ],
                   ),
@@ -110,13 +112,31 @@ void main() {
     // A manually opened import must finish before the cached link opens.
     unawaited(router.push('/connect/servers-import', extra: 'manual'));
     await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('import-draft')),
+      'Unsaved manual import',
+    );
     links.add(first);
+    links.add(second);
+    links.add(second);
     await tester.pumpAndSettle();
     expect(received.last, 'manual');
+    expect(importCount, 3);
+    expect(find.text('Unsaved manual import'), findsOneWidget);
     router.pop();
     await tester.pumpAndSettle();
     expect(received.last, first.toString());
     expect(importCount, 4);
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(received, [
+      first.toString(),
+      second.toString(),
+      'manual',
+      first.toString(),
+      second.toString(),
+    ]);
+    expect(importCount, 5);
     router.pop();
     await tester.pumpAndSettle();
     unawaited(
@@ -128,13 +148,41 @@ void main() {
     await tester.pumpAndSettle();
     links.add(second);
     await tester.pumpAndSettle();
-    expect(importCount, 4);
+    expect(importCount, 5);
     router.pop();
     await tester.pumpAndSettle();
     expect(received.last, second.toString());
-    expect(importCount, 5);
+    expect(importCount, 6);
     router.pop();
     await tester.pumpAndSettle();
     await tester.pumpWidget(const SizedBox.shrink());
   });
+}
+
+class _ImportDraftPage extends StatefulWidget {
+  const _ImportDraftPage({required this.input, required this.onOpened});
+  final String input;
+  final ValueChanged<String> onOpened;
+
+  @override
+  State<_ImportDraftPage> createState() => _ImportDraftPageState();
+}
+
+class _ImportDraftPageState extends State<_ImportDraftPage> {
+  @override
+  void initState() {
+    super.initState();
+    // Count actual workflow instances, not unrelated router widget rebuilds.
+    widget.onOpened(widget.input);
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Column(
+      children: [
+        Text(widget.input),
+        const TextField(key: ValueKey('import-draft')),
+      ],
+    ),
+  );
 }

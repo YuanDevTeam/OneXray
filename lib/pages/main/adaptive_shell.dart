@@ -54,6 +54,7 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   GoRouter? _router;
   IncomingAppLink? _activeAppLink;
   bool _appLinkDrainScheduled = false;
+  bool _settingsNavigationScheduled = false;
 
   StatefulNavigationShell get navigationShell => widget.navigationShell;
 
@@ -79,7 +80,7 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   }
 
   Future<void> _drainAppLink() async {
-    if (_activeAppLink != null || !_canOpenSettings()) return;
+    if (_activeAppLink != null || !_canOpenAppLink()) return;
     final event = _shareService.claimNextAppLink();
     if (event == null) return;
     _activeAppLink = event;
@@ -145,6 +146,23 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     super.dispose();
   }
 
+  bool _canOpenAppLink() {
+    if (!_canOpenSettings()) return false;
+    final location = GoRouter.of(context)
+        .routerDelegate
+        .currentConfiguration
+        .last
+        .matchedLocation;
+    // These workflows used to be routed dialogs. Their full-page presentation
+    // permits Settings branch changes, but an incoming import must still wait
+    // rather than push another form over the active manual draft.
+    return !{
+      AppPageDestination.serversImport,
+      AppPageDestination.serverEditor,
+      AppPageDestination.subscriptionEdit,
+    }.any((page) => location.endsWith('/${page.segment}'));
+  }
+
   bool _canOpenSettings() {
     if (!mounted || !_menusAttached) return false;
     final location = GoRouter.of(context)
@@ -168,11 +186,20 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   }
 
   void _openSettings() {
-    if (!_canOpenSettings()) return;
-    navigationShell.goBranch(
-      AppPrimaryDestination.settings.index,
-      initialLocation: false,
-    );
+    if (_settingsNavigationScheduled || !_canOpenSettings()) return;
+    _settingsNavigationScheduled = true;
+    // go_router saves a branch's latest match list when its Shell widget is
+    // updated. Switching before a pending push builds would save the old stack
+    // and discard that page. Let it commit, then recheck popup admission.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _settingsNavigationScheduled = false;
+      if (!_canOpenSettings()) return;
+      navigationShell.goBranch(
+        AppPrimaryDestination.settings.index,
+        initialLocation: false,
+      );
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void _retry() {
