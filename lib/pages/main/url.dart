@@ -42,6 +42,7 @@ import 'package:onexray/pages/servers/page.dart';
 import 'package:onexray/pages/servers/order/controller.dart';
 import 'package:onexray/pages/servers/order/page.dart';
 import 'package:onexray/pages/connect/page.dart';
+import 'package:onexray/pages/connect/routing/page.dart';
 import 'package:onexray/pages/settings/page.dart';
 import 'package:onexray/pages/connect/routing/smart/exit_picker.dart';
 import 'package:onexray/pages/servers/controller.dart';
@@ -112,6 +113,11 @@ abstract final class RouterPath {
       ),
       GoRoute(path: RouterPath.privacy, redirect: (_, _) => RouterPath.setup),
       GoRoute(path: RouterPath.firstRun, redirect: (_, _) => RouterPath.setup),
+      GoRoute(path: '/advanced', redirect: (_, _) => '/tunnel'),
+      GoRoute(
+        path: '/advanced/:page',
+        redirect: (_, state) => '/tunnel/${state.pathParameters['page']}',
+      ),
       StatefulShellRoute.indexedStack(
         // Forwarded branch events would overwrite the root modal state.
         notifyRootObserver: false,
@@ -217,6 +223,9 @@ final _pageRoutes = <_PageRoute>[
   _route(AppPageDestination.connect, (_, _) => const ConnectPage()),
   _route(AppPageDestination.servers, (_, _) => const ServersPage()),
   _route(AppPageDestination.advanced, (_, _) => const AdvancedRootPage()),
+  _route(AppPageDestination.routing, (_, _) => const RoutingPage()),
+  _route(AppPageDestination.tunnel, (_, _) => const TunnelRootPage()),
+  _route(AppPageDestination.xray, (_, _) => const XrayRootPage()),
   _route(AppPageDestination.settings, (_, _) => const SettingsPage()),
   _route(AppPageDestination.localApi, (_, _) => const LocalApiPage()),
   _route(AppPageDestination.lanProxy, (_, _) => const LanProxyPage()),

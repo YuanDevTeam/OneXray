@@ -966,5 +966,40 @@
   "jsonEditorDiscardChanges": "کنار گذاشتن تغییرات",
   "tunnelDnsIpv4Invalid": "یک نشانی معتبر IPv4 وارد کنید.",
   "tunnelDnsIpv6Invalid": "یک نشانی معتبر IPv6 وارد کنید.",
-  "tunnelDnsServerNameRequired": "نام سرور DNS over TLS را وارد کنید."
+  "tunnelDnsServerNameRequired": "نام سرور DNS over TLS را وارد کنید.",
+  "navigationRouting": "مسیریابی",
+  "serverNodesTab": "گره‌ها",
+  "serverCompleteConfigurationsTab": "پیکربندی‌ها",
+  "serverAllSources": "همهٔ منابع",
+  "connectionPlan": "برنامهٔ اتصال",
+  "serverSelectionAutomaticScope": "محدودهٔ انتخاب خودکار",
+  "serverSelectionFixedNode": "گرهٔ ثابت",
+  "connectionCandidates": "{count} گرهٔ نامزد",
+  "@connectionCandidates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRequiredEntries": "{count} گرهٔ ورودی لازم است",
+  "@connectionRequiredEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRememberedPlanUnavailable": "برنامهٔ قبلی در دسترس نیست. یک محدوده یا گره انتخاب کنید.",
+  "clearConnectionResources": "پاک کردن منابع اتصال",
+  "clearConnectionResourcesWarning": "سرورها، اشتراک‌ها، پیکربندی‌های مسیر و انتخاب‌های اتصال حذف می‌شوند. تنظیمات برنامه، مجوزها و محل پشتیبان حفظ می‌شوند.",
+  "routingPageDescription": "روش مسیریابی ترافیک را انتخاب کنید یا قوانین خود را ویرایش کنید.",
+  "routingStoredPreferenceNotice": "پیکربندی‌های کامل مسیرهای خود را دارند. این انتخاب پس از بازگشت به گره‌های عادی اعمال می‌شود.",
+  "connectionRestoreOrdinary": "استفاده از برنامهٔ عادی قبلی",
+  "connectionPreparing": "در حال آماده‌سازی اتصال",
+  "xrayDiagnostics": "عیب‌یابی",
+  "xrayDiagnosticsHint": "خطاهای اتصال، پیکربندی اجرا و گزارش‌ها را ببینید.",
+  "xrayRefreshStatus": "تازه‌سازی وضعیت",
+  "xrayNoConnectionError": "اکنون خطایی در اتصال وجود ندارد.",
+  "xrayNoRuntimeConfiguration": "هنوز پیکربندی اجرایی موجود نیست. برای مشاهدهٔ ورودی واقعی راه‌اندازی متصل شوید."
 }

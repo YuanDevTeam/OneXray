@@ -23,23 +23,23 @@ abstract final class AppTypography {
     fontFamilyFallback: AppFontFamily.sansFallback,
   );
 
-  static final pageTitle = _style(31, 700);
-  static final panelTitle = _style(19, 700);
-  static final sectionTitle = _style(14, 700);
-  static final rowTitle = _style(13, 700);
-  static final rowValue = _style(13);
-  static final supporting = _style(12);
-  static final metadata = _style(12);
-  static final control = _style(13, 600);
-  static final navigationLabel = _style(16, 500);
-  static final selectedNavigationLabel = _style(16, 600);
+  static final pageTitle = _style(26, 600);
+  static final panelTitle = _style(16, 600);
+  static final sectionTitle = _style(16, 600);
+  static final rowTitle = _style(14, 600);
+  static final rowValue = _style(14);
+  static final supporting = _style(13);
+  static final metadata = _style(13);
+  static final control = _style(14, 600);
+  static final navigationLabel = _style(14, 500);
+  static final selectedNavigationLabel = _style(14, 600);
   static final badge = _style(12, 600);
   static final code = _style(12);
-  static final metric = _style(20, 600);
+  static final metric = _style(22, 500);
 
   static final pageAction = _style(12, 600);
-  static final settingsSectionTitle = _style(14, 700);
-  static final settingsSectionDesktopTitle = _style(16, 700);
+  static final settingsSectionTitle = _style(16, 600);
+  static final settingsSectionDesktopTitle = _style(16, 600);
   static final settingsRow = _style(14, 600);
   static final settingsFieldTitle = _style(14, 600);
   static final settingsValueLabel = _style(13, 400);

@@ -255,6 +255,8 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
                   .values[navigationShell.currentIndex]
                   .rootPath
           ? null
+          : navigationShell.currentIndex == AppPrimaryDestination.settings.index
+          ? null
           : DecoratedBox(
               key: const ValueKey('primary-mobile-navigation'),
               decoration: BoxDecoration(
@@ -269,7 +271,9 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
                   AppPrimaryDestination.values[index],
                 ),
                 destinations: [
-                  for (final primary in AppPrimaryDestination.values)
+                  for (final primary in AppPrimaryDestination.values.where(
+                    (p) => p != AppPrimaryDestination.settings,
+                  ))
                     NavigationDestination(
                       key: ValueKey('primary-navigation-${primary.name}'),
                       icon: _navigationIcon(
@@ -392,20 +396,29 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
                       ),
                     ),
                   ),
-                  for (final primary in AppPrimaryDestination.values) ...[
+                  for (final primary in AppPrimaryDestination.values.where(
+                    (p) => p != AppPrimaryDestination.settings,
+                  )) ...[
                     if (primary.index > 0)
                       const SizedBox(height: AppSpacing.sidebarRowGap),
                     _desktopDestination(context, primary),
                   ],
                 ],
               ),
-              if (appUpdateInfo != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sidebarRowGap),
-                  child: _DesktopUpdateReminder(
-                    onTap: () => _showDesktopUpdate(context, appUpdateInfo),
-                  ),
-                ),
+              Column(
+                children: [
+                  _desktopDestination(context, AppPrimaryDestination.settings),
+                  if (appUpdateInfo != null)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: AppSpacing.sidebarRowGap,
+                      ),
+                      child: _DesktopUpdateReminder(
+                        onTap: () => _showDesktopUpdate(context, appUpdateInfo),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),
@@ -491,7 +504,9 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     return switch (primary) {
       AppPrimaryDestination.connect => LucideIcons.link,
       AppPrimaryDestination.servers => LucideIcons.layers3,
-      AppPrimaryDestination.advanced => LucideIcons.terminal,
+      AppPrimaryDestination.routing => LucideIcons.route,
+      AppPrimaryDestination.tunnel => LucideIcons.shieldCheck,
+      AppPrimaryDestination.xray => LucideIcons.activity,
       AppPrimaryDestination.settings => LucideIcons.settings,
     };
   }
@@ -501,7 +516,9 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     return switch (primary) {
       AppPrimaryDestination.connect => localizations.prototypeConnect,
       AppPrimaryDestination.servers => localizations.prototypeServers,
-      AppPrimaryDestination.advanced => localizations.prototypeAdvanced,
+      AppPrimaryDestination.routing => localizations.navigationRouting,
+      AppPrimaryDestination.tunnel => localizations.prototypeVpnTunnel,
+      AppPrimaryDestination.xray => 'Xray',
       AppPrimaryDestination.settings => localizations.prototypeSettings,
     };
   }

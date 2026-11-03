@@ -49,7 +49,10 @@ abstract final class AppTheme {
           : Brightness.light,
       statusBarBrightness: brightness,
     ),
-    shape: Border(bottom: BorderSide(color: palette.border)),
+    titleTextStyle: AppTypography.pageTitle.copyWith(
+      fontSize: mobile ? 24 : 26,
+      color: palette.foreground,
+    ),
   );
 
   static ThemeData secondaryPage(BuildContext context) {
@@ -209,6 +212,12 @@ abstract final class AppTheme {
       colorScheme: shadColorScheme(brightness),
       radius: const BorderRadius.all(Radius.circular(AppRadii.control)),
       textTheme: AppTypography.shad,
+      cardTheme: ShadCardTheme(
+        backgroundColor: palette.card,
+        radius: BorderRadius.circular(AppRadii.card),
+        border: ShadBorder.all(color: palette.border, width: 1),
+        shadows: const [],
+      ),
       primaryButtonTheme: ShadButtonTheme(
         backgroundColor: palette.primarySolid,
         hoverBackgroundColor: palette.primarySolidHover,

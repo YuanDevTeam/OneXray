@@ -7,7 +7,9 @@ import 'package:onexray/service/settings/app_update/service.dart';
 enum AppPrimaryDestination {
   connect(AppPageDestination.connect),
   servers(AppPageDestination.servers),
-  advanced(AppPageDestination.advanced),
+  routing(AppPageDestination.routing),
+  tunnel(AppPageDestination.tunnel),
+  xray(AppPageDestination.xray),
   settings(AppPageDestination.settings);
 
   final AppPageDestination page;
@@ -33,6 +35,9 @@ enum AppPageDestination {
   connect("connect"),
   servers("servers"),
   advanced("advanced"),
+  routing("routing"),
+  tunnel("tunnel"),
+  xray("xray"),
   settings("settings"),
   serversImport("servers-import"),
   serverGroup("server-group"),

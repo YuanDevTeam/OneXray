@@ -966,5 +966,40 @@
   "jsonEditorDiscardChanges": "放弃更改",
   "tunnelDnsIpv4Invalid": "请输入有效的 IPv4 地址。",
   "tunnelDnsIpv6Invalid": "请输入有效的 IPv6 地址。",
-  "tunnelDnsServerNameRequired": "请输入 DNS over TLS 服务器名称。"
+  "tunnelDnsServerNameRequired": "请输入 DNS over TLS 服务器名称。",
+  "navigationRouting": "路由",
+  "serverNodesTab": "节点",
+  "serverCompleteConfigurationsTab": "完整配置",
+  "serverAllSources": "全部来源",
+  "connectionPlan": "连接计划",
+  "serverSelectionAutomaticScope": "自动选择范围",
+  "serverSelectionFixedNode": "固定节点",
+  "connectionCandidates": "{count} 个候选节点",
+  "@connectionCandidates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRequiredEntries": "需要 {count} 个接入节点",
+  "@connectionRequiredEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRememberedPlanUnavailable": "上次的连接计划已不可用，请重新选择范围或节点。",
+  "clearConnectionResources": "清除连接资源",
+  "clearConnectionResourcesWarning": "删除服务器、订阅、路由配置和连接选择，保留 App 偏好、权限和备份位置。",
+  "routingPageDescription": "选择流量处理方式，或编辑自定义规则。",
+  "routingStoredPreferenceNotice": "完整配置使用自带路由。这里的选择将在切换回普通节点后生效。",
+  "connectionRestoreOrdinary": "使用上次普通连接计划",
+  "connectionPreparing": "正在准备连接",
+  "xrayDiagnostics": "诊断与排查",
+  "xrayDiagnosticsHint": "查看连接错误、运行配置与日志。",
+  "xrayRefreshStatus": "刷新状态",
+  "xrayNoConnectionError": "当前没有连接错误。",
+  "xrayNoRuntimeConfiguration": "尚无运行配置。建立连接后可查看实际启动输入。"
 }

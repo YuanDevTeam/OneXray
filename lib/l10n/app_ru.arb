@@ -966,5 +966,40 @@
   "jsonEditorDiscardChanges": "Отменить изменения",
   "tunnelDnsIpv4Invalid": "Введите корректный адрес IPv4.",
   "tunnelDnsIpv6Invalid": "Введите корректный адрес IPv6.",
-  "tunnelDnsServerNameRequired": "Введите имя сервера DNS over TLS."
+  "tunnelDnsServerNameRequired": "Введите имя сервера DNS over TLS.",
+  "navigationRouting": "Маршрутизация",
+  "serverNodesTab": "Узлы",
+  "serverCompleteConfigurationsTab": "Конфигурации",
+  "serverAllSources": "Все источники",
+  "connectionPlan": "План подключения",
+  "serverSelectionAutomaticScope": "Область автовыбора",
+  "serverSelectionFixedNode": "Фиксированный узел",
+  "connectionCandidates": "Кандидатов: {count}",
+  "@connectionCandidates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRequiredEntries": "Требуется входных узлов: {count}",
+  "@connectionRequiredEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRememberedPlanUnavailable": "Предыдущий план недоступен. Выберите область или узел.",
+  "clearConnectionResources": "Удалить ресурсы подключения",
+  "clearConnectionResourcesWarning": "Удалить серверы, подписки, маршруты и сохранённый выбор подключения. Настройки приложения, разрешения и расположение резервной копии сохранятся.",
+  "routingPageDescription": "Выберите способ маршрутизации или измените свои правила.",
+  "routingStoredPreferenceNotice": "Полные конфигурации используют собственные маршруты. Этот выбор применяется после возврата к обычным узлам.",
+  "connectionRestoreOrdinary": "Использовать предыдущий обычный план",
+  "connectionPreparing": "Подготовка подключения",
+  "xrayDiagnostics": "Диагностика",
+  "xrayDiagnosticsHint": "Просмотр ошибок подключения, конфигурации и журналов.",
+  "xrayRefreshStatus": "Обновить статус",
+  "xrayNoConnectionError": "Текущих ошибок подключения нет.",
+  "xrayNoRuntimeConfiguration": "Рабочая конфигурация пока отсутствует. Подключитесь, чтобы просмотреть параметры запуска."
 }

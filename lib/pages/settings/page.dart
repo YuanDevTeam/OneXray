@@ -266,7 +266,7 @@ class SettingsPage extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsetsDirectional.fromSTEB(
                       mobile ? 12 : AppSpacing.page,
-                      mobile ? 27 : 43,
+                      mobile ? 16 : 24,
                       mobile ? 12 : AppSpacing.page,
                       mobile ? 20 : 42,
                     ),
@@ -286,49 +286,19 @@ class SettingsPage extends StatelessWidget {
                               ),
                             ),
                           ),
-                        Builder(
-                          builder: (context) =>
-                              MediaQuery.sizeOf(context).width >
-                                  AppLayout.compactDesktopBreakpoint
-                              ? Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          appearance,
-                                          SizedBox(height: sectionGap),
-                                          language,
-                                          SizedBox(height: sectionGap),
-                                          startup,
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(width: 56),
-                                    Expanded(
-                                      child: Column(
-                                        children: [
-                                          data,
-                                          SizedBox(height: sectionGap),
-                                          about,
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Column(
-                                  children: [
-                                    appearance,
-                                    SizedBox(height: sectionGap),
-                                    language,
-                                    SizedBox(height: sectionGap),
-                                    startup,
-                                    SizedBox(height: sectionGap),
-                                    data,
-                                    SizedBox(height: sectionGap),
-                                    about,
-                                  ],
-                                ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            appearance,
+                            SizedBox(height: sectionGap),
+                            language,
+                            SizedBox(height: sectionGap),
+                            startup,
+                            SizedBox(height: sectionGap),
+                            data,
+                            SizedBox(height: sectionGap),
+                            about,
+                          ],
                         ),
                       ],
                     ),

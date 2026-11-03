@@ -966,5 +966,40 @@
   "jsonEditorDiscardChanges": "放棄變更",
   "tunnelDnsIpv4Invalid": "請輸入有效的 IPv4 位址。",
   "tunnelDnsIpv6Invalid": "請輸入有效的 IPv6 位址。",
-  "tunnelDnsServerNameRequired": "請輸入 DNS over TLS 伺服器名稱。"
+  "tunnelDnsServerNameRequired": "請輸入 DNS over TLS 伺服器名稱。",
+  "navigationRouting": "路由",
+  "serverNodesTab": "節點",
+  "serverCompleteConfigurationsTab": "完整設定",
+  "serverAllSources": "全部來源",
+  "connectionPlan": "連線計畫",
+  "serverSelectionAutomaticScope": "自動選擇範圍",
+  "serverSelectionFixedNode": "固定節點",
+  "connectionCandidates": "{count} 個候選節點",
+  "@connectionCandidates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRequiredEntries": "需要 {count} 個接入節點",
+  "@connectionRequiredEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRememberedPlanUnavailable": "上次的連線計畫已無法使用，請重新選擇範圍或節點。",
+  "clearConnectionResources": "清除連線資源",
+  "clearConnectionResourcesWarning": "刪除伺服器、訂閱、路由設定和連線選擇，保留 App 偏好、權限和備份位置。",
+  "routingPageDescription": "選擇流量處理方式，或編輯自訂規則。",
+  "routingStoredPreferenceNotice": "完整設定使用自帶路由。這裡的選擇將在切換回普通節點後生效。",
+  "connectionRestoreOrdinary": "使用上次一般連線計畫",
+  "connectionPreparing": "正在準備連線",
+  "xrayDiagnostics": "診斷與排查",
+  "xrayDiagnosticsHint": "查看連線錯誤、執行設定與日誌。",
+  "xrayRefreshStatus": "重新整理狀態",
+  "xrayNoConnectionError": "目前沒有連線錯誤。",
+  "xrayNoRuntimeConfiguration": "尚無執行設定。建立連線後可查看實際啟動輸入。"
 }

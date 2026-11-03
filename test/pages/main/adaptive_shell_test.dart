@@ -22,18 +22,22 @@ void main() {
     expect(AppPrimaryDestination.values.map((route) => route.name), [
       'connect',
       'servers',
-      'advanced',
+      'routing',
+      'tunnel',
+      'xray',
       'settings',
     ]);
     expect(AppPrimaryDestination.values.map((route) => route.rootPath), [
       '/connect',
       '/servers',
-      '/advanced',
+      '/routing',
+      '/tunnel',
+      '/xray',
       '/settings',
     ]);
     expect(
-      AppPrimaryDestination.fromPath('/advanced/routing-data'),
-      AppPrimaryDestination.advanced,
+      AppPrimaryDestination.fromPath('/xray/routing-data'),
+      AppPrimaryDestination.xray,
     );
   });
 
@@ -47,6 +51,8 @@ void main() {
       '/setup/region',
       '/privacy',
       '/firstRun',
+      '/advanced',
+      '/advanced/:page',
     ]);
     final shell = routes.whereType<StatefulShellRoute>().single;
     for (final branch in shell.branches) {
@@ -256,28 +262,22 @@ void main() {
     );
     expect(navigationBar.height, isNull);
     expect(navigationBar.selectedIndex, AppPrimaryDestination.connect.index);
-    expect(
-      navigationBar.destinations,
-      hasLength(AppPrimaryDestination.values.length),
-    );
+    expect(navigationBar.destinations, hasLength(5));
     expect(
       tester.widget<NavigationDestination>(connectDestination).label,
       'Connect',
     );
-    expect(find.byType(Badge), findsOneWidget);
-    await tester.tap(find.text('Settings'));
+    expect(find.byType(Badge), findsNothing);
+    router.go('/settings');
     await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, '/settings');
-    expect(
-      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
-      AppPrimaryDestination.settings.index,
-    );
+    expect(find.byType(NavigationBar), findsNothing);
     for (final path in ['/settings', '/settings/details']) {
       router.go(path);
       await tester.pumpAndSettle();
       final root = path == '/settings';
       final content = root ? 'settings-content' : 'details';
-      expect(navigation, root ? findsOneWidget : findsNothing);
+      expect(navigation, findsNothing);
       expect(find.text(content), findsOneWidget);
 
       final branchNavigator = Navigator.of(tester.element(find.text(content)));
@@ -309,7 +309,7 @@ void main() {
 
       expect(find.byType(AppDialog), findsNothing);
       expect(router.routeInformationProvider.value.uri.path, path);
-      expect(navigation, root ? findsOneWidget : findsNothing);
+      expect(navigation, findsNothing);
       expect(find.text(content), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
@@ -324,7 +324,7 @@ void main() {
     expect(find.byType(AppDialog), findsNothing);
     expect(router.routeInformationProvider.value.uri.path, '/settings');
     expect(find.text('settings-content'), findsOneWidget);
-    expect(navigation, findsOneWidget);
+    expect(navigation, findsNothing);
     expect(tester.takeException(), isNull);
 
     router.go('/settings/details');
@@ -797,9 +797,13 @@ void main() {
       await tester.pumpAndSettle();
 
       for (final primary in AppPrimaryDestination.values) {
-        await tester.tap(
-          find.byKey(ValueKey('primary-navigation-${primary.name}')),
-        );
+        if (primary == AppPrimaryDestination.settings) {
+          router.go(primary.rootPath);
+        } else {
+          await tester.tap(
+            find.byKey(ValueKey('primary-navigation-${primary.name}')),
+          );
+        }
         await tester.pumpAndSettle();
         await tester.tap(find.text('open-${primary.name}'));
         await tester.pumpAndSettle();
@@ -818,12 +822,16 @@ void main() {
           router.routeInformationProvider.value.uri.path,
           primary.rootPath,
         );
-        expect(
-          tester
-              .widget<NavigationBar>(find.byType(NavigationBar))
-              .selectedIndex,
-          primary.index,
-        );
+        if (primary == AppPrimaryDestination.settings) {
+          expect(find.byType(NavigationBar), findsNothing);
+        } else {
+          expect(
+            tester
+                .widget<NavigationBar>(find.byType(NavigationBar))
+                .selectedIndex,
+            primary.index,
+          );
+        }
         expect(tester.takeException(), isNull);
       }
     },

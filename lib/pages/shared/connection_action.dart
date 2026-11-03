@@ -58,6 +58,7 @@ Future<ConnectionConfiguration?> applyConnectionChange(
   ConnectionCoordinator coordinator,
   Map<String, dynamic> values, {
   required String Function(ConnectionSettings) label,
+  bool affectsRuntime = true,
   Future<void> Function()? writeAssets,
   Future<void> Function()? validateAssets,
   bool rethrowErrors = false,
@@ -72,7 +73,9 @@ Future<ConnectionConfiguration?> applyConnectionChange(
   );
   if (next.encode() == current.encode() && writeAssets == null) return current;
   if (!context.mounted) return null;
-  final reconnect = coordinator.state.value.phase == ConnectionPhase.connected;
+  final reconnect =
+      affectsRuntime &&
+      coordinator.state.value.phase == ConnectionPhase.connected;
   if (reconnect &&
       !await showApplyAndReconnectDialog(
         context,
@@ -89,6 +92,7 @@ Future<ConnectionConfiguration?> applyConnectionChange(
       validateAssets: validateAssets,
       expectedConfiguration: current.encode(),
       allowReconnect: reconnect,
+      affectsRuntime: affectsRuntime,
     );
     saved = await coordinator.configuration;
   }, rethrowErrors: rethrowErrors);

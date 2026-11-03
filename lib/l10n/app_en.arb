@@ -3144,5 +3144,40 @@
   "jsonEditorDiscardChanges": "Discard changes",
   "tunnelDnsIpv4Invalid": "Enter a valid IPv4 address.",
   "tunnelDnsIpv6Invalid": "Enter a valid IPv6 address.",
-  "tunnelDnsServerNameRequired": "Enter the DNS over TLS server name."
+  "tunnelDnsServerNameRequired": "Enter the DNS over TLS server name.",
+  "navigationRouting": "Routing",
+  "serverNodesTab": "Nodes",
+  "serverCompleteConfigurationsTab": "Configurations",
+  "serverAllSources": "All sources",
+  "connectionPlan": "Connection plan",
+  "serverSelectionAutomaticScope": "Automatic scope",
+  "serverSelectionFixedNode": "Fixed node",
+  "connectionCandidates": "{count} candidates",
+  "@connectionCandidates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRequiredEntries": "{count} entry nodes required",
+  "@connectionRequiredEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRememberedPlanUnavailable": "The previous plan is unavailable. Select a scope or node.",
+  "clearConnectionResources": "Clear connection resources",
+  "clearConnectionResourcesWarning": "Remove servers, subscriptions, routing configurations and saved connection choices. App preferences, permissions and the backup location are kept.",
+  "routingPageDescription": "Choose how traffic is routed, or edit your custom rules.",
+  "routingStoredPreferenceNotice": "Complete configurations use their own routing. This selection applies when you return to ordinary servers.",
+  "connectionRestoreOrdinary": "Use previous ordinary plan",
+  "connectionPreparing": "Preparing connection",
+  "xrayDiagnostics": "Diagnostics",
+  "xrayDiagnosticsHint": "Review connection errors, runtime configuration and logs.",
+  "xrayRefreshStatus": "Refresh status",
+  "xrayNoConnectionError": "There is no current connection error.",
+  "xrayNoRuntimeConfiguration": "No runtime configuration yet. Connect to view the actual startup configuration."
 }

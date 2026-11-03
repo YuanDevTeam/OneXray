@@ -1,6 +1,11 @@
 import 'package:macos_window_utils/widgets/macos_toolbar_passthrough.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/main/desktop_window.dart';
+import 'package:go_router/go_router.dart';
+import 'package:onexray/pages/main/navigation.dart';
+import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/l10n/localizations/app_localizations.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Keeps the themed AppBar while forwarding clicks on controls that overlap
 /// the native macOS titlebar. Empty titlebar space keeps native window gestures.
@@ -42,16 +47,34 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
             : const BackButton();
       }
     }
+    final effectiveActions = <Widget>[...?actions];
+    final router = GoRouter.maybeOf(context);
+    if (router != null &&
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint) {
+      final path = GoRouterState.of(context).uri.path;
+      if (AppPrimaryDestination.values.any(
+        (p) => p != AppPrimaryDestination.settings && p.rootPath == path,
+      )) {
+        effectiveActions.add(
+          IconButton(
+            key: const ValueKey('mobile-settings-action'),
+            tooltip: AppLocalizations.of(context)!.prototypeSettings,
+            icon: const Icon(LucideIcons.settings2),
+            onPressed: () => context.pushScoped(AppPageDestination.settings),
+          ),
+        );
+      }
+    }
     return AppBar(
       title: title,
       leading: forwardClicks && effectiveLeading != null
           ? _AnimatedToolbarPassthrough(child: effectiveLeading)
           : effectiveLeading,
       actions: forwardClicks
-          ? actions
-                ?.map((child) => _AnimatedToolbarPassthrough(child: child))
+          ? effectiveActions
+                .map((child) => _AnimatedToolbarPassthrough(child: child))
                 .toList()
-          : actions,
+          : effectiveActions,
       bottom: bottom,
     );
   }
