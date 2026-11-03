@@ -11,21 +11,23 @@ import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/shared/failure.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 class RoutingPage extends StatefulWidget {
-  const RoutingPage({super.key});
+  const RoutingPage({super.key, this.controller});
+  final RoutingPageController? controller;
 
   @override
   State<RoutingPage> createState() => _RoutingPageState();
 }
 
 class _RoutingPageState extends State<RoutingPage> {
-  final controller = RoutingPageController();
+  late final controller = widget.controller ?? RoutingPageController();
 
   @override
   void dispose() {
-    unawaited(controller.close());
+    if (widget.controller == null) unawaited(controller.close());
     super.dispose();
   }
 
@@ -46,9 +48,21 @@ class _RoutingPageState extends State<RoutingPage> {
             child: settings == null
                 ? Center(
                     child: state.failed
-                        ? TextButton(
-                            onPressed: controller.load,
-                            child: Text(l.prototypeRetry),
+                        ? Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SelectableText(
+                                  appFailureMessage(l, state.failure),
+                                ),
+                                const SizedBox(height: 12),
+                                TextButton(
+                                  onPressed: controller.load,
+                                  child: Text(l.prototypeRetry),
+                                ),
+                              ],
+                            ),
                           )
                         : const CircularProgressIndicator(),
                   )
@@ -85,6 +99,7 @@ class _RoutingPageState extends State<RoutingPage> {
                               selected:
                                   settings.trafficMode == TrafficMode.smart,
                               icon: LucideIcons.sparkles,
+                              useKey: const ValueKey('routing-use-smart'),
                               onUse: () =>
                                   controller.select(context, TrafficMode.smart),
                               onEdit: () => context.pushScoped(
@@ -98,6 +113,7 @@ class _RoutingPageState extends State<RoutingPage> {
                               selected:
                                   settings.trafficMode == TrafficMode.allVpn,
                               icon: LucideIcons.shield,
+                              useKey: const ValueKey('routing-use-all'),
                               onUse: () => controller.select(
                                 context,
                                 TrafficMode.allVpn,
@@ -121,10 +137,24 @@ class _RoutingPageState extends State<RoutingPage> {
                             for (final row in state.profiles)
                               _choice(
                                 context,
+                                key: ValueKey('routing-profile-${row.id}'),
                                 title: row.name,
-                                description: row.advanced
+                                description:
+                                    state.profileErrors.containsKey(row.id)
+                                    ? l.prototypeTemporarilyUnavailable
+                                    : row.advanced
                                     ? l.routingAdvancedJson
-                                    : '${l.routingNormalConfiguration} · ${l.prototypeRuleCount(controller.configurationFor(row).ruleCount)}',
+                                    : '${l.routingNormalConfiguration} · ${l.prototypeRuleCount(controller.configurationFor(row)?.ruleCount ?? 0)}',
+                                canUse: controller.canUseProfile(row.id),
+                                useKey: ValueKey(
+                                  'routing-use-profile-${row.id}',
+                                ),
+                                diagnostic: state.profileErrors[row.id] == null
+                                    ? null
+                                    : appFailureMessage(
+                                        l,
+                                        state.profileErrors[row.id],
+                                      ),
                                 selected:
                                     settings.trafficMode ==
                                         TrafficMode.custom &&
@@ -172,12 +202,23 @@ class _RoutingPageState extends State<RoutingPage> {
                             ),
                           ],
                         ),
-                        if (state.failed || state.error != null)
+                        if (state.failed || state.error != null) ...[
                           ShadAlert.destructive(
-                            description: Text(
-                              state.error ?? l.prototypeTemporarilyUnavailable,
+                            description: SelectableText(
+                              state.error ??
+                                  appFailureMessage(l, state.failure),
                             ),
                           ),
+                          if (state.failed)
+                            Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: ShadButton.outline(
+                                enabled: !state.busy,
+                                onPressed: controller.load,
+                                child: Text(l.prototypeRetry),
+                              ),
+                            ),
+                        ],
                       ],
                     ),
                   ),
@@ -189,17 +230,22 @@ class _RoutingPageState extends State<RoutingPage> {
 
   Widget _choice(
     BuildContext context, {
+    Key? key,
     required String title,
     required String description,
     required bool selected,
     required IconData icon,
     required VoidCallback onUse,
+    Key? useKey,
+    bool canUse = true,
+    String? diagnostic,
     VoidCallback? onEdit,
     VoidCallback? onDelete,
   }) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
     return Semantics(
+      key: key,
       selected: selected,
       child: Container(
         color: selected ? palette.selectedSurface : null,
@@ -247,13 +293,23 @@ class _RoutingPageState extends State<RoutingPage> {
                   ),
               ],
             ),
+            if (diagnostic != null)
+              Semantics(
+                liveRegion: true,
+                child: SelectableText(
+                  diagnostic,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: palette.destructive),
+                ),
+              ),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 ShadButton(
+                  key: useKey,
                   size: ShadButtonSize.sm,
-                  enabled: !controller.state.busy && !selected,
+                  enabled: !controller.state.busy && !selected && canUse,
                   onPressed: onUse,
                   child: Text(
                     selected ? l.prototypeCurrentSelection : l.prototypeUse,

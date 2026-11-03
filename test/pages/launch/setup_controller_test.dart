@@ -261,6 +261,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Russia'));
       await tester.tap(find.text('Mainland China'));
+      await tester.tap(find.text('Mainland China'));
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
       expect(controller.state.regions, ['CN']);

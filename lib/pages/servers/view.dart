@@ -4,7 +4,6 @@ import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/event_bus/state.dart';
 import 'package:onexray/service/shared/ping/batch.dart';
 import 'package:onexray/service/shared/failure.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
@@ -18,588 +17,533 @@ import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/subscription/user_info.dart';
 import 'package:onexray/service/servers/catalog.dart';
+import 'package:onexray/pages/servers/details.dart';
+import 'package:onexray/pages/servers/sources.dart';
+import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/responsive_content.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:onexray/pages/main/navigation.dart';
 
-class ServerBrowser extends StatelessWidget {
-  final ServersController controller;
-  final ScrollController scroll;
+enum _ServerBrowserTab { nodes, configurations, subscriptions }
+
+class ServerBrowser extends StatefulWidget {
   const ServerBrowser({
     super.key,
     required this.controller,
     required this.scroll,
   });
+  final ServersController controller;
+  final ScrollController scroll;
+  @override
+  State<ServerBrowser> createState() => _ServerBrowserState();
+}
+
+class _ServerBrowserState extends State<ServerBrowser> {
+  ServersController get controller => widget.controller;
+  _ServerBrowserTab tab = _ServerBrowserTab.nodes;
+  int sourceId = -1;
+  bool favoritesOnly = false;
+  int get filterSourceId =>
+      sourceId > 0 && !controller.sources.any((source) => source.id == sourceId)
+      ? -1
+      : sourceId;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final groups = controller.groups(l);
-    final favorites = controller.favorites(l);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    if (controller.servers.isEmpty && controller.catalog.manualGroups.isEmpty) {
-      if (controller.sources.isNotEmpty) {
-        return PageEmptyState(
-          title: l.subscriptionModeNoCacheTitle,
-          description: l.subscriptionModeNeedsRefresh,
-          primaryLabel: l.prototypeUpdatesAndSources,
-          onPrimary: () => controller.openSources(context),
-          secondaryLabel: l.prototypeAddServer,
-          onSecondary: () => controller.addServers(context),
-          scrollController: scroll,
-        );
-      }
-      return PageEmptyState(
+    if (controller.servers.isEmpty &&
+        controller.sources.isEmpty &&
+        controller.rawConfigurations.isEmpty &&
+        controller.catalog.manualGroups.isEmpty) {
+      final empty = PageEmptyState(
         title: l.prototypeNoServersYet,
         description: l.prototypeAddProviderSubscriptionHint,
         primaryLabel: l.prototypeAddServer,
         onPrimary: () => controller.addServers(context),
         secondaryLabel: l.prototypeHowGetServers,
         onSecondary: () => controller.openServerHelp(context),
-        scrollController: scroll,
+        scrollController: widget.scroll,
       );
-    }
-    if (mobile) {
-      return _mobileBrowser(context, groups, favorites);
-    }
-    final active = _activeGroup(groups);
-    final compact =
-        MediaQuery.sizeOf(context).width <= AppLayout.compactDesktopBreakpoint;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.page,
-        AppSpacing.desktopPageTop,
-        AppSpacing.page,
-        AppSpacing.desktopPageBottom,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      if (MediaQuery.sizeOf(context).width > AppLayout.mobileBreakpoint) {
+        return empty;
+      }
+      return Column(
         children: [
-          _search(context),
-          const SizedBox(height: 15),
-          Expanded(
-            child: Flex(
-              direction: compact ? Axis.vertical : Axis.horizontal,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scroll,
-                    child: _subscriptionList(context, groups, favorites),
-                  ),
-                ),
-                if (active != null) ...[
-                  SizedBox(width: compact ? 0 : 16, height: compact ? 16 : 0),
-                  Expanded(
-                    child: ServerGroupView(
-                      controller: controller,
-                      group: active,
-                      embedded: true,
-                    ),
-                  ),
-                ],
-              ],
+          Expanded(child: empty),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextButton.icon(
+              onPressed: () => context.pushScoped(
+                AppPageDestination.serverManualGroups,
+                extra: controller,
+              ),
+              icon: const Icon(LucideIcons.folder, size: 18),
+              label: Text(l.manualGroupsTitle),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  ServerGroup? _activeGroup(List<ServerGroup> groups) {
-    final active = groups
-        .where((group) => group.id == controller.activeGroupId)
-        .firstOrNull;
-    if (active != null) return active;
-    final currentId = controller.currentGroupId;
-    return groups.where((group) => group.id == currentId).firstOrNull ??
-        groups.firstOrNull;
-  }
-
-  Widget _mobileBrowser(
-    BuildContext context,
-    List<ServerGroup> groups,
-    List<CoreConfigData> favorites,
-  ) {
-    return ListView(
-      controller: scroll,
-      padding: const EdgeInsets.fromLTRB(15, 13, 15, 22),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _search(context),
-        const SizedBox(height: 12),
-        _subscriptionList(context, groups, favorites),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: ShadTabs<_ServerBrowserTab>(
+            key: const ValueKey('server-resource-tabs'),
+            value: tab,
+            scrollable: true,
+            tabBarAlignment: Directionality.of(context) == TextDirection.rtl
+                ? Alignment.centerRight
+                : Alignment.centerLeft,
+            onChanged: (value) => setState(() => tab = value),
+            tabs: [
+              ShadTab(
+                value: _ServerBrowserTab.nodes,
+                content: const SizedBox.shrink(),
+                child: Text(l.serverNodesTab),
+              ),
+              ShadTab(
+                value: _ServerBrowserTab.configurations,
+                content: const SizedBox.shrink(),
+                child: Text(l.serverCompleteConfigurationsTab),
+              ),
+              ShadTab(
+                value: _ServerBrowserTab.subscriptions,
+                content: const SizedBox.shrink(),
+                child: Text(l.prototypeSubscriptions),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: tab == _ServerBrowserTab.subscriptions
+              ? SingleChildScrollView(
+                  controller: widget.scroll,
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
+                  child: _subscriptions(context),
+                )
+              : _resources(
+                  context,
+                  complete: tab == _ServerBrowserTab.configurations,
+                ),
+        ),
       ],
     );
   }
 
   Widget _search(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      borderSide: BorderSide(color: palette.border),
-    );
-    final searchHeight = AppLayout.touchExtent(
-      43,
-      platform: Theme.of(context).platform,
-    );
-    return SizedBox(
-      height: searchHeight,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller.search,
-              onChanged: controller.searchChanged,
-              textAlignVertical: TextAlignVertical.center,
-              style: AppTypography.serverBody.copyWith(
-                color: palette.foreground,
+    return TextField(
+      key: const ValueKey('server-search'),
+      controller: controller.search,
+      onChanged: controller.searchChanged,
+      decoration: InputDecoration(
+        hintText: l.prototypeSearchSubscriptionsServers,
+        prefixIcon: const Icon(LucideIcons.search, size: 18),
+        suffixIcon: controller.search.text.isEmpty
+            ? null
+            : IconButton(
+                key: const ValueKey('server-search-clear'),
+                tooltip: l.prototypeClear,
+                onPressed: controller.search.clear,
+                icon: const Icon(LucideIcons.x, size: 18),
               ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: const EdgeInsetsDirectional.only(end: 13),
-                hintText: l.prototypeSearchSubscriptionsServers,
-                hintStyle: AppTypography.serverBody.copyWith(
-                  color: palette.mutedForeground,
+      ),
+    );
+  }
+
+  bool _matchesSource(CoreConfigData row) =>
+      filterSourceId == -1 || row.subId == filterSourceId;
+  bool _matchesRaw(CoreConfigData row) {
+    final query = controller.query.trim().toLowerCase();
+    return (filterSourceId == -1 || filterSourceId == 0) &&
+        (query.isEmpty ||
+            row.name.toLowerCase().contains(query) ||
+            AppLocalizations.of(context)!.xrayRawPageTitle
+                .toLowerCase()
+                .contains(query));
+  }
+
+  Widget _resources(BuildContext context, {required bool complete}) {
+    final l = AppLocalizations.of(context)!;
+    final ordinary = controller.servers
+        .where((row) => controller.providerRow(row) == complete)
+        .where(_matchesSource)
+        .where((row) => controller.matches(l, row))
+        .where((row) => complete || !favoritesOnly || row.favorite)
+        .toList();
+    final raw = complete
+        ? controller.rawConfigurations.where(_matchesRaw).toList()
+        : <CoreConfigData>[];
+    final count = ordinary.length + raw.length;
+    final validSource = filterSourceId;
+    final filtered =
+        controller.query.trim().isNotEmpty ||
+        validSource != -1 ||
+        (!complete && favoritesOnly);
+    final palette = ColorManager.palette(context);
+    return CustomScrollView(
+      controller: widget.scroll,
+      key: PageStorageKey(('server-resources', complete)),
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _search(context),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 140),
+                      child: ShadSelect<int>(
+                        key: ValueKey(('server-source-filter', validSource)),
+                        initialValue: validSource,
+                        selectedOptionBuilder: (_, value) => Text(
+                          value == -1
+                              ? l.serverAllSources
+                              : value == 0
+                              ? l.prototypeManualAdditions
+                              : controller.sources
+                                    .firstWhere((source) => source.id == value)
+                                    .name,
+                        ),
+                        options: [
+                          ShadOption(
+                            value: -1,
+                            child: Text(l.serverAllSources),
+                          ),
+                          ShadOption(
+                            value: 0,
+                            child: Text(l.prototypeManualAdditions),
+                          ),
+                          for (final source in controller.sources)
+                            ShadOption(
+                              value: source.id,
+                              child: Text(source.name),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) setState(() => sourceId = value);
+                        },
+                      ),
+                    ),
+                    if (!complete) ...[
+                      ServerSortButton(controller: controller),
+                      IconButton(
+                        tooltip: l.prototypeFavorites,
+                        isSelected: favoritesOnly,
+                        onPressed: () =>
+                            setState(() => favoritesOnly = !favoritesOnly),
+                        icon: const Icon(LucideIcons.star, size: 18),
+                      ),
+                      const AppActivityIndicator(
+                        key: ValueKey('server-probe-activity'),
+                        downloading: false,
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => controller.choose(
+                          context,
+                          const ServerSelection.automatic(),
+                        ),
+                        icon: const Icon(LucideIcons.shuffle, size: 17),
+                        label: Text(l.prototypeAutomaticSelection),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => controller.choose(
+                          context,
+                          const ServerSelection.source(0),
+                        ),
+                        icon: const Icon(LucideIcons.layers, size: 17),
+                        label: Text(l.prototypeManualAdditions),
+                      ),
+                    ] else
+                      FilledButton.icon(
+                        onPressed: () => controller.editRaw(context),
+                        icon: const Icon(LucideIcons.plus, size: 17),
+                        label: Text(l.prototypeAddRawJson),
+                      ),
+                  ],
                 ),
-                prefixIconConstraints: BoxConstraints.tightFor(
-                  width: 41,
-                  height: searchHeight,
+                if (!complete) ...[
+                  const SizedBox(height: 16),
+                  SettingSection(
+                    title: '',
+                    padding: EdgeInsets.zero,
+                    children: [
+                      SettingRow(
+                        title: l.manualGroupsTitle,
+                        subtitle: l.manualGroupCount(
+                          controller.catalog.manualGroups.length,
+                        ),
+                        leading: const Icon(LucideIcons.folder, size: 19),
+                        onTap: () => context.pushScoped(
+                          AppPageDestination.serverManualGroups,
+                          extra: controller,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 18),
+                Text(
+                  complete
+                      ? l.serverCompleteConfigurationsTab
+                      : l.serverNodesTab,
+                  style: AppTypography.sectionTitle,
                 ),
-                prefixIcon: Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 13, end: 10),
-                  child: Icon(
-                    LucideIcons.search,
-                    size: 18,
+                const SizedBox(height: 4),
+                Text(
+                  complete
+                      ? l.providerConfigurationCount(count)
+                      : l.prototypeServerCount(count),
+                  style: AppTypography.supporting.copyWith(
                     color: palette.mutedForeground,
                   ),
-                ),
-                suffixIcon: controller.search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        key: const ValueKey('server-search-clear'),
-                        tooltip: l.prototypeClear,
-                        onPressed: controller.search.clear,
-                        icon: const Icon(LucideIcons.x, size: 18),
-                      ),
-                border: border,
-                enabledBorder: border,
-                focusedBorder: border.copyWith(
-                  borderSide: BorderSide(color: palette.primary),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          ServerSortButton(controller: controller),
-          if (controller.catalog.manualGroups.length > 1)
-            ManualGroupOrderButton(controller: controller),
-        ],
-      ),
-    );
-  }
-
-  Widget _subscriptionList(
-    BuildContext context,
-    List<ServerGroup> groups,
-    List<CoreConfigData> favorites,
-  ) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    final current = controller.currentSelectionSummary(l);
-    final activeGroup = _activeGroup(groups);
-    return Material(
-      color: palette.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        side: BorderSide(color: palette.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _automaticRow(context),
-          if (current != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Color.lerp(palette.card, palette.selectedSurface, .45),
-                border: Border(top: BorderSide(color: palette.border)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    LucideIcons.circleCheck,
-                    size: 20,
-                    color: palette.running,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l.prototypeCurrentSelection,
-                          style: AppTypography.serverSelectionLabel.copyWith(
-                            color: palette.mutedForeground,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          current.title,
-                          style: AppTypography.serverSelectionTitle.copyWith(
-                            color: palette.foreground,
-                          ),
-                        ),
-                        if (current.detail.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            current.detail,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.serverSelectionDetail.copyWith(
-                              color: palette.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (favorites.isNotEmpty) ...[
-            _listHeading(context, l.prototypeFavorites),
-            for (final row in favorites)
-              ServerNodeRow(controller: controller, row: row),
-          ],
-          if (controller.servers.any(ServerCatalog.isManual))
-            _allManualRow(context),
-          if (groups.any((group) => group.manual))
-            _listHeading(context, l.manualGroupsTitle),
-          for (final group in groups.where((group) => group.manual))
-            _groupRow(context, group, active: group.id == activeGroup?.id),
-          if (groups.any((group) => !group.manual))
-            _listHeading(context, l.prototypeBySubscription),
-          for (final group in groups.where((group) => !group.manual))
-            _groupRow(context, group, active: group.id == activeGroup?.id),
-          if (groups.isEmpty && controller.search.text.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
-              child: Column(
-                children: [
-                  Text(
-                    l.prototypeNoMatchingSubscriptions,
-                    textAlign: TextAlign.center,
-                    style: AppTypography.settingsInput.copyWith(
-                      color: palette.mutedForeground,
-                    ),
-                  ),
-                  TextButton(
-                    key: const ValueKey('server-search-reset'),
-                    onPressed: controller.search.clear,
-                    child: Text(l.prototypeClear),
-                  ),
-                ],
-              ),
-            ),
-          if (mobile)
-            InkWell(
-              onTap: () => controller.openSources(context),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 52),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      AppActivityBuilder(
-                        builder: (context, activity) => activity.downloading
-                            ? const ButtonProgressIndicator()
-                            : Icon(
-                                LucideIcons.refreshCw,
-                                size: 17,
-                                color: palette.primary,
-                              ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          l.prototypeUpdatesAndSources,
-                          style: AppTypography.serverBody.copyWith(
-                            color: palette.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _listHeading(BuildContext context, String title) => Padding(
-    padding: const EdgeInsetsDirectional.fromSTEB(16, 17, 16, 8),
-    child: Text(
-      title.toUpperCase(),
-      style: AppTypography.serverSectionTitle.copyWith(
-        color: ColorManager.palette(context).mutedForeground,
-      ),
-    ),
-  );
-
-  Widget _manualMenu(BuildContext context, ServerGroup group) => IconButton(
-    tooltip:
-        '${AppLocalizations.of(context)!.prototypeMoreActions}: ${group.name}',
-    onPressed: controller.manualGroupBusy(group)
-        ? null
-        : () => controller.openManualGroupMenu(context, group),
-    icon: const Icon(LucideIcons.ellipsis, size: 18),
-  );
-
-  Widget _allManualRow(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    const selection = ServerSelection.source(0);
-    final rows = controller.servers.where(ServerCatalog.isManual);
-    final enabled = controller.canUseSelection(selection, rows);
-    final selected = controller.selected(selection);
-    return ListTile(
-      leading: const Icon(LucideIcons.server),
-      title: Text(l.prototypeManualAdditions),
-      selected: selected,
-      trailing: OutlinedButton.icon(
-        onPressed: controller.busy || !enabled
-            ? null
-            : () => controller.choose(context, selection),
-        icon: Icon(
-          selected ? LucideIcons.circleCheck : LucideIcons.zap,
-          size: 16,
-        ),
-        label: Text(l.prototypeUse),
-      ),
-    );
-  }
-
-  Widget _automaticRow(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final selected = controller.selected(const ServerSelection.automatic());
-    final result = controller.automaticResult(l);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: Material(
-        color: selected
-            ? Color.lerp(palette.card, palette.selectedSurface, .72)
-            : palette.card,
-        child: InkWell(
-          onTap: controller.busy
-              ? null
-              : () => controller.choose(
-                  context,
-                  const ServerSelection.automatic(),
-                ),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 82),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: palette.border)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: palette.selectedSurface,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: AppActivityBuilder(
-                    builder: (context, activity) =>
-                        activity.pinging ||
-                            activity.downloading ||
-                            controller.selectingGroup(
-                              const ServerSelection.automatic(),
-                            )
-                        ? const Center(child: ButtonProgressIndicator())
-                        : Icon(
-                            LucideIcons.zap,
-                            size: 20,
-                            color: palette.primary,
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l.prototypeAutomaticRecommended,
-                        style: AppTypography.serverTitle.copyWith(
-                          color: palette.foreground,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        l.prototypeChooseBySpeedAvailability,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.serverDetail.copyWith(
-                          color: palette.mutedForeground,
-                        ),
-                      ),
-                      if (mobile && result != null) ...[
-                        const SizedBox(height: 5),
-                        Text(
-                          result,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.serverSelectionHealth.copyWith(
-                            color: palette.running,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (!mobile && result != null) ...[
-                  const SizedBox(width: 12),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 150),
-                    child: Text(
-                      result,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.serverSelectionHealth.copyWith(
-                        color: palette.running,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(width: 12),
-                Icon(
-                  selected
-                      ? LucideIcons.circleCheck
-                      : LucideIcons.chevronRightDir,
-                  size: selected ? 21 : 18,
-                  color: selected ? palette.running : palette.foreground,
                 ),
               ],
             ),
           ),
         ),
-      ),
+        if (count == 0)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverToBoxAdapter(
+              child: SettingSection(
+                title: '',
+                padding: EdgeInsets.zero,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Text(
+                          filtered
+                              ? l.serverNoMatchingResources
+                              : complete
+                              ? l.prototypeNoRawJson
+                              : l.prototypeNoServersYet,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        if (filtered)
+                          TextButton(
+                            key: const ValueKey('server-search-reset'),
+                            onPressed: () {
+                              controller.search.clear();
+                              setState(() {
+                                sourceId = -1;
+                                favoritesOnly = false;
+                              });
+                            },
+                            child: Text(l.prototypeClear),
+                          )
+                        else
+                          TextButton(
+                            onPressed: () => complete
+                                ? controller.editRaw(context)
+                                : controller.addServers(context),
+                            child: Text(
+                              complete
+                                  ? l.prototypeAddRawJson
+                                  : l.prototypeAddServer,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (count > 0)
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: DecoratedSliver(
+              decoration: BoxDecoration(
+                color: palette.card,
+                border: Border.all(color: palette.border),
+                borderRadius: BorderRadius.circular(AppRadii.card),
+              ),
+              sliver: SliverList.builder(
+                itemCount: count,
+                itemBuilder: (context, index) {
+                  final first = index == 0, last = index == count - 1;
+                  final child = index < ordinary.length
+                      ? ServerNodeRow(
+                          key: ValueKey(('server', ordinary[index].id)),
+                          controller: controller,
+                          row: ordinary[index],
+                          showDivider: !last,
+                        )
+                      : Column(
+                          children: [
+                            ServerRawRow(
+                              key: ValueKey((
+                                'raw',
+                                raw[index - ordinary.length].id,
+                              )),
+                              controller: controller,
+                              row: raw[index - ordinary.length],
+                            ),
+                            if (!last)
+                              Divider(height: 1, color: palette.border),
+                          ],
+                        );
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 1),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(first ? AppRadii.card - 1 : 0),
+                        bottom: Radius.circular(last ? AppRadii.card - 1 : 0),
+                      ),
+                      child: child,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 28)),
+      ],
     );
   }
 
-  Widget _groupRow(
+  Widget _subscriptions(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _search(context),
+        const SizedBox(height: 18),
+        ServerSourcesView(controller: controller),
+      ],
+    ),
+  );
+}
+
+class ServerManualGroupsPage extends StatelessWidget {
+  const ServerManualGroupsPage({super.key, required this.controller});
+  final ServersController controller;
+  @override
+  Widget build(
     BuildContext context,
-    ServerGroup group, {
-    required bool active,
-  }) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final package = group.source == null
-        ? null
-        : SubscriptionUserInfo.fromSubscription(group.source!);
-    return Material(
-      color: active ? palette.muted : palette.card,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: palette.border)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () => controller.browse(
-                  context,
-                  group,
-                  mobile:
-                      MediaQuery.sizeOf(context).width <=
-                      AppLayout.mobileBreakpoint,
+  ) => BlocBuilder<ServersController, ServersPageState>(
+    bloc: controller,
+    builder: (context, state) {
+      final l = AppLocalizations.of(context)!;
+      final groups = controller
+          .groups(l, filter: false)
+          .where((group) => group.manual)
+          .toList();
+      return Scaffold(
+        appBar: PageAppBar(title: Text(l.manualGroupsTitle)),
+        body: SafeArea(
+          child: ResponsiveContent(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => controller.createManualGroup(context),
+                      icon: const Icon(LucideIcons.folderPlus, size: 17),
+                      label: Text(l.manualGroupNew),
+                    ),
+                    ManualGroupOrderButton(controller: controller),
+                  ],
                 ),
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 66),
-                  padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 6, 10),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: palette.surfaceHover,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Icon(
-                          LucideIcons.layers,
-                          size: 17,
-                          color: palette.primary,
-                        ),
+                const SizedBox(height: 18),
+                SettingSection(
+                  title: '',
+                  padding: EdgeInsets.zero,
+                  dividerIndent: 0,
+                  children: [
+                    if (groups.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(l.manualGroupEmpty),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              group.name,
-                              style: AppTypography.serverTitle.copyWith(
-                                color: palette.foreground,
+                    for (final group in groups)
+                      SettingRow(
+                        title: group.name,
+                        subtitle: l.prototypeServerCount(group.rows.length),
+                        leading: const Icon(LucideIcons.folder, size: 19),
+                        trailing: group.manualGroupId == null
+                            ? null
+                            : IconButton(
+                                tooltip:
+                                    '${l.prototypeMoreActions}: ${group.name}',
+                                onPressed: controller.manualGroupBusy(group)
+                                    ? null
+                                    : () => controller.openManualGroupMenu(
+                                        context,
+                                        group,
+                                      ),
+                                icon: const Icon(
+                                  LucideIcons.ellipsis,
+                                  size: 18,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              controller.summary(l, group),
-                              style: AppTypography.serverGroupDetail.copyWith(
-                                color: palette.mutedForeground,
-                              ),
-                            ),
-                            if (package != null) ...[
-                              const SizedBox(height: 4),
-                              SubscriptionPackageSummary(info: package),
-                            ],
-                          ],
-                        ),
+                        onTap: () =>
+                            controller.browse(context, group, mobile: true),
                       ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        LucideIcons.chevronRightDir,
-                        size: 18,
-                        color: palette.foreground,
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
-              ),
+              ],
             ),
-            if (group.selection != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: ServerUseButton(
-                  controller: controller,
-                  group: group,
-                  inline: true,
-                ),
-              ),
-            if (group.manualGroupId != null) _manualMenu(context, group),
-            if (group.source != null)
-              SizedBox(
-                width: 42,
-                child: SourceMenu(
-                  controller: controller,
-                  source: group.source!,
-                ),
-              ),
-          ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class ServerRawRow extends StatelessWidget {
+  const ServerRawRow({super.key, required this.controller, required this.row});
+  final ServersController controller;
+  final CoreConfigData row;
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final selected =
+        controller.configuration.connection.expert &&
+        controller.configuration.connection.rawId == row.id;
+    final running =
+        controller.connectionView.phase == ConnectionPhase.connected &&
+        controller.connectionView.runtime?.configuration.connection.expert ==
+            true &&
+        controller.connectionView.runtime?.configuration.connection.rawId ==
+            row.id;
+    return SettingRow(
+      title: row.name,
+      subtitle: l.xrayRawPageTitle,
+      leading: const Icon(LucideIcons.fileJson, size: 19),
+      titleTrailing: selected || running
+          ? Icon(
+              running ? LucideIcons.activity : LucideIcons.circleCheck,
+              size: 16,
+              color: ColorManager.palette(context).primary,
+            )
+          : null,
+      onTap: () => context.pushScoped(
+        AppPageDestination.serverResource,
+        extra: ServerResourceParams(
+          controller: controller,
+          resourceId: row.id,
+          raw: true,
         ),
       ),
     );
@@ -1143,228 +1087,103 @@ class ServerNodeRow extends StatelessWidget {
     required String protocol,
   }) {
     final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final conflict = controller.exitConflict(row);
-    final rowDetail = detail ?? controller.sourceName(l, row);
-    return Container(
-      foregroundDecoration: running
-          ? BoxDecoration(
-              border: BorderDirectional(
-                start: BorderSide(color: palette.primary, width: 3),
+    final p = ColorManager.palette(context);
+    return Column(
+      children: [
+        Material(
+          color: chosen || running ? p.selectedSurface : p.card,
+          child: InkWell(
+            onTap: () => context.pushScoped(
+              AppPageDestination.serverResource,
+              extra: ServerResourceParams(
+                controller: controller,
+                resourceId: row.id,
               ),
-            )
-          : null,
-      child: Material(
-        color: running || chosen
-            ? Color.lerp(palette.card, palette.selectedSurface, .72)
-            : palette.card,
-        child: Column(
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 62),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: 42,
-                      child: Opacity(
-                        opacity: enabled ? 1 : .65,
-                        child: IconButton(
-                          tooltip: row.favorite
-                              ? l.prototypeRemoveFavorite
-                              : l.prototypeAddFavorite,
-                          onPressed: controller.serverBusy(row)
-                              ? null
-                              : () => controller.toggleFavorite(context, row),
-                          isSelected: row.favorite,
-                          style: IconButton.styleFrom(
-                            foregroundColor: palette.restarting,
-                            iconSize: 17,
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(42, 42),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: const RoundedRectangleBorder(),
+            ),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 8, 12),
+              child: Row(
+                children: [
+                  Icon(
+                    controller.providerRow(row)
+                        ? LucideIcons.fileJson
+                        : LucideIcons.server,
+                    size: 20,
+                    color: p.foreground,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          controller.serverName(row),
+                          style: AppTypography.serverNodeTitle.copyWith(
+                            color: p.foreground,
                           ),
-                          icon: controller.favoritingIds.contains(row.id)
-                              ? const ButtonProgressIndicator()
-                              : const Icon(LucideIcons.star),
-                          selectedIcon:
-                              controller.favoritingIds.contains(row.id)
-                              ? const ButtonProgressIndicator()
-                              : const Icon(LucideIcons.star600),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Opacity(
-                        opacity: enabled ? 1 : .65,
-                        child: Semantics(
-                          selected: chosen,
-                          child: InkWell(
-                            onTap: controller.busy || conflict
-                                ? null
-                                : enabled
-                                ? () => controller.chooseRow(context, row)
-                                : () =>
-                                      ServerMenu.open(context, controller, row),
-                            child: Padding(
-                              padding: const EdgeInsetsDirectional.fromSTEB(
-                                0,
-                                9,
-                                4,
-                                9,
-                              ),
-                              child: Row(
-                                children: [
-                                  if (controller.selectingGroup(
-                                    ServerSelection.server(row.id),
-                                  ))
-                                    const ButtonProgressIndicator()
-                                  else
-                                    Icon(
-                                      LucideIcons.server,
-                                      size: 19,
-                                      color: palette.foreground,
-                                    ),
-                                  const SizedBox(width: 11),
-                                  Expanded(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          controller.serverName(row),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppTypography.serverNodeTitle
-                                              .copyWith(
-                                                color: palette.foreground,
-                                              ),
-                                        ),
-                                        for (final label in [
-                                          row.type,
-                                          if (protocol.isNotEmpty) protocol,
-                                        ]) ...[
-                                          const SizedBox(height: 3),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: palette.surfaceHover,
-                                              border: Border.all(
-                                                color: palette.border,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              label,
-                                              textDirection: TextDirection.ltr,
-                                              style: AppTypography
-                                                  .serverProtocol
-                                                  .copyWith(
-                                                    color: palette.mutedStrong,
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                        if (!controller.providerRow(row)) ...[
-                                          const SizedBox(height: 3),
-                                          Text.rich(
-                                            TextSpan(
-                                              text: '$rowDetail · ',
-                                              children: [
-                                                TextSpan(
-                                                  text: controller.health(
-                                                    l,
-                                                    row,
-                                                  ),
-                                                  style: TextStyle(
-                                                    color:
-                                                        ColorManager.nodeLatency(
-                                                          context,
-                                                          row.delay,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            style: AppTypography.metadata
-                                                .copyWith(
-                                                  color:
-                                                      palette.mutedForeground,
-                                                ),
-                                          ),
-                                        ],
-                                        if (conflict) ...[
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            l.prototypeFinalExitEntryConflict,
-                                            style: AppTypography.metadata
-                                                .copyWith(
-                                                  color:
-                                                      palette.mutedForeground,
-                                                ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 11),
-                                  if (running)
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          LucideIcons.circleCheck,
-                                          size: 15,
-                                          color: palette.primary,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          l.prototypeConnected,
-                                          style: AppTypography
-                                              .serverConnectedBadge
-                                              .copyWith(color: palette.primary),
-                                        ),
-                                      ],
-                                    )
-                                  else if (chosen)
-                                    Icon(
-                                      LucideIcons.circleCheck,
-                                      size: 20,
-                                      color: palette.running,
-                                    )
-                                  else
-                                    Icon(
-                                      LucideIcons.chevronRightDir,
-                                      size: 17,
-                                      color: palette.foreground,
-                                    ),
-                                ],
+                        const SizedBox(height: 4),
+                        Text(
+                          [
+                            if (protocol.isNotEmpty) protocol,
+                            detail ?? controller.sourceName(l, row),
+                          ].join(' · '),
+                          style: AppTypography.metadata.copyWith(
+                            color: p.mutedForeground,
+                          ),
+                        ),
+                        if (!controller.providerRow(row)) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            controller.health(l, row),
+                            style: AppTypography.metadata.copyWith(
+                              color: ColorManager.nodeLatency(
+                                context,
+                                row.delay,
                               ),
                             ),
                           ),
-                        ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (running || chosen)
+                    Padding(
+                      padding: const EdgeInsetsDirectional.only(
+                        start: 8,
+                        end: 4,
+                      ),
+                      child: Icon(
+                        running
+                            ? LucideIcons.activity
+                            : LucideIcons.circleCheck,
+                        size: 17,
+                        color: p.primary,
                       ),
                     ),
-                    SizedBox(
-                      width: 42,
-                      child: ServerMenu(controller: controller, row: row),
+                  if (!controller.providerRow(row))
+                    IconButton(
+                      tooltip: row.favorite
+                          ? l.prototypeRemoveFavorite
+                          : l.prototypeAddFavorite,
+                      onPressed: controller.serverBusy(row)
+                          ? null
+                          : () => controller.toggleFavorite(context, row),
+                      isSelected: row.favorite,
+                      icon: controller.favoritingIds.contains(row.id)
+                          ? const ButtonProgressIndicator()
+                          : const Icon(LucideIcons.star, size: 17),
+                      selectedIcon: const Icon(LucideIcons.star600, size: 17),
                     ),
-                  ],
-                ),
+                  ServerMenu(controller: controller, row: row),
+                ],
               ),
             ),
-            if (showDivider)
-              Divider(height: 1, thickness: 1, color: palette.border),
-          ],
+          ),
         ),
-      ),
+        if (showDivider) Divider(height: 1, color: p.border),
+      ],
     );
   }
 }

@@ -48,7 +48,7 @@ mixin ServerLabels {
       row.delay == PingDelayConstants.unknown
       ? l.prototypeNotTested
       : !PingDelayConstants.isSuccessful(row.delay)
-      ? l.prototypeTemporarilyUnavailable
+      ? l.serverLatencyFailed
       : row.delay <= 500
       ? l.prototypeFastLatency(row.delay)
       : row.delay <= 1000

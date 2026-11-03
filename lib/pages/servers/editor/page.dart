@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/servers/form_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/core/errors/json_diagnostic.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -7,7 +8,6 @@ import 'package:onexray/pages/servers/editor/controller.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
-import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
 
 class ServerEditorPage extends StatelessWidget {
@@ -37,7 +37,7 @@ class ServerEditorPage extends StatelessWidget {
           onPopInvokedWithResult: (didPop, result) {
             if (!didPop) controller.closePage(context);
           },
-          child: AppDialog(
+          child: ServerFormPage(
             title: l.prototypeEditServer,
             subtitle: state.name,
             onClose: () => controller.closePage(context),

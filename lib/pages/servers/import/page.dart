@@ -12,12 +12,12 @@ import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
-import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:onexray/pages/servers/form_page.dart';
 
 export 'controller.dart' show ServerImportAction;
 
@@ -64,7 +64,7 @@ class _ServersImportPageState extends State<ServersImportPage> {
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return PopScope(
           canPop: state.canClose,
-          child: AppDialog(
+          child: ServerFormPage(
             title: l10n.prototypeAddServersToOneXray,
             onClose: () => controller.closeFlow(context),
             body: Column(
@@ -74,9 +74,7 @@ class _ServersImportPageState extends State<ServersImportPage> {
                   padding: EdgeInsets.all(mobile ? 14 : 20),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final width = mobile
-                          ? constraints.maxWidth
-                          : (constraints.maxWidth - 10) / 2;
+                      final width = constraints.maxWidth;
                       return Wrap(
                         spacing: 10,
                         runSpacing: 10,
@@ -220,7 +218,7 @@ class ServerImportFormPage extends StatelessWidget {
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return PopScope(
           canPop: state.canClose,
-          child: AppDialog(
+          child: ServerFormPage(
             title: subscription
                 ? controller.editingSubscription
                       ? l10n.prototypeEditSubscription
@@ -492,7 +490,7 @@ class ServerImportPreviewPage extends StatelessWidget {
               controller.closeFlow(context);
             }
           },
-          child: AppDialog(
+          child: ServerFormPage(
             title: l10n.prototypeImportPreview,
             onBack: committed == null ? onBack : null,
             onClose: onClose ?? () => controller.closeFlow(context),

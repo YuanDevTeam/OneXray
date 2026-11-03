@@ -9,7 +9,6 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/servers/editor/controller.dart';
 import 'package:onexray/pages/servers/editor/page.dart';
-import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
@@ -77,13 +76,10 @@ void main() {
             builder: (context) => TextButton(
               onPressed: () async {
                 final savedId = await Navigator.of(context).push<int>(
-                  DialogRoute<int>(
-                    context: context,
-                    builder: (_) => AppDialogFrame(
-                      child: ServerEditorPage(
-                        serverId: 7,
-                        createController: () => controller,
-                      ),
+                  MaterialPageRoute<int>(
+                    builder: (_) => ServerEditorPage(
+                      serverId: 7,
+                      createController: () => controller,
                     ),
                   ),
                 );
@@ -113,13 +109,13 @@ void main() {
     )!;
     switch (exit) {
       case _Exit.close:
-        await tester.tap(find.byTooltip(l.prototypeCloseDialog));
+        await tester.tap(find.byType(BackButton));
       case _Exit.cancel:
         await tester.tap(
           find.widgetWithText(ConnectDialogButton, l.prototypeCancel),
         );
       case _Exit.barrier:
-        await tester.tapAt(const Offset(10, 10));
+        await tester.tapAt(const Offset(1185, 120));
       case _Exit.back:
         await tester.binding.handlePopRoute();
       case _Exit.escape:
@@ -182,6 +178,14 @@ void main() {
       final l = AppLocalizations.of(session.context)!;
 
       await requestExit(tester, exit);
+      if (exit == _Exit.barrier) {
+        // A full page has no dismissible barrier. Outside its bounded content
+        // remains inert; explicit Cancel still uses the same dirty guard.
+        expect(find.byType(AppConfirmationDialog), findsNothing);
+        expect(session.result.isCompleted, isFalse);
+        expect(controller.text.text, _edited);
+        await requestExit(tester, _Exit.cancel);
+      }
       expect(find.byType(AppConfirmationDialog), findsOneWidget);
       expect(session.result.isCompleted, isFalse);
       await tester.tap(find.text(l.jsonEditorKeepEditing));
@@ -193,6 +197,7 @@ void main() {
       expect(controller.state.dirty, isTrue);
 
       await requestExit(tester, exit);
+      if (exit == _Exit.barrier) await requestExit(tester, _Exit.cancel);
       await tester.tap(find.text(l.jsonEditorDiscardChanges));
       await tester.pumpAndSettle();
       expect(find.byType(ServerEditorPage), findsNothing);

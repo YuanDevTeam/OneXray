@@ -161,7 +161,7 @@ void main() {
   }
 
   testWidgets(
-    'default iPad and desktop groups balance both columns',
+    'iPad and desktop keep every routing group in one content column',
     (tester) async {
       final iPad = defaultTargetPlatform == TargetPlatform.iOS;
       final contentWidth = iPad ? 743.0 : 1000.0;
@@ -170,38 +170,37 @@ void main() {
         windowWidth: iPad ? 1024 : 1440,
         contentWidth: contentWidth,
       );
-      final primary = tester.getRect(find.byKey(_primary));
-      final secondary = tester.getRect(find.byKey(_secondary));
-      expect(primary.top, closeTo(secondary.top, 0.01));
-      expect(primary.width, closeTo((contentWidth - 16) / 2, 0.01));
-      expect(primary.width, closeTo(secondary.width, 0.01));
-      final taller = primary.height > secondary.height
-          ? primary.height
-          : secondary.height;
-      expect(
-        (primary.height - secondary.height).abs() / taller,
-        lessThan(0.25),
-        reason:
-            'Content $contentWidth: left ${primary.height}, '
-            'right ${secondary.height}',
-      );
+      expect(find.byKey(_primary), findsNothing);
+      expect(find.byKey(_secondary), findsNothing);
       final l = AppLocalizations.of(
         tester.element(find.byType(SmartRoutingEditorContent)),
       )!;
-      expect(
-        find.descendant(
-          of: find.byKey(_primary),
-          matching: header(l.routingDnsSettings),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(_secondary),
-          matching: header(l.prototypeRoutingPreview),
-        ),
-        findsOneWidget,
-      );
+      final cards =
+          [
+                l.smartRoutingDirectAndBlock,
+                l.smartRoutingProxyConnection,
+                l.routingDnsSettings,
+                l.routingSniffingSettings,
+                l.prototypeRoutingPreview,
+              ]
+              .map(
+                (title) => tester.getRect(
+                  find
+                      .ancestor(
+                        of: header(title),
+                        matching: find.byType(RoutingCard),
+                      )
+                      .first,
+                ),
+              )
+              .toList();
+      for (var index = 0; index < cards.length; index++) {
+        expect(cards[index].width, closeTo(contentWidth, .01));
+        expect(cards[index].left, closeTo(cards.first.left, .01));
+        if (index > 0) {
+          expect(cards[index].top, greaterThan(cards[index - 1].bottom));
+        }
+      }
       expect(tester.takeException(), isNull);
     },
     variant: TargetPlatformVariant({TargetPlatform.iOS, TargetPlatform.macOS}),
@@ -322,8 +321,15 @@ void main() {
         locale: const Locale('fa'),
         textScale: 1.6,
       );
-      expect(find.byKey(_primary), findsOneWidget);
-      expect(find.byKey(_secondary), findsOneWidget);
+      expect(find.byKey(_primary), findsNothing);
+      expect(find.byKey(_secondary), findsNothing);
+      final fullWidthCards = find.byType(RoutingCard);
+      for (final card in fullWidthCards.evaluate()) {
+        expect(
+          tester.getSize(find.byWidget(card.widget)).width,
+          closeTo(1000, .01),
+        );
+      }
       expect(controller.state.draft.toJson(), draft);
       expect(controller.state.original!.configuration.encode(), original);
       expect(coordinator.state.value.phase, ConnectionPhase.disconnected);

@@ -61,7 +61,7 @@ abstract final class AppTypography {
   static final settingsDetailNote = _style(12, 400);
   static final settingsSelect = _style(14, 400);
   static final settingsInput = _style(13, 400);
-  static final routingCardTitle = _style(15, 700);
+  static final routingCardTitle = _style(16, 600);
   static final routingCardDescription = _style(12, 400);
   static final routingRowTitle = _style(13, 700);
   static final routingRowTitleMobile = _style(12, 700);
@@ -96,7 +96,7 @@ abstract final class AppTypography {
   static final actionHelp = _style(12, 400);
   static final ruleAdd = _style(12, 600);
   static final configurationTool = _style(12, 600);
-  static final rawField = _style(12, 600);
+  static final rawField = _style(14, 600);
   static final rawNote = _style(12, 400);
   static final runtimeCodePill = _style(12, 600);
   static final runtimeCodeAction = _style(12, 600);
@@ -239,8 +239,8 @@ abstract final class AppTypography {
 
   static final runtimeLabel = _style(12, 400);
   static final runtimeDesktopLabel = _style(12, 400);
-  static final runtimeValue = _style(12, 700);
-  static final runtimeDesktopValue = _style(13, 700);
+  static final runtimeValue = _style(14, 600);
+  static final runtimeDesktopValue = _style(14, 600);
   static final runtimeNavigationHint = _style(12, 400);
   static final runtimePushHint = _style(12, 400);
   static final runtimeDesktopPushHint = _style(12, 400);

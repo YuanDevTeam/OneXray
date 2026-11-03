@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onexray/core/tools/platform.dart';
+import 'package:onexray/core/pigeon/host_api.dart';
+import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/xray/log/page.dart';
 import 'package:onexray/pages/advanced/xray/log/params.dart';
@@ -39,6 +41,9 @@ import 'package:onexray/pages/launch/setup/page.dart';
 import 'package:onexray/pages/launch/setup/selectors.dart';
 import 'package:onexray/pages/servers/import/page.dart';
 import 'package:onexray/pages/servers/page.dart';
+import 'package:onexray/pages/servers/details.dart';
+import 'package:onexray/pages/servers/view.dart';
+import 'package:onexray/pages/advanced/xray/diagnostics.dart';
 import 'package:onexray/pages/servers/order/controller.dart';
 import 'package:onexray/pages/servers/order/page.dart';
 import 'package:onexray/pages/connect/page.dart';
@@ -227,6 +232,38 @@ final _pageRoutes = <_PageRoute>[
   _route(AppPageDestination.tunnel, (_, _) => const TunnelRootPage()),
   _route(AppPageDestination.xray, (_, _) => const XrayRootPage()),
   _route(AppPageDestination.settings, (_, _) => const SettingsPage()),
+  _route(
+    AppPageDestination.serverResource,
+    (_, state) => _withExtra<ServerResourceParams>(
+      state,
+      (params) => ServerResourcePage(params: params),
+    ),
+  ),
+  _route(
+    AppPageDestination.sourceDetails,
+    (_, state) => _withExtra<ServerSourceParams>(
+      state,
+      (params) => ServerSourcePage(params: params),
+    ),
+  ),
+  _route(
+    AppPageDestination.serverManualGroups,
+    (_, state) => _withExtra<ServersController>(
+      state,
+      (controller) => ServerManualGroupsPage(controller: controller),
+    ),
+  ),
+  _route(
+    AppPageDestination.xrayDiagnostics,
+    (_, _) => XrayDiagnosticsPage(
+      onLog: (context, params) =>
+          context.pushScoped(AppPageDestination.logFile, extra: params),
+      onConfig: (context, params) => context.pushScoped(
+        AppPageDestination.configFileViewer,
+        extra: params,
+      ),
+    ),
+  ),
   _route(AppPageDestination.localApi, (_, _) => const LocalApiPage()),
   _route(AppPageDestination.lanProxy, (_, _) => const LanProxyPage()),
   _route(AppPageDestination.serverDialing, (_, _) => const ServerDialingPage()),
@@ -403,7 +440,7 @@ final _pageRoutes = <_PageRoute>[
     AppPageDestination.logFile,
     (_, state) => _withExtra<LogFileViewerParams>(
       state,
-      (params) => LogFileViewerPage(params: params),
+      (params) => _LogRouteGate(params: params),
     ),
   ),
   _route(
@@ -497,4 +534,56 @@ class _InvalidRouteDialog extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Capability checks precede construction so a direct route cannot read SE logs.
+class _LogRouteGate extends StatefulWidget {
+  const _LogRouteGate({required this.params});
+  final LogFileViewerParams params;
+  @override
+  State<_LogRouteGate> createState() => _LogRouteGateState();
+}
+
+class _LogRouteGateState extends State<_LogRouteGate> {
+  late Future<bool> _systemExtension = AppHostApi().useSystemExtension();
+  @override
+  Widget build(BuildContext context) => FutureBuilder<bool>(
+    future: _systemExtension,
+    builder: (context, snapshot) {
+      if (snapshot.hasData && snapshot.data == false) {
+        return LogFileViewerPage(params: widget.params);
+      }
+      final l = AppLocalizations.of(context)!;
+      return Scaffold(
+        appBar: PageAppBar(title: Text(l.prototypeLogs)),
+        body: SafeArea(
+          child: Center(
+            child: snapshot.connectionState != ConnectionState.done
+                ? const CircularProgressIndicator()
+                : Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SelectableText(
+                          snapshot.hasError
+                              ? appFailureMessage(l, snapshot.error)
+                              : l.logsUnavailableSystemExtension,
+                        ),
+                        if (snapshot.hasError)
+                          TextButton(
+                            onPressed: () => setState(
+                              () => _systemExtension = AppHostApi()
+                                  .useSystemExtension(),
+                            ),
+                            child: Text(l.prototypeRetry),
+                          ),
+                      ],
+                    ),
+                  ),
+          ),
+        ),
+      );
+    },
+  );
 }

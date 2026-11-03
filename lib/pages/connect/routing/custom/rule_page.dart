@@ -84,7 +84,7 @@ class _CustomRoutingRulePageState extends State<CustomRoutingRulePage> {
   }
 }
 
-/// The same field composition can be hosted beside a wide-screen rule list.
+/// Rule edits live on their own page, independently of the ordered rule list.
 class CustomRoutingRuleForm extends StatelessWidget {
   final CustomRoutingRuleController controller;
   const CustomRoutingRuleForm({super.key, required this.controller});
@@ -127,7 +127,9 @@ class CustomRoutingRuleForm extends StatelessWidget {
                       ),
                       ShadInput(
                         controller: controller.name,
-                        constraints: const BoxConstraints(minHeight: 40),
+                        constraints: BoxConstraints(
+                          minHeight: AppLayout.touchExtent(40),
+                        ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 8,

@@ -47,9 +47,7 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    controller.setInlineEditing(
-      MediaQuery.sizeOf(context).width > AppLayout.mobileBreakpoint,
-    );
+    controller.setInlineEditing(false);
     if (!_started) {
       _started = true;
       controller.load(context);

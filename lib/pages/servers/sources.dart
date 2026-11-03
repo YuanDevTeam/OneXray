@@ -12,6 +12,101 @@ import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/service/servers/subscription/user_info.dart';
+import 'package:onexray/pages/servers/details.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
+import 'package:onexray/pages/main/navigation.dart';
+
+/// The subscription destination shares all operations with the existing source
+/// workflow, while opening a full content page for inspection.
+class ServerSourcesView extends StatelessWidget {
+  const ServerSourcesView({super.key, required this.controller});
+  final ServersController controller;
+
+  @override
+  Widget build(
+    BuildContext context,
+  ) => BlocBuilder<ServersController, ServersPageState>(
+    bloc: controller,
+    builder: (context, state) {
+      final l = AppLocalizations.of(context)!;
+      final query = controller.query.trim().toLowerCase();
+      final sources = state.sources
+          .where(
+            (source) =>
+                query.isEmpty ||
+                '${source.name} ${source.url}'.toLowerCase().contains(query),
+          )
+          .toList();
+      final material = MaterialLocalizations.of(context);
+      String checkedAt(SubscriptionData source) =>
+          controller.sourceCheckedLabel(l, source.timestamp) ??
+          '${material.formatMediumDate(source.timestamp.toLocal())} '
+              '${material.formatTimeOfDay(TimeOfDay.fromDateTime(source.timestamp.toLocal()))}';
+      void open(SubscriptionData source) => context.pushScoped(
+        AppPageDestination.sourceDetails,
+        extra: ServerSourceParams(controller: controller, sourceId: source.id),
+      );
+      return SettingSection(
+        title: l.prototypeSubscriptions,
+        padding: EdgeInsets.zero,
+        separated: false,
+        children: [
+          if (sources.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Text(
+                    query.isEmpty
+                        ? l.prototypeNoServersYet
+                        : l.prototypeNoMatchingSubscriptions,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: query.isEmpty
+                        ? () => controller.addServers(context)
+                        : controller.search.clear,
+                    child: Text(
+                      query.isEmpty
+                          ? l.prototypeAddSubscription
+                          : l.prototypeClear,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          for (final source in sources)
+            Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: () => open(source),
+                child: _SourceRow(
+                  name: source.name,
+                  package: SubscriptionUserInfo.fromSubscription(source),
+                  detail:
+                      '${controller.providerSource(source) ? l.providerConfigurationCount(controller.sourceCount(source.id)) : l.prototypeServerCount(controller.sourceCount(source.id))} · ${checkedAt(source)}',
+                  status: state.sourceErrors[source.id] ?? l.prototypeUpdated,
+                  failed: state.sourceErrors.containsKey(source.id),
+                  showDivider: source != sources.last,
+                  subscription: true,
+                  busy: controller.sourceBusy(source.id),
+                  onMore: () => open(source),
+                  onUpdate: controller.sourceBusy(source.id)
+                      ? null
+                      : () => controller.sourceAction(
+                          context,
+                          source,
+                          SourceAction.update,
+                        ),
+                ),
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
 
 class ServerSourcesDialog extends StatelessWidget {
   const ServerSourcesDialog({super.key, required this.controller});

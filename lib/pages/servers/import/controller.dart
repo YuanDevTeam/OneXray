@@ -11,7 +11,6 @@ import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/servers/import/page.dart';
 import 'package:onexray/pages/servers/subscription/format_confirmation.dart';
-import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/service/servers/subscription/failure.dart';
@@ -478,7 +477,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       if (action == ServerImportAction.json && jsonText.text.isEmpty) {
         jsonText.text = '{\n  "outbounds": []\n}';
       }
-      result = await showAppDialog<ServerImportResult>(
+      result = await _pushServerImportStep<ServerImportResult>(
         context,
         (dialogContext) => ServerImportFormPage(
           controller: this,
@@ -561,7 +560,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         emit(state.copyWith(busy: false, openingAction: null));
       }
       if (!isPageActive || !context.mounted || _closingFlow) return null;
-      return showAppDialog<ServerImportResult>(
+      return _pushServerImportStep<ServerImportResult>(
         context,
         (dialogContext) => ServerImportFormPage(
           controller: this,
@@ -794,7 +793,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     final ready = preview;
     _previewOpen = true;
     try {
-      return await showAppDialog<ServerImportResult>(
+      return await _pushServerImportStep<ServerImportResult>(
         context,
         (dialogContext) => ServerImportPreviewPage(
           controller: this,
@@ -1154,3 +1153,8 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     }
   }
 }
+
+Future<T?> _pushServerImportStep<T>(
+  BuildContext context,
+  WidgetBuilder builder,
+) => Navigator.of(context).push<T>(MaterialPageRoute<T>(builder: builder));

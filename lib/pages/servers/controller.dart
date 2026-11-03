@@ -35,6 +35,8 @@ import 'package:onexray/service/servers/server.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/connect/raw/editor.dart';
+import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/service/shared/ping/service.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/servers/subscription/failure.dart';
@@ -73,13 +75,15 @@ class ServersPageState {
     this.selectingServers,
     this.sortSaving = false,
     Map<int, String> sourceErrors = const {},
+    List<CoreConfigData> rawConfigurations = const [],
   }) : configuration = configuration ?? ConnectionConfiguration(),
        catalog = catalog ?? ServerCatalog(),
        customRoutes = List.unmodifiable(customRoutes),
        pendingServerActions = Set.unmodifiable(pendingServerActions),
        serverTests = Map.unmodifiable(serverTests),
        favoritingServerIds = Set.unmodifiable(favoritingServerIds),
-       sourceErrors = Map.unmodifiable(sourceErrors);
+       sourceErrors = Map.unmodifiable(sourceErrors),
+       rawConfigurations = List.unmodifiable(rawConfigurations);
 
   final ConnectionConfiguration configuration;
   final ConnectionView connectionView;
@@ -99,6 +103,7 @@ class ServersPageState {
   final ServerSelection? selectingServers;
   final bool sortSaving;
   final Map<int, String> sourceErrors;
+  final List<CoreConfigData> rawConfigurations;
 
   ServersPageState copyWith({
     ConnectionConfiguration? configuration,
@@ -116,6 +121,7 @@ class ServersPageState {
     Object? selectingServers = _unchanged,
     bool? sortSaving,
     Map<int, String>? sourceErrors,
+    List<CoreConfigData>? rawConfigurations,
   }) => ServersPageState(
     configuration: configuration ?? this.configuration,
     connectionView: connectionView ?? this.connectionView,
@@ -136,6 +142,7 @@ class ServersPageState {
         : selectingServers as ServerSelection?,
     sortSaving: sortSaving ?? this.sortSaving,
     sourceErrors: sourceErrors ?? this.sourceErrors,
+    rawConfigurations: rawConfigurations ?? this.rawConfigurations,
   );
 }
 
@@ -174,6 +181,7 @@ class ServersController extends PageCubit<ServersPageState>
   set configuration(ConnectionConfiguration value) =>
       emit(state.copyWith(configuration: value));
   List<RoutingConfiguration> get customRoutes => state.customRoutes;
+  List<CoreConfigData> get rawConfigurations => state.rawConfigurations;
   set customRoutes(List<RoutingConfiguration> value) =>
       emit(state.copyWith(customRoutes: value));
   ConnectionView get connectionView => state.connectionView;
@@ -198,6 +206,12 @@ class ServersController extends PageCubit<ServersPageState>
         _subscriptions.add(
           ServerCatalog.watch(db).listen(
             (value) => emit(state.copyWith(catalog: value)),
+            onError: _readFailed,
+          ),
+        );
+        _subscriptions.add(
+          db.coreConfigDao.allRawRowsWithDataStream.listen(
+            (rows) => emit(state.copyWith(rawConfigurations: rows)),
             onError: _readFailed,
           ),
         );
@@ -348,7 +362,10 @@ class ServersController extends PageCubit<ServersPageState>
         : null;
     return count > 0 &&
         rows
-                .where((row) => row.id != finalExit && catalog.selectable(row))
+                .where(
+                  (row) =>
+                      row.id != finalExit && ServerAssetService.selectable(row),
+                )
                 .take(count)
                 .length >=
             count;
@@ -360,7 +377,8 @@ class ServersController extends PageCubit<ServersPageState>
           jsonEncode(selection.toJson());
 
   // Display only: running identities come from the active runtime. Offline
-  // previews use existing successful probes, never start a probe or select VPN.
+  // previews use the resolver's readable-candidate order, never start a probe
+  // or change a connection plan.
   ({List<String> names, CoreConfigData? first}) get _displaySelection {
     final settings = configuration.connection;
     if (settings.expert) return (names: [], first: null);
@@ -396,23 +414,18 @@ class ServersController extends PageCubit<ServersPageState>
       }
     }
     final count = entryCount(selection);
-    final rows =
-        servers.where((row) {
-          if (row.id == settings.finalExitId ||
-              !catalog.outboundEligible(row) ||
-              !ServerAssetService.healthy(row) ||
-              !catalog.selectable(row)) {
-            return false;
-          }
-          return switch (selection.kind) {
-            SelectionKind.automatic => true,
-            SelectionKind.source => row.subId == selection.id,
-            SelectionKind.server => row.id == selection.id,
-          };
-        }).toList()..sort((a, b) {
-          final delay = a.delay.compareTo(b.delay);
-          return delay == 0 ? a.id.compareTo(b.id) : delay;
-        });
+    final rows = servers.where((row) {
+      if (row.id == settings.finalExitId ||
+          !catalog.outboundEligible(row) ||
+          !ServerAssetService.selectable(row)) {
+        return false;
+      }
+      return switch (selection.kind) {
+        SelectionKind.automatic => true,
+        SelectionKind.source => row.subId == selection.id,
+        SelectionKind.server => row.id == selection.id,
+      };
+    }).toList()..sort(ConnectionResolver.compareCandidates);
     if (count <= 0 || rows.length < count) return (names: [], first: null);
     return (
       names: rows.take(count).map(serverName).toList(),
@@ -549,12 +562,81 @@ class ServersController extends PageCubit<ServersPageState>
     required bool mobile,
   }) async {
     activeGroupId = group.id;
-    if (mobile) {
-      await context.pushScoped(
-        AppPageDestination.serverGroup,
-        extra: ServerGroupParams(this, group.id),
+    await context.pushScoped(
+      AppPageDestination.serverGroup,
+      extra: ServerGroupParams(this, group.id),
+    );
+  }
+
+  Future<void> editRaw(BuildContext context, [int? id]) =>
+      context.pushScoped(AppPageDestination.rawEditor, extra: id);
+
+  Future<void> chooseRaw(BuildContext context, CoreConfigData row) async {
+    if (busy || serverBusy(row)) return;
+    selecting = ServerSelection.server(row.id);
+    try {
+      Future<void> validate() async {
+        await RawEditorService(
+          database: db,
+          coordinator: coordinator,
+        ).validateSelection(row.id);
+      }
+
+      if (!await runConnectionAction(context, coordinator, validate)) return;
+      if (!context.mounted || !isPageActive) return;
+      final current = await coordinator.configuration;
+      if (!context.mounted || !isPageActive) return;
+      if (current.connection.expert && current.connection.rawId == row.id) {
+        configuration = current;
+        return;
+      }
+      final saved = await applyConnectionChange(
+        context,
+        coordinator,
+        {'expert': true, 'rawId': row.id},
+        validateAssets: validate,
+        writeAssets: validate,
+        label: (_) => row.name,
       );
+      if (saved != null) configuration = saved;
+    } catch (error, stackTrace) {
+      if (context.mounted && isPageActive) {
+        await runConnectionAction(context, coordinator, () async {
+          Error.throwWithStackTrace(error, stackTrace);
+        });
+      }
+    } finally {
+      selecting = null;
     }
+  }
+
+  Future<void> removeRaw(BuildContext context, CoreConfigData row) async {
+    if (busy || serverBusy(row)) return;
+    await perform(context, () async {
+      await RawEditorService(database: db, coordinator: coordinator).delete(
+        row,
+        confirm: (selected, reconnect, disconnect) async {
+          if (!context.mounted || !isPageActive) return false;
+          final l = AppLocalizations.of(context)!;
+          final confirmed = await showDestructiveConfirmationDialog(
+            context,
+            title: l.prototypeDeleteRawQuestion,
+            subtitle: row.name,
+            warning: disconnect
+                ? l.prototypeRawDeleteDisconnectNotice
+                : selected
+                ? l.prototypeActiveRawDeleteNotice
+                : l.prototypeRawDeleteNotice,
+            confirmLabel: disconnect
+                ? l.prototypeDeleteAndDisconnect
+                : reconnect
+                ? l.prototypeDeleteAndReconnect
+                : l.prototypeDelete,
+          );
+          return confirmed && context.mounted && isPageActive;
+        },
+      );
+    }, ids: {row.id});
   }
 
   Future<void> choose(BuildContext context, ServerSelection selection) async {

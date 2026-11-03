@@ -244,7 +244,7 @@ void main() {
       ];
       expect(
         controller.summary(l, controller.groups(l).single),
-        l.prototypeGroupAvailability(4, 5, 0),
+        l.prototypeGroupAvailability(5, 5, 0),
       );
     },
   );
@@ -285,70 +285,76 @@ void main() {
     expect(controller.entryCount(const ServerSelection.source(0)), 1);
   });
 
-  test('delay alone distinguishes untested, successful, failed and timed-out nodes', () async {
-    final row = await server('one');
-    for (final (delay, label, selectable) in [
-      (PingDelayConstants.unknown, l.prototypeNotTested, true),
-      (0, l.prototypeFastLatency(0), true),
-      (-1, l.prototypeTemporarilyUnavailable, false),
-      (499, l.prototypeFastLatency(499), true),
-      (500, l.prototypeFastLatency(500), true),
-      (501, l.prototypeSlowLatency(501), true),
-      (999, l.prototypeSlowLatency(999), true),
-      (1000, l.prototypeSlowLatency(1000), true),
-      (1001, l.prototypeAvailableLatency(1001), true),
-      (PingDelayConstants.error, l.prototypeTemporarilyUnavailable, false),
-      (PingDelayConstants.timeout, l.prototypeTemporarilyUnavailable, false),
-    ]) {
-      final candidate = row.copyWith(delay: delay);
-      expect(controller.health(l, candidate), label);
-      expect(controller.canChoose(candidate), selectable);
-      controller.servers = [candidate];
-      expect(
-        controller.automaticResult(l),
-        PingDelayConstants.isSuccessful(delay)
-            ? l.prototypeCurrentServerLatency('one', delay)
-            : isNull,
-      );
-    }
-  });
+  test(
+    'latency reports measurement status without limiting selection',
+    () async {
+      final row = await server('one');
+      for (final (delay, label, selectable) in [
+        (PingDelayConstants.unknown, l.prototypeNotTested, true),
+        (0, l.prototypeFastLatency(0), true),
+        (-1, l.serverLatencyFailed, true),
+        (499, l.prototypeFastLatency(499), true),
+        (500, l.prototypeFastLatency(500), true),
+        (501, l.prototypeSlowLatency(501), true),
+        (999, l.prototypeSlowLatency(999), true),
+        (1000, l.prototypeSlowLatency(1000), true),
+        (1001, l.prototypeAvailableLatency(1001), true),
+        (PingDelayConstants.error, l.serverLatencyFailed, true),
+        (PingDelayConstants.timeout, l.serverLatencyFailed, true),
+      ]) {
+        final candidate = row.copyWith(delay: delay);
+        expect(controller.health(l, candidate), label);
+        expect(controller.canChoose(candidate), selectable);
+        controller.servers = [candidate];
+        expect(
+          controller.automaticResult(l),
+          PingDelayConstants.isSuccessful(delay)
+              ? l.prototypeCurrentServerLatency('one', delay)
+              : l.prototypeCurrentServerLatency('one', '—'),
+        );
+      }
+    },
+  );
 
-  test('custom count uses empty outbounds; measured failure is not an untested candidate', () async {
-    final one = await server('one');
-    final two = await server('two');
-    await db.routingProfileDao.insertRow(
-      RoutingProfileCompanion.insert(
-        name: 'custom',
-        data: base64Encode(
-          utf8.encode(
-            jsonEncode({
-              'outbounds': [{}, {}],
-              'routing': {'rules': []},
-            }),
+  test(
+    'custom count uses empty outbounds and measured failures remain candidates',
+    () async {
+      final one = await server('one');
+      final two = await server('two');
+      await db.routingProfileDao.insertRow(
+        RoutingProfileCompanion.insert(
+          name: 'custom',
+          data: base64Encode(
+            utf8.encode(
+              jsonEncode({
+                'outbounds': [{}, {}],
+                'routing': {'rules': []},
+              }),
+            ),
           ),
         ),
-      ),
-    );
-    controller.customRoutes = (await db.routingProfileDao.allRows)
-        .map(CustomRoutingService.read)
-        .toList();
-    controller.configuration = ConnectionConfiguration(
-      connection: ConnectionSettings(
-        trafficMode: TrafficMode.custom,
-        customId: controller.customRoutes.single.id,
-      ),
-    );
-    controller.servers = [one, two.copyWith(delay: PingDelayConstants.error)];
-    final group = controller.groups(l).single;
-    expect(controller.entryCount(const ServerSelection.source(0)), 2);
-    expect(
-      controller.canUseSelection(const ServerSelection.source(0), group.rows),
-      false,
-    );
-    expect(controller.health(l, one), l.prototypeNotTested);
-    expect(
-      controller.health(l, controller.servers.last),
-      l.prototypeTemporarilyUnavailable,
-    );
-  });
+      );
+      controller.customRoutes = (await db.routingProfileDao.allRows)
+          .map(CustomRoutingService.read)
+          .toList();
+      controller.configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          trafficMode: TrafficMode.custom,
+          customId: controller.customRoutes.single.id,
+        ),
+      );
+      controller.servers = [one, two.copyWith(delay: PingDelayConstants.error)];
+      final group = controller.groups(l).single;
+      expect(controller.entryCount(const ServerSelection.source(0)), 2);
+      expect(
+        controller.canUseSelection(const ServerSelection.source(0), group.rows),
+        true,
+      );
+      expect(controller.health(l, one), l.prototypeNotTested);
+      expect(
+        controller.health(l, controller.servers.last),
+        l.serverLatencyFailed,
+      );
+    },
+  );
 }

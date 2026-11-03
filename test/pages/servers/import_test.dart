@@ -710,9 +710,8 @@ void main() {
         Builder(
           builder: (context) => TextButton(
             onPressed: () async {
-              result = await showAppDialog<ServerImportResult>(
-                context,
-                (_) => const ServersImportPage(),
+              result = await Navigator.of(context).push<ServerImportResult>(
+                MaterialPageRoute(builder: (_) => const ServersImportPage()),
               );
               completed = true;
             },
@@ -732,7 +731,7 @@ void main() {
     expect(controller.text.text, isEmpty);
     expect(clipboardReads, 0);
 
-    await tester.tap(find.text('Back'));
+    await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.text('Add servers to OneXray'), findsOneWidget);
     expect(completed, isFalse);

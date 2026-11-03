@@ -376,7 +376,8 @@ class RoutingSettingRow extends StatelessWidget {
 class RoutingControlFrame extends StatelessWidget {
   final Widget child;
 
-  const RoutingControlFrame({super.key, required this.child});
+  const RoutingControlFrame({super.key, required this.child, this.clip = true});
+  final bool clip;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -385,7 +386,7 @@ class RoutingControlFrame extends StatelessWidget {
       side: BorderSide(color: ColorManager.palette(context).border),
       borderRadius: BorderRadius.circular(AppRadii.control),
     ),
-    clipBehavior: Clip.antiAlias,
+    clipBehavior: clip ? Clip.antiAlias : Clip.none,
     child: Padding(padding: const EdgeInsets.all(1), child: child),
   );
 }
@@ -404,48 +405,81 @@ class EntryCountPicker extends StatelessWidget {
       34,
       platform: Theme.of(context).platform,
     );
-    return RoutingControlFrame(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final count in const [1, 2, 3])
-            Semantics(
-              label: l.prototypeUseEntryServers(count),
-              selected: value == count,
-              button: true,
-              enabled: onChanged != null,
-              child: Tooltip(
-                message: l.prototypeUseEntryServers(count),
-                excludeFromSemantics: true,
-                child: SizedBox(
-                  width: extent,
-                  child: Material(
-                    color: value == count
-                        ? palette.selectedSurface
-                        : palette.muted,
-                    child: InkWell(
-                      onTap: onChanged == null ? null : () => onChanged!(count),
-                      child: Container(
-                        constraints: BoxConstraints(minHeight: extent),
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        foregroundDecoration: BoxDecoration(
-                          border: count < 3
-                              ? BorderDirectional(
-                                  end: BorderSide(color: palette.border),
-                                )
-                              : null,
-                        ),
-                        child: Center(
-                          heightFactor: 1,
-                          child: ExcludeSemantics(
-                            child: Text(
-                              '$count',
-                              style: AppTypography.routingCount.copyWith(
-                                color: onChanged == null
-                                    ? Theme.of(context).disabledColor
-                                    : value == count
-                                    ? palette.primaryText
-                                    : palette.mutedStrong,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      excludeFromSemantics: true,
+      onTapUp: onChanged == null
+          ? null
+          : (details) {
+              final logicalX = Directionality.of(context) == TextDirection.rtl
+                  ? extent * 3 + 1 - details.localPosition.dx
+                  : details.localPosition.dx - 1;
+              final segment = logicalX ~/ extent;
+              onChanged!(
+                segment < 0
+                    ? 1
+                    : segment > 2
+                    ? 3
+                    : segment + 1,
+              );
+            },
+      child: RoutingControlFrame(
+        clip: false,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final count in const [1, 2, 3])
+              Semantics(
+                label: l.prototypeUseEntryServers(count),
+                selected: value == count,
+                button: true,
+                enabled: onChanged != null,
+                child: Tooltip(
+                  message: l.prototypeUseEntryServers(count),
+                  excludeFromSemantics: true,
+                  child: SizedBox(
+                    width: extent,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onChanged == null
+                            ? null
+                            : () => onChanged!(count),
+                        child: Container(
+                          constraints: BoxConstraints(minHeight: extent),
+                          decoration: BoxDecoration(
+                            color: value == count
+                                ? palette.selectedSurface
+                                : palette.muted,
+                            borderRadius: BorderRadiusDirectional.horizontal(
+                              start: Radius.circular(
+                                count == 1 ? AppRadii.control - 1 : 0,
+                              ),
+                              end: Radius.circular(
+                                count == 3 ? AppRadii.control - 1 : 0,
+                              ),
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          foregroundDecoration: BoxDecoration(
+                            border: count < 3
+                                ? BorderDirectional(
+                                    end: BorderSide(color: palette.border),
+                                  )
+                                : null,
+                          ),
+                          child: Center(
+                            heightFactor: 1,
+                            child: ExcludeSemantics(
+                              child: Text(
+                                '$count',
+                                style: AppTypography.routingCount.copyWith(
+                                  color: onChanged == null
+                                      ? Theme.of(context).disabledColor
+                                      : value == count
+                                      ? palette.primaryText
+                                      : palette.mutedStrong,
+                                ),
                               ),
                             ),
                           ),
@@ -455,8 +489,8 @@ class EntryCountPicker extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

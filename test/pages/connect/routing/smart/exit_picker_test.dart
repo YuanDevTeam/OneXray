@@ -96,14 +96,15 @@ void main() {
       controller.selectDraft(
         controller.servers.singleWhere((row) => row.id == 4),
       );
-      expect(controller.selectedId, 2);
+      expect(controller.selectedId, 4);
       expect(
         controller.exitRowDetail(
           l,
           controller.servers.singleWhere((row) => row.id == 4),
         ),
-        l.prototypeTemporarilyUnavailable,
+        l.serverLatencyFailed,
       );
+      expect(controller.canFinish, isTrue);
       controller.selectDraft(
         controller.servers.singleWhere((row) => row.id == 3),
       );
@@ -121,6 +122,36 @@ void main() {
       expect((await coordinator.configuration).encode(), before);
     },
   );
+
+  test('unmeasured and timed-out exits remain eligible without changing saved settings', () async {
+    final before = (await coordinator.configuration).encode();
+    for (final (delay, label) in [
+      (PingDelayConstants.unknown, l.prototypeNotTested),
+      (PingDelayConstants.error, l.serverLatencyFailed),
+      (PingDelayConstants.timeout, l.serverLatencyFailed),
+    ]) {
+      final exit = _server(4, delay: delay);
+      controller.emit(
+        controller.state.copyWith(
+          catalog: controller.catalog.copyWith(
+            servers: [
+              for (final row in controller.servers) row.id == 4 ? exit : row,
+            ],
+          ),
+        ),
+      );
+      expect(controller.canSelect(exit), isTrue);
+      expect(controller.exitRowDetail(l, exit), label);
+      controller.selectDraft(exit);
+      expect(controller.selectedId, 4);
+      expect(controller.canFinish, isTrue);
+      final entry = controller.servers.singleWhere((row) => row.id == 1);
+      expect(controller.canSelect(entry), isFalse);
+      controller.selectDraft(entry);
+      expect(controller.selectedId, 4);
+    }
+    expect((await coordinator.configuration).encode(), before);
+  });
 
   Future<void> open(
     WidgetTester tester,
@@ -188,6 +219,50 @@ void main() {
     expect(find.byType(ServerExitPickerView), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  for (final delay in [
+    PingDelayConstants.unknown,
+    PingDelayConstants.timeout,
+  ]) {
+    testWidgets(
+      'exit picker can return an unmeasured or timed-out node: $delay',
+      (tester) async {
+        final before = (await coordinator.configuration).encode();
+        final exit = _server(4, delay: delay);
+        controller.emit(
+          controller.state.copyWith(
+            catalog: controller.catalog.copyWith(
+              servers: [
+                for (final row in controller.servers) row.id == 4 ? exit : row,
+              ],
+            ),
+          ),
+        );
+        final results = <ServerExitChoice?>[];
+        await open(tester, results);
+        await tester.tap(find.text('Server 1'));
+        await tester.pumpAndSettle();
+        expect(controller.selectedId, 2);
+        await tester.tap(find.text('Server 4'));
+        await tester.pumpAndSettle();
+        expect(controller.selectedId, 4);
+        expect(results, isEmpty);
+        expect(
+          find.text(
+            delay == PingDelayConstants.unknown
+                ? l.prototypeNotTested
+                : l.serverLatencyFailed,
+          ),
+          findsOneWidget,
+        );
+        await tester.tap(find.text(l.prototypeDone));
+        await tester.pumpAndSettle();
+        expect(results.single?.id, 4);
+        expect((await coordinator.configuration).encode(), before);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('desktop selector keeps a 760 card and a matching footer scope', (
     tester,

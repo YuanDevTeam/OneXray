@@ -93,20 +93,23 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('desktop settings use two columns without reserving an editor', (
+  testWidgets('all content widths keep rules and settings in one column', (
     tester,
   ) async {
-    for (final width in [1220.0, 876.0, 743.0, 720.0]) {
+    for (final width in [1220.0, 876.0, 743.0, 720.0, 680.0]) {
       await pumpSections(tester, width: width);
       final rules = tester.getRect(find.byKey(_rules));
       final dns = tester.getRect(find.byType(RoutingDnsSettingsForm));
       final options = tester.getRect(find.byKey(_options));
       final sniffing = tester.getRect(find.byType(RoutingSniffingSettingsForm));
       expect(rules.width, width);
-      expect(dns.top, options.top);
-      expect(dns.right, lessThan(options.left));
-      expect(sniffing.left, options.left);
-      expect(sniffing.top, greaterThan(options.bottom));
+      expect(options.top, greaterThan(rules.bottom));
+      expect(dns.top, greaterThan(options.bottom));
+      expect(sniffing.top, greaterThan(dns.bottom));
+      for (final rect in [options, dns, sniffing]) {
+        expect(rect.width, width);
+        expect(rect.left, rules.left);
+      }
       expect(tester.takeException(), isNull);
     }
 
@@ -163,7 +166,7 @@ void main() {
   }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
   testWidgets(
-    'rule editing and settings adapt independently with scaled text',
+    'rule draft keeps text, focus and selection in a full-width form',
     (tester) async {
       final editor = CustomRoutingRuleController();
       addTearDown(editor.close);
@@ -197,14 +200,10 @@ void main() {
         );
         final rules = tester.getRect(find.byKey(_rules));
         final form = tester.getRect(find.byType(CustomRoutingRuleForm));
-        if (width >= 876) {
-          expect(form.top, rules.top);
-          expect(form.left, greaterThan(rules.right));
-          expect(form.width, rules.width);
-          expect(form.width, (width - 16) / 2);
-        } else {
-          expect(form.top, greaterThan(rules.bottom));
-        }
+        expect(form.top, greaterThan(rules.bottom));
+        expect(form.left, rules.left);
+        expect(form.width, rules.width);
+        expect(form.width, width);
         expect(editor.name.text, 'Edited rule');
         expect(editor.name.selection, selection);
         expect(

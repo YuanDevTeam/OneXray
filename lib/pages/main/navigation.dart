@@ -41,6 +41,10 @@ enum AppPageDestination {
   settings("settings"),
   serversImport("servers-import"),
   serverGroup("server-group"),
+  serverResource("server-resource"),
+  sourceDetails("source-details"),
+  serverManualGroups("server-manual-groups"),
+  xrayDiagnostics("xray-diagnostics"),
   manualServerOrder("manual-server-order"),
   serverEditor("server-editor"),
   serverFinalExitPicker("server-final-exit-picker"),
@@ -80,12 +84,7 @@ enum AppPageDestination {
 
   const AppPageDestination(this.segment);
 
-  static const adaptiveDialogs = {
-    serversImport,
-    serverEditor,
-    share,
-    subscriptionEdit,
-  };
+  static const adaptiveDialogs = {share};
 }
 
 extension AppNavigationContext on BuildContext {

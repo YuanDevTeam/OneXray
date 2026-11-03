@@ -142,44 +142,16 @@ class SmartRoutingEditorContent extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final direct = _directSettings(context);
-      final proxy = _proxySettings(context);
-      final dns = _dnsSettings(context);
-      final sniffing = _sniffingSettings(context);
-      final preview = _preview(context, state);
-      // Account for the sidebar and page gutters before choosing two columns.
-      if (constraints.maxWidth < AppLayout.mobileBreakpoint) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 16,
-          children: [direct, proxy, dns, sniffing, preview],
-        );
-      }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 16,
-        children: [
-          Expanded(
-            child: Column(
-              key: const ValueKey('smart-routing-primary'),
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 16,
-              children: [direct, dns],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              key: const ValueKey('smart-routing-secondary'),
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 16,
-              children: [proxy, sniffing, preview],
-            ),
-          ),
-        ],
-      );
-    },
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    spacing: 16,
+    children: [
+      _directSettings(context),
+      _proxySettings(context),
+      _dnsSettings(context),
+      _sniffingSettings(context),
+      _preview(context, state),
+    ],
   );
 
   Widget _directSettings(BuildContext context) {

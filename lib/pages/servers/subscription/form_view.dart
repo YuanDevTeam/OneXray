@@ -325,20 +325,10 @@ class SubscriptionFormView extends StatelessWidget {
         onChanged: onUrlChanged,
       ),
     ];
-    if (MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint) {
-      return Column(
-        spacing: 12,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: fields,
-      );
-    }
-    return Row(
-      spacing: 12,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(flex: 3, child: fields[0]),
-        Expanded(flex: 5, child: fields[1]),
-      ],
+    return Column(
+      spacing: 14,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: fields,
     );
   }
 

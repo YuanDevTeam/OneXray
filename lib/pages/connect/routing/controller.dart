@@ -21,30 +21,42 @@ import 'package:onexray/service/shared/failure.dart';
 class RoutingPageState {
   final ConnectionConfiguration? configuration;
   final List<RoutingProfileData> profiles;
+  final Map<int, RoutingConfiguration> profileConfigurations;
+  final Map<int, Object> profileErrors;
   final bool completeConfiguration;
   final bool busy;
   final bool failed;
   final String? error;
+  final Object? failure;
 
   const RoutingPageState({
     this.configuration,
     this.profiles = const [],
+    this.profileConfigurations = const {},
+    this.profileErrors = const {},
     this.completeConfiguration = false,
     this.busy = false,
     this.failed = false,
     this.error,
+    this.failure,
   });
 }
+
+const _unchanged = Object();
 
 class RoutingPageController extends PageCubit<RoutingPageState> {
   final AppDatabase db;
   final ConnectionCoordinator coordinator;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   int _revision = 0;
+  int _loadRevision = 0, _configurationRevision = 0, _profilesRevision = 0;
+  int _operationRevision = 0;
+  final Future<List<RoutingProfileData>> Function()? readProfiles;
 
   RoutingPageController({
     AppDatabase? database,
     ConnectionCoordinator? coordinator,
+    this.readProfiles,
   }) : db = database ?? AppDatabase(),
        coordinator = coordinator ?? ConnectionCoordinator.instance,
        super(const RoutingPageState()) {
@@ -55,64 +67,106 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
   void _update({
     ConnectionConfiguration? configuration,
     List<RoutingProfileData>? profiles,
+    Map<int, RoutingConfiguration>? profileConfigurations,
+    Map<int, Object>? profileErrors,
     bool? completeConfiguration,
     bool? busy,
     bool? failed,
-    String? error,
+    Object? error = _unchanged,
+    Object? failure = _unchanged,
   }) => emit(
     RoutingPageState(
       configuration: configuration ?? state.configuration,
       profiles: profiles ?? state.profiles,
+      profileConfigurations:
+          profileConfigurations ?? state.profileConfigurations,
+      profileErrors: profileErrors ?? state.profileErrors,
       completeConfiguration:
           completeConfiguration ?? state.completeConfiguration,
       busy: busy ?? state.busy,
       failed: failed ?? state.failed,
-      error: error,
+      error: identical(error, _unchanged) ? state.error : error as String?,
+      failure: identical(failure, _unchanged) ? state.failure : failure,
     ),
   );
 
   Future<void> load() async {
-    _update(failed: false);
+    final revision = ++_loadRevision;
+    final configurationRevision = _configurationRevision;
+    final profilesRevision = _profilesRevision;
+    final operationRevision = _operationRevision;
+    _update(failed: false, error: null, failure: null);
     try {
       final configuration = await coordinator.configuration;
-      final rows = await db.routingProfileDao.allRows;
-      for (final row in rows) {
-        CustomRoutingService.readConfiguration(row);
+      final rows = await (readProfiles?.call() ?? db.routingProfileDao.allRows);
+      if (!isPageActive || revision != _loadRevision) return;
+      if (operationRevision != _operationRevision) return;
+      final acceptConfiguration =
+          configurationRevision == _configurationRevision;
+      final acceptProfiles = profilesRevision == _profilesRevision;
+      if (acceptConfiguration) {
+        _configurationRevision++;
+        _update(configuration: configuration);
       }
-      if (!isPageActive) return;
-      _update(configuration: configuration, profiles: rows);
+      if (acceptProfiles) _receiveProfiles(rows);
+      _update(failed: false, failure: null, error: null);
       await _readCompleteConfiguration();
-      if (_subscriptions.isEmpty && isPageActive) {
+      if (_subscriptions.isEmpty && isPageActive && revision == _loadRevision) {
         _subscriptions.add(
-          db.connectionConfigDao.watch().listen((row) {
-            try {
-              _update(
-                configuration: ConnectionConfiguration.fromJson(
+          db.connectionConfigDao.watch().listen(
+            (row) {
+              if (!isPageActive) return;
+              try {
+                final configuration = ConnectionConfiguration.fromJson(
                   jsonDecode(row.configurationJson) as Map<String, dynamic>,
-                ),
-              );
-              unawaited(_readCompleteConfiguration());
-            } catch (_) {
-              _update(failed: true);
-            }
-          }, onError: (_) => _update(failed: true)),
+                );
+                _configurationRevision++;
+                _update(configuration: configuration);
+                unawaited(_readCompleteConfiguration());
+              } catch (failure) {
+                _update(failed: true, failure: failure);
+              }
+            },
+            onError: (Object failure) =>
+                _update(failed: true, failure: failure),
+          ),
         );
         _subscriptions.add(
-          db.routingProfileDao.allRowsStream.listen((rows) {
-            try {
-              for (final row in rows) {
-                CustomRoutingService.readConfiguration(row);
-              }
-              _update(profiles: rows);
-            } catch (_) {
-              _update(failed: true);
-            }
-          }, onError: (_) => _update(failed: true)),
+          db.routingProfileDao.allRowsStream.listen(
+            (rows) {
+              if (isPageActive) _receiveProfiles(rows);
+            },
+            onError: (Object failure) =>
+                _update(failed: true, failure: failure),
+          ),
         );
       }
-    } catch (_) {
-      _update(failed: true);
+    } catch (failure) {
+      if (isPageActive &&
+          revision == _loadRevision &&
+          operationRevision == _operationRevision) {
+        _update(failed: true, failure: failure);
+      }
     }
+  }
+
+  void _receiveProfiles(List<RoutingProfileData> rows) {
+    final configurations = <int, RoutingConfiguration>{};
+    final errors = <int, Object>{};
+    // One damaged document must not hide the other routes or its own actions.
+    for (final row in rows) {
+      try {
+        configurations[row.id] = CustomRoutingService.readConfiguration(row);
+      } catch (failure) {
+        errors[row.id] = failure;
+      }
+    }
+    _profilesRevision++;
+    _update(
+      profiles: List.unmodifiable(rows),
+      profileConfigurations: Map.unmodifiable(configurations),
+      profileErrors: Map.unmodifiable(errors),
+    );
   }
 
   void _runtimeChanged() => unawaited(_readCompleteConfiguration());
@@ -121,6 +175,8 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
     final configuration = state.configuration;
     if (configuration == null) return;
     final revision = ++_revision;
+    final configurationRevision = _configurationRevision;
+    final operationRevision = _operationRevision;
     try {
       final complete =
           configuration.connection.expert ||
@@ -129,20 +185,52 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
             configuration.connection,
             runtime: coordinator.state.value.runtime,
           );
-      if (isPageActive && revision == _revision) {
+      if (isPageActive &&
+          revision == _revision &&
+          configurationRevision == _configurationRevision &&
+          operationRevision == _operationRevision) {
         _update(completeConfiguration: complete);
       }
-    } catch (_) {
-      if (revision == _revision) _update(failed: true);
+    } catch (failure) {
+      if (isPageActive &&
+          revision == _revision &&
+          configurationRevision == _configurationRevision &&
+          operationRevision == _operationRevision) {
+        _update(failed: true, failure: failure);
+      }
     }
   }
 
-  RoutingConfiguration configurationFor(RoutingProfileData row) =>
-      CustomRoutingService.readConfiguration(row);
+  RoutingConfiguration? configurationFor(RoutingProfileData row) =>
+      state.profileConfigurations[row.id];
+
+  bool canUseProfile(int? id) =>
+      id != null &&
+      state.profiles.any((row) => row.id == id) &&
+      state.profileConfigurations.containsKey(id) &&
+      !state.profileErrors.containsKey(id);
+
+  Future<void> _validateProfile(int id) async {
+    final row = await db.routingProfileDao.searchRow(id);
+    if (row == null) throw const CustomRoutingEditorException('missing');
+    CustomRoutingService.readConfiguration(row);
+  }
 
   Future<void> select(BuildContext context, TrafficMode mode, {int? id}) async {
     if (state.busy) return;
-    _update(busy: true);
+    if (mode == TrafficMode.custom && !canUseProfile(id)) {
+      _update(
+        error: state.profileErrors[id] == null
+            ? AppLocalizations.of(context)!.prototypeTemporarilyUnavailable
+            : appFailureMessage(
+                AppLocalizations.of(context)!,
+                state.profileErrors[id],
+              ),
+      );
+      return;
+    }
+    final operation = ++_operationRevision;
+    _update(busy: true, error: null);
     try {
       final current = await coordinator.configuration;
       final complete =
@@ -152,8 +240,12 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
             current.connection,
             runtime: coordinator.state.value.runtime,
           );
-      if (!context.mounted || !isPageActive) return;
-      await applyConnectionChange(
+      if (!context.mounted ||
+          !isPageActive ||
+          operation != _operationRevision) {
+        return;
+      }
+      final saved = await applyConnectionChange(
         context,
         coordinator,
         {
@@ -161,6 +253,9 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
           'customId': mode == TrafficMode.custom ? id : null,
         },
         affectsRuntime: !complete,
+        validateAssets: mode == TrafficMode.custom
+            ? () => _validateProfile(id!)
+            : null,
         label: (settings) {
           final l = AppLocalizations.of(context)!;
           if (mode == TrafficMode.smart) return l.prototypeSmartRouting;
@@ -168,13 +263,21 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
           return state.profiles.firstWhere((row) => row.id == id).name;
         },
       );
+      if (saved != null && isPageActive && operation == _operationRevision) {
+        _configurationRevision++;
+        _update(configuration: saved);
+      }
     } catch (failure) {
-      if (context.mounted)
+      if (context.mounted && isPageActive && operation == _operationRevision) {
         _update(
           error: appFailureMessage(AppLocalizations.of(context)!, failure),
         );
+      }
     } finally {
-      _update(busy: false);
+      if (operation == _operationRevision) {
+        _update(busy: false);
+        if (isPageActive) unawaited(_readCompleteConfiguration());
+      }
     }
   }
 
@@ -194,7 +297,8 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
   Future<void> delete(BuildContext context, RoutingProfileData row) async {
     if (state.busy) return;
     final l = AppLocalizations.of(context)!;
-    _update(busy: true);
+    final operation = ++_operationRevision;
+    _update(busy: true, error: null);
     try {
       await CustomRoutingEditorService(
         database: db,
@@ -219,15 +323,19 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
             : Future.value(false),
       );
     } catch (failure) {
-      _update(error: appFailureMessage(l, failure));
+      if (isPageActive && operation == _operationRevision) {
+        _update(error: appFailureMessage(l, failure));
+      }
     } finally {
-      _update(busy: false);
+      if (operation == _operationRevision) _update(busy: false);
     }
   }
 
   @override
   Future<void> disposePageResources() async {
     _revision++;
+    _loadRevision++;
+    _operationRevision++;
     coordinator.state.removeListener(_runtimeChanged);
     for (final subscription in _subscriptions) {
       await subscription.cancel();
