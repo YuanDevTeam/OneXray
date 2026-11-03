@@ -76,7 +76,7 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                             child: Padding(
                               padding: EdgeInsets.fromLTRB(
                                 gutter,
-                                mobile ? 12 : 54,
+                                mobile ? 16 : 24,
                                 gutter,
                                 12,
                               ),

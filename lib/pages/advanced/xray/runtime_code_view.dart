@@ -37,8 +37,10 @@ class RuntimeCodeScaffold extends StatelessWidget {
     final palette = ColorManager.palette(context);
     final width = MediaQuery.sizeOf(context).width;
     final mobile = width <= AppLayout.mobileBreakpoint;
-    final horizontal = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
-    final top = mobile ? 12.0 : 48.0;
+    final horizontal = mobile
+        ? AppSpacing.mobilePage
+        : AppSpacing.advancedDesktopGutter(width);
+    final top = mobile ? AppSpacing.mobilePage : AppSpacing.desktopPageTop;
     final bottom = mobile ? 18.0 : 24.0;
     final pill = Material(
       color: palette.surfaceHover,
@@ -46,12 +48,30 @@ class RuntimeCodeScaffold extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onStatusPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-          child: Text(
-            status,
-            style: AppTypography.runtimeCodePill.copyWith(
-              color: palette.mutedStrong,
+        child: ConstrainedBox(
+          constraints: onStatusPressed == null
+              ? const BoxConstraints()
+              : BoxConstraints(
+                  minWidth: AppLayout.touchExtent(
+                    36,
+                    platform: Theme.of(context).platform,
+                  ),
+                  minHeight: AppLayout.touchExtent(
+                    28,
+                    platform: Theme.of(context).platform,
+                  ),
+                ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            child: Align(
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Text(
+                status,
+                style: AppTypography.runtimeCodePill.copyWith(
+                  color: palette.mutedStrong,
+                ),
+              ),
             ),
           ),
         ),
@@ -60,7 +80,10 @@ class RuntimeCodeScaffold extends StatelessWidget {
     final export = OutlinedButton(
       onPressed: onExport,
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 36),
+        minimumSize: Size(
+          0,
+          AppLayout.touchExtent(36, platform: Theme.of(context).platform),
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 11),
         textStyle: AppTypography.runtimeCodeAction,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,

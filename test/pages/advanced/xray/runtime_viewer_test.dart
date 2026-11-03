@@ -48,51 +48,57 @@ AppLocalizations _strings(WidgetTester tester) =>
     AppLocalizations.of(tester.element(find.byType(RuntimeCodeScaffold)))!;
 
 void main() {
-  testWidgets('desktop runtime viewers share Advanced width and top spacing', (
-    tester,
-  ) async {
-    _viewport(tester, size: const Size(1160, 688));
-    for (final view in [
-      LogFileViewerView(
-        state: const LogFileViewerPageState(
-          title: 'Access log',
-          fileExists: true,
-          lines: ['Desktop log line'],
+  testWidgets(
+    'desktop runtime viewers use the shared content width and top spacing',
+    (tester) async {
+      _viewport(tester, size: const Size(1160, 688));
+      for (final view in [
+        LogFileViewerView(
+          state: const LogFileViewerPageState(
+            title: 'Access log',
+            fileExists: true,
+            lines: ['Desktop log line'],
+          ),
+          onExport: () {},
+          onFollowTail: (_) {},
         ),
-        onExport: () {},
-        onFollowTail: (_) {},
-      ),
-      ConfigFileViewerView(
-        state: const ConfigFileViewerPageState(
-          title: 'Runtime JSON',
-          text: _originalJson,
-          loading: false,
+        ConfigFileViewerView(
+          state: const ConfigFileViewerPageState(
+            title: 'Runtime JSON',
+            text: _originalJson,
+            loading: false,
+          ),
+          onExport: () {},
         ),
-        onExport: () {},
-      ),
-    ]) {
-      await tester.pumpWidget(_app(view, mobile: false));
-      await tester.pumpAndSettle();
-      final panel = tester.getRect(find.byKey(_panel));
-      final export = tester.getRect(find.byType(OutlinedButton));
-      final gutter = AppSpacing.advancedDesktopGutter(1160);
-      expect(
-        panel.left,
-        closeTo((1160 - AppLayout.advancedMaxWidth) / 2 + gutter, .01),
-      );
-      expect(
-        panel.width,
-        closeTo(AppLayout.advancedMaxWidth - gutter * 2, .01),
-      );
-      expect(
-        export.top,
-        closeTo(tester.getRect(find.byType(AppBar)).bottom + 48, .01),
-      );
-      expect(export.bottom + 12, closeTo(panel.top, .01));
-      expect(panel.height, greaterThanOrEqualTo(420));
-      expect(tester.takeException(), isNull);
-    }
-  });
+      ]) {
+        await tester.pumpWidget(_app(view, mobile: false));
+        await tester.pumpAndSettle();
+        final panel = tester.getRect(find.byKey(_panel));
+        final export = tester.getRect(find.byType(OutlinedButton));
+        final gutter = AppSpacing.advancedDesktopGutter(1160);
+        expect(
+          panel.left,
+          closeTo((1160 - AppLayout.advancedMaxWidth) / 2 + gutter, .01),
+        );
+        expect(
+          panel.width,
+          closeTo(AppLayout.advancedMaxWidth - gutter * 2, .01),
+        );
+        expect(
+          export.top,
+          closeTo(
+            tester.getRect(find.byType(AppBar)).bottom +
+                AppSpacing.desktopPageTop,
+            .01,
+          ),
+        );
+        expect(export.bottom + 12, closeTo(panel.top, .01));
+        expect(panel.height, greaterThanOrEqualTo(420));
+        expect(tester.takeException(), isNull);
+      }
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
 
   for (final locale in const [
     Locale('en'),
@@ -123,9 +129,12 @@ void main() {
       var l = _strings(tester);
       final panel = tester.getRect(find.byKey(_panel));
       final export = find.widgetWithText(OutlinedButton, l.prototypeExport);
-      expect(tester.getSize(export).height, 36);
-      expect(tester.getRect(export).left, 14);
-      expect(panel.width, 399);
+      expect(
+        tester.getSize(export).height,
+        greaterThanOrEqualTo(AppLayout.touchExtent(36)),
+      );
+      expect(tester.getRect(export).left, AppSpacing.mobilePage);
+      expect(panel.width, 427 - AppSpacing.mobilePage * 2);
       expect(panel.height, greaterThanOrEqualTo(470));
       expect(
         tester.getRect(find.text(l.prototypeFollowing)).top,
@@ -140,7 +149,10 @@ void main() {
       expect(line.textDirection, TextDirection.ltr);
       expect(line.style!.fontSize, 12);
       expect(line.style!.height, isNull);
-      expect(tester.widget<AppBar>(find.byType(AppBar)).actions, isNull);
+      expect(
+        tester.widget<AppBar>(find.byType(AppBar)).actions ?? const <Widget>[],
+        isEmpty,
+      );
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(
@@ -176,6 +188,54 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+  }
+
+  for (final (platform, minimum) in [
+    (TargetPlatform.iOS, 44.0),
+    (TargetPlatform.android, 48.0),
+  ]) {
+    testWidgets(
+      'runtime viewer actions retain $minimum touch targets on a wide $platform window',
+      (tester) async {
+        _viewport(tester, size: const Size(956, 500));
+        var exports = 0;
+        var resumes = 0;
+        await tester.pumpWidget(
+          _app(
+            RuntimeCodeScaffold(
+              title: 'Runtime diagnostics',
+              status: 'Resume following',
+              exportLabel: 'Export',
+              note: 'Read only',
+              code: const SizedBox.shrink(),
+              onExport: () => exports++,
+              onStatusPressed: () => resumes++,
+            ),
+            mobile: false,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final export = find.widgetWithText(OutlinedButton, 'Export');
+        final resume = find
+            .ancestor(
+              of: find.text('Resume following'),
+              matching: find.byType(InkWell),
+            )
+            .first;
+        for (final control in [export, resume]) {
+          expect(tester.getSize(control).width, greaterThanOrEqualTo(minimum));
+          expect(tester.getSize(control).height, greaterThanOrEqualTo(minimum));
+          await tester.tapAt(
+            tester.getRect(control).bottomCenter - const Offset(0, 2),
+          );
+          await tester.pumpAndSettle();
+        }
+        expect(exports, 1);
+        expect(resumes, 1);
+        expect(tester.takeException(), isNull);
+      },
+      variant: TargetPlatformVariant({platform}),
+    );
   }
 
   testWidgets(

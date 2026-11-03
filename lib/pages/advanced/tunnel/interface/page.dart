@@ -92,7 +92,7 @@ class OutboundInterfaceView extends StatelessWidget {
         body: Padding(
           padding: EdgeInsets.fromLTRB(
             gutter,
-            mobile ? 12 : 48,
+            mobile ? 16 : 24,
             gutter,
             mobile ? 18 : 24,
           ),

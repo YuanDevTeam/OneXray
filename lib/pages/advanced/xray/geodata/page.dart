@@ -438,35 +438,10 @@ class _GeoDataPageState extends State<GeoDataPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: mobile ? 10 : 12,
         children: [
-          if (mobile) ...[
-            typeField,
-            nameField,
-            urlField,
-            Align(alignment: AlignmentDirectional.centerEnd, child: actions),
-          ] else if (viewport <= AppLayout.compactDesktopBreakpoint) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                SizedBox(width: 120, child: typeField),
-                const SizedBox(width: 12),
-                Expanded(child: nameField),
-              ],
-            ),
-            urlField,
-            Align(alignment: AlignmentDirectional.centerEnd, child: actions),
-          ] else
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                SizedBox(width: 120, child: typeField),
-                const SizedBox(width: 12),
-                SizedBox(width: 170, child: nameField),
-                const SizedBox(width: 12),
-                Expanded(child: urlField),
-                const SizedBox(width: 12),
-                actions,
-              ],
-            ),
+          typeField,
+          nameField,
+          urlField,
+          Align(alignment: AlignmentDirectional.centerEnd, child: actions),
           if (state.formError != null) _error(context, state.formError!),
         ],
       ),

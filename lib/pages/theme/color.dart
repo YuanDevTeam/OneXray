@@ -85,7 +85,7 @@ class AppPalette {
     secondary: Color(0xFFFFFFFF),
     secondaryForeground: Color(0xFF202735),
     muted: Color(0xFFF2F4F8),
-    mutedForeground: Color(0xFF697386),
+    mutedForeground: Color(0xFF606B7E),
     mutedStrong: Color(0xFF565D6D),
     accent: Color(0xFFEEF5FF),
     accentForeground: Color(0xFF3268EF),

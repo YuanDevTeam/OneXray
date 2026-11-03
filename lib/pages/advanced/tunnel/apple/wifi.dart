@@ -53,7 +53,7 @@ class AppleWifiView extends StatelessWidget {
           return Padding(
             padding: EdgeInsets.fromLTRB(
               gutter,
-              mobile ? 17 : 48,
+              mobile ? 16 : 24,
               gutter,
               mobile ? 18 : 24,
             ),

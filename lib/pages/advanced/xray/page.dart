@@ -19,7 +19,7 @@ import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
-/// Embedded in the root Advanced tab. Child details use the root router.
+/// The Xray destination groups runtime facts and independent tool pages.
 class XrayRuntimePage extends StatelessWidget {
   const XrayRuntimePage({
     super.key,
@@ -28,6 +28,7 @@ class XrayRuntimePage extends StatelessWidget {
     required this.onSpeedTest,
     required this.onLog,
     required this.onConfig,
+    this.onDiagnostics,
     this.onLocalApi,
     this.onLanProxy,
     this.onServerDialing,
@@ -38,6 +39,7 @@ class XrayRuntimePage extends StatelessWidget {
   final void Function(BuildContext) onSpeedTest;
   final void Function(BuildContext, LogFileViewerParams) onLog;
   final void Function(BuildContext, ConfigFileViewerParams) onConfig;
+  final void Function(BuildContext)? onDiagnostics;
   final void Function(BuildContext)? onLocalApi;
   final Future<void> Function(BuildContext)? onLanProxy;
   final void Function(BuildContext)? onServerDialing;
@@ -115,19 +117,31 @@ class XrayRuntimePage extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsetsDirectional.fromSTEB(
                         gutter,
-                        mobile ? 22 : 54,
+                        mobile ? 16 : 24,
                         gutter,
                         mobile ? 24 : 28,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: mobile ? 25 : 28,
+                        spacing: 16,
                         children: [
                           _section(
                             icon: LucideIcons.activity,
                             title: l.prototypeRuntimeStatus,
                             children: [
                               _runtimeCard(context, controller, l, mobile),
+                              if (onDiagnostics != null)
+                                _pushRow(
+                                  context,
+                                  mobile: mobile,
+                                  title: l.xrayDiagnostics,
+                                  subtitle: state.connection.failed
+                                      ? l.prototypeConnectionFailed
+                                      : l.xrayDiagnosticsHint,
+                                  icon: LucideIcons.stethoscope,
+                                  enabled: true,
+                                  onTap: () => onDiagnostics!(context),
+                                ),
                             ],
                           ),
                           _section(

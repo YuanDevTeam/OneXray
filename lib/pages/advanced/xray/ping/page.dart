@@ -98,7 +98,7 @@ class PingPage extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(
                         gutter,
-                        mobile ? 12 : 48,
+                        mobile ? 16 : 24,
                         gutter,
                         mobile ? 26 : 24,
                       ),
@@ -141,7 +141,7 @@ class PingPage extends StatelessWidget {
                               ),
                             ],
                           ),
-                          SizedBox(height: mobile ? 25 : 28),
+                          const SizedBox(height: 16),
                           SettingSection(
                             title: l.prototypeSpeedTestUrl,
                             icon: LucideIcons.globe,
@@ -256,7 +256,7 @@ class PingPage extends StatelessWidget {
                                 ),
                             ],
                           ),
-                          SizedBox(height: mobile ? 25 : 28),
+                          const SizedBox(height: 16),
                           Text(
                             l.pingVpnAccuracyHint,
                             style: AppTypography.settingsDetailNote.copyWith(

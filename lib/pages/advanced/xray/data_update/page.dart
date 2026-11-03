@@ -87,13 +87,13 @@ class AutoUpdatePage extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(
                         gutter,
-                        mobile ? 12 : 48,
+                        mobile ? 16 : 24,
                         gutter,
                         mobile ? 26 : 24,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: mobile ? 25 : 28,
+                        spacing: 16,
                         children: [
                           SettingSection(
                             title: l.prototypeSubscriptions,

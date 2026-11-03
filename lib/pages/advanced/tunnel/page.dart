@@ -16,7 +16,7 @@ import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/settings.dart';
 
-/// Embedded below Advanced's tabs; the footer belongs to this full-page body.
+/// The tunnel destination owns its platform draft and fixed action bar.
 class VpnTunnelPane extends StatelessWidget {
   final OpenTunnelPage? openTunnel;
   final PolicyEditorController Function()? createController;
@@ -55,12 +55,13 @@ class VpnTunnelPane extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 gutter,
-                mobile ? 22 : 54,
+                mobile ? 16 : 24,
                 gutter,
                 mobile ? 24 : 28,
               ),
               child: Column(
-                spacing: mobile ? 25 : 28,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 16,
                 children: [
                   _section(
                     icon: LucideIcons.activity,

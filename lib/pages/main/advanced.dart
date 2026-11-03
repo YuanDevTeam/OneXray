@@ -42,6 +42,8 @@ class XrayRootPage extends StatelessWidget {
       ),
     ),
     body: XrayRuntimePage(
+      onDiagnostics: (context) =>
+          context.pushScoped(AppPageDestination.xrayDiagnostics),
       onGeodata: (context) =>
           context.pushScoped(AppPageDestination.routingData),
       onUpdates: (context) => context.pushScoped(AppPageDestination.autoUpdate),

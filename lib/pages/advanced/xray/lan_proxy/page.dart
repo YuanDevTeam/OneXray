@@ -55,13 +55,13 @@ class LanProxyPage extends StatelessWidget {
               : Padding(
                   padding: EdgeInsets.fromLTRB(
                     gutter,
-                    mobile ? 14 : 48,
+                    mobile ? 16 : 24,
                     gutter,
                     24,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: mobile ? 25 : 28,
+                    spacing: 16,
                     children: [
                       Text(
                         l.lanProxyNextStartNotice,
