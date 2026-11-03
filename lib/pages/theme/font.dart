@@ -34,6 +34,10 @@ abstract final class AppTypography {
   static final control = _style(14, 600);
   static final navigationLabel = _style(14, 500);
   static final selectedNavigationLabel = _style(14, 600);
+  static final sidebarTagline = _style(12);
+  static final sidebarGroupLabel = _style(11, 500);
+  static final mobileNavigationLabel = _style(11);
+  static final selectedMobileNavigationLabel = _style(11, 600);
   static final badge = _style(13, 500);
   static final code = _style(12);
   static final metric = _style(22, 500);

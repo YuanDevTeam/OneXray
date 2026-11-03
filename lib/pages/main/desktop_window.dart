@@ -88,7 +88,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame>
             padding: media.padding.copyWith(top: height),
             viewPadding: media.viewPadding.copyWith(top: height),
           ),
-          child: widget.child,
+          child: ColoredBox(color: palette.background, child: widget.child),
         ),
       );
     }

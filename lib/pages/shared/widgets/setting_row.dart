@@ -26,7 +26,7 @@ class SettingSection extends StatelessWidget {
     this.icon,
     this.action,
     required this.children,
-    this.separated = true,
+    this.separated = false,
     this.padding = const EdgeInsetsDirectional.fromSTEB(16, 11, 16, 11),
     this.descriptionBelow = false,
     this.dividerIndent = 16,
@@ -44,6 +44,7 @@ class SettingSection extends StatelessWidget {
       descriptionBelow: descriptionBelow,
       headerInset: headerInset,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _buildSettingChildren(
           context,
           children,
@@ -93,7 +94,7 @@ class SettingRow extends StatelessWidget {
   final bool showChevron;
   final int titleMaxLines;
   final int valueMaxLines;
-  final double minHeight;
+  final double? minHeight;
   final EdgeInsetsGeometry contentPadding;
   final TextStyle? titleStyle;
   final TextStyle? valueStyle;
@@ -116,28 +117,30 @@ class SettingRow extends StatelessWidget {
     this.showChevron = false,
     this.titleMaxLines = 2,
     this.valueMaxLines = 1,
-    this.minHeight = 62,
-    this.contentPadding = const EdgeInsetsDirectional.symmetric(
-      horizontal: 13,
-      vertical: 10,
-    ),
+    this.minHeight,
+    this.contentPadding = const EdgeInsets.all(12),
     this.titleStyle,
     this.valueStyle,
     this.subtitleStyle,
     this.titleTrailing,
-    this.decorateLeading = true,
+    this.decorateLeading = false,
     this.valueTextDirection,
     this.titleTextDirection,
   });
 
   @override
   Widget build(BuildContext context) {
+    final rowHeight =
+        minHeight ??
+        (MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+            ? 56
+            : 48);
     final content = ConstrainedBox(
       constraints: BoxConstraints(
         minHeight: onTap == null
-            ? minHeight
+            ? rowHeight
             : AppLayout.touchExtent(
-                minHeight,
+                rowHeight,
                 platform: Theme.of(context).platform,
               ),
       ),
@@ -162,21 +165,21 @@ class SettingRow extends StatelessWidget {
                 )
               else
                 IconTheme.merge(data: _iconTheme(context), child: leading!),
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
             ],
             Expanded(flex: value == null ? 1 : 5, child: _title(context)),
             if (value != null) ...[
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
               Expanded(flex: 4, child: _value(context)),
             ],
             if (trailing != null) ...[
-              const SizedBox(width: 7),
+              const SizedBox(width: 12),
               IconTheme.merge(data: _iconTheme(context), child: trailing!),
             ] else if (showChevron) ...[
-              const SizedBox(width: 7),
+              const SizedBox(width: 12),
               IconTheme.merge(
                 data: _iconTheme(context),
-                child: const Icon(LucideIcons.chevronRightDir),
+                child: const Icon(LucideIcons.chevronRightDir, size: 18),
               ),
             ],
           ],
@@ -188,7 +191,11 @@ class SettingRow extends StatelessWidget {
     }
     return Material(
       type: MaterialType.transparency,
-      child: InkWell(onTap: onTap, child: content),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        child: content,
+      ),
     );
   }
 
@@ -231,7 +238,7 @@ class SettingRow extends StatelessWidget {
             ],
           ),
         if (subtitle != null) ...[
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             subtitle!,
             maxLines: 2,
@@ -255,7 +262,7 @@ class SettingRow extends StatelessWidget {
           ? TextAlign.right
           : TextAlign.left,
       textDirection: valueTextDirection,
-      style: AppTypography.code
+      style: AppTypography.rowValue
           .copyWith(color: ColorManager.secondaryText(context))
           .merge(valueStyle),
     );

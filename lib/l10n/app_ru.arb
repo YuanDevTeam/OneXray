@@ -1,4 +1,7 @@
 {
+  "navigationTagline": "Ваши серверы, ваше подключение",
+  "navigationWorkspace": "Рабочая область",
+  "navigationSystemAndCore": "Система и ядро",
   "serverDialingTitle": "Подключение к серверу",
   "serverDialingDomainStrategy": "Разрешение доменов",
   "serverDialingSystem": "Системное",

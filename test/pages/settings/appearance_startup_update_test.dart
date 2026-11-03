@@ -121,7 +121,7 @@ void main() {
   });
 
   for (final (locale, width, scale, vertical) in const [
-    (Locale('en'), 390.0, 1.0, false),
+    (Locale('en'), 390.0, 1.0, true),
     (Locale('en'), 390.0, 2.0, true),
     (Locale('ru'), 390.0, 2.0, true),
     (Locale('en'), 834.0, 2.0, false),

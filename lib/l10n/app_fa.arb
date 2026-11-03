@@ -1,4 +1,7 @@
 {
+  "navigationTagline": "سرورهای شما، اتصال شما",
+  "navigationWorkspace": "فضای کاری",
+  "navigationSystemAndCore": "سیستم و هسته",
   "serverDialingTitle": "اتصال به سرور",
   "serverDialingDomainStrategy": "تبدیل نام دامنه",
   "serverDialingSystem": "پیش‌فرض سیستم",

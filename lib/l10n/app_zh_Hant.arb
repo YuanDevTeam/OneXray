@@ -1,4 +1,7 @@
 {
+  "navigationTagline": "你的伺服器，你的連線",
+  "navigationWorkspace": "工作區",
+  "navigationSystemAndCore": "系統與核心",
   "serverDialingTitle": "伺服器撥號",
   "serverDialingDomainStrategy": "網域解析",
   "serverDialingSystem": "系統預設",

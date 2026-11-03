@@ -1,4 +1,7 @@
 {
+  "navigationTagline": "Your servers, your connection",
+  "navigationWorkspace": "Workspace",
+  "navigationSystemAndCore": "System & core",
   "serverDialingTitle": "Server dialing",
   "serverDialingDomainStrategy": "Domain resolution",
   "serverDialingSystem": "System default",

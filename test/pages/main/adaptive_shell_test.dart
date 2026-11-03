@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show SemanticsAction;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -11,6 +12,8 @@ import 'package:onexray/pages/main/dialog_page.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/main/url.dart';
 import 'package:onexray/core/tools/platform.dart';
+import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
@@ -200,6 +203,17 @@ void main() {
     );
     expect(find.text('connect-content'), findsOneWidget);
     expect(find.text('OneXray'), findsOneWidget);
+    final sidebarLocalizations = AppLocalizations.of(
+      tester.element(desktopNavigation),
+    )!;
+    expect(find.text(sidebarLocalizations.navigationTagline), findsOneWidget);
+    expect(find.text(sidebarLocalizations.navigationWorkspace), findsOneWidget);
+    expect(
+      find.text(sidebarLocalizations.navigationSystemAndCore),
+      findsOneWidget,
+    );
+    final palette = ColorManager.palette(tester.element(desktopNavigation));
+    expect(tester.widget<Container>(desktopNavigation).color, palette.sidebar);
     expect(
       tester.getSize(desktopNavigation).width,
       AppLayout.desktopSidebarWidth,
@@ -211,10 +225,35 @@ void main() {
       tester.widget<Semantics>(desktopConnect).properties.selected,
       isTrue,
     );
-    expect(tester.getSize(desktopConnect).height, AppSpacing.sidebarRowHeight);
+    expect(
+      tester.getSize(desktopConnect).height,
+      AppLayout.touchExtent(
+        AppSpacing.sidebarRowHeight,
+        platform: Theme.of(tester.element(desktopConnect)).platform,
+      ),
+    );
     expect(
       tester.getSize(desktopConnect).width,
-      AppLayout.desktopSidebarWidth - AppSpacing.sidebarHorizontal * 2 - 1,
+      AppLayout.desktopSidebarWidth - AppSpacing.sidebarHorizontal * 2,
+    );
+    final selectedDesktopSurface = tester.widget<Material>(
+      find
+          .descendant(of: desktopConnect, matching: find.byType(Material))
+          .first,
+    );
+    expect(selectedDesktopSurface.color, palette.card);
+    expect(
+      selectedDesktopSurface.borderRadius,
+      BorderRadius.circular(AppRadii.control),
+    );
+    expect(selectedDesktopSurface.shape, isNull);
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(of: desktopConnect, matching: find.byType(Icon)),
+          )
+          .size,
+      18,
     );
     router.go('/servers/details');
     await tester.pumpAndSettle();
@@ -257,21 +296,49 @@ void main() {
       const ValueKey('primary-navigation-connect'),
     );
     expect(navigation, findsOneWidget);
-    final navigationBar = tester.widget<NavigationBar>(
-      find.byType(NavigationBar),
-    );
-    expect(navigationBar.height, isNull);
-    expect(navigationBar.selectedIndex, AppPrimaryDestination.connect.index);
-    expect(navigationBar.destinations, hasLength(5));
+    final navigationCard = tester.widget<Container>(navigation);
+    expect(navigationCard.margin, const EdgeInsets.fromLTRB(12, 0, 12, 10));
+    expect(navigationCard.padding, const EdgeInsets.all(6));
+    final decoration = navigationCard.decoration! as BoxDecoration;
+    expect(decoration.color, palette.card);
+    expect(decoration.borderRadius, BorderRadius.circular(22));
     expect(
-      tester.widget<NavigationDestination>(connectDestination).label,
+      find.descendant(of: navigation, matching: find.byType(InkWell)),
+      findsNWidgets(5),
+    );
+    expect(
+      find.byKey(const ValueKey('primary-navigation-settings')),
+      findsNothing,
+    );
+    expect(
+      tester.widget<Semantics>(connectDestination).properties.label,
       'Connect',
+    );
+    expect(
+      tester.widget<Semantics>(connectDestination).properties.selected,
+      isTrue,
+    );
+    expect(tester.getSize(connectDestination).height, 56);
+    final selectedMobileSurface = tester.widget<Material>(
+      find
+          .descendant(of: connectDestination, matching: find.byType(Material))
+          .first,
+    );
+    expect(selectedMobileSurface.color, palette.primarySolid);
+    final mobileLabel = tester.widget<Text>(
+      find.descendant(of: connectDestination, matching: find.byType(Text)),
+    );
+    expect(mobileLabel.style!.fontSize, 11);
+    expect(mobileLabel.style!.color, palette.primaryForeground);
+    expect(
+      mobileLabel.style!.fontWeight,
+      AppTypography.selectedMobileNavigationLabel.fontWeight,
     );
     expect(find.byType(Badge), findsNothing);
     router.go('/settings');
     await tester.pumpAndSettle();
     expect(router.routeInformationProvider.value.uri.path, '/settings');
-    expect(find.byType(NavigationBar), findsNothing);
+    expect(navigation, findsNothing);
     for (final path in ['/settings', '/settings/details']) {
       router.go(path);
       await tester.pumpAndSettle();
@@ -354,6 +421,161 @@ void main() {
     expect(find.text('connect-content'), findsOneWidget);
     expect(router.routeInformationProvider.value.uri.path, '/connect');
   });
+
+  for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+    for (final (scale, locale, brightness) in const [
+      (1.0, Locale('en'), Brightness.light),
+      (2.0, Locale('ru'), Brightness.light),
+      (2.0, Locale('fa'), Brightness.dark),
+    ]) {
+      testWidgets(
+        'inset mobile navigation stays reachable on $platform in $locale at $scale',
+        (tester) async {
+          await tester.binding.setSurfaceSize(const Size(390, 360));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          final eventBus = AppEventBus();
+          addTearDown(eventBus.close);
+          final router = _navigationFixture();
+          addTearDown(router.dispose);
+          const padding = EdgeInsets.only(top: 24, bottom: 21);
+          await tester.pumpWidget(
+            BlocProvider.value(
+              value: eventBus,
+              child: MaterialApp.router(
+                theme: AppTheme.material(brightness, mobile: true),
+                locale: locale,
+                routerConfig: router,
+                localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                builder: (context, child) => MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    textScaler: TextScaler.linear(scale),
+                    padding: padding,
+                    viewPadding: padding,
+                  ),
+                  child: child!,
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final navigation = find.byKey(
+            const ValueKey('primary-mobile-navigation'),
+          );
+          final palette = ColorManager.palette(tester.element(navigation));
+          final rect = tester.getRect(navigation);
+          expect(rect.bottom, lessThanOrEqualTo(360 - padding.bottom));
+          expect(rect.top, greaterThanOrEqualTo(padding.top));
+          expect(
+            Directionality.of(tester.element(navigation)),
+            locale.languageCode == 'fa' ? TextDirection.rtl : TextDirection.ltr,
+          );
+          final destinations = AppPrimaryDestination.values.where(
+            (primary) => primary != AppPrimaryDestination.settings,
+          );
+          for (final primary in destinations) {
+            final destination = find.byKey(
+              ValueKey('primary-navigation-${primary.name}'),
+            );
+            final size = tester.getSize(destination);
+            expect(
+              size.width,
+              greaterThanOrEqualTo(
+                AppLayout.touchExtent(0, platform: platform),
+              ),
+            );
+            expect(size.height, greaterThanOrEqualTo(56));
+            expect(
+              size.height,
+              closeTo(
+                tester
+                    .getSize(
+                      find.byKey(const ValueKey('primary-navigation-connect')),
+                    )
+                    .height,
+                .01,
+              ),
+            );
+            final labelRect = tester.getRect(
+              find.descendant(of: destination, matching: find.byType(Text)),
+            );
+            final iconRect = tester.getRect(
+              find.descendant(of: destination, matching: find.byType(Icon)),
+            );
+            final destinationRect = tester.getRect(destination);
+            expect(
+              size.height,
+              greaterThanOrEqualTo(
+                iconRect.height + 5 + labelRect.height + 12 - .01,
+              ),
+            );
+            expect(labelRect.left, greaterThanOrEqualTo(destinationRect.left));
+            expect(labelRect.right, lessThanOrEqualTo(destinationRect.right));
+            expect(
+              labelRect.bottom,
+              lessThanOrEqualTo(destinationRect.bottom - 6 + .01),
+            );
+            final semantics = tester.getSemantics(destination);
+            expect(
+              semantics.getSemanticsData().hasAction(SemanticsAction.tap),
+              isTrue,
+            );
+            semantics.owner!.performAction(semantics.id, SemanticsAction.tap);
+            await tester.pumpAndSettle();
+            expect(
+              router.routeInformationProvider.value.uri.path,
+              primary.rootPath,
+            );
+            expect(find.text('${primary.name}-content'), findsOneWidget);
+            expect(
+              tester.widget<Semantics>(destination).properties.selected,
+              isTrue,
+            );
+            final surface = tester.widget<Material>(
+              find
+                  .descendant(of: destination, matching: find.byType(Material))
+                  .first,
+            );
+            expect(surface.color, palette.primarySolid);
+            await tester.tap(destination);
+            await tester.pumpAndSettle();
+            expect(
+              router.routeInformationProvider.value.uri.path,
+              primary.rootPath,
+            );
+            expect(tester.takeException(), isNull);
+          }
+          final destinationHeight = tester
+              .getSize(find.byKey(const ValueKey('primary-navigation-connect')))
+              .height;
+          expect(
+            destinationHeight,
+            scale > 1 ? greaterThan(56) : greaterThanOrEqualTo(56),
+          );
+          if (locale.languageCode == 'fa') {
+            expect(
+              tester
+                  .getCenter(
+                    find.byKey(const ValueKey('primary-navigation-connect')),
+                  )
+                  .dx,
+              greaterThan(
+                tester
+                    .getCenter(
+                      find.byKey(const ValueKey('primary-navigation-xray')),
+                    )
+                    .dx,
+              ),
+            );
+          }
+          expect(tester.takeException(), isNull);
+        },
+        semanticsEnabled: true,
+        variant: TargetPlatformVariant.only(platform),
+      );
+    }
+  }
 
   for (final (scale, locale, landscapePadding) in const [
     (1.0, Locale('en'), EdgeInsets.only(left: 59, bottom: 21)),
@@ -508,7 +730,10 @@ void main() {
         await tester.binding.setSurfaceSize(const Size(426.7, 952));
         await tester.pumpAndSettle();
         expect(sidebar, findsNothing);
-        expect(find.byType(NavigationBar), findsNothing);
+        expect(
+          find.byKey(const ValueKey('primary-mobile-navigation')),
+          findsNothing,
+        );
         expect(find.text('settings-details'), findsOneWidget);
         expect(
           GoRouterState.of(tester.element(find.text('settings-details')))
@@ -630,7 +855,10 @@ void main() {
           expect(rootKey.currentState!.canPop(), isFalse);
           expect(find.byType(BackButton), findsOneWidget);
           if (width < AppLayout.mobileBreakpoint) {
-            expect(find.byType(NavigationBar), findsNothing);
+            expect(
+              find.byKey(const ValueKey('primary-mobile-navigation')),
+              findsNothing,
+            );
           }
         }
         while (stack.length > 1) {
@@ -823,13 +1051,19 @@ void main() {
           primary.rootPath,
         );
         if (primary == AppPrimaryDestination.settings) {
-          expect(find.byType(NavigationBar), findsNothing);
+          expect(
+            find.byKey(const ValueKey('primary-mobile-navigation')),
+            findsNothing,
+          );
         } else {
           expect(
             tester
-                .widget<NavigationBar>(find.byType(NavigationBar))
-                .selectedIndex,
-            primary.index,
+                .widget<Semantics>(
+                  find.byKey(ValueKey('primary-navigation-${primary.name}')),
+                )
+                .properties
+                .selected,
+            isTrue,
           );
         }
         expect(tester.takeException(), isNull);
@@ -838,3 +1072,28 @@ void main() {
     variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
 }
+
+GoRouter _navigationFixture() => GoRouter(
+  initialLocation: AppPrimaryDestination.connect.rootPath,
+  routes: [
+    StatefulShellRoute.indexedStack(
+      builder: (_, _, shell) => AdaptiveMainShell(
+        navigationShell: shell,
+        hasActiveModal: (_) => false,
+        initializeServices: (_) async {},
+      ),
+      branches: [
+        for (final primary in AppPrimaryDestination.values)
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: primary.rootPath,
+                builder: (_, _) =>
+                    Center(child: Text('${primary.name}-content')),
+              ),
+            ],
+          ),
+      ],
+    ),
+  ],
+);
