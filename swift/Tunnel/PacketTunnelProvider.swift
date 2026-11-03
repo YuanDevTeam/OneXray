@@ -125,21 +125,21 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
             throw TunnelError.noGroupContainer
         }
         let fm = FileManager.default
-        let runDirectory = extGroupURL.adaptedAppendPath(path: "run")
+        let runDirectory = extGroupURL.appending(path: "run")
         if try !runtimeDirectoryExists(runDirectory) {
             try fm.createDirectory(at: runDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         }
         for name in ["access.log", "error.log"] {
-            let file = runDirectory.adaptedAppendPath(path: name)
+            let file = runDirectory.appending(path: name)
             var attributes = stat()
-            if lstat(file.adaptedPath(), &attributes) == 0 {
+            if lstat(file.path(percentEncoded: false), &attributes) == 0 {
                 try fm.removeItem(at: file)
             } else if errno != ENOENT {
                 throw RuntimeStateError.invalid
             }
         }
         // A failed transfer may leave only this shared temporary directory.
-        let staging = extGroupURL.adaptedAppendPath(path: "dat.staging")
+        let staging = extGroupURL.appending(path: "dat.staging")
         if try runtimeDirectoryExists(staging) { try fm.removeItem(at: staging) }
         Self.stateQueue.sync {
             self.pendingStartSignal = false
@@ -343,9 +343,9 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         guard Constants.useSystemExtension, let container = extensionGroupContainerURL() else {
             throw RuntimeStateError.unsupported
         }
-        let directory = container.adaptedAppendPath(path: "run")
+        let directory = container.appending(path: "run")
         guard try runtimeDirectoryExists(directory) else { return nil }
-        return directory.adaptedAppendPath(path: access ? "access.log" : "error.log")
+        return directory.appending(path: access ? "access.log" : "error.log")
     }
 
     private func runtimeDirectoryExists(_ directory: URL) throws -> Bool {
@@ -363,11 +363,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     // MARK: - dat staging operations
 
     private func datDir() -> URL? {
-        extensionGroupContainerURL()?.adaptedAppendPath(path: "dat")
+        extensionGroupContainerURL()?.appending(path: "dat")
     }
 
     private func stagingDir() -> URL? {
-        extensionGroupContainerURL()?.adaptedAppendPath(path: "dat.staging")
+        extensionGroupContainerURL()?.appending(path: "dat.staging")
     }
 
     // MARK: - Xray lifecycle
@@ -414,7 +414,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
                 YGLog("PacketTunnelProvider TunnelError.noGroupContainer")
                 throw TunnelError.noGroupContainer
             }
-            let datPath = dat.adaptedPath()
+            let datPath = dat.path(percentEncoded: false)
             env["xray.location.asset"] = datPath
             env["xray.location.cert"] = datPath
             if var log = root["log"] as? [String: Any] {
@@ -423,7 +423,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
                     guard let file = try logFile(access: access) else {
                         throw TunnelError.noGroupContainer
                     }
-                    log[key] = file.adaptedPath()
+                    log[key] = file.path(percentEncoded: false)
                 }
                 root["log"] = log
             }

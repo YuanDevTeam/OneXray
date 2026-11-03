@@ -4,12 +4,9 @@ import AppIntents
 
 private let connectionURL = URL(string: "onexray://widget/connect")!
 
-private var connectionWidgetFamilies: [WidgetFamily] {
-    if #available(iOS 16.0, *) {
-        return [.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular]
-    }
-    return [.systemSmall, .systemMedium]
-}
+private let connectionWidgetFamilies: [WidgetFamily] = [
+    .systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular,
+]
 
 struct ConnectionWidgetEntry: TimelineEntry {
     let date: Date
@@ -72,10 +69,7 @@ private struct ConnectionWidgetView: View {
     private var emphasizeStop: Bool { entry.status == .connected || entry.status == .connecting }
 
     private var isAccessory: Bool {
-        if #available(iOS 16.0, *) {
-            return family == .accessoryCircular || family == .accessoryRectangular
-        }
-        return false
+        family == .accessoryCircular || family == .accessoryRectangular
     }
 
     var body: some View {
@@ -97,14 +91,14 @@ private struct ConnectionWidgetView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if #available(iOS 16.0, *), family == .accessoryCircular {
+        if family == .accessoryCircular {
             ZStack {
                 AccessoryWidgetBackground()
                 Image(systemName: statusIcon).font(.title2)
             }
             .privacySensitive()
             .accessibilityLabel("OneXray, \(statusText)")
-        } else if #available(iOS 16.0, *), family == .accessoryRectangular {
+        } else if family == .accessoryRectangular {
             VStack(alignment: .leading, spacing: 3) {
                 Text("OneXray").font(.headline)
                 Label(statusText, systemImage: statusIcon).font(.caption).privacySensitive()
@@ -350,11 +344,7 @@ private struct ConnectionWidgetButtonStyle: ButtonStyle {
             .foregroundStyle(foreground)
             .frame(maxWidth: .infinity, minHeight: 44)
             .background {
-                if #available(iOS 16.0, *) {
-                    RoundedRectangle(cornerRadius: 8).fill(fill).widgetAccentable()
-                } else {
-                    RoundedRectangle(cornerRadius: 8).fill(fill)
-                }
+                RoundedRectangle(cornerRadius: 8).fill(fill).widgetAccentable()
             }
             .overlay {
                 RoundedRectangle(cornerRadius: 8)

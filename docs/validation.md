@@ -229,7 +229,7 @@ Android 模拟器直接使用当前分支构建覆盖已经安装的 OneXray，�
   仅显示已连接或杀进程后的成功不能代替此项。
 - 完整配置适配在 Android 验证 Raw/提供方真实 VPN 启动、DNS 查询、受控网页响应、连续重连和隧道 DNS 设置变更。
   iOS 模拟器只验证配置与 SOCKS 路径，不能验收真机 DNS、DoT 或 includeAllNetworks；这些项目需要 Apple 真机。
-- iOS/iPadOS Widget 最低部署版本为 15；15 验证主屏幕小号/中号静态导航，16 起增加两种锁屏 accessory。
+- iOS/iPadOS Widget 最低部署版本为 16.0；16 验证主屏幕小号/中号静态导航及两种锁屏 accessory。
   在系统图库与实际主屏幕/锁屏验证系统支持的 family；
   17 起验证主屏幕小号/中号启动、停止实际前台打开 App，并使用当前选择而非最近生成的 saved-start。
   覆盖冷启动、App 已运行/后台、重复点击和启动中停止，确认连接协调器、权限失败与页面/通知反馈。

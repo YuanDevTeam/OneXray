@@ -260,9 +260,9 @@ Android 设置页可请求固定 `home_widget`，不把请求完成当作已添�
 
 ### iOS/iPadOS Widget
 
-iOS/iPadOS 15 起提供连接 Widget，支持 `systemSmall`、`systemMedium`；16 起增加
+iOS/iPadOS 最低支持 16.0，连接 Widget 支持 `systemSmall`、`systemMedium`、
 `accessoryCircular`、`accessoryRectangular`，可添加位置由系统版本与设备决定。
-iOS/iPadOS 15–16 静态展示状态，点击打开连接页；
+iOS/iPadOS 16 静态展示状态，点击打开连接页；
 17 起主屏幕小号/中号 Widget 增加显式“启动 VPN”“停止 VPN”，通过前台 App Intent 打开 App。
 锁屏两种 accessory 只导航。当前仅接入 Widget，不发布可发现的 Siri/App Shortcuts，
 也不提供 Control Widget 或 Live Activity。

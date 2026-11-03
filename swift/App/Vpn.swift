@@ -310,7 +310,7 @@ class VPNManager {
             observedConnecting = true
         } else if status == .disconnected, awaitingStart, observedConnecting {
             awaitingStart = false
-            if #available(iOS 16.0, macOS 13.0, *), let connection = vpn?.connection {
+            if let connection = vpn?.connection {
                 #if os(iOS)
                 let generation = startAdmission.generation
                 #endif
@@ -451,7 +451,7 @@ class VPNManager {
         }
         let state: NativeVpnCommandState
         do {
-            try await SimulatorProxy.start(request, at: groupURL.adaptedAppendPath(path: StartModelFile))
+            try await SimulatorProxy.start(request, at: groupURL.appending(path: StartModelFile))
             try checkStartAdmission(generation)
             state = .success
         } catch {
@@ -707,8 +707,8 @@ class VPNManager {
         else {
             return nil
         }
-        var u = userGroup.adaptedPath()
-        var e = extGroup.adaptedPath()
+        var u = userGroup.path(percentEncoded: false)
+        var e = extGroup.path(percentEncoded: false)
         while u.hasSuffix("/") {
             u.removeLast()
         }
@@ -742,7 +742,7 @@ class VPNManager {
         guard let userGroup = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) else {
             throw VPNError.routingDataSyncFailed
         }
-        let directory = userGroup.adaptedAppendPath(path: "dat")
+        let directory = userGroup.appending(path: "dat")
         guard let local = try DatFileTransfer.manifest(in: directory) else {
             throw VPNError.routingDataSyncFailed
         }
