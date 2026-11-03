@@ -224,13 +224,16 @@ class ServersController extends PageCubit<ServersPageState>
         );
         _subscriptions.add(
           db.routingProfileDao.allRowsStream.listen((rows) {
-            try {
-              customRoutes = rows
-                  .map(CustomRoutingService.readConfiguration)
-                  .toList();
-            } catch (error) {
-              _readFailed(error);
+            final readable = <RoutingConfiguration>[];
+            for (final row in rows) {
+              try {
+                readable.add(CustomRoutingService.readConfiguration(row));
+              } catch (_) {
+                // Keep the auxiliary entry-count catalog separate from row
+                // diagnostics and from genuine database stream failures.
+              }
             }
+            customRoutes = readable;
           }, onError: _readFailed),
         );
       }

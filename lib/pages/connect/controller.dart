@@ -232,14 +232,16 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
         );
         _subscriptions.add(
           db.routingProfileDao.allRowsStream.listen((rows) {
-            try {
-              customRoutes = rows
-                  .map(CustomRoutingService.readConfiguration)
-                  .toList();
-            } catch (error) {
-              _readFailed(error);
-              return;
+            final readable = <RoutingConfiguration>[];
+            for (final row in rows) {
+              try {
+                readable.add(CustomRoutingService.readConfiguration(row));
+              } catch (_) {
+                // Row diagnostics belong to the routing page. An unrelated
+                // damaged route must not block ordinary connection choices.
+              }
             }
+            customRoutes = readable;
           }, onError: _readFailed),
         );
       }
