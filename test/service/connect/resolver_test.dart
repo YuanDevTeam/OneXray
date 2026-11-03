@@ -11,15 +11,11 @@ import 'package:onexray/service/connect/routing/custom/state.dart';
 
 void main() {
   test(
-    'unknown selection kinds use the default while known fields are checked',
+    'unknown selection kinds default while known IDs retain their type checks',
     () {
-      for (final kind in ['region', 'futureSelection']) {
-        final selection = ServerSelection.fromJson({
-          'kind': kind,
-          'region': 'SG',
-        });
-        expect(selection.toJson(), {'kind': 'automatic'});
-      }
+      expect(ServerSelection.fromJson({'kind': 'future'}).toJson(), {
+        'kind': 'automatic',
+      });
       expect(ServerSelection.fromJson({'kind': 'server', 'id': 7}).id, 7);
       expect(
         () => ServerSelection.fromJson({'kind': 'server', 'id': '7'}),
@@ -27,75 +23,101 @@ void main() {
       );
     },
   );
-  test(
-    'automatic, source and fixed selections retain distinct same-name IDs',
-    () async {
-      final rows = [
-        _row(1, delay: 60, source: 1),
-        _row(2, delay: 20, source: 2),
-        _row(3, delay: 0, source: 0),
-        _row(4, delay: 1, type: 'raw'),
-      ];
-      final resolver = _oneShot(rows);
-      Future<List<int>> selected(ServerSelection selection, int count) async =>
-          (await resolver.resolve(
-            ConnectionSettings(
-              selection: selection,
-              smart: SmartRoutingSettings(entryCount: count),
-            ),
-          )).map((node) => node.id).toList();
-      expect(await selected(const ServerSelection.automatic(), 2), [3, 2]);
-      expect(await selected(const ServerSelection.source(1), 1), [1]);
-      expect(await selected(const ServerSelection.source(0), 1), [3]);
-      expect(await selected(const ServerSelection.server(2), 3), [2]);
-    },
-  );
 
-  test(
-    'All VPN is one node and Custom uses slots without inheriting Smart exit',
-    () async {
-      final resolver = _oneShot([
-        _row(1, delay: 30),
-        _row(2, delay: 10),
-        _row(3, delay: 20),
-      ]);
-      final smart = SmartRoutingSettings(entryCount: 3, finalExitId: 2);
-      final allVpn = await resolver.resolve(
+  test('successful cached delays rank first, then all non-success delays share an ID bucket', () async {
+    final rows = [
+      _row(8, delay: 0),
+      _row(7, delay: 20),
+      _row(6, delay: 20),
+      _row(4, delay: PingDelayConstants.unknown),
+      _row(1, delay: PingDelayConstants.error),
+      _row(2, delay: PingDelayConstants.timeout),
+      _row(3, delay: -1),
+    ];
+    final input = ConnectionSettings(
+      smart: SmartRoutingSettings(entryCount: 3),
+    );
+    expect((await _oneShot(rows).resolve(input)).map((e) => e.id), [8, 6, 7]);
+    expect(
+      (await _oneShot(rows.skip(3).toList()).resolve(input)).map((e) => e.id),
+      [1, 2, 3],
+    );
+    expect(
+      (await _oneShot([rows[1], ...rows.skip(3)]).resolve(input))
+          .map((e) => e.id),
+      [7, 1, 2],
+    );
+    expect(
+      (await _oneShot([rows[3]]).resolve(ConnectionSettings())).single.id,
+      4,
+    );
+  });
+
+  test('automatic, source, manual and fixed use distinct IDs and no delay admission', () async {
+    final resolver = _oneShot([
+      _row(1, delay: 60, source: 1),
+      _row(2, delay: 20, source: 2),
+      _row(3, delay: PingDelayConstants.unknown, source: 0),
+      _row(4, type: 'raw'),
+    ]);
+    Future<List<int>> select(ServerSelection selection, int count) async =>
+        (await resolver.resolve(
+          ConnectionSettings(
+            selection: selection,
+            smart: SmartRoutingSettings(entryCount: count),
+          ),
+        )).map((e) => e.id).toList();
+    expect(await select(const ServerSelection.automatic(), 3), [2, 1, 3]);
+    expect(await select(const ServerSelection.source(1), 1), [1]);
+    expect(await select(const ServerSelection.source(0), 1), [3]);
+    expect(await select(const ServerSelection.server(3), 3), [3]);
+  });
+
+  test('All uses one, Custom uses slots, fixed uses one, Raw bypasses ordinary resolution', () async {
+    final resolver = _oneShot([
+      _row(1, delay: 30),
+      _row(2, delay: 10),
+      _row(3, delay: 20),
+    ]);
+    final smart = SmartRoutingSettings(entryCount: 3, finalExitId: 2);
+    expect(
+      (await resolver.resolve(
         ConnectionSettings(trafficMode: TrafficMode.allVpn, smart: smart),
-      );
-      expect(allVpn.map((node) => node.id), [2]);
-      final custom = await resolver.resolve(
+      )).map((e) => e.id),
+      [2],
+    );
+    expect(
+      (await resolver.resolve(
         ConnectionSettings(trafficMode: TrafficMode.custom, smart: smart),
         custom: _custom(2),
-      );
-      expect(custom.map((node) => node.id), [2, 3]);
-      final fixed = await resolver.resolve(
+      )).map((e) => e.id),
+      [2, 3],
+    );
+    expect(
+      (await resolver.resolve(
         ConnectionSettings(
           trafficMode: TrafficMode.custom,
           selection: const ServerSelection.server(1),
           smart: smart,
         ),
         custom: _custom(3),
-      );
-      expect(fixed.map((node) => node.id), [1]);
-      expect(await resolver.resolve(ConnectionSettings(expert: true)), isEmpty);
-    },
-  );
+      )).map((e) => e.id),
+      [1],
+    );
+    expect(await resolver.resolve(ConnectionSettings(expert: true)), isEmpty);
+  });
 
   test(
-    'Smart excludes the final exit, rejects a self-loop and missing exit',
+    'Smart validates and excludes the final exit independently of delay',
     () async {
       final resolver = _oneShot([
-        _row(1, delay: 20),
-        _row(2, delay: 1),
-        _row(3, delay: 10),
+        _row(1, delay: PingDelayConstants.error),
+        _row(2, delay: PingDelayConstants.unknown),
       ]);
       final result = await resolver.resolve(
-        ConnectionSettings(
-          smart: SmartRoutingSettings(entryCount: 2, finalExitId: 2),
-        ),
+        ConnectionSettings(smart: SmartRoutingSettings(finalExitId: 2)),
       );
-      expect(result.map((node) => node.id), [3, 1]);
+      expect(result.single.id, 1);
       await expectLater(
         resolver.resolve(
           ConnectionSettings(
@@ -114,369 +136,188 @@ void main() {
     },
   );
 
-  test('missing scope and too few candidates fail without changing selection or probing', () async {
-    final selection = const ServerSelection.source(99);
-    final resolver = _oneShot([_row(1)]);
-    await expectLater(
-      resolver.resolve(ConnectionSettings(selection: selection)),
-      _fails(ConnectionResolutionFailure.selectionUnavailable),
-    );
-    expect(selection.id, 99);
-    await expectLater(
-      resolver.resolve(
-        ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
-      ),
-      _fails(ConnectionResolutionFailure.insufficientCandidates),
-    );
-    await expectLater(
-      _oneShot([]).resolve(ConnectionSettings()),
-      _fails(ConnectionResolutionFailure.selectionUnavailable),
-    );
-    await expectLater(
-      resolver.resolve(ConnectionSettings(trafficMode: TrafficMode.custom)),
-      _fails(ConnectionResolutionFailure.invalidSettings),
-    );
-  });
-
   test(
-    'only successful delays qualify; unknown candidates are probed once',
+    'bad JSON, invalid IDs and duplicates cannot satisfy structural count',
     () async {
-      var rows = [
-        _row(1, delay: PingDelayConstants.unknown),
-        _row(2, delay: PingDelayConstants.unknown),
-        _row(3, delay: PingDelayConstants.error),
-        _row(4, delay: PingDelayConstants.timeout),
-        _row(5, delay: -1),
-      ];
-      final probes = <List<int>>[];
-      final resolver = ConnectionResolver(
-        rows: () => Stream.value(rows),
-        probe: (ids) async {
-          probes.add(ids);
-          rows = [
-            _row(1, delay: 50),
-            _row(2, delay: PingDelayConstants.error),
-            ...rows.skip(2),
-          ];
-        },
-      );
-      final result = await resolver.resolve(ConnectionSettings());
-      expect(probes, [
-        [1, 2],
+      final resolver = _oneShot([
+        _row(0),
+        _row(-1),
+        _row(1).copyWith(data: const Value('bad base64')),
+        _row(1),
+        _row(2, delay: PingDelayConstants.timeout),
       ]);
-      expect(result.single.id, 1);
-    },
-  );
-
-  test(
-    'fully failed or unrepairable candidates do not trigger an endless retry',
-    () async {
+      expect((await resolver.resolve(ConnectionSettings())).single.id, 2);
       await expectLater(
-        _oneShot([
-          _row(1, delay: PingDelayConstants.error),
-          _row(2, delay: PingDelayConstants.timeout),
-        ]).resolve(ConnectionSettings()),
-        _fails(ConnectionResolutionFailure.insufficientHealthyServers),
-      );
-      var probes = 0;
-      final resolver = ConnectionResolver(
-        rows: () => Stream.value([_row(1, delay: PingDelayConstants.unknown)]),
-        probe: (_) async {
-          probes++;
-        },
+        resolver.resolve(
+          ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
+        ),
+        _fails(ConnectionResolutionFailure.insufficientCandidates),
       );
       await expectLater(
-        resolver.resolve(ConnectionSettings()),
-        _fails(ConnectionResolutionFailure.insufficientHealthyServers),
-      );
-      expect(probes, 1);
-      await expectLater(
-        _oneShot([_row(1).copyWith(data: const Value('not base64'))])
-            .resolve(ConnectionSettings()),
+        resolver.resolve(
+          ConnectionSettings(selection: const ServerSelection.source(99)),
+        ),
         _fails(ConnectionResolutionFailure.selectionUnavailable),
       );
+      await expectLater(
+        resolver.resolve(ConnectionSettings(trafficMode: TrafficMode.custom)),
+        _fails(ConnectionResolutionFailure.invalidSettings),
+      );
     },
   );
 
-  test('a watched batch resolves early and later updates cannot mutate the snapshot', () async {
+  test('first rows are a snapshot; later measurements and row names do not replace it', () async {
     final rows = _Rows([
       _row(1, delay: PingDelayConstants.unknown),
       _row(2, delay: PingDelayConstants.unknown),
     ]);
     addTearDown(rows.close);
-    final started = Completer<void>();
-    final remaining = Completer<void>();
-    addTearDown(() {
-      if (!remaining.isCompleted) remaining.complete();
-    });
-    final resolver = ConnectionResolver(
-      rows: rows.watch,
-      probe: (_) {
-        started.complete();
-        return remaining.future;
-      },
-    );
-    final resolving = resolver.resolve(ConnectionSettings());
-    await started.future;
-    rows.update([
-      _row(1, delay: 30),
-      _row(2, delay: PingDelayConstants.unknown),
-    ]);
-    final snapshots = await resolving;
-    expect(remaining.isCompleted, isFalse);
+    final resolved = await ConnectionResolver(rows: rows.watch)
+        .resolve(ConnectionSettings());
     expect(rows.listeners, 0);
     rows.update([_row(1, delay: 80, name: 'Changed'), _row(2, delay: 1)]);
-    remaining.complete();
-    expect(snapshots.single.id, 1);
-    expect(snapshots.single.name, 'Same name');
-    snapshots.single.outbound['tag'] = 'Changed copy';
-    expect(snapshots.single.name, 'Same name');
-    expect(() => snapshots.clear(), throwsUnsupportedError);
+    expect(resolved.single.id, 1);
+    expect(resolved.single.name, 'Same name');
+    expect(() => resolved.clear(), throwsUnsupportedError);
   });
 
   test(
-    'cancellation releases the watch without cancelling background probing',
+    'cancellation closes a pending read and cannot become provider fallback',
     () async {
-      final rows = _Rows([_row(1, delay: PingDelayConstants.unknown)]);
-      addTearDown(rows.close);
-      final started = Completer<void>();
-      final remaining = Completer<void>();
-      addTearDown(() {
-        if (!remaining.isCompleted) remaining.complete();
-      });
-      final cancel = Completer<void>();
-      final resolver = ConnectionResolver(
-        rows: rows.watch,
-        probe: (_) {
-          started.complete();
-          return remaining.future;
+      final subscribed = Completer<void>(), cancel = Completer<void>();
+      var closed = false;
+      final rows = StreamController<List<CoreConfigData>>(
+        onListen: subscribed.complete,
+        onCancel: () {
+          closed = true;
         },
       );
-      final resolving = resolver.resolve(
-        ConnectionSettings(),
-        cancelled: cancel.future,
-      );
-      await started.future;
+      addTearDown(rows.close);
+      final resolving = ConnectionResolver(rows: () => rows.stream)
+          .resolveTarget(ConnectionSettings(), cancelled: cancel.future);
+      await subscribed.future;
       final expected = expectLater(
         resolving,
         _fails(ConnectionResolutionFailure.cancelled),
       );
       cancel.complete();
       await expected;
-      expect(rows.listeners, 0);
-      expect(remaining.isCompleted, isFalse);
-      remaining.complete();
+      expect(closed, isTrue);
+    },
+  );
+
+  test('read exceptions and empty streams report readFailed', () async {
+    for (final stream in [
+      Stream<List<CoreConfigData>>.error(StateError('read')),
+      const Stream<List<CoreConfigData>>.empty(),
+    ]) {
+      await expectLater(
+        ConnectionResolver(rows: () => stream).resolve(ConnectionSettings()),
+        _fails(ConnectionResolutionFailure.readFailed),
+      );
+    }
+    await expectLater(
+      ConnectionResolver(rows: () => throw StateError('read'))
+          .resolve(ConnectionSettings()),
+      _fails(ConnectionResolutionFailure.readFailed),
+    );
+  });
+
+  test(
+    'sufficient unmeasured or failed ordinary nodes win over a provider',
+    () async {
+      final target =
+          await _oneShot([
+            _profile(1),
+            _row(2, delay: PingDelayConstants.unknown),
+            _row(3, delay: PingDelayConstants.error),
+          ]).resolveTarget(
+            ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
+          );
+      expect(target.entries.map((e) => e.id), [2, 3]);
+      expect(target.profile, isNull);
     },
   );
 
   test(
-    'read and probe failures are structured and close their watches',
+    'only a structural shortage uses the first readable same-scope provider',
     () async {
-      await expectLater(
-        ConnectionResolver(rows: () => Stream.error(StateError('read')))
-            .resolve(ConnectionSettings()),
-        _fails(ConnectionResolutionFailure.readFailed),
+      final first = _profile(7);
+      final resolver = _oneShot([
+        _profile(2).copyWith(data: const Value('bad')),
+        _profile(9),
+        first,
+        _row(20, delay: PingDelayConstants.error),
+      ]);
+      final target = await resolver.resolveTarget(
+        ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
       );
-      final rows = _Rows([_row(1, delay: PingDelayConstants.unknown)]);
-      addTearDown(rows.close);
+      expect(target.entries, isEmpty);
+      expect(target.profileRow, first);
       await expectLater(
-        ConnectionResolver(
-          rows: rows.watch,
-          probe: (_) => Future.error(StateError('probe')),
-        ).resolve(ConnectionSettings()),
-        _fails(ConnectionResolutionFailure.probeFailed),
+        resolver.resolveTarget(
+          ConnectionSettings(
+            selection: const ServerSelection.source(0),
+            smart: SmartRoutingSettings(entryCount: 2),
+          ),
+        ),
+        _fails(ConnectionResolutionFailure.insufficientCandidates),
       );
-      expect(rows.listeners, 0);
+      expect(
+        (await resolver.resolveTarget(
+          ConnectionSettings(selection: const ServerSelection.source(7)),
+        )).profile?.id,
+        7,
+      );
     },
   );
 
-  group('complete provider fallback', () {
-    test('sufficient healthy ordinary entries always win', () async {
-      final target =
-          await _oneShot([_profile(1), _row(5, delay: 30), _row(3, delay: 10)])
-              .resolveTarget(
-                ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
-              );
-      expect(target.entries.map((entry) => entry.id), [3, 5]);
-      expect(target.profile, isNull);
-      expect(target.profileRow, isNull);
-    });
-
-    for (final ordinary in [
-      <CoreConfigData>[],
-      [_row(20)],
-      [
-        _row(20, delay: PingDelayConstants.error),
-        _row(21, delay: PingDelayConstants.timeout),
-      ],
-    ]) {
-      test(
-        'entry shortage ${ordinary.length} selects the first readable profile by ID',
-        () async {
-          final unreadable = _profile(2)
-              .copyWith(data: const Value('not base64'));
-          final first = _profile(7);
-          final target =
-              await _oneShot([
-                _profile(9),
-                ...ordinary,
-                unreadable,
-                first,
-              ]).resolveTarget(
-                ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
-              );
-          expect(target.entries, isEmpty);
-          expect(target.profile?.id, 7);
-          expect(target.profileRow, first);
-          expect(target.profile?.config['outbounds'], hasLength(1));
-        },
+  test(
+    'fixed failed nodes remain fixed; fixed and Raw never acquire a provider',
+    () async {
+      final resolver = _oneShot([
+        _profile(1),
+        _row(2, delay: PingDelayConstants.error),
+      ]);
+      final fixed = await resolver.resolveTarget(
+        ConnectionSettings(selection: const ServerSelection.server(2)),
       );
-    }
-
-    for (final succeeds in [true, false]) {
-      test(
-        'ordinary probes finish before provider fallback: $succeeds',
-        () async {
-          var rows = [_profile(1), _row(2, delay: PingDelayConstants.unknown)];
-          final probes = <List<int>>[];
-          final resolver = ConnectionResolver(
-            rows: () => Stream.value(rows),
-            probe: (ids) async {
-              probes.add(ids);
-              rows = [
-                _profile(1),
-                _row(2, delay: succeeds ? 12 : PingDelayConstants.error),
-              ];
-            },
-          );
-          final target = await resolver.resolveTarget(ConnectionSettings());
-          expect(probes, [
-            [2],
-          ]);
-          expect(target.profile?.id, succeeds ? null : 1);
-          expect(target.entries.map((entry) => entry.id), succeeds ? [2] : []);
-        },
-      );
-    }
-
-    test(
-      'source fallback stays within its source and excludes manual scope',
-      () async {
-        final resolver = _oneShot([
-          _profile(1, source: 4),
-          _profile(3, source: 7),
-          _profile(2, source: 7),
-        ]);
-        final target = await resolver.resolveTarget(
-          ConnectionSettings(selection: const ServerSelection.source(7)),
-        );
-        expect(target.profile?.id, 2);
-        await expectLater(
-          resolver.resolveTarget(
-            ConnectionSettings(selection: const ServerSelection.source(0)),
-          ),
-          _fails(ConnectionResolutionFailure.selectionUnavailable),
-        );
-        await expectLater(
-          resolver.resolveTarget(
-            ConnectionSettings(selection: const ServerSelection.source(8)),
-          ),
-          _fails(ConnectionResolutionFailure.selectionUnavailable),
-        );
-      },
-    );
-
-    test(
-      'fixed and expert selections never acquire a fallback profile',
-      () async {
-        final resolver = _oneShot([
-          _profile(1),
-          _row(2, delay: PingDelayConstants.error),
-        ]);
-        await expectLater(
-          resolver.resolveTarget(
-            ConnectionSettings(selection: const ServerSelection.server(2)),
-          ),
-          _fails(ConnectionResolutionFailure.insufficientHealthyServers),
-        );
-        final raw = await resolver.resolveTarget(
-          ConnectionSettings(expert: true),
-        );
-        expect(raw.entries, isEmpty);
-        expect(raw.profile, isNull);
-      },
-    );
-
-    test(
-      'without a readable profile the ordinary failure is preserved',
-      () async {
-        await expectLater(
-          _oneShot([_profile(1).copyWith(data: const Value('bad')), _row(2)])
-              .resolveTarget(
-                ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
-              ),
-          _fails(ConnectionResolutionFailure.insufficientCandidates),
-        );
-      },
-    );
-
-    test('configuration and probe failures do not select a provider', () async {
-      final rows = [_profile(1), _row(2, delay: PingDelayConstants.unknown)];
+      expect(fixed.entries.single.id, 2);
+      expect(fixed.profile, isNull);
       await expectLater(
-        _oneShot(rows)
-            .resolveTarget(ConnectionSettings(trafficMode: TrafficMode.custom)),
-        _fails(ConnectionResolutionFailure.invalidSettings),
-      );
-      await expectLater(
-        _oneShot([_profile(1), _row(2)]).resolveTarget(
-          ConnectionSettings(smart: SmartRoutingSettings(finalExitId: 99)),
+        resolver.resolveTarget(
+          ConnectionSettings(selection: const ServerSelection.server(99)),
         ),
-        _fails(ConnectionResolutionFailure.finalExitUnavailable),
+        _fails(ConnectionResolutionFailure.selectionUnavailable),
       );
-      await expectLater(
-        ConnectionResolver(
-          rows: () => Stream.value(rows),
-          probe: (_) async => throw StateError('probe'),
-        ).resolveTarget(ConnectionSettings()),
-        _fails(ConnectionResolutionFailure.probeFailed),
+      final raw = await resolver.resolveTarget(
+        ConnectionSettings(expert: true),
       );
-      await expectLater(
-        ConnectionResolver(rows: () => Stream.error(StateError('read')))
-            .resolveTarget(ConnectionSettings()),
-        _fails(ConnectionResolutionFailure.readFailed),
-      );
-    });
+      expect(raw.entries, isEmpty);
+      expect(raw.profile, isNull);
+    },
+  );
 
-    test('cancellation never becomes provider fallback', () async {
-      final started = Completer<void>();
-      final remaining = Completer<void>();
-      final cancelled = Completer<void>();
-      addTearDown(() {
-        if (!remaining.isCompleted) remaining.complete();
-      });
-      final resolver = ConnectionResolver(
-        rows: () => Stream.value([
-          _profile(1),
-          _row(2, delay: PingDelayConstants.unknown),
-        ]),
-        probe: (_) {
-          started.complete();
-          return remaining.future;
-        },
-      );
-      final resolving = resolver.resolveTarget(
-        ConnectionSettings(),
-        cancelled: cancelled.future,
-      );
-      await started.future;
-      final expected = expectLater(
-        resolving,
-        _fails(ConnectionResolutionFailure.cancelled),
-      );
-      cancelled.complete();
-      await expected;
-      expect(remaining.isCompleted, isFalse);
-    });
+  test('configuration, exit and read errors never retry a provider', () async {
+    final rows = [_profile(1), _row(2, delay: PingDelayConstants.unknown)];
+    await expectLater(
+      _oneShot(rows)
+          .resolveTarget(ConnectionSettings(trafficMode: TrafficMode.custom)),
+      _fails(ConnectionResolutionFailure.invalidSettings),
+    );
+    await expectLater(
+      _oneShot(rows).resolveTarget(
+        ConnectionSettings(smart: SmartRoutingSettings(finalExitId: 99)),
+      ),
+      _fails(ConnectionResolutionFailure.finalExitUnavailable),
+    );
+    await expectLater(
+      _oneShot([_profile(1).copyWith(data: const Value('bad')), _row(2)])
+          .resolveTarget(
+            ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
+          ),
+      _fails(ConnectionResolutionFailure.insufficientCandidates),
+    );
   });
 }
 
@@ -487,12 +328,8 @@ CoreConfigData _profile(int id, {int source = 7}) => _row(
   delay: PingDelayConstants.unknown,
 );
 
-ConnectionResolver _oneShot(List<CoreConfigData> rows) => ConnectionResolver(
-  rows: () => Stream.value(rows),
-  probe: (_) async {
-    fail('This selection must not probe');
-  },
-);
+ConnectionResolver _oneShot(List<CoreConfigData> rows) =>
+    ConnectionResolver(rows: () => Stream.value(rows));
 
 Matcher _fails(ConnectionResolutionFailure reason) => throwsA(
   isA<ConnectionResolutionException>().having(

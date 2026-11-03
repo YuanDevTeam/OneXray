@@ -106,6 +106,39 @@ class RuntimeProfile {
   };
 }
 
+class RuntimeSelectionFallback {
+  final ServerSelection originalSelection;
+  final String reason;
+  final String? sourceName;
+
+  const RuntimeSelectionFallback({
+    required this.originalSelection,
+    required this.reason,
+    this.sourceName,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'originalSelection': originalSelection.toJson(),
+    'reason': reason,
+    if (sourceName != null) 'sourceName': sourceName,
+  };
+
+  factory RuntimeSelectionFallback.fromJson(Map<String, dynamic> value) {
+    if (value['originalSelection'] is! Map<String, dynamic> ||
+        value['reason'] is! String ||
+        (value['sourceName'] != null && value['sourceName'] is! String)) {
+      throw const FormatException('Invalid selection fallback metadata');
+    }
+    return RuntimeSelectionFallback(
+      originalSelection: ServerSelection.fromJson(
+        value['originalSelection'] as Map<String, dynamic>,
+      ),
+      reason: value['reason'] as String,
+      sourceName: value['sourceName'] as String?,
+    );
+  }
+}
+
 /// The prepared or active runtime input. It is never stored separately.
 /// start.json retains only the small metadata required to restore the UI and
 /// protect active nodes; the Xray JSON remains solely in coreInvokeText.
@@ -118,6 +151,7 @@ class ConnectionRuntime {
   final RuntimeNode? finalExit;
   final RuntimeProfile? profile;
   final String? notice;
+  final RuntimeSelectionFallback? selectionFallback;
   final DateTime startedAt;
   late final List<RuntimeObservationPath> observationPaths =
       configuration.connection.expert || profile != null
@@ -138,6 +172,7 @@ class ConnectionRuntime {
     this.profile,
     required this.startedAt,
     this.notice,
+    this.selectionFallback,
   });
 
   factory ConnectionRuntime.create({
@@ -146,6 +181,7 @@ class ConnectionRuntime {
     required ConnectionPlatform platform,
     required StartVpnRequest request,
     String? notice,
+    RuntimeSelectionFallback? selectionFallback,
     DateTime? startedAt,
   }) {
     startedAt ??= DateTime.now();
@@ -166,6 +202,8 @@ class ConnectionRuntime {
       'entries': [for (final entry in entries) entry.toJson()],
       'finalExit': finalExit?.toJson(),
       if (profile != null) 'profile': profile.toJson(),
+      if (selectionFallback != null)
+        'selectionFallback': selectionFallback.toJson(),
     });
     final storedRequest = StartVpnRequest(
       request.tun,
@@ -184,6 +222,7 @@ class ConnectionRuntime {
       finalExit: finalExit,
       profile: profile,
       notice: notice,
+      selectionFallback: selectionFallback,
       startedAt: startedAt,
     );
   }
@@ -209,7 +248,9 @@ class ConnectionRuntime {
         (metadata['finalExit'] != null &&
             metadata['finalExit'] is! Map<String, dynamic>) ||
         (metadata['profile'] != null &&
-            metadata['profile'] is! Map<String, dynamic>)) {
+            metadata['profile'] is! Map<String, dynamic>) ||
+        (metadata['selectionFallback'] != null &&
+            metadata['selectionFallback'] is! Map<String, dynamic>)) {
       throw const FormatException('Invalid runtime metadata');
     }
     final run = LibXrayRunConfig.fromInvokeText(invokeText).request;
@@ -227,6 +268,11 @@ class ConnectionRuntime {
         metadata['startedAt'] as int,
       ),
       request: request,
+      selectionFallback: metadata['selectionFallback'] == null
+          ? null
+          : RuntimeSelectionFallback.fromJson(
+              metadata['selectionFallback'] as Map<String, dynamic>,
+            ),
       xrayJson: run.xrayJson!,
       entries: List.unmodifiable(
         (metadata['entries'] as List).map(

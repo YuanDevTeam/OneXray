@@ -30,7 +30,7 @@ String connectionFailureMessage(
   final message = switch (issue) {
     'selectionUnavailable' =>
       '${l.prototypeNoAvailableEntries} · ${l.prototypeAddServers}',
-    'insufficientCandidates' || 'insufficientHealthyServers' =>
+    'insufficientCandidates' =>
       error is ConnectionResolutionException && error.requiredCount > 0
           ? '${l.prototypeNotEnoughServers} (${error.availableCount}/${error.requiredCount})'
           : l.prototypeNotEnoughServers,
@@ -65,7 +65,6 @@ bool connectionFailureNeedsWindow(Object error) =>
     switch (connectionFailureReason(error)) {
       'selectionUnavailable' ||
       'insufficientCandidates' ||
-      'insufficientHealthyServers' ||
       'cancelled' => false,
       _ => true,
     };

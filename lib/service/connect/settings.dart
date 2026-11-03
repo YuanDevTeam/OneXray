@@ -129,6 +129,10 @@ class ConnectionSettings {
   final bool expert;
   final int? rawId;
   final ServerSelection selection;
+
+  /// Device-local ordinary intent retained while a provider graph is selected.
+  /// It is never an input to compilation or part of connection-asset backups.
+  final ServerSelection? rememberedOrdinarySelection;
   final TrafficMode trafficMode;
   final int? customId;
   final SmartRoutingSettings smart;
@@ -137,6 +141,7 @@ class ConnectionSettings {
     this.expert = false,
     this.rawId,
     this.selection = const ServerSelection.automatic(),
+    this.rememberedOrdinarySelection,
     this.trafficMode = TrafficMode.smart,
     this.customId,
     SmartRoutingSettings? smart,
@@ -148,6 +153,9 @@ class ConnectionSettings {
         rawId: value['rawId'] as int?,
         selection: ServerSelection.fromJson(
           value['selection'] as Map<String, dynamic>? ?? {'kind': 'automatic'},
+        ),
+        rememberedOrdinarySelection: _readRememberedSelection(
+          value['rememberedOrdinarySelection'],
         ),
         trafficMode: TrafficMode.values.byName(
           value['trafficMode'] as String? ?? 'smart',
@@ -162,6 +170,8 @@ class ConnectionSettings {
     'expert': expert,
     'rawId': rawId,
     'selection': selection.toJson(),
+    if (rememberedOrdinarySelection != null)
+      'rememberedOrdinarySelection': rememberedOrdinarySelection!.toJson(),
     'trafficMode': trafficMode.name,
     'customId': customId,
     'smart': smart.toJson(),
@@ -183,4 +193,15 @@ class ConnectionSettings {
 
   int? get finalExitId =>
       !expert && trafficMode == TrafficMode.smart ? smart.finalExitId : null;
+
+  static ServerSelection? _readRememberedSelection(Object? value) {
+    if (value is! Map) return null;
+    final kind = value['kind'];
+    if (kind == 'automatic') return const ServerSelection.automatic();
+    final id = value['id'];
+    if (id is! int) return null;
+    if (kind == 'source' && id >= 0) return ServerSelection.source(id);
+    if (kind == 'server' && id > 0) return ServerSelection.server(id);
+    return null;
+  }
 }

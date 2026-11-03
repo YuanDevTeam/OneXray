@@ -7,6 +7,9 @@ import 'package:onexray/core/pigeon/flutter_api.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/service/connect/failure.dart';
+import 'package:onexray/service/connect/ordinary_plan.dart';
+export 'package:onexray/service/connect/ordinary_plan.dart'
+    show OrdinaryPlanRestore;
 import 'package:onexray/service/connect/preparation.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
@@ -152,6 +155,10 @@ class ConnectionCoordinator with WidgetsBindingObserver {
       );
 
   Future<ConnectionRuntime?> readCurrentRuntime() => _readRuntime();
+
+  /// The caller confirms/applies the returned plan using the normal change flow.
+  Future<OrdinaryPlanRestore> restoreOrdinaryPlan() async =>
+      OrdinaryPlanService(db).restore(await configuration);
 
   /// Custom preparation (node/route drafts) shares the same temporary reference
   /// protection as the default path. apply clears it on success and failure.
@@ -496,6 +503,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
           stored.encode() != expectedConfiguration) {
         throw const ConnectionHostException('configurationChanged');
       }
+      next = await OrdinaryPlanService(db).retain(stored, next);
       final current = await _inspect(await _currentRuntime());
       final shouldStart =
           !disconnect && (connect || (affectsRuntime && current.connected));

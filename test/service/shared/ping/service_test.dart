@@ -291,7 +291,7 @@ void main() {
     },
   );
 
-  test('five-node batch commits let selection finish while the remaining two continue', () async {
+  test('selection does not start probing or wait for an independent five-node batch', () async {
     final ids = <int>[];
     for (var index = 0; index < 7; index++) {
       ids.add(await db.coreConfigDao.insertRow(_node('Node $index')));
@@ -317,13 +317,18 @@ void main() {
     );
     final resolver = ConnectionResolver(
       rows: () => db.select(db.coreConfig).watch(),
-      probe: (ids) => probing = service.pingConfigIds(ids),
     );
 
-    final resolving = resolver.resolve(
-      ConnectionSettings(smart: SmartRoutingSettings(entryCount: 2)),
+    final settings = ConnectionSettings(
+      smart: SmartRoutingSettings(entryCount: 2),
     );
+    final unmeasured = await resolver.resolve(settings);
+    expect(unmeasured.map((node) => node.id), ids.take(2));
+    expect(service.isPinging, isFalse);
+    expect(sizes, isEmpty);
+    probing = service.pingConfigIds(ids);
     await secondStarted.future.timeout(const Duration(seconds: 5));
+    final resolving = resolver.resolve(settings);
     final selected = await resolving.timeout(const Duration(seconds: 5));
     expect(sizes, [5, 2]);
     expect(releaseSecond.isCompleted, isFalse);

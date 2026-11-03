@@ -1525,7 +1525,7 @@ void main() {
     'resolver reason and counts survive refresh and clear on successful retry',
     () async {
       const error = ConnectionResolutionException(
-        ConnectionResolutionFailure.insufficientHealthyServers,
+        ConnectionResolutionFailure.insufficientCandidates,
         requiredCount: 3,
         availableCount: 1,
       );
@@ -1546,10 +1546,10 @@ void main() {
         ),
       );
       await expectLater(coordinator.connect(), throwsA(same(error)));
-      expect(coordinator.state.value.issue, 'insufficientHealthyServers');
+      expect(coordinator.state.value.issue, 'insufficientCandidates');
       expect(coordinator.state.value.error, same(error));
       await coordinator.refresh();
-      expect(coordinator.state.value.issue, 'insufficientHealthyServers');
+      expect(coordinator.state.value.issue, 'insufficientCandidates');
       expect(coordinator.state.value.error, same(error));
       fail = false;
       await coordinator.connect();

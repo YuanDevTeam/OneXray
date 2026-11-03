@@ -164,6 +164,7 @@ class ConnectionPreparation {
     ResolvedProfile? profile;
     CoreConfigData? profileRow;
     String? sourceMode;
+    String? originalSelectionName;
     if (!settings.expert && settings.selection.kind == SelectionKind.server) {
       final id = settings.selection.id!;
       final selected = await db.coreConfigDao.searchRow(id);
@@ -173,6 +174,7 @@ class ConnectionPreparation {
         );
       }
       final active = await db.coreConfigDao.searchActiveServerRow(id);
+      originalSelectionName = selected.name;
       if (active == null) {
         throw const FormatException(
           'The selected configuration is incompatible with the subscription mode',
@@ -191,6 +193,7 @@ class ConnectionPreparation {
         throw const FormatException('The selected subscription is unavailable');
       }
       sourceMode = source.mode;
+      originalSelectionName = source.name;
     }
     await ConnectionPlatformRequirements(platform: platform)
         .ensureOutboundInterface(policy.xrayOutboundInterfaceName);
@@ -221,6 +224,7 @@ class ConnectionPreparation {
       custom = CustomRoutingService.readConfiguration(row);
     }
     String? notice;
+    RuntimeSelectionFallback? selectionFallback;
     List<ResolvedServer> entries = const [];
     if (profile == null) {
       ResolvedConnectionTarget target;
@@ -248,10 +252,7 @@ class ConnectionPreparation {
           throw const FormatException('The selected subscription mode changed');
         }
         if (settings.selection.kind == SelectionKind.automatic ||
-            !{
-              ConnectionResolutionFailure.selectionUnavailable,
-              ConnectionResolutionFailure.insufficientHealthyServers,
-            }.contains(error.reason)) {
+            error.reason != ConnectionResolutionFailure.selectionUnavailable) {
           rethrow;
         }
         final retryFromFixed = settings.selection.kind == SelectionKind.server;
@@ -259,7 +260,7 @@ class ConnectionPreparation {
           ...settings.toJson(),
           'selection': const ServerSelection.automatic().toJson(),
         });
-        // Preserve the existing ordinary-node retry for a failed fixed node.
+        // Preserve the existing ordinary-node retry for an unreadable fixed node.
         // Only automatic/source intent may introduce a provider target.
         target = retryFromFixed
             ? ResolvedConnectionTarget.entries(
@@ -279,6 +280,11 @@ class ConnectionPreparation {
           policy: policy,
         );
         notice = 'selectionReset';
+        selectionFallback = RuntimeSelectionFallback(
+          originalSelection: input.connection.selection,
+          reason: error.reason.name,
+          sourceName: originalSelectionName,
+        );
       }
       entries = target.entries;
       profile = target.profile;
@@ -426,6 +432,7 @@ class ConnectionPreparation {
       platform: platform,
       request: request,
       notice: notice,
+      selectionFallback: selectionFallback,
     );
   }
 }

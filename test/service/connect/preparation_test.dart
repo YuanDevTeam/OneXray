@@ -12,6 +12,7 @@ import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
+import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/advanced/local_api/service.dart';
 import 'package:onexray/service/advanced/local_api/settings.dart';
 import 'package:onexray/service/connect/preparation.dart';
@@ -739,6 +740,62 @@ void main() {
       }
     }
 
+    test('an empty source records the original scope and commits only a prepared automatic target', () async {
+      final emptySource = await db.subscriptionDao.insertRow(
+        SubscriptionCompanion.insert(
+          name: 'Empty source',
+          url: 'https://example.com/empty',
+          timestamp: DateTime(2026),
+        ),
+      );
+      final node = await db.coreConfigDao.insertRow(
+        CoreConfigCompanion.insert(
+          name: 'Unmeasured ordinary',
+          type: 'outbound',
+          tags: '',
+          subId: 0,
+          delay: PingDelayConstants.unknown,
+          data: Value(
+            base64Encode(utf8.encode('{"outbounds":[{"protocol":"freedom"}]}')),
+          ),
+        ),
+      );
+      final input = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          selection: ServerSelection.source(emptySource),
+          trafficMode: TrafficMode.allVpn,
+        ),
+      );
+      final runtime = await ConnectionPreparation(
+        db: db,
+        getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+        requireDependencies: (_) async {},
+      ).prepare(input);
+      expect(runtime.entries.single.id, node);
+      expect(
+        runtime.configuration.connection.selection.kind,
+        SelectionKind.automatic,
+      );
+      expect(runtime.selectionFallback?.originalSelection.id, emptySource);
+      expect(runtime.selectionFallback?.sourceName, 'Empty source');
+      expect(runtime.selectionFallback?.reason, 'selectionUnavailable');
+      final restored = ConnectionRuntime.fromRequest(runtime.request);
+      expect(
+        restored.selectionFallback?.toJson(),
+        runtime.selectionFallback?.toJson(),
+      );
+      final oldMetadata =
+          jsonDecode(runtime.request.metadataJson!) as Map<String, dynamic>;
+      oldMetadata.remove('selectionFallback');
+      final oldRequest = runtime.request.toJson()
+        ..['metadataJson'] = jsonEncode(oldMetadata);
+      expect(
+        ConnectionRuntime.fromRequest(StartVpnRequest.fromJson(oldRequest))
+            .selectionFallback,
+        isNull,
+      );
+    });
+
     test('automatic selection ignores inactive provider and ordinary caches', () async {
       final appSourceId = await db.subscriptionDao.insertRow(
         SubscriptionCompanion.insert(
@@ -921,7 +978,7 @@ void main() {
 
     for (final healthyAlternative in [false, true]) {
       test(
-        'fixed ordinary retry stays ordinary with alternative $healthyAlternative',
+        'fixed failed ordinary remains fixed with alternative $healthyAlternative',
         () async {
           Future<int> addOrdinary(String name, int delay) =>
               db.coreConfigDao.insertRow(
@@ -964,27 +1021,20 @@ void main() {
                   ),
                 ),
               );
-          if (healthy == null) {
-            await expectLater(
-              preparing,
-              throwsA(
-                isA<ConnectionResolutionException>().having(
-                  (error) => error.reason,
-                  'reason',
-                  ConnectionResolutionFailure.insufficientHealthyServers,
-                ),
-              ),
-            );
-          } else {
-            final runtime = await preparing;
-            expect(runtime.profile, isNull);
-            expect(runtime.entries.map((entry) => entry.id), [healthy]);
+          final runtime = await preparing;
+          expect(runtime.profile, isNull);
+          expect(runtime.entries.map((entry) => entry.id), [failed]);
+          expect(runtime.configuration.connection.selection.id, failed);
+          expect(
+            runtime.configuration.connection.selection.kind,
+            SelectionKind.server,
+          );
+          expect(runtime.notice, isNull);
+          if (healthy != null)
             expect(
-              runtime.configuration.connection.selection.kind,
-              SelectionKind.automatic,
+              runtime.entries.any((entry) => entry.id == healthy),
+              isFalse,
             );
-            expect(runtime.notice, 'selectionReset');
-          }
         },
       );
     }
@@ -1137,8 +1187,6 @@ final _throwsApiConflict = throwsA(
 ConnectionResolver _unavailableResolver() => ConnectionResolver(
   rows: () =>
       Stream.error(StateError('Provider selection must bypass ordinary nodes')),
-  probe: (_) async =>
-      throw StateError('Provider configuration must not be probed'),
 );
 
 ConnectionConfiguration _providerInput(

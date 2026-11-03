@@ -77,7 +77,7 @@ void main() {
 
   for (final reason in [
     ConnectionResolutionFailure.insufficientCandidates,
-    ConnectionResolutionFailure.insufficientHealthyServers,
+    ConnectionResolutionFailure.insufficientCandidates,
   ]) {
     test(
       'tray notifies counts without taking focus for ${reason.name}',

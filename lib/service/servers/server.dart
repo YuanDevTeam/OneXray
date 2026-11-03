@@ -103,7 +103,6 @@ class ServerAssetService {
     if (row.type == CoreConfigType.Remnawave.name) {
       return ServerDisplay.fromRow(row).readable;
     }
-    if (measured(row) && !healthy(row)) return false;
     try {
       ResolvedServer.fromRow(row);
       return true;
