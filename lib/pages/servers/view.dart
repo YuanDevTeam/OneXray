@@ -482,7 +482,11 @@ class ServerManualGroupsPage extends StatelessWidget {
           .where((group) => group.manual)
           .toList();
       return Scaffold(
-        appBar: PageAppBar.forPage(context, title: Text(l.manualGroupsTitle)),
+        appBar: PageAppBar.forPage(
+          context,
+          title: Text(l.manualGroupsTitle),
+          description: l.manualGroupsDescription,
+        ),
         body: SafeArea(
           child: ResponsiveContent(
             child: ListView(
@@ -506,7 +510,10 @@ class ServerManualGroupsPage extends StatelessWidget {
                       icon: const Icon(LucideIcons.folderPlus, size: 17),
                       label: Text(l.manualGroupNew),
                     ),
-                    ManualGroupOrderButton(controller: controller),
+                    ManualGroupOrderButton(
+                      controller: controller,
+                      showLabel: true,
+                    ),
                     OutlinedButton.icon(
                       onPressed: () => controller.choose(
                         context,
@@ -527,7 +534,8 @@ class ServerManualGroupsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 18),
                 SettingSection(
-                  title: '',
+                  title: l.manualGroupsTitle,
+                  description: l.manualGroupsUngroupedFirst,
                   padding: EdgeInsets.zero,
                   dividerIndent: 0,
                   children: [

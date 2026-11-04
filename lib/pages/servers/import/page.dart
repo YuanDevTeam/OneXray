@@ -67,6 +67,7 @@ class _ServersImportPageState extends State<ServersImportPage> {
           canPop: state.canClose,
           child: ServerFormPage(
             title: l10n.prototypeAddServersToOneXray,
+            subtitle: l10n.serverImportPageDescription,
             onClose: () => controller.closeFlow(context),
             body: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -78,52 +79,42 @@ class _ServersImportPageState extends State<ServersImportPage> {
                     mobile ? 16 : 28,
                     0,
                   ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = constraints.maxWidth;
-                      return Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          if (controller.supportsScan)
-                            _choice(
-                              context,
-                              width,
-                              ServerImportAction.scan,
-                              LucideIcons.qrCode,
-                              l10n.prototypeScanQrCode,
-                            ),
-                          _choice(
-                            context,
-                            width,
-                            ServerImportAction.paste,
-                            LucideIcons.clipboard,
-                            l10n.prototypePasteLink,
-                          ),
-                          _choice(
-                            context,
-                            width,
-                            ServerImportAction.subscription,
-                            LucideIcons.link,
-                            l10n.prototypeAddSubscription,
-                          ),
-                          _choice(
-                            context,
-                            width,
-                            ServerImportAction.file,
-                            LucideIcons.fileInput,
-                            l10n.prototypeImportFile,
-                          ),
-                          _choice(
-                            context,
-                            width,
-                            ServerImportAction.json,
-                            LucideIcons.fileJson,
-                            l10n.prototypeAddManually,
-                          ),
-                        ],
-                      );
-                    },
+                  child: SettingSection(
+                    title: l10n.serverImportMethods,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      if (controller.supportsScan)
+                        _choice(
+                          context,
+                          ServerImportAction.scan,
+                          LucideIcons.qrCode,
+                          l10n.prototypeScanQrCode,
+                        ),
+                      _choice(
+                        context,
+                        ServerImportAction.paste,
+                        LucideIcons.clipboard,
+                        l10n.prototypePasteLink,
+                      ),
+                      _choice(
+                        context,
+                        ServerImportAction.subscription,
+                        LucideIcons.link,
+                        l10n.prototypeAddSubscription,
+                      ),
+                      _choice(
+                        context,
+                        ServerImportAction.file,
+                        LucideIcons.fileInput,
+                        l10n.prototypeImportFile,
+                      ),
+                      _choice(
+                        context,
+                        ServerImportAction.json,
+                        LucideIcons.fileJson,
+                        l10n.prototypeAddManually,
+                      ),
+                    ],
                   ),
                 ),
                 _ImportFeedback(state: state),
@@ -137,66 +128,24 @@ class _ServersImportPageState extends State<ServersImportPage> {
 
   Widget _choice(
     BuildContext context,
-    double width,
     ServerImportAction action,
     IconData icon,
     String title,
-  ) {
-    final palette = ColorManager.palette(context);
-    return SizedBox(
-      width: width,
-      child: OutlinedButton(
-        onPressed: controller.state.busy
-            ? null
-            : () => controller.open(context, action),
-        style:
-            OutlinedButton.styleFrom(
-              minimumSize: const Size(0, 74),
-              padding: const EdgeInsets.all(12),
-              textStyle: AppTypography.importMethod,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadii.card),
-              ),
-            ).copyWith(
-              foregroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.disabled)
-                    ? palette.mutedForeground
-                    : states.contains(WidgetState.hovered)
-                    ? palette.primary
-                    : palette.foreground,
-              ),
-              backgroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.hovered)
-                    ? palette.selectedSurface
-                    : palette.card,
-              ),
-              side: WidgetStateProperty.resolveWith(
-                (states) => BorderSide(
-                  color: states.contains(WidgetState.hovered)
-                      ? palette.primary
-                      : palette.border,
-                ),
-              ),
-            ),
-        child: Row(
-          children: [
-            AppActivityBuilder(
-              builder: (context, activity) =>
-                  controller.state.openingAction == action ||
-                      (controller.state.activeAction == action &&
-                          (activity.downloading || controller.state.busy))
-                  ? const ButtonProgressIndicator(size: 22)
-                  : Icon(icon, size: 22),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(title)),
-            const SizedBox(width: 10),
-            const Icon(LucideIcons.arrowRightDir, size: 18),
-          ],
-        ),
-      ),
-    );
-  }
+  ) => SettingRow(
+    key: ValueKey('server-import-choice-${action.name}'),
+    title: title,
+    enabled: !controller.state.busy,
+    showChevron: true,
+    onTap: () => controller.open(context, action),
+    leading: AppActivityBuilder(
+      builder: (context, activity) =>
+          controller.state.openingAction == action ||
+              (controller.state.activeAction == action &&
+                  (activity.downloading || controller.state.busy))
+          ? const ButtonProgressIndicator(size: 20)
+          : Icon(icon, size: 20),
+    ),
+  );
 }
 
 class ServerImportFormPage extends StatelessWidget {

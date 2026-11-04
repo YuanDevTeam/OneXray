@@ -76,6 +76,10 @@ class AboutOneXrayPage extends StatelessWidget {
                                 : () => controller.checkUpdate(context),
                           ),
                         ),
+                        _LinkRow(
+                          label: l10n.prototypeReleaseNotes,
+                          link: SettingsLink.releaseNotes,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 20),

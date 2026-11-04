@@ -59,6 +59,7 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
           appBar: PageAppBar.forPage(
             context,
             title: Text(l.prototypeSmartRouting),
+            description: l.smartRoutingEditorDescription,
             leading: BackButton(onPressed: () => controller.cancel(context)),
           ),
           body: SafeArea(
@@ -146,7 +147,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
-    spacing: 16,
+    spacing: 20,
     children: [
       _directSettings(context),
       _proxySettings(context),
@@ -165,6 +166,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
         children: [
           RoutingCardHeader(
             title: l.smartRoutingDirectAndBlock,
+            icon: LucideIcons.route,
             help: [
               l.prototypeDirectPrivateAddressesHint,
               l.prototypeDirectAppleServicesHint,
@@ -185,6 +187,8 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directPrivate',
             smart.directPrivate,
             state,
+            description: l.prototypeDirectPrivateAddressesHint,
+            divider: false,
           ),
           _switch(
             l.prototypeDirectAppleServices,
@@ -192,6 +196,8 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directApple',
             smart.directApple,
             state,
+            description: l.prototypeDirectAppleServicesHint,
+            divider: false,
           ),
           _switch(
             l.directWindowsServices,
@@ -199,6 +205,8 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directWindows',
             smart.directWindows,
             state,
+            description: l.directWindowsServicesHint,
+            divider: false,
           ),
           _switch(
             l.prototypeBlockAdDomains,
@@ -206,6 +214,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'blockAds',
             smart.blockAds,
             state,
+            description: l.prototypeBlockAdDomainsHint,
             divider: false,
           ),
         ],
@@ -220,9 +229,13 @@ class SmartRoutingEditorContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          RoutingCardHeader(title: l.smartRoutingProxyConnection),
+          RoutingCardHeader(
+            title: l.smartRoutingProxyConnection,
+            icon: LucideIcons.gitBranch,
+          ),
           RoutingEntryCountRow(
             value: smart.entryCount,
+            fullWidth: true,
             onChanged: state.busy
                 ? null
                 : (count) => controller.update('entryCount', count),
@@ -231,6 +244,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
             value: smart.selection,
             enabled: !state.busy,
             entryCount: controller.effectiveEntryCount,
+            fullWidth: true,
             onChanged: (value) =>
                 controller.update('selection', value.toJson()),
           ),
@@ -290,16 +304,18 @@ class SmartRoutingEditorContent extends StatelessWidget {
     bool value,
     SmartRoutingEditorState state, {
     Widget? below,
+    String? description,
     String? help,
     bool divider = true,
   }) => RoutingSettingRow(
     icon: icon,
     title: title,
+    description: description,
     help: help,
     divider: divider,
     enabled: state.original != null && !state.busy,
     below: below,
-    trailing: Semantics(
+    leading: Semantics(
       label: title,
       child: AppSwitch(
         value: value,

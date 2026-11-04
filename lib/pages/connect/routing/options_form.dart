@@ -8,6 +8,7 @@ import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/service/connect/routing/options.dart';
 import 'package:onexray/pages/shared/widgets/app_switch.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 
 /// Ordinary routing forms edit business values, never generated Core JSON.
 class RoutingDnsSettingsForm extends StatelessWidget {
@@ -72,6 +73,7 @@ class RoutingDnsSettingsForm extends StatelessWidget {
         children: [
           RoutingCardHeader(
             title: l.routingDnsSettings,
+            icon: LucideIcons.network,
             help: [l.routingDnsSettingsHint, l.routingDnsSameExitOnlyHint],
           ),
           ?leading,
@@ -228,6 +230,7 @@ class RoutingSniffingSettingsForm extends StatelessWidget {
         children: [
           RoutingCardHeader(
             title: l.routingSniffingSettings,
+            icon: LucideIcons.scanSearch,
             help: [
               l.routingSniffingHint,
               l.routingSniffingRouteOnlyHint,
@@ -276,6 +279,7 @@ class RoutingSelectionSettingsForm extends StatelessWidget {
   final ValueChanged<RoutingSelectionSettings> onChanged;
   final bool enabled;
   final int entryCount;
+  final bool fullWidth;
 
   const RoutingSelectionSettingsForm({
     super.key,
@@ -283,6 +287,7 @@ class RoutingSelectionSettingsForm extends StatelessWidget {
     required this.onChanged,
     this.enabled = true,
     this.entryCount = 1,
+    this.fullWidth = false,
   });
 
   @override
@@ -292,20 +297,50 @@ class RoutingSelectionSettingsForm extends StatelessWidget {
       'roundRobin': l.routingSelectionRoundRobin,
       'leastPing': l.routingSelectionLeastPing,
     };
+    final picker = _OptionPicker(
+      semanticLabel: fullWidth ? l.routingSelectionModeLabel : null,
+      value: value.type,
+      labels: choices,
+      enabled: enabled,
+      onChanged: (selected) => onChanged(value.copyWith(type: selected)),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        RoutingSettingRow(
-          icon: LucideIcons.gitBranch,
-          title: l.routingSelectionStrategy,
-          help: l.routingSelectionHint,
-          below: _OptionPicker(
-            value: value.type,
-            labels: choices,
-            enabled: enabled,
-            onChanged: (selected) => onChanged(value.copyWith(type: selected)),
+        if (fullWidth)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l.routingSelectionModeLabel,
+                        style: AppTypography.fieldLabel.copyWith(
+                          color: ColorManager.palette(context).foreground,
+                        ),
+                      ),
+                    ),
+                    PageHelpButton(
+                      title: l.routingSelectionModeLabel,
+                      messages: [l.routingSelectionHint],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                picker,
+              ],
+            ),
+          )
+        else
+          RoutingSettingRow(
+            icon: LucideIcons.gitBranch,
+            title: l.routingSelectionStrategy,
+            help: l.routingSelectionHint,
+            below: picker,
           ),
-        ),
         if (value.type == 'leastPing') ...[
           if (entryCount < 2) _HelpPadding(text: l.routingSelectionSingleHint),
           _RoutingDetails(
@@ -378,7 +413,7 @@ class _OptionSwitch extends StatelessWidget {
     title: title,
     enabled: enabled,
     divider: divider,
-    trailing: Semantics(
+    leading: Semantics(
       label: title,
       child: AppSwitch(value: value, enabled: enabled, onChanged: onChanged),
     ),

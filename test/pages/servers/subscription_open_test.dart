@@ -9,6 +9,7 @@ import 'package:onexray/core/network/client.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/import/controller.dart';
 import 'package:onexray/pages/servers/import/page.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
@@ -56,10 +57,10 @@ void main() {
     addTearDown(controller.close);
     await _openMethods(tester, controller);
     final addSubscription = tester
-        .widget<OutlinedButton>(
-          find.widgetWithText(OutlinedButton, 'Add subscription'),
+        .widget<SettingRow>(
+          find.byKey(const ValueKey('server-import-choice-subscription')),
         )
-        .onPressed!;
+        .onTap!;
     await tester.runAsync(() async {
       final loaded = controller.stream.firstWhere(
         (state) => state.url == 'https://provider.example/list' && !state.busy,
@@ -67,7 +68,7 @@ void main() {
       await tester.tap(find.text('Import file'));
       await loaded.timeout(const Duration(seconds: 5));
     });
-    // Exercise the previous frame's enabled button before a form is rendered.
+    // Exercise the previous frame's enabled row before a form is rendered.
     addSubscription();
     await tester.runAsync(() async {
       recoveredPackageInfo.complete({
@@ -102,10 +103,10 @@ void main() {
       addTearDown(controller.close);
       await _openMethods(tester, controller);
       final addSubscription = tester
-          .widget<OutlinedButton>(
-            find.widgetWithText(OutlinedButton, 'Add subscription'),
+          .widget<SettingRow>(
+            find.byKey(const ValueKey('server-import-choice-subscription')),
           )
-          .onPressed!;
+          .onTap!;
       await tester.tap(find.text('Add subscription'));
       addSubscription();
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));

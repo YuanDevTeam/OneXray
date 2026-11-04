@@ -30,7 +30,7 @@ class RoutingFakeDnsRow extends StatelessWidget {
       help: l.routingFakeDnsHint,
       enabled: enabled,
       divider: divider,
-      trailing: Semantics(
+      leading: Semantics(
         label: l.routingFakeDns,
         child: AppSwitch(value: value, enabled: enabled, onChanged: onChanged),
       ),
@@ -61,7 +61,7 @@ class RoutingFragmentRow extends StatelessWidget {
       help: l.routingFragmentHint,
       enabled: enabled,
       divider: divider,
-      trailing: Semantics(
+      leading: Semantics(
         label: l.routingFragment,
         child: AppSwitch(value: value, enabled: enabled, onChanged: onChanged),
       ),
@@ -96,12 +96,14 @@ class RoutingCard extends StatelessWidget {
 
 class RoutingCardHeader extends StatelessWidget {
   final String title;
+  final IconData? icon;
   final String? description;
   final List<String> help;
 
   const RoutingCardHeader({
     super.key,
     required this.title,
+    this.icon,
     this.description,
     this.help = const [],
   });
@@ -109,6 +111,10 @@ class RoutingCardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = ColorManager.palette(context);
+    final titleText = Text(
+      title,
+      style: AppTypography.routingCardTitle.copyWith(color: palette.foreground),
+    );
     return SizedBox(
       width: double.infinity,
       child: Stack(
@@ -124,12 +130,23 @@ class RoutingCardHeader extends StatelessWidget {
                     constraints: const BoxConstraints(minHeight: 24),
                     child: Align(
                       alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        title,
-                        style: AppTypography.routingCardTitle.copyWith(
-                          color: palette.foreground,
-                        ),
-                      ),
+                      child: icon == null
+                          ? titleText
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Icon(
+                                    icon,
+                                    size: 19,
+                                    color: palette.primaryText,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(child: titleText),
+                              ],
+                            ),
                     ),
                   ),
                   if (description != null) ...[
@@ -213,6 +230,7 @@ class RoutingSearchField extends StatelessWidget {
 class RoutingSettingRow extends StatelessWidget {
   final IconData icon;
   final String title;
+  final Widget? leading;
   final String? description;
   final String? help;
   final String? value;
@@ -226,6 +244,7 @@ class RoutingSettingRow extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
+    this.leading,
     this.description,
     this.help,
     this.value,
@@ -297,7 +316,7 @@ class RoutingSettingRow extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(icon, size: 20, color: foreground),
+                          leading ?? Icon(icon, size: 20, color: foreground),
                           const SizedBox(width: 13),
                           Expanded(child: copy),
                         ],
@@ -329,7 +348,8 @@ class RoutingSettingRow extends StatelessWidget {
           else
             Row(
               children: [
-                Icon(icon, size: mobile ? 20 : 22, color: foreground),
+                leading ??
+                    Icon(icon, size: mobile ? 20 : 22, color: foreground),
                 const SizedBox(width: 13),
                 Expanded(flex: navigation ? 2 : 1, child: copy),
                 if (!mobile && value != null) ...[
@@ -400,8 +420,14 @@ class RoutingControlFrame extends StatelessWidget {
 class EntryCountPicker extends StatelessWidget {
   final int value;
   final ValueChanged<int>? onChanged;
+  final bool fullWidth;
 
-  const EntryCountPicker({super.key, required this.value, this.onChanged});
+  const EntryCountPicker({
+    super.key,
+    required this.value,
+    this.onChanged,
+    this.fullWidth = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -411,93 +437,115 @@ class EntryCountPicker extends StatelessWidget {
       34,
       platform: Theme.of(context).platform,
     );
-    return GestureDetector(
+
+    Widget segment(int count) => Semantics(
+      label: l.prototypeUseEntryServers(count),
+      selected: value == count,
+      button: true,
+      enabled: onChanged != null,
+      child: Tooltip(
+        message: l.prototypeUseEntryServers(count),
+        excludeFromSemantics: true,
+        child: SizedBox(
+          width: fullWidth ? null : extent,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onChanged == null ? null : () => onChanged!(count),
+              child: Container(
+                constraints: BoxConstraints(minHeight: extent),
+                decoration: BoxDecoration(
+                  color: value == count
+                      ? palette.selectedSurface
+                      : palette.muted,
+                  borderRadius: BorderRadiusDirectional.horizontal(
+                    start: Radius.circular(
+                      count == 1 ? AppRadii.control - 1 : 0,
+                    ),
+                    end: Radius.circular(count == 3 ? AppRadii.control - 1 : 0),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                foregroundDecoration: BoxDecoration(
+                  border: count < 3
+                      ? BorderDirectional(
+                          end: BorderSide(color: palette.border),
+                        )
+                      : null,
+                ),
+                child: Center(
+                  heightFactor: 1,
+                  child: ExcludeSemantics(
+                    child: Text(
+                      '$count',
+                      style: AppTypography.routingCount.copyWith(
+                        color: onChanged == null
+                            ? Theme.of(context).disabledColor
+                            : value == count
+                            ? palette.primaryText
+                            : palette.mutedStrong,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Widget picker(double segmentWidth) => GestureDetector(
       behavior: HitTestBehavior.opaque,
       excludeFromSemantics: true,
       onTapUp: onChanged == null
           ? null
           : (details) {
               final logicalX = Directionality.of(context) == TextDirection.rtl
-                  ? extent * 3 + 1 - details.localPosition.dx
+                  ? segmentWidth * 3 + 1 - details.localPosition.dx
                   : details.localPosition.dx - 1;
-              final segment = logicalX ~/ extent;
+              final index = logicalX ~/ segmentWidth;
               onChanged!(
-                segment < 0
+                index < 0
                     ? 1
-                    : segment > 2
+                    : index > 2
                     ? 3
-                    : segment + 1,
+                    : index + 1,
               );
             },
       child: RoutingControlFrame(
         clip: false,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
           children: [
             for (final count in const [1, 2, 3])
-              Semantics(
-                label: l.prototypeUseEntryServers(count),
-                selected: value == count,
-                button: true,
-                enabled: onChanged != null,
-                child: Tooltip(
-                  message: l.prototypeUseEntryServers(count),
-                  excludeFromSemantics: true,
-                  child: SizedBox(
-                    width: extent,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: onChanged == null
-                            ? null
-                            : () => onChanged!(count),
-                        child: Container(
-                          constraints: BoxConstraints(minHeight: extent),
-                          decoration: BoxDecoration(
-                            color: value == count
-                                ? palette.selectedSurface
-                                : palette.muted,
-                            borderRadius: BorderRadiusDirectional.horizontal(
-                              start: Radius.circular(
-                                count == 1 ? AppRadii.control - 1 : 0,
-                              ),
-                              end: Radius.circular(
-                                count == 3 ? AppRadii.control - 1 : 0,
-                              ),
-                            ),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 6),
-                          foregroundDecoration: BoxDecoration(
-                            border: count < 3
-                                ? BorderDirectional(
-                                    end: BorderSide(color: palette.border),
-                                  )
-                                : null,
-                          ),
-                          child: Center(
-                            heightFactor: 1,
-                            child: ExcludeSemantics(
-                              child: Text(
-                                '$count',
-                                style: AppTypography.routingCount.copyWith(
-                                  color: onChanged == null
-                                      ? Theme.of(context).disabledColor
-                                      : value == count
-                                      ? palette.primaryText
-                                      : palette.mutedStrong,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              if (fullWidth)
+                Expanded(child: segment(count))
+              else
+                segment(count),
           ],
         ),
       ),
+    );
+
+    if (!fullWidth) return picker(extent);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minimumWidth = extent * 3 + 2;
+        final availableWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : minimumWidth;
+        final width = availableWidth < minimumWidth
+            ? minimumWidth
+            : availableWidth;
+        final child = SizedBox(width: width, child: picker((width - 2) / 3));
+        return availableWidth < minimumWidth
+            ? SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: child,
+              )
+            : child;
+      },
     );
   }
 }
@@ -505,12 +553,52 @@ class EntryCountPicker extends StatelessWidget {
 class RoutingEntryCountRow extends StatelessWidget {
   final int value;
   final ValueChanged<int>? onChanged;
+  final bool fullWidth;
 
-  const RoutingEntryCountRow({super.key, required this.value, this.onChanged});
+  const RoutingEntryCountRow({
+    super.key,
+    required this.value,
+    this.onChanged,
+    this.fullWidth = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    if (fullWidth) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l.routingEntryCountLabel,
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: onChanged == null
+                          ? Theme.of(context).disabledColor
+                          : ColorManager.palette(context).foreground,
+                    ),
+                  ),
+                ),
+                PageHelpButton(
+                  title: l.routingEntryCountLabel,
+                  messages: [l.prototypeAutomaticEntryServersHint],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            EntryCountPicker(
+              value: value,
+              onChanged: onChanged,
+              fullWidth: true,
+            ),
+          ],
+        ),
+      );
+    }
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final picker = Align(

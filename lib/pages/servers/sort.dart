@@ -49,13 +49,30 @@ class ServerSortButton extends StatelessWidget {
 }
 
 class ManualGroupOrderButton extends StatelessWidget {
-  const ManualGroupOrderButton({super.key, required this.controller});
+  const ManualGroupOrderButton({
+    super.key,
+    required this.controller,
+    this.showLabel = false,
+  });
   final ServersController controller;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final searching = controller.query.trim().isNotEmpty;
+    final enabled = !searching && controller.catalog.manualGroups.length >= 2;
+    if (showLabel) {
+      return Tooltip(
+        message: searching ? l.manualOrderClearSearch : l.manualGroupOrder,
+        child: OutlinedButton.icon(
+          key: const ValueKey('manual-group-order'),
+          onPressed: enabled ? () => controller.openGroupOrder(context) : null,
+          icon: const Icon(LucideIcons.listOrdered, size: 17),
+          label: Text(l.manualGroupOrder),
+        ),
+      );
+    }
     return IconButton(
       key: const ValueKey('manual-group-order'),
       tooltip: searching ? l.manualOrderClearSearch : l.manualGroupOrder,

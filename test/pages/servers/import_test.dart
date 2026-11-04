@@ -19,6 +19,7 @@ import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:onexray/service/shared/db/config_writer.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
@@ -35,6 +36,44 @@ void main() {
     final bus = AppEventBus();
     addTearDown(bus.close);
   });
+
+  testWidgets(
+    'available import methods share one card and keep their real actions',
+    (tester) async {
+      _mobileViewport(tester);
+      final controller = ServerImportController(
+        loadSubscription: (_) async => null,
+      );
+      addTearDown(controller.close);
+      await tester.pumpWidget(_app(ServersImportPage(controller: controller)));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServersImportPage)),
+      )!;
+      expect(find.text(l.serverImportPageDescription), findsOneWidget);
+      expect(find.byType(ShadCard), findsOneWidget);
+      final card = find.byType(ShadCard);
+      for (final action in [
+        if (controller.supportsScan) ServerImportAction.scan,
+        ServerImportAction.paste,
+        ServerImportAction.subscription,
+        ServerImportAction.file,
+        ServerImportAction.json,
+      ]) {
+        final choice = find.byKey(
+          ValueKey('server-import-choice-${action.name}'),
+        );
+        expect(find.descendant(of: card, matching: choice), findsOneWidget);
+        expect(tester.widget<SettingRow>(choice).onTap, isNotNull);
+        expect(tester.widget<SettingRow>(choice).enabled, isTrue);
+      }
+      expect(
+        find.byType(SettingRow),
+        findsNWidgets(controller.supportsScan ? 5 : 4),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('manual JSON card keeps its input and add above the keyboard', (
     tester,
@@ -431,7 +470,7 @@ void main() {
       expect(controller.state.openingAction, isNull);
       expect(
         find.descendant(
-          of: find.widgetWithText(OutlinedButton, 'Import file'),
+          of: find.byKey(const ValueKey('server-import-choice-file')),
           matching: find.byType(ButtonProgressIndicator),
         ),
         findsOneWidget,
@@ -451,14 +490,11 @@ void main() {
     expect(urls.length, 3);
     expect(find.textContaining('HTTP 403'), findsNWidgets(3));
     expect(find.byType(ButtonProgressIndicator), findsNothing);
-    expect(
-      tester
-          .widget<OutlinedButton>(
-            find.widgetWithText(OutlinedButton, 'Import file'),
-          )
-          .onPressed,
-      isNotNull,
+    final fileChoice = tester.widget<SettingRow>(
+      find.byKey(const ValueKey('server-import-choice-file')),
     );
+    expect(fileChoice.enabled, isTrue);
+    expect(fileChoice.onTap, isNotNull);
     expect(tester.takeException(), isNull);
   });
 

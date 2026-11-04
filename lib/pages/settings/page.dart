@@ -124,13 +124,9 @@ class SettingsPage extends StatelessWidget {
                   dividerIndent: 0,
                   children: [
                     if (BackupService.supported)
-                      SettingRow(
-                        title: l10n.backupTitle,
-                        subtitle: l10n.backupPageDescription,
+                      SettingsBackupSummaryRow(
                         minHeight: rowHeight,
                         contentPadding: rowPadding,
-                        titleStyle: AppTypography.rowTitle,
-                        showChevron: true,
                         onTap: () => controller.openSetting(
                           context,
                           AppPageDestination.backup,
@@ -245,6 +241,39 @@ class SettingsPage extends StatelessWidget {
         );
       },
     ),
+  );
+}
+
+/// Observes the existing device-local binding; opening Settings does not load it.
+class SettingsBackupSummaryRow extends StatelessWidget {
+  const SettingsBackupSummaryRow({
+    super.key,
+    required this.onTap,
+    this.service,
+    this.minHeight,
+    this.contentPadding = const EdgeInsets.all(12),
+  });
+
+  final VoidCallback onTap;
+  final BackupService? service;
+  final double? minHeight;
+  final EdgeInsetsGeometry contentPadding;
+
+  @override
+  Widget build(BuildContext context) => BlocBuilder<BackupService, BackupState>(
+    bloc: service ?? BackupService(),
+    builder: (context, backup) {
+      final l = AppLocalizations.of(context)!;
+      return SettingRow(
+        title: l.backupTitle,
+        subtitle: backup.settings.target?.label ?? l.backupNotConfigured,
+        minHeight: minHeight,
+        contentPadding: contentPadding,
+        titleStyle: AppTypography.rowTitle,
+        showChevron: true,
+        onTap: onTap,
+      );
+    },
   );
 }
 

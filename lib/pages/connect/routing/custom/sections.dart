@@ -32,7 +32,7 @@ class _CustomRoutingSectionsState extends State<CustomRoutingSections> {
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
-    spacing: 16,
+    spacing: 20,
     children: [
       KeyedSubtree(key: _rules, child: widget.rules),
       if (widget.editor case final editor?)

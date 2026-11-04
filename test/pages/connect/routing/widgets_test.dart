@@ -29,6 +29,11 @@ void main() {
               children: [
                 RoutingCardHeader(title: 'Direct', help: ['Direct traffic']),
                 RoutingCardHeader(title: 'Proxy'),
+                RoutingCardHeader(
+                  title: 'Proxy with icon',
+                  icon: LucideIcons.gitBranch,
+                  help: ['Proxy traffic'],
+                ),
               ],
             ),
           ),
@@ -40,6 +45,11 @@ void main() {
         tester.getSize(headers.at(0)).height,
         tester.getSize(headers.at(1)).height,
       );
+      expect(
+        tester.getSize(headers.at(2)).height,
+        tester.getSize(headers.at(1)).height,
+      );
+      expect(find.byIcon(LucideIcons.gitBranch), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
@@ -99,6 +109,134 @@ void main() {
         semantics.dispose();
       }
     });
+
+    for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
+      testWidgets(
+        'full-width entry count maps border coordinates and disabled semantics on $platform ($direction)',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(320, 844);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.view.resetPhysicalSize);
+          final semantics = tester.ensureSemantics();
+          try {
+            var selected = 1;
+            var enabled = true;
+            late StateSetter update;
+            final changes = <int>[];
+            await tester.pumpWidget(
+              MaterialApp(
+                theme: AppTheme.light.copyWith(platform: platform),
+                localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: Builder(
+                  builder: (context) => MediaQuery(
+                    data: MediaQuery.of(context)
+                        .copyWith(textScaler: const TextScaler.linear(1.6)),
+                    child: Directionality(
+                      textDirection: direction,
+                      child: Scaffold(
+                        body: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: StatefulBuilder(
+                            builder: (context, setState) {
+                              update = setState;
+                              return RoutingCard(
+                                child: RoutingEntryCountRow(
+                                  value: selected,
+                                  fullWidth: true,
+                                  onChanged: enabled
+                                      ? (value) => setState(() {
+                                          selected = value;
+                                          changes.add(value);
+                                        })
+                                      : null,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+            await tester.pumpAndSettle();
+            final picker = find.byType(EntryCountPicker);
+            final l = AppLocalizations.of(tester.element(picker))!;
+            final rect = tester.getRect(picker);
+            final row = tester.getRect(find.byType(RoutingEntryCountRow));
+            expect(rect.width, closeTo(row.width - 36, .01));
+            final label = tester.getRect(find.text(l.routingEntryCountLabel));
+            expect(
+              direction == TextDirection.ltr ? label.left : label.right,
+              closeTo(
+                direction == TextDirection.ltr ? rect.left : rect.right,
+                .01,
+              ),
+            );
+            for (final count in [1, 2, 3]) {
+              final segment = tester.getRect(
+                find.bySemanticsLabel(l.prototypeUseEntryServers(count)),
+              );
+              expect(segment.width, greaterThanOrEqualTo(extent));
+              expect(segment.height, greaterThanOrEqualTo(extent));
+            }
+            final segmentWidth = (rect.width - 2) / 3;
+            for (
+              var physicalSegment = 0;
+              physicalSegment < 3;
+              physicalSegment++
+            ) {
+              // The 1px outline is outside the child InkWells: this exercises
+              // the outer coordinate mapping rather than the segment callback.
+              await tester.tapAt(
+                Offset(
+                  rect.left + 1 + segmentWidth * (physicalSegment + .5),
+                  rect.top + .5,
+                ),
+              );
+              await tester.pump();
+              expect(changes.length, physicalSegment + 1);
+              expect(
+                changes.last,
+                direction == TextDirection.rtl
+                    ? 3 - physicalSegment
+                    : physicalSegment + 1,
+              );
+            }
+            await tester.tap(find.text('2'));
+            await tester.pump();
+            expect(changes.length, 4);
+            expect(changes.last, 2);
+            update(() => enabled = false);
+            await tester.pump();
+            for (final count in [1, 2, 3]) {
+              final target = find.bySemanticsLabel(
+                l.prototypeUseEntryServers(count),
+              );
+              final flags = tester
+                  .getSemantics(target)
+                  .getSemanticsData()
+                  .flagsCollection;
+              expect(flags.isEnabled, Tristate.isFalse);
+              expect(
+                flags.isSelected,
+                count == 2 ? Tristate.isTrue : Tristate.isFalse,
+              );
+              await tester.tapAt(tester.getCenter(target));
+              await tester.pump();
+            }
+            expect(changes.length, 4);
+            expect(selected, 2);
+            expect(tester.takeException(), isNull);
+          } finally {
+            semantics.dispose();
+          }
+        },
+      );
+    }
   }
 
   for (final (locale, mobile) in const [
@@ -117,6 +255,8 @@ void main() {
         addTearDown(tester.view.resetPhysicalSize);
         var selected = false;
         var fragmentSelected = false;
+        var fakeDnsChanges = 0;
+        var fragmentChanges = 0;
         await tester.pumpWidget(
           MaterialApp(
             theme: AppTheme.material(Brightness.light, mobile: mobile),
@@ -138,13 +278,17 @@ void main() {
                         children: [
                           RoutingFakeDnsRow(
                             value: selected,
-                            onChanged: (value) =>
-                                setState(() => selected = value),
+                            onChanged: (value) => setState(() {
+                              selected = value;
+                              fakeDnsChanges++;
+                            }),
                           ),
                           RoutingFragmentRow(
                             value: fragmentSelected,
-                            onChanged: (value) =>
-                                setState(() => fragmentSelected = value),
+                            onChanged: (value) => setState(() {
+                              fragmentSelected = value;
+                              fragmentChanges++;
+                            }),
                           ),
                         ],
                       ),
@@ -179,13 +323,29 @@ void main() {
         );
         expect(tester.widget<ShadSwitch>(fakeDnsSwitch).value, false);
         expect(tester.widget<ShadSwitch>(fragmentSwitch).value, false);
+        final direction = Directionality.of(tester.element(fakeDnsSwitch));
+        for (final (control, title) in [
+          (fakeDnsSwitch, l.routingFakeDns),
+          (fragmentSwitch, l.routingFragment),
+        ]) {
+          final switchRect = tester.getRect(control);
+          final labelRect = tester.getRect(find.text(title));
+          expect(
+            direction == TextDirection.rtl
+                ? switchRect.left > labelRect.right
+                : switchRect.right < labelRect.left,
+            isTrue,
+          );
+        }
         await tester.tap(fakeDnsSwitch);
         await tester.pumpAndSettle();
         expect(selected, true);
+        expect(fakeDnsChanges, 1);
         expect(tester.widget<ShadSwitch>(fakeDnsSwitch).value, true);
         await tester.tap(fragmentSwitch);
         await tester.pumpAndSettle();
         expect(fragmentSelected, true);
+        expect(fragmentChanges, 1);
         expect(tester.widget<ShadSwitch>(fragmentSwitch).value, true);
         expect(tester.takeException(), isNull);
       },

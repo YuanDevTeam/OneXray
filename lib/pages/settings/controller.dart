@@ -76,6 +76,7 @@ class SettingsPageState {
 
 enum SettingsLink {
   documentation,
+  releaseNotes,
   review,
   community,
   feedback,
@@ -275,6 +276,9 @@ class SettingsController extends PageCubit<SettingsPageState> {
     emit(state.copyWith(clearFailure: true));
     final uri = switch (link) {
       SettingsLink.documentation => DocURLHelper.docUri(),
+      SettingsLink.releaseNotes => Uri.parse(
+        'https://github.com/YuanDevTeam/OneXray/releases',
+      ),
       SettingsLink.review => null,
       SettingsLink.community => Uri.parse('https://t.me/YuanDevTeam'),
       SettingsLink.feedback => Uri.parse(

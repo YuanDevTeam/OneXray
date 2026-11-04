@@ -9,6 +9,7 @@ import 'package:onexray/core/backup/storage.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/backup/page.dart';
+import 'package:onexray/pages/settings/page.dart';
 import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/settings/backup/existing_file_dialog.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
@@ -87,6 +88,57 @@ void main() {
       child: ShadToaster(child: child ?? const SizedBox.shrink()),
     ),
     home: BackupPage(service: service),
+  );
+
+  testWidgets(
+    'settings summary follows the existing backup binding without file operations',
+    (tester) async {
+      var opened = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(
+              width: 390,
+              child: SettingsBackupSummaryRow(
+                service: service,
+                onTap: () => opened++,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final context = tester.element(find.byType(SettingsBackupSummaryRow));
+      final l = AppLocalizations.of(context)!;
+      expect(find.text(l.backupNotConfigured), findsOneWidget);
+      final name =
+          'iCloud Drive / ${List.filled(12, 'long-folder/').join()}OneXray-backup.json';
+      preferences.settings = BackupSettings(
+        target: BackupTarget('summary-target', name),
+      );
+      await service.load();
+      await tester.pump();
+      final label = find.text(name);
+      expect(label, findsOneWidget);
+      expect(tester.widget<Text>(label).maxLines, 2);
+      expect(tester.widget<Text>(label).overflow, TextOverflow.ellipsis);
+      expect(find.text(l.backupNotConfigured), findsNothing);
+      await tester.tap(find.byType(SettingsBackupSummaryRow));
+      await tester.pump();
+      expect(opened, 1);
+      preferences.settings = const BackupSettings();
+      await service.load();
+      await tester.pump();
+      expect(find.text(l.backupNotConfigured), findsOneWidget);
+      expect(storage.selections, isEmpty);
+      expect(storage.reads, 0);
+      expect(storage.writes, 0);
+      expect(tester.takeException(), isNull);
+    },
   );
 
   for (final (label, width, scale, busy, locale) in [

@@ -16,6 +16,8 @@ import 'package:onexray/pages/settings/app_update/controller.dart';
 import 'package:onexray/pages/settings/desktop/controller.dart';
 import 'package:onexray/pages/settings/desktop/page.dart';
 import 'package:onexray/pages/settings/page.dart';
+import 'package:onexray/pages/settings/about/page.dart';
+import 'package:onexray/pages/settings/controller.dart';
 import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/settings/theme/page.dart';
@@ -548,6 +550,53 @@ void main() {
     expect(actions, ['later', 'skip', 'update']);
     expect(tester.takeException(), isNull);
   });
+
+  for (final success in [true, false]) {
+    testWidgets(
+      'About release notes uses the real releases link and launch feedback: $success',
+      (tester) async {
+        final urls = <String>[];
+        const channel = MethodChannel('plugins.flutter.io/url_launcher');
+        final messenger = tester.binding.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          final args = call.arguments as Map<Object?, Object?>;
+          urls.add(args['url'] as String);
+          return success;
+        });
+        addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        final bus = AppEventBus();
+        addTearDown(bus.close);
+        await tester.pumpWidget(
+          app(BlocProvider.value(value: bus, child: const AboutOneXrayPage())),
+        );
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(AboutOneXrayPage)),
+        )!;
+        final row = find.widgetWithText(SettingRow, l.prototypeReleaseNotes);
+        expect(row, findsOneWidget);
+        await tester.ensureVisible(row);
+        await tester.pumpAndSettle();
+        final controller = tester.element(row).read<SettingsController>();
+        await tester.tap(row);
+        await tester.pumpAndSettle();
+        expect(urls, ['https://github.com/YuanDevTeam/OneXray/releases']);
+        if (success) {
+          expect(controller.state.failure, isNull);
+        } else {
+          expect(
+            controller.state.failure,
+            'No application could open this link.',
+          );
+          expect(
+            find.textContaining('No application could open this link.'),
+            findsOneWidget,
+          );
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('failed update launch reports back after the dialog closes', (
     tester,

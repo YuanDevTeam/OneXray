@@ -12,6 +12,7 @@ import 'package:onexray/pages/servers/manual_group_dialogs.dart';
 import 'package:onexray/pages/servers/page.dart';
 import 'package:onexray/pages/servers/sources.dart';
 import 'package:onexray/pages/servers/view.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
@@ -242,6 +243,18 @@ void main() {
       await settle(tester);
       expect(find.byType(ServerManualGroupsPage), findsOneWidget);
       expect(find.text('Empty folder'), findsOneWidget);
+      expect(find.text(l.manualGroupsDescription), findsOneWidget);
+      expect(find.text(l.manualGroupsUngroupedFirst), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is SettingSection && w.title == l.manualGroupsTitle,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(OutlinedButton, l.manualGroupOrder),
+        findsOneWidget,
+      );
       router!.pop();
       await settle(tester);
       final sources = find.text(l.prototypeSubscriptions).first;

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
+import 'package:onexray/pages/servers/resource_json.dart';
 import 'package:onexray/pages/servers/subscription/user_info.dart';
 import 'package:onexray/pages/shared/share/params.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
@@ -141,39 +142,38 @@ class ServerResourcePage extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   SettingSection(
-                    title: raw
-                        ? l.xrayRawPageTitle
-                        : provider
-                        ? l.providerConfigurationTitle
-                        : l.serverNodesTab,
+                    title: l.serverResourceInformation,
                     padding: EdgeInsets.zero,
                     children: [
-                      SettingRow(
-                        title: name,
-                        subtitle: raw
-                            ? l.prototypeCompleteXrayConfiguration
-                            : controller.protocol(row),
-                        leading: Icon(
-                          raw || provider
-                              ? LucideIcons.fileJson
-                              : LucideIcons.server,
-                          size: 20,
+                      if (!raw && !provider)
+                        SettingRow(
+                          title: l.serverProtocol,
+                          value: controller.protocol(row),
+                          valueMaxLines: 3,
+                        )
+                      else
+                        SettingRow(
+                          title: name,
+                          subtitle: raw
+                              ? l.prototypeCompleteXrayConfiguration
+                              : l.providerConfigurationTitle,
+                          leading: const Icon(LucideIcons.fileJson, size: 20),
+                          titleTrailing: chosen
+                              ? Icon(
+                                  LucideIcons.circleCheck,
+                                  size: 16,
+                                  color: ColorManager.palette(context).primary,
+                                )
+                              : null,
                         ),
-                        titleTrailing: chosen
-                            ? Icon(
-                                LucideIcons.circleCheck,
-                                size: 16,
-                                color: ColorManager.palette(context).primary,
-                              )
-                            : null,
-                      ),
                       SettingRow(
                         title: l.prototypeSource,
-                        value: raw
+                        subtitle: raw
                             ? l.prototypeManualAdditions
                             : controller.sourceName(l, row),
+                        showChevron: row.subId != 0,
                         onTap: row.subId == 0
                             ? null
                             : () => context.pushScoped(
@@ -187,11 +187,11 @@ class ServerResourcePage extends StatelessWidget {
                       if (!raw && !provider)
                         SettingRow(
                           title: l.prototypeSpeedTest,
-                          value: controller.health(l, row),
+                          subtitle: controller.health(l, row),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   if (raw || provider) ...[
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -204,8 +204,14 @@ class ServerResourcePage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                   ],
+                  SettingSection(
+                    title: l.serverConfigurationJson,
+                    padding: EdgeInsets.zero,
+                    children: [ServerResourceJsonPreview(row: row)],
+                  ),
+                  const SizedBox(height: 20),
                   SettingSection(
                     title: l.prototypeMoreActions,
                     padding: EdgeInsets.zero,
@@ -348,37 +354,6 @@ class ServerSourcePage extends StatelessWidget {
                         ),
                       ),
                     ),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: busy
-                            ? null
-                            : () => controller.sourceAction(
-                                context,
-                                source,
-                                SourceAction.update,
-                              ),
-                        icon: busy
-                            ? const ButtonProgressIndicator()
-                            : const Icon(LucideIcons.refreshCw, size: 17),
-                        label: Text(l.prototypeCheckForUpdates),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: busy
-                            ? null
-                            : () => controller.sourceAction(
-                                context,
-                                source,
-                                SourceAction.edit,
-                              ),
-                        icon: const Icon(LucideIcons.pencil, size: 17),
-                        label: Text(l.prototypeEditSubscription),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
                   SettingSection(
                     title: l.prototypeSubscriptions,
                     padding: EdgeInsets.zero,
@@ -410,17 +385,48 @@ class ServerSourcePage extends StatelessWidget {
                             ? source.userAgent
                             : l.subscriptionUserAgentHint,
                       ),
+                      const SizedBox(height: 20),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          FilledButton.icon(
+                            onPressed: busy
+                                ? null
+                                : () => controller.sourceAction(
+                                    context,
+                                    source,
+                                    SourceAction.update,
+                                  ),
+                            icon: busy
+                                ? const ButtonProgressIndicator()
+                                : const Icon(LucideIcons.refreshCw, size: 17),
+                            label: Text(l.prototypeCheckForUpdates),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: busy
+                                ? null
+                                : () => controller.sourceAction(
+                                    context,
+                                    source,
+                                    SourceAction.edit,
+                                  ),
+                            icon: const Icon(LucideIcons.pencil, size: 17),
+                            label: Text(l.prototypeEditSubscription),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                   if (package != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     SettingSection(
                       title: '',
                       padding: EdgeInsets.zero,
                       children: [SubscriptionPackageDetails(info: package)],
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   SettingSection(
                     title: controller.providerSource(source)
                         ? l.providerConfigurationTitle
@@ -455,7 +461,7 @@ class ServerSourcePage extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   SettingSection(
                     title: l.prototypeMoreActions,
                     padding: EdgeInsets.zero,

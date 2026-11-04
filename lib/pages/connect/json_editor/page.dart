@@ -131,7 +131,7 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                             : l10n.prototypeEditRawJson,
                       ),
                       description: controller.advanced
-                          ? l10n.routingAdvancedSummary
+                          ? l10n.routingAdvancedDescription
                           : null,
                       leading: BackButton(
                         onPressed:
@@ -376,7 +376,7 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                     enabled: state.loaded,
                     style: AppTypography.rowValue,
                     decoration: InputDecoration(
-                      hintText: l10n.prototypeConfigurationName,
+                      hintText: l10n.configurationNameHint,
                       hintStyle: AppTypography.rowValue.copyWith(
                         color: palette.mutedForeground,
                       ),
