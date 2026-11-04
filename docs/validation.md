@@ -255,6 +255,7 @@ Pigeon、FFI、Drift 或本地化变更先生成对应输出；只改测试时�
 - 启动日志清理：Dart FFI 与 `bash tool/test_runtime_env.sh`、Android `RuntimeLogFilesTest` 覆盖两份托管文件、
   缺失幂等、符号链接/目录拒绝及旁侧文件保留；启动回归检查停止失败、旧 Core 残留和进程查询失败均保留旧日志。
   文件测试不替代各平台真实启动与原生 saved-start 验收。
+  日志查看器另覆盖同路径新文件大小等于或大于旧偏移、旧在途数据/错误回包、新连接边沿、同会话追加以及断开保留诊断。
 - Android Manifest/网络 XML 变更补跑 `./gradlew :app:lintVitalRelease`；
   发布相关修复还需本地 Release AAB 构建，不调用会上传商店的部署脚本。
 - 原生桥合同变更验证实际序列化/消费方与对应平台构建；

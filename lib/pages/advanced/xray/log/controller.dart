@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/advanced/xray/runtime_files.dart';
+import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:path/path.dart' as p;
 
@@ -57,32 +59,73 @@ class LogFileViewerController extends PageCubit<LogFileViewerPageState> {
   static const Duration _pollInterval = Duration(seconds: 1);
 
   final LogFileViewerParams params;
+  final ConnectionCoordinator _coordinator;
+  final Future<({Uint8List data, int offset, int size})?> Function(
+    String path, {
+    int offset,
+  })
+  _readLog;
 
   Timer? _timer;
+  late String? _runtimeIdentity;
+  late bool _connected;
+  int _readGeneration = 0;
   int _offset = 0;
   var _droppedContent = false;
   var _reading = false;
   List<int> _buffer = const [];
 
-  LogFileViewerController(this.params)
-    : super(LogFileViewerPageState(title: params.title)) {
+  LogFileViewerController(
+    this.params, {
+    ConnectionCoordinator? coordinator,
+    Future<({Uint8List data, int offset, int size})?> Function(
+      String path, {
+      int offset,
+    })?
+    readLog,
+  }) : _coordinator = coordinator ?? ConnectionCoordinator.instance,
+       _readLog = readLog ?? RuntimeDiagnosticFiles.readLog,
+       super(LogFileViewerPageState(title: params.title)) {
+    final connection = _coordinator.state.value;
+    _runtimeIdentity = connection.runtime?.identity;
+    _connected = connection.phase == ConnectionPhase.connected;
+    _coordinator.state.addListener(_connectionChanged);
     _poll();
     _timer = Timer.periodic(_pollInterval, (_) => _poll());
   }
 
+  void _connectionChanged() {
+    if (!isPageActive) return;
+    final connection = _coordinator.state.value;
+    final identity = connection.runtime?.identity;
+    final connected = connection.phase == ConnectionPhase.connected;
+    final newRuntime = identity != null && identity != _runtimeIdentity;
+    final enteredConnected = connected && !_connected;
+    _connected = connected;
+    // Stopping keeps the last session's diagnostics available at the same path.
+    if (identity != null) _runtimeIdentity = identity;
+    if (!newRuntime && !enteredConnected) return;
+    _readGeneration++;
+    _resetMissingFile();
+    unawaited(_poll());
+  }
+
+  bool _readIsCurrent(int generation) =>
+      isPageActive && generation == _readGeneration;
+
   Future<void> _poll() async {
     if (_reading || !isPageActive) return;
     _reading = true;
+    final generation = _readGeneration;
     try {
       var replace = !state.fileExists;
-      var chunk = await RuntimeDiagnosticFiles.readLog(
-        params.path,
-        offset: replace ? -1 : _offset,
-      );
+      var chunk = await _readLog(params.path, offset: replace ? -1 : _offset);
+      if (!_readIsCurrent(generation)) return;
       if (chunk != null &&
           !replace &&
           (chunk.size < _offset || chunk.size - _offset > _maxBufferBytes)) {
-        chunk = await RuntimeDiagnosticFiles.readLog(params.path);
+        chunk = await _readLog(params.path);
+        if (!_readIsCurrent(generation)) return;
         replace = true;
       }
       if (chunk == null) {
@@ -103,11 +146,13 @@ class LogFileViewerController extends PageCubit<LogFileViewerPageState> {
         truncated: replace ? _droppedContent : state.truncated,
       );
     } catch (error) {
+      if (!_readIsCurrent(generation)) return;
       // An unavailable file must not leave a stale successful view.
       _resetMissingFile();
       emit(state.copyWith(failure: error));
     } finally {
       _reading = false;
+      if (isPageActive && generation != _readGeneration) unawaited(_poll());
     }
   }
 
@@ -200,6 +245,8 @@ class LogFileViewerController extends PageCubit<LogFileViewerPageState> {
 
   @override
   Future<void> disposePageResources() async {
+    _readGeneration++;
+    _coordinator.state.removeListener(_connectionChanged);
     _timer?.cancel();
   }
 }
