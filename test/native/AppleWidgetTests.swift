@@ -244,7 +244,7 @@ final class AppleWidgetTests: XCTestCase {
                 }, stop: {
                     XCTFail("An old Toggle result must not stop a later run")
                     return .completed
-                }, commandGeneration: { admission.generation })
+                }, commandGeneration: { admission.invalidationGeneration })
                 let pending = Task { @MainActor in try await actions.perform(command) }
                 var iterator = queries.makeAsyncIterator()
                 _ = await iterator.next()
@@ -259,6 +259,53 @@ final class AppleWidgetTests: XCTestCase {
                 enteredQuery.finish()
             }
         }
+    }
+
+    @MainActor
+    func testSecondToggleQueryStopsTheStartAdmittedByFirstToggle() async throws {
+        defer { _ = AppleWidgetActionInbox.shared.takeAction() }
+        let admission = AppleVpnStartAdmission()
+        let (queries, enteredQuery) = AsyncStream<Int>.makeStream()
+        var replies: [CheckedContinuation<Void, Never>] = []
+        var starting = false
+        var starts = 0
+        var stops = 0
+        let actions = AppleWidgetVpnActions(readStatus: {
+            await withCheckedContinuation { continuation in
+                replies.append(continuation)
+                enteredQuery.yield(replies.count)
+            }
+            return starting ? .connecting : .disconnected
+        }, start: {
+            starts += 1
+            let generation = admission.begin()
+            admission.finishPreparation(generation)
+            starting = true
+            return .inProgress
+        }, stop: {
+            stops += 1
+            admission.invalidate()
+            starting = false
+            return .completed
+        }, commandGeneration: { admission.invalidationGeneration })
+        var iterator = queries.makeAsyncIterator()
+        let first = Task { @MainActor in try await actions.perform(.toggle) }
+        _ = await iterator.next()
+        let second = Task { @MainActor in try await actions.perform(.toggle) }
+        _ = await iterator.next()
+        replies[0].resume()
+        let firstResult = try await first.value
+        XCTAssertEqual(firstResult, .inProgress)
+        XCTAssertEqual(admission.generation, 1)
+        XCTAssertEqual(admission.invalidationGeneration, 0)
+        replies[1].resume()
+        let secondResult = try await second.value
+        XCTAssertEqual(secondResult, .completed)
+        XCTAssertEqual(starts, 1)
+        XCTAssertEqual(stops, 1)
+        XCTAssertFalse(starting)
+        XCTAssertEqual(admission.invalidationGeneration, admission.generation)
+        enteredQuery.finish()
     }
 
     @MainActor

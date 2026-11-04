@@ -13,6 +13,8 @@ final class AppleVpnStartAdmission {
     }
 
     private(set) var generation: UInt64 = 0
+    // Queries may observe a newer Start; only Stop/maintenance retires the command.
+    private(set) var invalidationGeneration: UInt64 = 0
     private var preparing: Set<UInt64> = []
     private var drainWaiters: [CheckedContinuation<Void, Never>] = []
     private var dartPreparations: [String: UInt64] = [:]
@@ -81,6 +83,10 @@ final class AppleVpnStartAdmission {
         guard isCurrent(token) else { throw CancellationError() }
     }
 
+    func checkInvalidation(_ token: UInt64) throws {
+        guard token == invalidationGeneration else { throw CancellationError() }
+    }
+
     func finishPreparation(_ token: UInt64) {
         preparing.remove(token)
         guard preparing.isEmpty else { return }
@@ -92,6 +98,7 @@ final class AppleVpnStartAdmission {
     @discardableResult
     func invalidate() -> [String] {
         generation &+= 1
+        invalidationGeneration = generation
         let invalidated = dartPreparations.keys.sorted()
         dartPreparations.removeAll()
         return invalidated

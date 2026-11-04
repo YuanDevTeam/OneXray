@@ -431,21 +431,21 @@ class VPNManager {
         return result
     }
 
-    var widgetCommandGeneration: UInt64 { startAdmission.generation }
+    var widgetCommandGeneration: UInt64 { startAdmission.invalidationGeneration }
 
     func readWidgetVpnStatus() async throws -> AppleWidgetStatus {
-        let generation = startAdmission.generation
+        let generation = startAdmission.invalidationGeneration
         do {
             #if !targetEnvironment(simulator)
             let current = try await findVpn()
-            try startAdmission.check(generation)
+            try startAdmission.checkInvalidation(generation)
             vpn = current
             #endif
             if stopTask != nil { return .disconnecting }
             if startAdmission.hasCurrentDartPreparation { return .connecting }
             if let active = activeStartGeneration, startAdmission.isCurrent(active) { return .connecting }
             let status = try await readStatus()
-            try startAdmission.check(generation)
+            try startAdmission.checkInvalidation(generation)
             let result: AppleWidgetStatus
             switch status ?? .invalid {
             case .connected: result = .connected
@@ -459,7 +459,7 @@ class VPNManager {
         } catch is CancellationError {
             throw CancellationError()
         } catch {
-            try startAdmission.check(generation)
+            try startAdmission.checkInvalidation(generation)
             AppleWidgetPublisher.publish(.unknown)
             throw error
         }
