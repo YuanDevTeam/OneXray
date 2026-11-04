@@ -920,7 +920,15 @@ void main() {
       );
       final controller = ServerImportController(
         service: service,
-        loadSubscription: (_) async => null,
+        loadSubscription: (_) async => SubscriptionData(
+          id: 7,
+          name: 'Provider',
+          url: 'https://provider.example/list',
+          timestamp: DateTime(2026),
+          panel: SubscriptionPanel.remnawave.name,
+          mode: SubscriptionMode.providerManaged.name,
+          hwidEnabled: false,
+        ),
       );
       addTearDown(controller.close);
       controller.text.text =
@@ -955,6 +963,14 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ServerImportPreviewPage), findsOneWidget);
       expect(find.text('1 subscriptions imported.'), findsOneWidget);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerImportPreviewPage)),
+      )!;
+      expect(
+        find.text('Provider: ${l.providerConfigurationCount(2)}'),
+        findsOneWidget,
+      );
+      expect(find.text('Provider: ${l.prototypeUsableNodes(2)}'), findsNothing);
       expect(find.text('Pending confirmation'), findsOneWidget);
       expect(find.text('Imported links'), findsNothing);
       expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
@@ -979,6 +995,142 @@ void main() {
       expect(result?.subscriptionCount, 1);
       expect(imported, 1);
       expect(writes, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final metadata in ['ordinary', 'missing', 'unavailable']) {
+    testWidgets(
+      'mixed import uses the committed subscription type or neutral feedback ($metadata)',
+      (tester) async {
+        ServerImportResult? result;
+        var writes = 0;
+        final controller = ServerImportController(
+          service: _ConfigurationImportService(
+            subscribe: (_) async => const SubscriptionInsertResult(
+              status: SubscriptionUpdateResult.success,
+              subId: 7,
+              count: 2,
+            ),
+            write: (_) async {
+              writes++;
+              throw StateError('Unconfirmed local content must not be saved');
+            },
+          ),
+          loadSubscription: (_) async {
+            if (metadata == 'unavailable') {
+              throw StateError('Subscription metadata is unavailable');
+            }
+            if (metadata == 'missing') {
+              return null;
+            }
+            return SubscriptionData(
+              id: 7,
+              name: 'Provider',
+              url: 'https://provider.example/list',
+              timestamp: DateTime(2026),
+              panel: SubscriptionPanel.generic.name,
+              mode: SubscriptionMode.appManaged.name,
+              hwidEnabled: false,
+            );
+          },
+        );
+        addTearDown(controller.close);
+        controller.text.text =
+            'https://provider.example/list#Provider\n${_rawLink()}';
+        await tester.pumpWidget(_wizard(controller, (value) => result = value));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Paste route'));
+        await tester.pumpAndSettle();
+        await _tapVisible(
+          tester,
+          find.widgetWithText(FilledButton, 'Import links'),
+        );
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerImportPreviewPage)),
+        )!;
+        expect(
+          find.text(
+            'Provider: ${metadata == "ordinary" ? l.prototypeUsableNodes(2) : l.prototypeSubscriptionSaved}',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Provider: ${l.providerConfigurationCount(2)}'),
+          findsNothing,
+        );
+        if (metadata != 'ordinary') {
+          expect(
+            find.text('Provider: ${l.prototypeUsableNodes(2)}'),
+            findsNothing,
+          );
+        }
+        await _tapVisible(tester, find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(result?.count, 2);
+        expect(result?.subscriptionCount, 1);
+        expect(writes, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'multiple subscription imports report sources without calling configurations nodes',
+    (tester) async {
+      ServerImportResult? result;
+      final controller = ServerImportController(
+        service: ServerImportService(
+          subscribe: (link) async => SubscriptionInsertResult(
+            status: SubscriptionUpdateResult.success,
+            subId: link.name == 'Provider' ? 7 : 8,
+            count: 2,
+          ),
+        ),
+        loadSubscription: (id) async => SubscriptionData(
+          id: id,
+          name: id == 7 ? 'Provider' : 'Ordinary',
+          url: 'https://provider.example/$id',
+          timestamp: DateTime(2026),
+          panel: SubscriptionPanel.generic.name,
+          mode:
+              (id == 7
+                      ? SubscriptionMode.providerManaged
+                      : SubscriptionMode.appManaged)
+                  .name,
+          hwidEnabled: false,
+        ),
+      );
+      addTearDown(controller.close);
+      controller.text.text = 'https://provider.example/configurations#Provider\nhttps://provider.example/nodes#Ordinary';
+      await tester.pumpWidget(_wizard(controller, (value) => result = value));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Paste route'));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerImportFormPage)),
+      )!;
+      await _tapVisible(
+        tester,
+        find.widgetWithText(FilledButton, 'Import links'),
+      );
+      await tester.pumpAndSettle();
+      expect(result?.count, 4);
+      expect(result?.subscriptionCount, 2);
+      expect(find.text(l.prototypeSubscriptionsImported(2)), findsOneWidget);
+      expect(find.text(l.prototypeUsableNodes(4)), findsNothing);
+      expect(
+        controller.state.subscriptionImportModes[7],
+        SubscriptionMode.providerManaged,
+      );
+      expect(
+        controller.state.subscriptionImportModes[8],
+        SubscriptionMode.appManaged,
+      );
+      expect(find.byType(ServerImportFormPage), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -1307,9 +1459,14 @@ void main() {
     },
   );
 
-  for (final exit in ['done', 'system', 'barrier']) {
+  for (final (nodeCount, exit) in [
+    (1, 'done'),
+    (1, 'system'),
+    (1, 'barrier'),
+    (0, 'done'),
+  ]) {
     testWidgets(
-      'partial local completion returns committed results without rewriting ($exit)',
+      '${nodeCount == 0 ? "failed" : "partial"} local completion returns committed results without rewriting ($exit)',
       (tester) async {
         _mobileViewport(tester);
         var writes = 0;
@@ -1333,7 +1490,8 @@ void main() {
         addTearDown(controller.close);
         final preview = ServerImportPreview(
           [
-            outboundCompanion({'tag': 'local', 'protocol': 'freedom'}),
+            if (nodeCount > 0)
+              outboundCompanion({'tag': 'local', 'protocol': 'freedom'}),
           ],
           geoData: [
             const OneXrayGeoDataLink(
@@ -1369,9 +1527,22 @@ void main() {
         await _tapVisible(tester, find.text('Confirm add'));
         await tester.pumpAndSettle();
         expect(find.text('Pending confirmation'), findsNothing);
-        expect(find.text('Imported links'), findsOneWidget);
-        expect(find.byIcon(LucideIcons.circleCheck), findsOneWidget);
-        expect(find.text('Servers added'), findsOneWidget);
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerImportPreviewPage)),
+        )!;
+        expect(find.text(l.importPreviewIncomplete), findsOneWidget);
+        expect(
+          find.text(l.importPreviewResultSummary(nodeCount, 1)),
+          findsOneWidget,
+        );
+        expect(find.text('Imported links'), findsNothing);
+        expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
+        expect(find.byIcon(LucideIcons.triangleAlert), findsOneWidget);
+        expect(
+          find.text('Servers added'),
+          nodeCount > 0 ? findsOneWidget : findsNothing,
+        );
+        expect(find.text(l.resultFailed), findsOneWidget);
         expect(find.text('Data source'), findsOneWidget);
         expect(find.text('Done'), findsOneWidget);
         expect(controller.state.committedResult?.writeFailureCount, 1);
@@ -1386,9 +1557,9 @@ void main() {
         }
         await tester.pumpAndSettle();
         expect(find.byType(ServerImportPreviewPage), findsNothing);
-        expect(result?.count, 1);
+        expect(result?.count, nodeCount);
         expect(result?.writeFailureCount, 1);
-        expect(writes, 1);
+        expect(writes, nodeCount);
         expect(downloads, 1);
         expect(
           Navigator.of(tester.element(find.text('Open'))).canPop(),

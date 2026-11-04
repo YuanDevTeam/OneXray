@@ -3,9 +3,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/xray/controller.dart';
+import 'package:onexray/pages/advanced/xray/fields.dart';
 import 'package:onexray/pages/advanced/xray/log/params.dart';
 import 'package:onexray/pages/shared/alert.dart';
-import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
@@ -41,16 +41,15 @@ class XrayLogSettingsPage extends StatelessWidget {
             !controller.loading &&
             controller.base != null &&
             !state.systemExtension;
-        Widget toggle(String title, String field, bool value) => SettingRow(
-          title: title,
-          trailing: AppSwitch(
-            value: value,
-            enabled: !controller.busy,
-            onChanged: controller.busy
-                ? null
-                : (value) => controller.setLog(field, value),
-          ),
-        );
+        Widget toggle(String title, String field, bool value, String hint) =>
+            XrayToggleField(
+              title: title,
+              description: hint,
+              value: value,
+              onChanged: controller.busy
+                  ? null
+                  : (value) => controller.setLog(field, value),
+            );
         return PopScope(
           canPop: !controller.busy,
           child: Scaffold(
@@ -103,11 +102,14 @@ class XrayLogSettingsPage extends StatelessWidget {
                                   l.prototypeRecordXrayLogs,
                                   'enabled',
                                   controller.logsEnabled,
+                                  l.xrayRecordLogsHint,
                                 ),
                                 if (controller.logsEnabled) ...[
-                                  SettingRow(
-                                    title: l.prototypeErrorLogLevel,
-                                    trailing: SettingSelect<String>(
+                                  const SizedBox(height: 12),
+                                  XrayLabeledField(
+                                    key: const ValueKey('xray-log-level-field'),
+                                    label: l.prototypeErrorLogLevel,
+                                    child: SettingSelect<String>(
                                       value: controller.level,
                                       textStyle: AppTypography.rowValue,
                                       entries: {
@@ -121,15 +123,18 @@ class XrayLogSettingsPage extends StatelessWidget {
                                           : controller.setLevel,
                                     ),
                                   ),
+                                  const SizedBox(height: 12),
                                   toggle(
                                     l.prototypeRecordDnsQueries,
                                     'recordDns',
                                     controller.recordDns,
+                                    l.xrayRecordDnsHint,
                                   ),
                                   toggle(
                                     l.prototypeHideLogIpAddresses,
                                     'maskIp',
                                     controller.maskIp,
+                                    l.xrayMaskLogIpHint,
                                   ),
                                 ],
                               ],

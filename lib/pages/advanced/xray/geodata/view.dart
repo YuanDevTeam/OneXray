@@ -10,6 +10,7 @@ import 'package:intl/intl.dart' show DateFormat;
 import 'package:onexray/service/advanced/xray/geodata/model.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 
 /// Pending declarations have no published size, timestamp or category page.
 class PendingGeoDataRow extends StatelessWidget {
@@ -31,34 +32,39 @@ class PendingGeoDataRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: palette.secondary,
-        borderRadius: BorderRadius.circular(AppRadii.control),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        spacing: 8,
-        children: [
-          Text(
-            '${row.name}.dat',
-            textDirection: TextDirection.ltr,
-            style: AppTypography.geodataValue,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingRow(
+          title: '${row.name}.dat',
+          titleTextDirection: TextDirection.ltr,
+          subtitleWidget: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 4,
+            children: [
+              Text(
+                Uri.tryParse(row.url)?.host ?? '',
+                textDirection: TextDirection.ltr,
+                style: AppTypography.supporting.copyWith(
+                  color: palette.mutedForeground,
+                ),
+              ),
+              Text(
+                l.geodataPendingDownload,
+                style: AppTypography.supporting.copyWith(
+                  color: palette.mutedForeground,
+                ),
+              ),
+            ],
           ),
-          Text(
-            Uri.tryParse(row.url)?.host ?? '',
-            textDirection: TextDirection.ltr,
-            style: AppTypography.geodataValue,
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.only(
+            start: 12,
+            end: 12,
+            bottom: 8,
           ),
-          Text(
-            l.geodataPendingDownload,
-            style: AppTypography.supporting.copyWith(
-              color: palette.mutedForeground,
-            ),
-          ),
-          Wrap(
+          child: Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
@@ -80,8 +86,8 @@ class PendingGeoDataRow extends StatelessWidget {
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -126,27 +132,28 @@ class GeoDataRows extends StatelessWidget {
       label: file.builtIn
           ? l.prototypeDefaultRoutingData
           : l.prototypeCustomRuleDataset(file.row.id),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 8,
-          children: [
-            _name(context, file),
-            Semantics(
-              label: l.prototypeSource,
-              child: Text(
-                file.sourceHost,
-                textDirection: TextDirection.ltr,
-                style: AppTypography.supporting.copyWith(
-                  color: palette.mutedForeground,
-                ),
-              ),
-            ),
-            Wrap(
-              spacing: 16,
-              runSpacing: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SettingRow(
+            title: file.fileName,
+            titleTextDirection: TextDirection.ltr,
+            onTap: () => onOpen(file),
+            showChevron: true,
+            subtitleWidget: Wrap(
+              spacing: 12,
+              runSpacing: 4,
               children: [
+                Semantics(
+                  label: l.prototypeSource,
+                  child: Text(
+                    file.sourceHost,
+                    textDirection: TextDirection.ltr,
+                    style: AppTypography.supporting.copyWith(
+                      color: palette.mutedForeground,
+                    ),
+                  ),
+                ),
                 Semantics(
                   label: l.prototypeSize,
                   child: Text(
@@ -170,44 +177,23 @@ class GeoDataRows extends StatelessWidget {
                 ),
               ],
             ),
-            if (custom)
-              Align(
+          ),
+          if (custom)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(
+                start: 12,
+                end: 12,
+                bottom: 8,
+              ),
+              child: Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: _actions(context, file),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
-
-  Widget _name(BuildContext context, GeoDataFile file) => TextButton(
-    style: TextButton.styleFrom(
-      alignment: AlignmentDirectional.centerStart,
-      minimumSize: Size(
-        0,
-        AppLayout.touchExtent(
-          MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
-              ? 48
-              : 42,
-          platform: Theme.of(context).platform,
-        ),
-      ),
-      padding: EdgeInsets.zero,
-      textStyle: AppTypography.rowTitle,
-      foregroundColor: ColorManager.palette(context).foreground,
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    ),
-    onPressed: () => onOpen(file),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Flexible(child: Text(file.fileName, textDirection: TextDirection.ltr)),
-        const SizedBox(width: 6),
-        const Icon(LucideIcons.chevronRightDir, size: 15),
-      ],
-    ),
-  );
 
   Widget _actions(BuildContext context, GeoDataFile file) {
     final l = AppLocalizations.of(context)!;

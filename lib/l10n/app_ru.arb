@@ -1090,5 +1090,13 @@
   "manualGroupsUngroupedFirst": "Узлы без группы всегда отображаются первыми.",
   "serverResourceInformation": "Информация о ресурсе",
   "serverProtocol": "Протокол",
-  "serverConfigurationJson": "JSON конфигурации"
+  "serverConfigurationJson": "JSON конфигурации",
+  "geodataAddDescription": "Добавьте источник HTTPS для правил GeoIP или GeoSite.",
+  "geodataValidatedBeforeAdding": "Перед сохранением источника ресурс скачивается и проверяется.",
+  "geodataCategoriesAndReferences": "Категории и ссылки",
+  "xrayRecordLogsHint": "Сохраняйте журналы ядра для диагностики проблем.",
+  "xrayRecordDnsHint": "Журналы могут содержать посещённые домены.",
+  "xrayMaskLogIpHint": "Скрывать IP-адреса в журналах.",
+  "importPreviewIncomplete": "Импорт завершён не полностью",
+  "importPreviewResultSummary": "Импортировано: {completed}. Не импортировано: {failed}."
 }

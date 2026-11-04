@@ -1090,5 +1090,13 @@
   "manualGroupsUngroupedFirst": "گره‌های بدون گروه همیشه در ابتدا نمایش داده می‌شوند.",
   "serverResourceInformation": "اطلاعات منبع",
   "serverProtocol": "پروتکل",
-  "serverConfigurationJson": "JSON پیکربندی"
+  "serverConfigurationJson": "JSON پیکربندی",
+  "geodataAddDescription": "یک منبع HTTPS برای قوانین GeoIP یا GeoSite اضافه کنید.",
+  "geodataValidatedBeforeAdding": "هنگام افزودن، منبع پس از دریافت و اعتبارسنجی فایل ذخیره می‌شود.",
+  "geodataCategoriesAndReferences": "دسته‌ها و ارجاع‌ها",
+  "xrayRecordLogsHint": "گزارش‌های هسته را برای عیب‌یابی ذخیره کنید.",
+  "xrayRecordDnsHint": "گزارش‌ها ممکن است شامل دامنه‌های بازدیدشده باشند.",
+  "xrayMaskLogIpHint": "نشانی‌های IP را در گزارش‌ها پنهان کنید.",
+  "importPreviewIncomplete": "واردسازی کامل نشد",
+  "importPreviewResultSummary": "واردشده: {completed}؛ ناموفق: {failed}."
 }

@@ -82,8 +82,6 @@ class _GeoDataPageState extends State<GeoDataPage> {
                                 28,
                               ),
                         children: [
-                          _intro(context, state, controller),
-                          const SizedBox(height: 20),
                           SettingSection(
                             title: l.prototypeDefaultRoutingData,
                             padding: EdgeInsets.zero,
@@ -129,16 +127,6 @@ class _GeoDataPageState extends State<GeoDataPage> {
                           SettingSection(
                             title: l.prototypeCustomRoutingData,
                             padding: EdgeInsets.zero,
-                            action: OutlinedButton.icon(
-                              style: _headingButtonStyle(context),
-                              onPressed: state.formBusy
-                                  ? null
-                                  : widget.openAdd == null
-                                  ? null
-                                  : () => widget.openAdd!(context),
-                              icon: const Icon(LucideIcons.plus, size: 16),
-                              label: Text(l.prototypeAddDataSource),
-                            ),
                             children: [
                               if (state.custom.isEmpty && state.pending.isEmpty)
                                 Padding(
@@ -192,8 +180,23 @@ class _GeoDataPageState extends State<GeoDataPage> {
                                     '${row.name}.dat: ${state.errors[row.id]}',
                                   ),
                               ],
+                              const SizedBox(height: 12),
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  style: _headingButtonStyle(context),
+                                  onPressed:
+                                      state.formBusy || widget.openAdd == null
+                                      ? null
+                                      : () => widget.openAdd!(context),
+                                  icon: const Icon(LucideIcons.plus, size: 16),
+                                  label: Text(l.prototypeAddDataSource),
+                                ),
+                              ),
                             ],
                           ),
+                          const SizedBox(height: 12),
+                          _updateActions(context, state, controller),
                         ],
                       ),
                     ),
@@ -204,30 +207,18 @@ class _GeoDataPageState extends State<GeoDataPage> {
     ),
   );
 
-  Widget _intro(
+  Widget _updateActions(
     BuildContext context,
     GeoDataPageState state,
     GeoDataController controller,
   ) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    final actions = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: mobile
-          ? CrossAxisAlignment.stretch
-          : CrossAxisAlignment.end,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FilledButton.icon(
-          style: mobile
-              ? FilledButton.styleFrom(
-                  minimumSize: const Size(0, 48),
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: AppTypography.geodataPrimaryAction,
-                )
-              : FilledButton.styleFrom(minimumSize: const Size(132, 42)),
+        OutlinedButton.icon(
+          style: _headingButtonStyle(context),
           onPressed: !state.canUpdateAll
               ? null
               : () => controller.updateAll(context),
@@ -241,14 +232,13 @@ class _GeoDataPageState extends State<GeoDataPage> {
         const SizedBox(height: 5),
         Text(
           l.prototypeHttpsOnly,
-          textAlign: mobile ? TextAlign.center : TextAlign.end,
+          textAlign: TextAlign.start,
           style: AppTypography.geodataValue.copyWith(
             color: palette.mutedForeground,
           ),
         ),
       ],
     );
-    return Align(alignment: AlignmentDirectional.centerEnd, child: actions);
   }
 
   ButtonStyle _headingButtonStyle(BuildContext context) {

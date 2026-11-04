@@ -3271,5 +3271,14 @@
   "manualGroupsUngroupedFirst": "Ungrouped always appears first.",
   "serverResourceInformation": "Resource information",
   "serverProtocol": "Protocol",
-  "serverConfigurationJson": "Configuration JSON"
+  "serverConfigurationJson": "Configuration JSON",
+  "geodataAddDescription": "Add an HTTPS source for GeoIP or GeoSite rules.",
+  "geodataValidatedBeforeAdding": "Adding downloads and validates the resource before saving its source.",
+  "geodataCategoriesAndReferences": "Categories and references",
+  "xrayRecordLogsHint": "Save core runtime logs to help diagnose problems.",
+  "xrayRecordDnsHint": "Logs may include the domains you visit.",
+  "xrayMaskLogIpHint": "Hide IP addresses in logs.",
+  "importPreviewIncomplete": "Import incomplete",
+  "importPreviewResultSummary": "Imported: {completed}. Failed: {failed}.",
+  "@importPreviewResultSummary": {"placeholders": {"completed": {"type": "int"}, "failed": {"type": "int"}}}
 }

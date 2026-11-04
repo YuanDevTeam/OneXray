@@ -67,6 +67,7 @@ class GeoDataAddPage extends StatelessWidget {
             appBar: PageAppBar.forPage(
               context,
               title: Text(l.prototypeAddDataSource),
+              description: l.geodataAddDescription,
               leading: BackButton(onPressed: cancel),
             ),
             body: SafeArea(
@@ -134,6 +135,13 @@ class GeoDataAddPage extends StatelessWidget {
                         placeholder: const Text(
                           'https://example.com/geoip.dat',
                         ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      l.geodataValidatedBeforeAdding,
+                      style: AppTypography.supporting.copyWith(
+                        color: palette.mutedForeground,
                       ),
                     ),
                     if (state.formError != null) ...[

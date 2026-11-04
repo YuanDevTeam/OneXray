@@ -23,6 +23,7 @@ class AppleWifiPage extends StatelessWidget {
         final controller = context.read<PolicyEditorController>();
         return PolicyDetailScaffold(
           title: l.prototypeWifiRules,
+          description: l.tunnelDetailDescription,
           controller: controller,
           canSave: !controller.wifiConflict,
           contentPadding: EdgeInsets.zero,

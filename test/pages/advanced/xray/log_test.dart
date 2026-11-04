@@ -6,6 +6,7 @@ import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/advanced/xray/controller.dart';
+import 'package:onexray/pages/advanced/xray/fields.dart';
 import 'package:onexray/pages/advanced/xray/log/settings.dart';
 import 'package:onexray/pages/advanced/xray/page.dart';
 import 'package:onexray/pages/theme/theme.dart';
@@ -203,6 +204,25 @@ void main() {
           expect(find.text(l.logsUnavailableSystemExtension), findsOneWidget);
           expect(viewerCalls, 0);
         } else {
+          final preference = find.byWidgetPredicate(
+            (widget) =>
+                widget is XrayToggleField &&
+                widget.title == l.prototypeRecordXrayLogs,
+          );
+          expect(preference, findsOneWidget);
+          expect(
+            tester.widget<XrayToggleField>(preference).description,
+            l.xrayRecordLogsHint,
+          );
+          final field = find.byKey(const ValueKey('xray-log-level-field'));
+          final select = find.descendant(
+            of: field,
+            matching: find.byType(SettingSelect<String>),
+          );
+          expect(
+            tester.getSize(select).width,
+            closeTo(tester.getSize(field).width, 1),
+          );
           expect(detail.dirty, isFalse);
           await tester.tap(find.widgetWithText(FilledButton, l.prototypeSave));
           await tester.pumpAndSettle();

@@ -48,6 +48,7 @@ class ServerImportPageState {
     Set<SubscriptionFormField> touchedSubscriptionFields = const {},
     this.jsonDiagnostic,
     List<ServerSubscriptionImport> subscriptionImports = const [],
+    Map<int, SubscriptionMode> subscriptionImportModes = const {},
     this.committedResult,
     this.ageExpanded = false,
     this.hasAgeKeys = false,
@@ -56,6 +57,7 @@ class ServerImportPageState {
     this.panel = SubscriptionPanel.generic,
     this.mode,
   }) : subscriptionImports = List.unmodifiable(subscriptionImports),
+       subscriptionImportModes = Map.unmodifiable(subscriptionImportModes),
        touchedSubscriptionFields = Set.unmodifiable(touchedSubscriptionFields);
 
   final String inputText;
@@ -77,6 +79,7 @@ class ServerImportPageState {
   final Set<SubscriptionFormField> touchedSubscriptionFields;
   final JsonDiagnostic? jsonDiagnostic;
   final List<ServerSubscriptionImport> subscriptionImports;
+  final Map<int, SubscriptionMode> subscriptionImportModes;
   final ServerImportResult? committedResult;
   final bool ageExpanded;
   final bool hasAgeKeys;
@@ -95,6 +98,17 @@ class ServerImportPageState {
   int get importedSubscriptionNodes => subscriptionImports
       .where((item) => item.result.success)
       .fold(0, (total, item) => total + item.result.count);
+
+  String subscriptionImportSummary(
+    AppLocalizations l10n,
+    ServerSubscriptionImport item,
+  ) => switch (subscriptionImportModes[item.result.subId]) {
+    SubscriptionMode.providerManaged => l10n.providerConfigurationCount(
+      item.result.count,
+    ),
+    SubscriptionMode.appManaged => l10n.prototypeUsableNodes(item.result.count),
+    null => l10n.prototypeSubscriptionSaved,
+  };
 
   ServerImportPageState copyWith({
     String? inputText,
@@ -116,6 +130,7 @@ class ServerImportPageState {
     Set<SubscriptionFormField>? touchedSubscriptionFields,
     Object? jsonDiagnostic = _unset,
     List<ServerSubscriptionImport>? subscriptionImports,
+    Map<int, SubscriptionMode>? subscriptionImportModes,
     Object? committedResult = _unset,
     bool? ageExpanded,
     bool? hasAgeKeys,
@@ -154,6 +169,8 @@ class ServerImportPageState {
         ? this.jsonDiagnostic
         : jsonDiagnostic as JsonDiagnostic?,
     subscriptionImports: subscriptionImports ?? this.subscriptionImports,
+    subscriptionImportModes:
+        subscriptionImportModes ?? this.subscriptionImportModes,
     committedResult: identical(committedResult, _unset)
         ? this.committedResult
         : committedResult as ServerImportResult?,
@@ -583,9 +600,29 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         pending,
         confirmOrdinary: (name) => _confirmOrdinary(context, name),
       );
+      final modes = Map<int, SubscriptionMode>.of(
+        state.subscriptionImportModes,
+      );
       for (var index = 0; index < results.length; index++) {
         if (results[index].result.success) {
           _completedSubscriptions[pending[index].url] = results[index];
+          final id = results[index].result.subId;
+          modes.remove(id);
+          if (id > 0) {
+            try {
+              final saved = await _loadSubscription(id);
+              final mode = saved == null
+                  ? null
+                  : SubscriptionMode.fromString(saved.mode);
+              if (mode != null) {
+                modes[id] = mode;
+              }
+            } catch (_) {
+              // The write already succeeded. Unavailable display metadata
+              // uses a neutral success message rather than guessing its type.
+            }
+            if (!isPageActive || !context.mounted) return null;
+          }
         }
       }
       emit(
@@ -594,6 +631,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
             ..._completedSubscriptions.values,
             ...results.where((item) => !item.result.success),
           ],
+          subscriptionImportModes: modes,
         ),
       );
     } finally {
@@ -629,7 +667,16 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       if (context.mounted) {
         ContextAlert.showToast(
           context,
-          AppLocalizations.of(context)!.prototypeUsableNodes(result.count),
+          state.importedSubscriptionCount == 1
+              ? state.subscriptionImportSummary(
+                  AppLocalizations.of(context)!,
+                  state.subscriptionImports.firstWhere(
+                    (item) => item.result.success,
+                  ),
+                )
+              : AppLocalizations.of(context)!.prototypeSubscriptionsImported(
+                  state.importedSubscriptionCount,
+                ),
         );
       }
     }

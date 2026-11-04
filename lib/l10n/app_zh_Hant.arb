@@ -1090,5 +1090,13 @@
   "manualGroupsUngroupedFirst": "未分組固定顯示在最前。",
   "serverResourceInformation": "資源資訊",
   "serverProtocol": "通訊協定",
-  "serverConfigurationJson": "設定 JSON"
+  "serverConfigurationJson": "設定 JSON",
+  "geodataAddDescription": "新增用於 GeoIP 或 GeoSite 規則的 HTTPS 資料來源。",
+  "geodataValidatedBeforeAdding": "新增時會下載並驗證資源，成功後才儲存來源。",
+  "geodataCategoriesAndReferences": "分類與引用",
+  "xrayRecordLogsHint": "儲存核心執行日誌，便於排查問題。",
+  "xrayRecordDnsHint": "日誌可能包含造訪的網域。",
+  "xrayMaskLogIpHint": "在日誌中隱藏 IP 位址。",
+  "importPreviewIncomplete": "匯入未完成",
+  "importPreviewResultSummary": "已匯入 {completed} 項，失敗 {failed} 項。"
 }

@@ -440,6 +440,14 @@ class ServerImportPreviewPage extends StatelessWidget {
         final l10n = AppLocalizations.of(context)!;
         final palette = ColorManager.palette(context);
         final committed = state.committedResult;
+        final incomplete = committed != null && committed.writeFailureCount > 0;
+        final completedCount = committed == null
+            ? 0
+            : committed.count +
+                  committed.rawCount +
+                  committed.customCount +
+                  committed.geoDataCount +
+                  preview.assets.length;
         final itemCount =
             preview.rows.length +
             preview.raw.length +
@@ -466,6 +474,8 @@ class ServerImportPreviewPage extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: committed == null
                         ? palette.card
+                        : incomplete
+                        ? palette.destructiveSurface
                         : palette.runningSurface,
                     border: committed == null
                         ? Border.all(color: palette.border)
@@ -478,10 +488,14 @@ class ServerImportPreviewPage extends StatelessWidget {
                       Icon(
                         committed == null
                             ? LucideIcons.list
+                            : incomplete
+                            ? LucideIcons.triangleAlert
                             : LucideIcons.circleCheck,
                         size: 26,
                         color: committed == null
                             ? palette.mutedStrong
+                            : incomplete
+                            ? palette.destructive
                             : palette.running,
                       ),
                       Expanded(
@@ -492,16 +506,23 @@ class ServerImportPreviewPage extends StatelessWidget {
                             Text(
                               committed == null
                                   ? l10n.importPreviewPending
+                                  : incomplete
+                                  ? l10n.importPreviewIncomplete
                                   : l10n.prototypeImportedLinks,
                               style: AppTypography.importSummary,
                             ),
                             Text(
-                              l10n.prototypeItemCount(itemCount),
+                              committed == null
+                                  ? l10n.prototypeItemCount(itemCount)
+                                  : l10n.importPreviewResultSummary(
+                                      completedCount,
+                                      committed.writeFailureCount,
+                                    ),
                               style: AppTypography.importSummaryMeta.copyWith(
                                 color: palette.mutedForeground,
                               ),
                             ),
-                            if (committed != null && preview.count > 0)
+                            if (committed != null && committed.count > 0)
                               Text(
                                 l10n.prototypeServersAdded,
                                 style: AppTypography.importSummaryMeta.copyWith(
@@ -551,7 +572,7 @@ class ServerImportPreviewPage extends StatelessWidget {
                             description: committed == null
                                 ? l10n.prototypeDataSource
                                 : committed.failedGeoData.contains(source)
-                                ? l10n.prototypeCannotReadContent
+                                ? l10n.resultFailed
                                 : l10n.prototypeGeodataAdded,
                             failed:
                                 committed?.failedGeoData.contains(source) ??
@@ -581,7 +602,9 @@ class ServerImportPreviewPage extends StatelessWidget {
                         Expanded(
                           child: _stat(
                             context,
-                            l10n.prototypeUsableNodes(preview.count),
+                            l10n.prototypeUsableNodes(
+                              committed?.count ?? preview.count,
+                            ),
                             committed: committed != null,
                           ),
                         ),
@@ -750,7 +773,7 @@ class _ImportFeedback extends StatelessWidget {
           for (final item in state.subscriptionImports)
             Text(
               item.result.success
-                  ? '${item.name}: ${l10n.prototypeUsableNodes(item.result.count)}'
+                  ? '${item.name}: ${state.subscriptionImportSummary(l10n, item)}'
                   : '${item.name}: ${ServerImportController.subscriptionError(l10n, item.result.status, error: item.result.error)}',
               style: AppTypography.importHint.copyWith(
                 color: item.result.success
