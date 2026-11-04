@@ -13,3 +13,16 @@
 "Unknown" = "未知";
 "Start" = "啟動";
 "Stop" = "停止";
+"VPN" = "VPN";
+"VPN status and background actions using the last prepared configuration." = "查看 VPN 狀態，使用上次已準備的設定在背景執行操作。";
+"Start or stop VPN in the background using the last prepared configuration." = "使用上次已準備的設定在背景啟動或停止 VPN。";
+"Start or stop VPN" = "啟動或停止 VPN";
+"Status pending" = "狀態待確認";
+"Open OneXray to finish setup." = "開啟 OneXray 完成設定。";
+"This VPN action must run in OneXray." = "此 VPN 操作必須在 OneXray 中執行。";
+"OneXray cannot open from this system control right now." = "目前無法從此系統控制項開啟 OneXray。";
+"VPN action failed." = "VPN 操作失敗。";
+"The VPN start was cancelled." = "VPN 啟動已取消。";
+"VPN start is temporarily unavailable while app data is being updated." = "App 資料更新期間暫時無法啟動 VPN。";
+"The VPN is still stopping." = "VPN 仍在停止中。";
+"Unable to confirm the current VPN status." = "無法確認目前的 VPN 狀態。";

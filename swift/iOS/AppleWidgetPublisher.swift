@@ -7,6 +7,9 @@ enum AppleWidgetPublisher {
         guard let store = AppleWidgetStore.shared,
               (try? store.writeStatus(status)) == true else { return }
         WidgetCenter.shared.reloadTimelines(ofKind: AppleWidgetStore.kind)
+        if #available(iOS 18.0, *) {
+            ControlCenter.shared.reloadControls(ofKind: AppleWidgetStore.controlKind)
+        }
     }
 
     static func setLanguage(_ code: String) throws {

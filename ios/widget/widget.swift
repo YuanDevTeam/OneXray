@@ -54,52 +54,93 @@ struct ConnectionWidget: Widget {
                 .widgetURL(connectionURL)
         }
         .configurationDisplayName(Text(verbatim: widgetText("Connection", language)))
-        .description(Text(verbatim: widgetText("VPN status and actions that open OneXray.", language)))
+        .description(Text(verbatim: widgetText(
+            AppleWidgetExecutionPolicy.usesBackgroundActions
+                ? "VPN status and background actions using the last prepared configuration."
+                : "VPN status and actions that open OneXray.",
+            language
+        )))
         .supportedFamilies(connectionWidgetFamilies)
     }
 }
 
-// Explicit commands never infer a target from the Widget's display snapshot.
-// Both controls use the same foreground App delivery as the Home Screen buttons.
 @available(iOS 18.0, *)
-struct StartVpnControl: ControlWidget {
-    var body: some ControlWidgetConfiguration {
-        let language = AppleWidgetStore.shared?.languageCode() ?? "en"
-        let title = LocalizedStringResource("Start VPN", table: "Widget", locale: Locale(identifier: language))
-        return StaticControlConfiguration(kind: "net.yuandev.onexray.start-vpn") {
-            ControlWidgetButton(action: StartVpnWidgetIntent()) {
-                Label {
-                    Text(title)
-                } icon: {
-                    Image(systemName: ConnectionWidgetAction.start.symbol)
-                }
-            }
-        }
-        .displayName(title)
-        .description(LocalizedStringResource(
-            "Open OneXray to perform this action.", table: "Widget", locale: Locale(identifier: language)
-        ))
+private struct VpnControlValue {
+    let status: AppleWidgetStatus
+    let languageCode: String
+}
+
+@available(iOS 18.0, *)
+private struct VpnControlValueProvider: ControlValueProvider {
+    var previewValue: VpnControlValue {
+        VpnControlValue(status: .unknown, languageCode: AppleWidgetStore.shared?.languageCode() ?? "en")
+    }
+
+    func currentValue() async throws -> VpnControlValue {
+        let store = AppleWidgetStore.shared
+        // Providers stay in the Widget extension. Re-evaluate expiry whenever
+        // the system requests a value; this is not a live NetworkExtension read.
+        return VpnControlValue(
+            status: store?.snapshot()?.displayedStatus(at: Date()) ?? .unknown,
+            languageCode: store?.languageCode() ?? "en"
+        )
     }
 }
 
 @available(iOS 18.0, *)
-struct StopVpnControl: ControlWidget {
+struct VpnControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         let language = AppleWidgetStore.shared?.languageCode() ?? "en"
-        let title = LocalizedStringResource("Stop VPN", table: "Widget", locale: Locale(identifier: language))
-        return StaticControlConfiguration(kind: "net.yuandev.onexray.stop-vpn") {
-            ControlWidgetButton(action: StopVpnWidgetIntent()) {
+        return StaticControlConfiguration(kind: AppleWidgetStore.controlKind, provider: VpnControlValueProvider()) { value in
+            ControlWidgetButton(action: ToggleVpnWidgetIntent()) {
                 Label {
-                    Text(title)
+                    Text("VPN")
                 } icon: {
-                    Image(systemName: ConnectionWidgetAction.stop.symbol)
+                    Image(systemName: controlSymbol(value.status))
                 }
+                .environment(\.locale, Locale(identifier: value.languageCode))
+                .environment(\.layoutDirection, value.languageCode == "fa" ? .rightToLeft : .leftToRight)
+                .controlWidgetStatus(Text(verbatim: widgetText(controlStatusKey(value.status), value.languageCode)))
+                .controlWidgetActionHint(Text(verbatim: widgetText("Start or stop VPN", value.languageCode)))
+                .accessibilityLabel(Text(verbatim: "VPN, \(widgetText(controlStatusKey(value.status), value.languageCode))"))
             }
+            // A button remains actionable for unknown and expired observations.
+            // The intent decides from current native state, never this snapshot.
+            .tint(value.status == .connected ? Color("WidgetSuccess") : nil)
         }
-        .displayName(title)
-        .description(LocalizedStringResource(
+        .displayName(LocalizedStringResource("VPN", table: "Widget", locale: Locale(identifier: language)))
+        .description(controlDescription(language: language))
+    }
+
+    private func controlDescription(language: String) -> LocalizedStringResource {
+        if AppleWidgetExecutionPolicy.usesBackgroundActions {
+            return LocalizedStringResource(
+                "Start or stop VPN in the background using the last prepared configuration.",
+                table: "Widget", locale: Locale(identifier: language)
+            )
+        }
+        return LocalizedStringResource(
             "Open OneXray to perform this action.", table: "Widget", locale: Locale(identifier: language)
-        ))
+        )
+    }
+
+    private func controlStatusKey(_ status: AppleWidgetStatus) -> String {
+        switch status {
+        case .unknown: "Status pending"
+        case .disconnected: "Disconnected"
+        case .connecting: "Connecting"
+        case .connected: "Connected"
+        case .disconnecting: "Disconnecting"
+        }
+    }
+
+    private func controlSymbol(_ status: AppleWidgetStatus) -> String {
+        switch status {
+        case .unknown: "questionmark.circle"
+        case .disconnected: "shield"
+        case .connecting, .disconnecting: "arrow.triangle.2.circlepath"
+        case .connected: "checkmark.shield"
+        }
     }
 }
 
@@ -415,9 +456,7 @@ private struct ConnectionWidgetPalette {
 }
 
 private func widgetText(_ key: String, _ language: String) -> String {
-    let path = Bundle.main.path(forResource: AppleWidgetLanguage.normalized(language), ofType: "lproj")
-    let bundle = path.flatMap(Bundle.init(path:)) ?? Bundle.main
-    return bundle.localizedString(forKey: key, value: key, table: "Widget")
+    AppleWidgetLocalization.text(key, languageCode: language)
 }
 
 struct ConnectionWidgetPreviews: PreviewProvider {
