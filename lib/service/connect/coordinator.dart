@@ -71,14 +71,27 @@ typedef PrepareConnection = Future<ConnectionRuntime> Function(
   Future<void>,
 );
 
+final class _NativePreparation {
+  String? token;
+  bool registering = false;
+  bool stoppedNatively = false;
+  final invalidatedDuringRegistration = <String>{};
+}
+
 /// All user/system-entry commands share one serial queue. No SQLite transaction
 /// remains open while awaiting a permission prompt, a probe or a native VPN.
 class ConnectionCoordinator with WidgetsBindingObserver {
   static final instance = ConnectionCoordinator();
   final AppDatabase db;
   late final PrepareConnection _prepare;
-  late final Future<HostConnection> Function(ConnectionRuntime, Future<void>)
+  late final Future<HostConnection> Function(
+    ConnectionRuntime,
+    Future<void>,
+    String?,
+  )
   _start;
+  late final Future<String?> Function() _beginPreparation;
+  late final Future<void> Function(String) _finishPreparation;
   late final Future<HostConnection> Function() _stop;
   late final InspectConnection _inspect;
   late final Future<ConnectionTraffic> Function(ConnectionRuntime) _readTraffic;
@@ -102,6 +115,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   int _trafficGeneration = 0;
   bool _commandActive = false;
   Completer<void>? _cancel;
+  _NativePreparation? _nativePreparation;
   ConnectionRuntime? _pendingRuntime;
   Set<int> _preparingNodeIds = {};
   bool _closed = false;
@@ -121,15 +135,22 @@ class ConnectionCoordinator with WidgetsBindingObserver {
     Stream<VpnStatus>? statusEvents,
     Future<void> Function()? observeStatus,
     void Function()? disposeStatus,
+    Future<String?> Function()? beginPreparation,
+    Future<void> Function(String)? finishPreparation,
   }) : db = database ?? AppDatabase(),
        _statusEvents =
            statusEvents ?? AppFlutterApi().vpnStatusController.stream,
        _observeStatus = observeStatus ?? AppHostApi().observeVpnStatus,
        _disposeStatus = disposeStatus ?? AppHostApi().disposeVpnStatus {
     final host = ConnectionRuntimeHost();
+    _beginPreparation =
+        beginPreparation ??
+        (start == null ? host.beginPreparation : () async => null);
+    _finishPreparation = finishPreparation ?? host.finishPreparation;
     _start = start == null
-        ? (runtime, cancelled) => host.start(runtime, cancelled: cancelled)
-        : (runtime, cancelled) => Future.any([
+        ? (runtime, cancelled, token) =>
+              host.start(runtime, cancelled: cancelled, preparationToken: token)
+        : (runtime, cancelled, _) => Future.any([
             start(runtime),
             cancelled.then<HostConnection>(
               (_) => throw const ConnectionHostException('cancelled'),
@@ -537,6 +558,8 @@ class ConnectionCoordinator with WidgetsBindingObserver {
           throw const ConnectionHostException('runtimeMetadataUnavailable');
         }
         bool touchedHost = false;
+        final preparation = _NativePreparation();
+        _nativePreparation = preparation;
         try {
           _preparingNodeIds = {...?old?.nodeIds};
           _checkCancelled(cancellation);
@@ -554,6 +577,23 @@ class ConnectionCoordinator with WidgetsBindingObserver {
             }
           }
           _checkCancelled(cancellation);
+          if (shouldStart) {
+            preparation.registering = true;
+            try {
+              preparation.token = await _beginPreparation();
+            } finally {
+              preparation.registering = false;
+            }
+            if (preparation.token != null &&
+                preparation.invalidatedDuringRegistration.contains(
+                  preparation.token,
+                )) {
+              preparation.stoppedNatively = true;
+              cancel();
+            }
+            preparation.invalidatedDuringRegistration.clear();
+            _checkCancelled(cancellation);
+          }
           if (!disconnect) {
             state.value = ConnectionView(
               phase: ConnectionPhase.preparing,
@@ -573,7 +613,11 @@ class ConnectionCoordinator with WidgetsBindingObserver {
               phase: ConnectionPhase.connecting,
               traffic: running.traffic,
             );
-            running = await _start(runtime, cancellation.future);
+            running = await _start(
+              runtime,
+              cancellation.future,
+              preparation.token,
+            );
             _checkCancelled(cancellation);
             if (!running.connected ||
                 running.runtime?.identity != runtime.identity) {
@@ -589,8 +633,18 @@ class ConnectionCoordinator with WidgetsBindingObserver {
           );
           _publish(running, issue: runtime?.notice);
         } catch (error, stack) {
+          if (error is NativePreparationCancelled) {
+            preparation.stoppedNatively = true;
+            cancel();
+          }
           HostConnection? failed;
-          if (touchedHost) {
+          if (preparation.stoppedNatively) {
+            try {
+              failed = await _inspect(await _currentRuntime());
+            } catch (_) {
+              // A later native start may already own the connection.
+            }
+          } else if (touchedHost) {
             try {
               failed = await _stop();
             } catch (_) {
@@ -607,7 +661,10 @@ class ConnectionCoordinator with WidgetsBindingObserver {
           final issue = cancellation.isCompleted
               ? 'cancelled'
               : connectionFailureReason(error);
-          if (touchedHost) {
+          if (preparation.stoppedNatively) {
+            _failureLatched = false;
+            if (failed != null) _publish(failed);
+          } else if (touchedHost) {
             final status = failed?.status;
             _failureLatched = true;
             state.value = ConnectionView(
@@ -634,9 +691,14 @@ class ConnectionCoordinator with WidgetsBindingObserver {
           }
           Error.throwWithStackTrace(error, stack);
         } finally {
+          if (identical(_nativePreparation, preparation)) {
+            _nativePreparation = null;
+          }
           _pendingRuntime = null;
           _preparingNodeIds = {};
           _cancel = null;
+          final token = preparation.token;
+          if (token != null) await _finishPreparation(token);
         }
       }
 
@@ -656,6 +718,20 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   void cancel() {
     _cancellationGeneration++;
     if (_cancel?.isCompleted == false) _cancel!.complete();
+  }
+
+  /// Native Stop already handled the tunnel; retire only its old Dart work.
+  void invalidatePreparations(Iterable<String> tokens) {
+    final preparation = _nativePreparation;
+    if (preparation == null) return;
+    if (preparation.registering) {
+      preparation.invalidatedDuringRegistration.addAll(tokens);
+      return;
+    }
+    if (preparation.token != null && tokens.contains(preparation.token)) {
+      preparation.stoppedNatively = true;
+      cancel();
+    }
   }
 
   void _checkConnectionRequest(int generation) {

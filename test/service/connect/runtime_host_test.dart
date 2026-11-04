@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
@@ -22,6 +23,74 @@ void main() {
     await fixtures.create(recursive: true);
     directory = await fixtures.createTemp('runtime-host-');
     addTearDown(() => directory.delete(recursive: true));
+  });
+
+  test('iOS submits its token and request without a Dart file write', () async {
+    final runtime = _runtime(platform: ConnectionPlatform.ios);
+    final host = ConnectionRuntimeHost(
+      writeStartFile: (_) async =>
+          fail('iOS writes belong to native admission'),
+      startPreparedVpn: (token, text) async {
+        expect(token, 'prepared-1');
+        expect(jsonDecode(text), runtime.request.toJson());
+        return NativeVpnCommandResult(
+          state: NativeVpnCommandState.success,
+          status: VpnStatus.connected,
+        );
+      },
+    );
+    expect(
+      (await host.start(runtime, preparationToken: 'prepared-1')).runtime,
+      same(runtime),
+    );
+  });
+
+  test(
+    'a native Stop during prepared submission never writes from Dart',
+    () async {
+      final file = File(p.join(directory.path, 'start.json'));
+      await file.writeAsString('previous input');
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final host = ConnectionRuntimeHost(
+        writeStartFile: (_) async => fail('The native commit owns this write'),
+        startPreparedVpn: (_, _) async {
+          entered.complete();
+          await release.future;
+          throw PlatformException(code: 'apple-preparation-cancelled');
+        },
+      );
+      final rejected = expectLater(
+        host.start(
+          _runtime(platform: ConnectionPlatform.ios),
+          preparationToken: 'retired',
+        ),
+        throwsA(isA<NativePreparationCancelled>()),
+      );
+      await entered.future;
+      expect(await file.readAsString(), 'previous input');
+      release.complete();
+      await rejected;
+      expect(await file.readAsString(), 'previous input');
+    },
+  );
+
+  test('iOS inspection uses system connection time only in memory', () async {
+    final runtime = _runtime(platform: ConnectionPlatform.ios);
+    final saved = runtime.request.toJson();
+    final connectedAt = runtime.startedAt.add(const Duration(minutes: 5));
+    final host = ConnectionRuntimeHost(
+      readStatus: () async => VpnStatus.connected,
+      connectedAtMilliseconds: () async => connectedAt.millisecondsSinceEpoch,
+    );
+    final observed = (await host.inspect(runtime)).runtime!;
+    expect(
+      observed.startedAt.millisecondsSinceEpoch,
+      connectedAt.millisecondsSinceEpoch,
+    );
+    expect(observed.request, same(runtime.request));
+    expect(runtime.request.toJson(), saved);
+    expect(observed.configuration, same(runtime.configuration));
   });
 
   test('cancelled file preparation never submits a native start', () async {

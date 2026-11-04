@@ -1,5 +1,28 @@
 import Foundation
 
+enum AppleWidgetCommand: Equatable, Sendable {
+    case start
+    case stop
+    case toggle
+}
+
+enum AppleWidgetCommandOutcome: Equatable, Sendable {
+    case completed
+    case inProgress
+    case needsForeground
+}
+
+/// Interactive Widget actions are available from iOS 17. Execution uses the
+/// background APIs provided by each OS; iOS 16 retains navigation-only links.
+enum AppleWidgetExecutionPolicy {
+    static var usesBackgroundActions: Bool {
+        #if os(iOS)
+        if #available(iOS 17.0, *) { return true }
+        #endif
+        return false
+    }
+}
+
 enum AppleWidgetStatus: String, Codable, Sendable {
     case unknown
     case disconnected
@@ -43,10 +66,20 @@ enum AppleWidgetLanguage {
     }
 }
 
+enum AppleWidgetLocalization {
+    static func text(_ key: String, languageCode: String? = nil) -> String {
+        let language = languageCode ?? AppleWidgetStore.shared?.languageCode() ?? "en"
+        let path = Bundle.main.path(forResource: AppleWidgetLanguage.normalized(language), ofType: "lproj")
+        let bundle = path.flatMap(Bundle.init(path:)) ?? Bundle.main
+        return bundle.localizedString(forKey: key, value: key, table: "Widget")
+    }
+}
+
 /// Separate files let the app change language without overwriting a tunnel event.
 struct AppleWidgetStore: Sendable {
     static let appGroup = "group.net.yuandev.onexray"
     static let kind = "net.yuandev.onexray.connection"
+    static let controlKind = "net.yuandev.onexray.vpn"
     let directory: URL
 
     static var shared: AppleWidgetStore? {

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EB2401000000000000000002 /* AppleWidgetVpnActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2401000000000000000001 /* AppleWidgetVpnActions.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -108,6 +109,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		EB2401000000000000000001 /* AppleWidgetVpnActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetVpnActions.swift; path = ../swift/iOS/AppleWidgetVpnActions.swift; sourceTree = SOURCE_ROOT; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
@@ -292,6 +294,7 @@
 				EB2400000000000000000011 /* AppleWidgetPublisher.swift */,
 				EB2400000000000000000012 /* AppleWidgetActionInbox.swift */,
 				EB2400000000000000000013 /* AppleWidgetIntents.swift */,
+				EB2401000000000000000001 /* AppleWidgetVpnActions.swift */,
 				EB2400000000000000000014 /* AppleWidgetApi.swift */,
 				EB2400000000000000000016 /* AppleVpnStartAdmission.swift */,
 				EB2400000000000000000020 /* Widget.strings */,
@@ -565,6 +568,7 @@
 				EB2400000000000000000104 /* AppleWidgetPublisher.swift in Sources */,
 				EB2400000000000000000106 /* AppleWidgetActionInbox.swift in Sources */,
 				EB2400000000000000000108 /* AppleWidgetIntents.swift in Sources */,
+				EB2401000000000000000002 /* AppleWidgetVpnActions.swift in Sources */,
 				EB240000000000000000010A /* AppleWidgetApi.swift in Sources */,
 				EB240000000000000000010C /* AppleVpnStartAdmission.swift in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
@@ -974,7 +978,7 @@
 				REGISTER_APP_GROUPS = YES;
 				SKIP_INSTALL = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited) ONEXRAY_WIDGET_EXTENSION";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -1031,6 +1035,7 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ONEXRAY_WIDGET_EXTENSION";
 			};
 			name = Release;
 		};
@@ -1076,6 +1081,7 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ONEXRAY_WIDGET_EXTENSION";
 			};
 			name = Profile;
 		};

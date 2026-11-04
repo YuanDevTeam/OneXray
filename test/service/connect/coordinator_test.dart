@@ -1219,6 +1219,191 @@ void main() {
     },
   );
 
+  test(
+    'native Stop retires paused preparation without stopping a later start',
+    () async {
+      final runtime = _runtime('prepared');
+      var host = const HostConnection(VpnStatus.disconnected);
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final finished = <String>[];
+      var registered = 0;
+      var preparations = 0;
+      var starts = 0;
+      var stops = 0;
+      late ConnectionCoordinator coordinator;
+      coordinator = await _initialize(
+        ConnectionCoordinator(
+          database: db,
+          readRuntime: () async => host.runtime,
+          inspect: (_, {observedStatus}) async => host,
+          beginPreparation: () async => 'token-${++registered}',
+          finishPreparation: (token) async => finished.add(token),
+          prepare: (_, _) async {
+            preparations++;
+            expect(
+              registered,
+              preparations,
+              reason: 'Register before preparing',
+            );
+            if (preparations == 1) {
+              entered.complete();
+              await release.future;
+            } else {
+              coordinator.invalidatePreparations(['token-1']);
+            }
+            return runtime;
+          },
+          start: (runtime) async {
+            starts++;
+            return host = HostConnection(VpnStatus.connected, runtime: runtime);
+          },
+          stop: () async {
+            stops++;
+            return host = const HostConnection(VpnStatus.disconnected);
+          },
+        ),
+      );
+      final original = (await coordinator.configuration).encode();
+      final rejected = expectLater(
+        coordinator.connect(),
+        throwsA(
+          isA<ConnectionHostException>().having(
+            (e) => e.reason,
+            'reason',
+            'cancelled',
+          ),
+        ),
+      );
+      await entered.future;
+      coordinator.invalidatePreparations(['token-1']);
+      release.complete();
+      await rejected;
+      expect(starts, 0);
+      expect(stops, 0, reason: 'The native Stop was already processed');
+      expect((await coordinator.configuration).encode(), original);
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      await coordinator.connect();
+      expect(starts, 1);
+      expect(stops, 0);
+      expect(coordinator.state.value.phase, ConnectionPhase.connected);
+      expect(finished, ['token-1', 'token-2']);
+    },
+  );
+
+  test('native invalidation arriving before token registration returns is retained', () async {
+    final registration = Completer<String?>();
+    final entered = Completer<void>();
+    final finished = <String>[];
+    var preparations = 0;
+    var starts = 0;
+    var stops = 0;
+    final coordinator = await _initialize(
+      ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => null,
+        inspect: (_, {observedStatus}) async =>
+            const HostConnection(VpnStatus.disconnected),
+        beginPreparation: () {
+          entered.complete();
+          return registration.future;
+        },
+        finishPreparation: (token) async => finished.add(token),
+        prepare: (_, _) async {
+          preparations++;
+          return _runtime('must-not-prepare');
+        },
+        start: (_) async {
+          starts++;
+          return const HostConnection(VpnStatus.connected);
+        },
+        stop: () async {
+          stops++;
+          return const HostConnection(VpnStatus.disconnected);
+        },
+      ),
+    );
+    final rejected = expectLater(
+      coordinator.connect(),
+      throwsA(
+        isA<ConnectionHostException>().having(
+          (e) => e.reason,
+          'reason',
+          'cancelled',
+        ),
+      ),
+    );
+    await entered.future;
+    coordinator.invalidatePreparations(['unrelated', 'pending-registration']);
+    registration.complete('pending-registration');
+    await rejected;
+    expect(preparations, 0);
+    expect(starts, 0);
+    expect(stops, 0);
+    expect(finished, ['pending-registration']);
+  });
+
+  test('native cancellation before its notification preserves a newer native connection', () async {
+    final prepared = _runtime('old-app-start');
+    final newer = _runtime('new-native-start');
+    var host = const HostConnection(VpnStatus.disconnected);
+    var stops = 0;
+    final coordinator = await _initialize(
+      ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => host.runtime,
+        inspect: (_, {observedStatus}) async => host,
+        beginPreparation: () async => 'old-token',
+        finishPreparation: (_) async {},
+        prepare: (_, _) async => prepared,
+        start: (_) async {
+          host = HostConnection(VpnStatus.connected, runtime: newer);
+          throw const NativePreparationCancelled();
+        },
+        stop: () async {
+          stops++;
+          return host = const HostConnection(VpnStatus.disconnected);
+        },
+      ),
+    );
+    final original = (await coordinator.configuration).encode();
+    await expectLater(
+      coordinator.connect(),
+      throwsA(isA<NativePreparationCancelled>()),
+    );
+    coordinator.invalidatePreparations(['old-token']);
+    expect(stops, 0);
+    expect(coordinator.state.value.phase, ConnectionPhase.connected);
+    expect(coordinator.state.value.runtime, newer);
+    expect((await coordinator.configuration).encode(), original);
+  });
+
+  test(
+    'blocked native registration fails before any Dart preparation',
+    () async {
+      var preparations = 0;
+      var finishes = 0;
+      final coordinator = await _initialize(
+        ConnectionCoordinator(
+          database: db,
+          readRuntime: () async => null,
+          inspect: (_, {observedStatus}) async =>
+              const HostConnection(VpnStatus.disconnected),
+          beginPreparation: () async => throw StateError('maintenance blocked'),
+          finishPreparation: (_) async => finishes++,
+          prepare: (_, _) async {
+            preparations++;
+            return _runtime('must-not-prepare');
+          },
+          start: (_) async => fail('Must not submit a blocked start'),
+        ),
+      );
+      await expectLater(coordinator.connect(), throwsStateError);
+      expect(preparations, 0);
+      expect(finishes, 0);
+    },
+  );
+
   for (final queuedApply in [false, true]) {
     test(
       'Stop cancels ${queuedApply ? 'queued apply' : 'connect'} before preparation',

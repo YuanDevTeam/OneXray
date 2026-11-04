@@ -179,6 +179,20 @@ class ConnectionRuntime {
     this.selectionFallback,
   });
 
+  ConnectionRuntime withStartedAt(DateTime value) => ConnectionRuntime._(
+    configuration: configuration,
+    platform: platform,
+    request: request,
+    xrayJson: xrayJson,
+    entries: entries,
+    finalExit: finalExit,
+    profile: profile,
+    rawName: rawName,
+    startedAt: value,
+    notice: notice,
+    selectionFallback: selectionFallback,
+  );
+
   factory ConnectionRuntime.create({
     required ConnectionConfiguration configuration,
     required CompiledConnection compiled,

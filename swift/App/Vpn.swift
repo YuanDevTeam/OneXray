@@ -30,8 +30,13 @@ class VPNManager {
     private var observedConnecting = false
     private var cancellable: Cancellable?
     private var statusObserver: VPNStatusCallback?
+    private var stopTask: Task<NativeVpnCommandResult, Never>?
     #if os(iOS)
-    private let startAdmission = AppleVpnStartAdmission()
+    private let startAdmission = AppleVpnStartAdmission(
+        startBlockedURL: FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId())?
+            .appendingPathComponent("vpn-start.blocked")
+    )
+    private var activeStartGeneration: UInt64?
     #endif
     #if os(macOS)
     private let systemExtensionActivation = SystemExtensionActivation()
@@ -360,6 +365,143 @@ class VPNManager {
         return result
     }
 
+    func connectedAtMilliseconds() -> Int64? {
+        #if targetEnvironment(simulator)
+        return nil
+        #else
+        guard let connection = vpn?.connection,
+              connection.status == .connected || connection.status == .reasserting,
+              let date = connection.connectedDate else { return nil }
+        return Int64(date.timeIntervalSince1970 * 1000)
+        #endif
+    }
+
+    #if os(iOS)
+    func requireStartAllowed() throws {
+        guard FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) != nil else {
+            throw VPNError.noGroupContainer
+        }
+        try startAdmission.requireStartAllowed()
+    }
+
+    func setStartBlocked(_ blocked: Bool) throws {
+        try startAdmission.setStartBlocked(blocked)
+        if blocked {
+            let tokens = startAdmission.invalidate()
+            AppleWidgetActionInbox.shared.recordNativeStop(invalidatedPreparations: tokens)
+        }
+    }
+
+    func beginDartPreparation() throws -> String {
+        try requireStartAllowed()
+        guard stopTask == nil else { throw CancellationError() }
+        return try startAdmission.beginDartPreparation()
+    }
+
+    func finishDartPreparation(token: String) {
+        startAdmission.finishDartPreparation(token: token)
+    }
+
+    func startPreparedVpn(token: String, requestJson: String) async throws -> NativeVpnCommandResult {
+        guard startAdmission.consumeDartPreparation(token: token) else { throw CancellationError() }
+        let request: StartVpnRequest
+        let generation: UInt64
+        do {
+            try requireStartAllowed()
+            guard stopTask == nil else { throw CancellationError() }
+            request = try JsonTool.decode(StartVpnRequest.self, from: requestJson)
+            guard request.coreInvokeText?.isEmpty == false else {
+                return NativeVpnCommandResult(state: .failed, message: "Missing Xray run configuration.")
+            }
+            guard let group = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) else {
+                throw VPNError.noGroupContainer
+            }
+            let file = group.appending(path: StartModelFile)
+            try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Data(requestJson.utf8).write(to: file, options: .atomic)
+            // No await separates token consumption, publication, and native admission.
+            generation = startAdmission.begin()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return NativeVpnCommandResult(state: .failed, message: error.localizedDescription)
+        }
+        let result = await startVpn(request: request, generation: generation)
+        try startAdmission.check(generation)
+        return result
+    }
+
+    var widgetCommandGeneration: UInt64 { startAdmission.generation }
+
+    func readWidgetVpnStatus() async throws -> AppleWidgetStatus {
+        let generation = startAdmission.generation
+        do {
+            #if !targetEnvironment(simulator)
+            let current = try await findVpn()
+            try startAdmission.check(generation)
+            vpn = current
+            #endif
+            if stopTask != nil { return .disconnecting }
+            if startAdmission.hasCurrentDartPreparation { return .connecting }
+            if let active = activeStartGeneration, startAdmission.isCurrent(active) { return .connecting }
+            let status = try await readStatus()
+            try startAdmission.check(generation)
+            let result: AppleWidgetStatus
+            switch status ?? .invalid {
+            case .connected: result = .connected
+            case .connecting, .reasserting: result = .connecting
+            case .disconnecting: result = .disconnecting
+            case .disconnected, .invalid: result = .disconnected
+            @unknown default: result = .unknown
+            }
+            AppleWidgetPublisher.publish(result)
+            return result
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            try startAdmission.check(generation)
+            AppleWidgetPublisher.publish(.unknown)
+            throw error
+        }
+    }
+
+    func startSavedVpnForWidget() async throws -> AppleWidgetCommandOutcome {
+        try requireStartAllowed()
+        if stopTask != nil { return .inProgress }
+        if startAdmission.hasCurrentDartPreparation { return .inProgress }
+        if let generation = activeStartGeneration, startAdmission.isCurrent(generation) { return .inProgress }
+        #if !targetEnvironment(simulator)
+        if vpn?.connection.status == .connected { return .completed }
+        if let status = vpn?.connection.status, [.connecting, .reasserting, .disconnecting].contains(status) {
+            return .inProgress
+        }
+        guard vpn != nil else { return .needsForeground }
+        #endif
+        guard let request = StartVpnRequest.startModel, request.coreInvokeText?.isEmpty == false else {
+            return .needsForeground
+        }
+        let generation = startAdmission.begin()
+        let result = await startVpn(request: request, generation: generation)
+        guard startAdmission.isCurrent(generation) else { return .inProgress }
+        return try widgetOutcome(result, wanted: .connected)
+    }
+
+    func stopVpnForWidget() async throws -> AppleWidgetCommandOutcome {
+        try widgetOutcome(await stopVpn(), wanted: .disconnected)
+    }
+
+    private func widgetOutcome(_ result: NativeVpnCommandResult, wanted: VpnStatus) throws -> AppleWidgetCommandOutcome {
+        switch result.state {
+        case .waitingForPlatformPermission: return .needsForeground
+        case .failed: throw AppleWidgetVpnActionError(message: result.message ?? "VPN action failed.")
+        case .success:
+            if result.status == wanted { return .completed }
+            if result.status == .connecting || result.status == .disconnecting { return .inProgress }
+            throw AppleWidgetVpnActionError(message: result.message ?? lastCommandError ?? "VPN action failed.")
+        }
+    }
+    #endif
+
     private func checkStartAdmission(_ generation: UInt64?) throws {
         #if os(iOS)
         if let generation { try startAdmission.check(generation) }
@@ -431,16 +573,40 @@ class VPNManager {
 
     func startVpn() async -> NativeVpnCommandResult {
         #if os(iOS)
+        do { try requireStartAllowed() }
+        catch { return NativeVpnCommandResult(state: .failed, message: error.localizedDescription) }
+        if stopTask != nil { return NativeVpnCommandResult(state: .failed, message: "The VPN is still stopping.") }
+        if let active = activeStartGeneration, startAdmission.isCurrent(active) {
+            return NativeVpnCommandResult(state: .success, status: .connecting)
+        }
+        #if !targetEnvironment(simulator)
+        if vpn?.connection.status == .connected { return NativeVpnCommandResult(state: .success, status: .connected) }
+        if let status = vpn?.connection.status, [.connecting, .reasserting].contains(status) {
+            return NativeVpnCommandResult(state: .success, status: .connecting)
+        }
+        #endif
         let generation: UInt64? = startAdmission.begin()
-        defer { finishStartPreparation(generation) }
         #else
         let generation: UInt64? = nil
         #endif
+        return await startVpn(request: StartVpnRequest.startModel, generation: generation)
+    }
+
+    private func startVpn(request: StartVpnRequest?, generation: UInt64?) async -> NativeVpnCommandResult {
+        #if os(iOS)
+        activeStartGeneration = generation
+        #endif
+        defer {
+            finishStartPreparation(generation)
+            #if os(iOS)
+            if activeStartGeneration == generation { activeStartGeneration = nil }
+            #endif
+        }
         lastCommandError = nil
         awaitingStart = true
         observedConnecting = false
-        guard let request = StartVpnRequest.startModel else {
-            lastCommandError = "Unable to read run/start.json."
+        guard let request, request.coreInvokeText?.isEmpty == false else {
+            lastCommandError = "Missing Xray run configuration."
             return await commandResult(.failed, startGeneration: generation)
         }
         #if targetEnvironment(simulator)
@@ -524,7 +690,19 @@ class VPNManager {
 
     func stopVpn() async -> NativeVpnCommandResult {
         #if os(iOS)
-        startAdmission.invalidate()
+        let tokens = startAdmission.invalidate()
+        AppleWidgetActionInbox.shared.recordNativeStop(invalidatedPreparations: tokens)
+        #endif
+        if let stopTask { return await stopTask.value }
+        let task = Task { @MainActor in await self.stopVpnCommand() }
+        stopTask = task
+        let result = await task.value
+        stopTask = nil
+        return result
+    }
+
+    private func stopVpnCommand() async -> NativeVpnCommandResult {
+        #if os(iOS)
         await startAdmission.waitForPreparation()
         #endif
         lastCommandError = nil
@@ -553,21 +731,26 @@ class VPNManager {
             }
         }
         #endif
-        if vpn == nil {
-            do {
-                vpn = try await findVpn()
-            } catch {
-                YGLog(error.localizedDescription)
-                lastCommandError = error.localizedDescription
-                return await commandResult(.failed)
-            }
-        }
-        guard let vpn = vpn else {
-            lastCommandError = VPNError.sessionNotReady.localizedDescription
+        do {
+            vpn = try await findVpn()
+        } catch {
+            lastCommandError = error.localizedDescription
             return await commandResult(.failed)
         }
+        guard let vpn = vpn else {
+            #if os(iOS)
+            AppleWidgetPublisher.publish(.disconnected)
+            #endif
+            runStatusObserver()
+            return NativeVpnCommandResult(state: .success, status: .disconnected)
+        }
         do {
-            try await saveVpn(vpn: vpn, tun: TunJson())
+            if vpn.isOnDemandEnabled || vpn.onDemandRules != nil {
+                vpn.isOnDemandEnabled = false
+                vpn.onDemandRules = nil
+                try await vpn.saveToPreferences()
+                try await vpn.loadFromPreferences()
+            }
         } catch {
             YGLog(error.localizedDescription)
             lastCommandError = error.localizedDescription
@@ -577,8 +760,12 @@ class VPNManager {
             guard let session = vpn.connection as? NETunnelProviderSession else {
                 throw VPNError.sessionNotReady
             }
-            try await waitForStatus(session: session, accepted: [.disconnected, .invalid], timeout: 15) {
-                session.stopTunnel()
+            if session.status == .disconnecting {
+                try await waitForStatus(session: session, accepted: [.disconnected, .invalid], timeout: 15)
+            } else if session.status != .disconnected && session.status != .invalid {
+                try await waitForStatus(session: session, accepted: [.disconnected, .invalid], timeout: 15) {
+                    session.stopTunnel()
+                }
             }
             runStatusObserver()
             return await commandResult(.success)
