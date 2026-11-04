@@ -126,12 +126,13 @@ Widget/Tile 的缺输入打开 App 回退不用于广播。
 
 ## iOS Widget 前台动作与链接
 
-iOS/iPadOS 17 起 Widget 的启动/停止使用不公开发现的前台 App Intent；App 内存接收动作，
+iOS/iPadOS 17 起 Widget、18 起控制中心的显式启动/停止使用不公开发现的前台 App Intent；App 内存接收动作，
 经原生桥交给既有快捷入口和连接协调器。冷启动与回前台均读取待处理动作，Shell 未就绪时保留最后一个动作，
 并抑制本次偏好自动连接；消费后清除，同类在途动作合并。较晚到达的停止会取消待执行启动，
 iOS 原生先排空配置准备写入再停止，不等待已提交启动的连接状态确认。
 输入仅限启动/停止，不接受配置参数、节点选择或通用 invoke，也不形成跨进程持久命令队列。
 它使用当前 App 选择，不复用 Android Widget/Tile 或 Apple 按需连接的 saved-start 路径。
+控制中心提供两个静态动作按钮，动作本身打开 App 后执行；不把点击按钮当作连接成功，也不从展示快照推断切换目标。
 
 Widget 唯一公开 URL 为 `onexray://widget/connect`，只打开连接页，不启停 VPN。
 带查询、fragment、端口、用户信息或其他路径的地址不进入 Widget 动作入口；启停不通过 URL 参数开放。

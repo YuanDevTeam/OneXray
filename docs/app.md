@@ -342,6 +342,8 @@ EXE/ZIP/Linux 的 Quit 先停止 VPN。需要停止的退出失败时保持 App 
 Android 设置页可请求固定 `home_widget`，不把请求完成当作已添加；Widget 展示状态、本次速率和流量，
 标题/数据打开 App，图标启停 VPN。Widget/Tile 直接复用已保存运行输入的边界见
 [运行协调与统计](xray-configuration.md#运行协调与统计)。外部自动化的授权与失败行为见 [外部接口](external-interfaces.md)。
+Android 快捷设置磁贴单击沿用启停；长按通过 `QS_TILE_PREFERENCES` 打开现有主 Activity，恢复当前页面。
+长按不提交快捷启动命令；普通冷启动仍尊重既有“启动时连接”偏好。
 
 ### iOS/iPadOS Widget
 
@@ -349,8 +351,9 @@ iOS/iPadOS 最低支持 16.0，连接 Widget 支持 `systemSmall`、`systemMediu
 `accessoryCircular`、`accessoryRectangular`，可添加位置由系统版本与设备决定。
 iOS/iPadOS 16 静态展示状态，点击打开连接页；
 17 起主屏幕小号/中号 Widget 增加显式“启动 VPN”“停止 VPN”，通过前台 App Intent 打开 App。
-锁屏两种 accessory 只导航。当前仅接入 Widget，不发布可发现的 Siri/App Shortcuts，
-也不提供 Control Widget 或 Live Activity。
+锁屏两种 accessory 只导航。18 起另提供“启动 VPN”“停止 VPN”两个控制中心动作按钮，
+说明明确会打开 OneXray；两者复用同一前台 App Intent，按当前连接计划执行，不显示连接态或根据过期快照反向切换。
+控制中心动作名称跟随 App 有效语言，语言变化后请求 Controls 刷新。当前不发布可发现的 Siri/App Shortcuts 或 Live Activity。
 
 主屏组件跟随系统浅深色，配色复用 App 色板，由 Widget 命名颜色资源统一管理；
 系统配置界面通过同一资源目录中的强调色和背景色匹配主题。小号居中展示状态，底部并排显示简短启停文案；

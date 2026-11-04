@@ -59,6 +59,50 @@ struct ConnectionWidget: Widget {
     }
 }
 
+// Explicit commands never infer a target from the Widget's display snapshot.
+// Both controls use the same foreground App delivery as the Home Screen buttons.
+@available(iOS 18.0, *)
+struct StartVpnControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        let language = AppleWidgetStore.shared?.languageCode() ?? "en"
+        let title = LocalizedStringResource("Start VPN", table: "Widget", locale: Locale(identifier: language))
+        return StaticControlConfiguration(kind: "net.yuandev.onexray.start-vpn") {
+            ControlWidgetButton(action: StartVpnWidgetIntent()) {
+                Label {
+                    Text(title)
+                } icon: {
+                    Image(systemName: ConnectionWidgetAction.start.symbol)
+                }
+            }
+        }
+        .displayName(title)
+        .description(LocalizedStringResource(
+            "Open OneXray to perform this action.", table: "Widget", locale: Locale(identifier: language)
+        ))
+    }
+}
+
+@available(iOS 18.0, *)
+struct StopVpnControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        let language = AppleWidgetStore.shared?.languageCode() ?? "en"
+        let title = LocalizedStringResource("Stop VPN", table: "Widget", locale: Locale(identifier: language))
+        return StaticControlConfiguration(kind: "net.yuandev.onexray.stop-vpn") {
+            ControlWidgetButton(action: StopVpnWidgetIntent()) {
+                Label {
+                    Text(title)
+                } icon: {
+                    Image(systemName: ConnectionWidgetAction.stop.symbol)
+                }
+            }
+        }
+        .displayName(title)
+        .description(LocalizedStringResource(
+            "Open OneXray to perform this action.", table: "Widget", locale: Locale(identifier: language)
+        ))
+    }
+}
+
 private struct ConnectionWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize

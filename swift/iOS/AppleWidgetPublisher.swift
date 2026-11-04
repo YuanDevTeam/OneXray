@@ -13,6 +13,9 @@ enum AppleWidgetPublisher {
         guard let store = AppleWidgetStore.shared else { return }
         if try store.writeLanguage(code) {
             WidgetCenter.shared.reloadTimelines(ofKind: AppleWidgetStore.kind)
+            if #available(iOS 18.0, *) {
+                ControlCenter.shared.reloadAllControls()
+            }
         }
     }
 }
