@@ -613,7 +613,8 @@ void main() {
       isTrue,
     );
     await service.remove(await service.previewRemoval(ids: {profile.id}));
-    expect(await service.rows(), isEmpty);
+    expect(await db.coreConfigDao.searchRow(profile.id), isNull);
+    expect(await db.coreConfigDao.allActiveServerRows(), isEmpty);
     expect(
       (await coordinator.configuration).connection.selection.kind,
       SelectionKind.automatic,

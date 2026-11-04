@@ -88,7 +88,6 @@ class OutboundInterfaceView extends StatelessWidget {
       final selected = controller.value['xrayOutboundInterfaceName'] as String;
       return PolicyDetailScaffold(
         title: l.prototypeXrayOutboundInterface,
-        description: l.tunnelDetailDescription,
         controller: controller,
         canSave:
             !controller.loading && !controller.failed && selected.isNotEmpty,

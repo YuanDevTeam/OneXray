@@ -20,7 +20,6 @@ import 'package:onexray/pages/settings/about/page.dart';
 import 'package:onexray/pages/settings/controller.dart';
 import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
-import 'package:onexray/pages/settings/theme/page.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/settings/app_update/service.dart';
 import 'package:onexray/service/shared/event_bus/enum.dart';
@@ -411,12 +410,12 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      app(ThemeChoiceView(selected: ThemeCode.dark, onSelected: (_) {})),
+      app(SettingsThemeOptions(selected: ThemeCode.dark, onSelected: (_) {})),
     );
     await tester.pump();
 
     final l = AppLocalizations.of(
-      tester.element(find.byType(ThemeChoiceView)),
+      tester.element(find.byType(SettingsThemeOptions)),
     )!;
     expect(find.text(l.themePageSystem), findsOneWidget);
     expect(find.text(l.themePageDark), findsOneWidget);
@@ -435,69 +434,6 @@ void main() {
           .variant,
       ShadButtonVariant.primary,
     );
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('theme selection stays a draft until Save persists and returns', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1200, 900));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final previousPreferences = SharedPreferencesAsyncPlatform.instance;
-    SharedPreferencesAsyncPlatform.instance =
-        InMemorySharedPreferencesAsync.empty();
-    addTearDown(
-      () => SharedPreferencesAsyncPlatform.instance = previousPreferences,
-    );
-    await PreferencesKey().saveThemeCode(ThemeCode.system.name);
-    final bus = AppEventBus();
-    addTearDown(bus.close);
-    final router = GoRouter(
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, _) => Scaffold(
-            body: TextButton(
-              onPressed: () => context.push('/theme'),
-              child: const Text('Open theme'),
-            ),
-          ),
-        ),
-        GoRoute(path: '/theme', builder: (_, _) => const ThemePage()),
-      ],
-    );
-    addTearDown(router.dispose);
-    await tester.pumpWidget(
-      MaterialApp.router(
-        theme: AppTheme.light,
-        routerConfig: router,
-        localizationsDelegates: AppLocalePolicy.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => ShadTheme(
-          data: ShadThemeData(colorScheme: const ShadBlueColorScheme.light()),
-          child: ShadToaster(child: child!),
-        ),
-      ),
-    );
-    await tester.tap(find.text('Open theme'));
-    await tester.pumpAndSettle();
-    final l = AppLocalizations.of(tester.element(find.byType(ThemePage)))!;
-    await tester.tap(find.text(l.themePageDark));
-    await tester.pumpAndSettle();
-    expect(
-      tester.widget<ThemeChoiceView>(find.byType(ThemeChoiceView)).selected,
-      ThemeCode.dark,
-    );
-    expect(bus.state.themeCode, ThemeCode.system);
-    expect(await PreferencesKey().readThemeCode(), ThemeCode.system.name);
-
-    await tester.tap(find.text(l.buttonSave));
-    await tester.pumpAndSettle();
-    expect(await PreferencesKey().readThemeCode(), ThemeCode.dark.name);
-    expect(bus.state.themeCode, ThemeCode.dark);
-    expect(find.byType(ThemePage), findsNothing);
-    expect(find.text('Open theme'), findsOneWidget);
-    expect(find.text(l.prototypeSettingsSaved), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

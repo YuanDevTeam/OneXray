@@ -53,10 +53,8 @@ class XrayLogSettingsPage extends StatelessWidget {
         return PopScope(
           canPop: !controller.busy,
           child: Scaffold(
-            appBar: PageAppBar.forPage(
-              context,
+            appBar: PageAppBar(
               title: Text(l.prototypeLogs),
-              description: l.pageXrayConfigurationDescription,
               leading: BackButton(onPressed: cancel),
               actions: [
                 PageHelpButton(

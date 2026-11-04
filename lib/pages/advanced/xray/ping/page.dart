@@ -33,10 +33,8 @@ class PingPage extends StatelessWidget {
             ? AppSpacing.mobilePage
             : AppSpacing.advancedDesktopGutter(width);
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(l.xrayLatencyTitle),
-            description: l.pageXrayConfigurationDescription,
             actions: [
               const AppActivityIndicator(downloading: false),
               PageHelpButton(

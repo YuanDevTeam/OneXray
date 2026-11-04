@@ -52,7 +52,7 @@ class _CustomRoutingRulePageState extends State<CustomRoutingRulePage> {
     return BlocProvider.value(
       value: controller,
       child: Scaffold(
-        appBar: PageAppBar.forPage(context, title: Text(l.prototypeEditRule)),
+        appBar: PageAppBar(title: Text(l.prototypeEditRule)),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(

@@ -79,7 +79,6 @@ enum AppPageDestination {
   backup("backup"),
   desktopSettings("desktop-settings"),
   appIcon("app-icon"),
-  theme("theme"),
   language("language"),
   aboutOneXray("about-onexray"),
   appUpdate("app-update");

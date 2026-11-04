@@ -6,6 +6,7 @@ import 'package:drift/native.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/core/db/database/constants.dart';
@@ -18,6 +19,7 @@ import 'package:onexray/pages/servers/menus.dart';
 import 'package:onexray/pages/servers/subscription/user_info.dart';
 import 'package:onexray/pages/servers/view.dart';
 import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
@@ -47,18 +49,13 @@ class _Controller extends ServersController {
     super.ping,
   });
 
-  bool? browsedOnMobile;
+  int groupBrowseCount = 0;
   bool helpOpened = false;
   bool addOpened = false;
 
   @override
-  Future<void> browse(
-    BuildContext context,
-    ServerGroup group, {
-    required bool mobile,
-  }) async {
-    browsedOnMobile = mobile;
-    activeGroupId = group.id;
+  Future<void> browse(BuildContext context, ServerGroup group) async {
+    groupBrowseCount++;
   }
 
   @override
@@ -112,6 +109,13 @@ CoreConfigData _server(int id, {bool favorite = false, String? name}) =>
     );
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    // Keep narrow-page geometry faithful to the existing production font.
+    final font = FontLoader(AppFontFamily.sans)
+      ..addFont(rootBundle.load('packages/shadcn_ui/fonts/Geist[wght].ttf'));
+    await font.load();
+  });
   late AppDatabase db;
   late ConnectionCoordinator coordinator;
   late _Controller controller;
@@ -162,7 +166,6 @@ void main() {
             ? ServerGroupView(
                 controller: controller,
                 group: controller.groups(AppLocalizations.of(context)!).first,
-                embedded: groupViewport != null,
               )
             : ServerBrowser(controller: controller, scroll: scroll);
         return groupViewport == null
@@ -700,16 +703,12 @@ void main() {
   );
 
   testWidgets(
-    'short embedded group scrolls an expanded diagnostic through its last line',
+    'short group page scrolls an expanded diagnostic through its last line',
     (tester) async {
       controller.servers = [_server(1)];
-      await pumpBrowser(
-        tester,
-        956,
-        height: 440,
-        groupPage: true,
-        groupViewport: const Size(280, 180),
-      );
+      // The manual group now occupies a complete content page. Model its
+      // actual narrow viewport rather than the retired desktop embedded pane.
+      await pumpBrowser(tester, 280, height: 180, groupPage: true);
       const tail = 'Original native diagnostic ends here.';
       final diagnostic = [
         'Head "https://example.test/": context deadline exceeded',
@@ -828,68 +827,77 @@ void main() {
     });
   }
 
-  testWidgets('source updates refresh package UI without restricting use', (
-    tester,
-  ) async {
-    final source = SubscriptionData(
-      panel: 'generic',
-      mode: 'appManaged',
-      id: 1,
-      name: 'Provider',
-      url: 'https://example.test/subscription',
-      hwidEnabled: false,
-      timestamp: DateTime(2026, 9, 1),
-    );
-    controller.sources = [source];
-    controller.servers = [
-      _server(1).copyWith(
-        subId: 1,
-        data: outboundCompanion({'tag': 'Node 1', 'protocol': 'vless'}).data,
-      ),
-    ];
-    await pumpBrowser(tester, 390, groupPage: true);
-    expect(find.byType(SubscriptionPackageDetails), findsNothing);
-    expect(
-      tester
-          .widget<OutlinedButton>(
-            find.descendant(
-              of: find.byType(ServerUseButton),
-              matching: find.byType(OutlinedButton),
-            ),
-          )
-          .onPressed,
-      isNotNull,
-    );
-    controller.sources = [
-      source.copyWith(
-        uploadBytes: const Value(1024),
-        downloadBytes: const Value(2048),
-        totalBytes: const Value(1024),
-        expireTimestamp: const Value(1),
-        userInfoUpdatedAt: Value(DateTime(2026, 9, 2)),
-      ),
-    ];
-    await tester.pumpAndSettle();
-    expect(find.byType(SubscriptionPackageDetails), findsOneWidget);
-    final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
-    expect(find.textContaining(l.subscriptionPackageExpired), findsOneWidget);
-    expect(
-      tester
-          .widget<OutlinedButton>(
-            find.descendant(
-              of: find.byType(ServerUseButton),
-              matching: find.byType(OutlinedButton),
-            ),
-          )
-          .onPressed,
-      isNotNull,
-    );
-    controller.sources = [source];
-    await tester.pumpAndSettle();
-    expect(find.byType(SubscriptionPackageDetails), findsNothing);
-    expect(find.byType(ServerNodeRow), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'source details refresh package information without restricting node use',
+    (tester) async {
+      final source = SubscriptionData(
+        panel: 'generic',
+        mode: 'appManaged',
+        id: 1,
+        name: 'Provider',
+        url: 'https://example.test/subscription',
+        hwidEnabled: false,
+        timestamp: DateTime(2026, 9, 1),
+      );
+      controller.sources = [source];
+      controller.servers = [_server(1).copyWith(subId: 1)];
+      await pumpBrowser(tester, 390, routed: true);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerBrowser)),
+      )!;
+      await tester.ensureVisible(find.text(l.prototypeSubscriptions).first);
+      await tester.tap(find.text(l.prototypeSubscriptions).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(source.name));
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerSourcePage), findsOneWidget);
+      expect(find.byType(SubscriptionPackageDetails), findsNothing);
+      controller.sources = [
+        source.copyWith(
+          uploadBytes: const Value(1024),
+          downloadBytes: const Value(2048),
+          totalBytes: const Value(1024),
+          expireTimestamp: const Value(1),
+          userInfoUpdatedAt: Value(DateTime(2026, 9, 2)),
+        ),
+      ];
+      await tester.pumpAndSettle();
+      expect(find.byType(SubscriptionPackageDetails), findsOneWidget);
+      expect(find.textContaining(l.subscriptionPackageExpired), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Node 1'),
+        240,
+        scrollable: find
+            .descendant(
+              of: find.byType(ServerSourcePage),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.text('Node 1'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerResourcePage), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, l.prototypeUse),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      controller.sources = [source];
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.widgetWithText(FilledButton, l.prototypeUse),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   for (final brightness in Brightness.values) {
     for (final width in [427.0, 1160.0]) {
@@ -974,18 +982,7 @@ void main() {
     testWidgets('group test can be cancelled without locking menus at $width', (
       tester,
     ) async {
-      controller.sources = [
-        SubscriptionData(
-          panel: 'generic',
-          mode: 'appManaged',
-          id: 4,
-          name: 'Source',
-          hwidEnabled: false,
-          url: 'https://example.test/sub',
-          timestamp: DateTime(2026),
-        ),
-      ];
-      controller.servers = [_server(1).copyWith(subId: 4)];
+      controller.servers = [_server(1)];
       await pumpBrowser(tester, width, groupPage: true);
       final l = AppLocalizations.of(
         tester.element(find.byType(ServerGroupView)),
@@ -1000,11 +997,11 @@ void main() {
         ),
       );
       AppEventBus.instance.updatePinging(true);
-      expect(controller.testingGroup(group), isTrue);
+      expect(controller.testingGroup(group.id), isTrue);
       await tester.pump();
       await tester.pump();
 
-      for (final menu in [find.byType(ServerMenu), find.byType(SourceMenu)]) {
+      for (final menu in [find.byType(ServerMenu)]) {
         for (final element in menu.evaluate()) {
           final button = tester.widget<IconButton>(
             find.descendant(
@@ -1021,7 +1018,7 @@ void main() {
       await tester.tap(find.widgetWithText(OutlinedButton, l.prototypeCancel));
       await tester.pump();
       await tester.pump();
-      expect(controller.cancellingGroup(group), isTrue);
+      expect(controller.cancellingGroup(group.id), isTrue);
       expect(controller.state.serverTests.values.last.cancelling, isFalse);
       expect(
         tester
@@ -1243,7 +1240,7 @@ void main() {
       expect(find.byType(ServerResourcePage), findsOneWidget);
       expect(find.text('Second provider'), findsOneWidget);
       expect(controller.configuration.encode(), before);
-      expect(controller.browsedOnMobile, isNull);
+      expect(controller.groupBrowseCount, 0);
       expect(tester.takeException(), isNull);
     },
   );
@@ -1268,7 +1265,7 @@ void main() {
     expect(find.byType(ServerResourcePage), findsOneWidget);
     expect(find.widgetWithText(FilledButton, l.prototypeUse), findsOneWidget);
     expect(controller.configuration.encode(), before);
-    expect(controller.browsedOnMobile, isNull);
+    expect(controller.groupBrowseCount, 0);
     expect(tester.takeException(), isNull);
   });
 

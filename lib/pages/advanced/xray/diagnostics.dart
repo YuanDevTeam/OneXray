@@ -1,7 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
-import 'package:onexray/pages/advanced/tab_visibility.dart';
+import 'package:onexray/pages/main/page_visibility.dart';
 import 'package:onexray/pages/advanced/xray/config/params.dart';
 import 'package:onexray/pages/advanced/xray/controller.dart';
 import 'package:onexray/pages/advanced/xray/log/params.dart';
@@ -39,14 +39,11 @@ class XrayDiagnosticsPage extends StatelessWidget {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         final gutter = mobile ? AppSpacing.mobilePage : AppSpacing.page;
-        return AdvancedTabVisibility(
-          tabIndex: 1,
+        return PageVisibility(
           onChanged: controller.reader.setVisible,
           child: Scaffold(
-            appBar: PageAppBar.forPage(
-              context,
+            appBar: PageAppBar(
               title: Text(l.xrayDiagnostics),
-              description: l.xrayDiagnosticsHint,
               actions: [
                 IconButton(
                   tooltip: l.xrayRefreshStatus,

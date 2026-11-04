@@ -39,7 +39,6 @@ class ServerFormPage extends StatelessWidget {
   const ServerFormPage({
     super.key,
     required this.title,
-    this.subtitle,
     required this.body,
     this.actions = const [],
     this.expandBody = false,
@@ -47,7 +46,6 @@ class ServerFormPage extends StatelessWidget {
     this.onClose,
   });
   final String title;
-  final String? subtitle;
   final Widget body;
   final List<Widget> actions;
 
@@ -64,10 +62,8 @@ class ServerFormPage extends StatelessWidget {
     child: Focus(
       autofocus: true,
       child: Scaffold(
-        appBar: PageAppBar.forPage(
-          context,
+        appBar: PageAppBar(
           title: Text(title),
-          description: subtitle,
           leading: BackButton(onPressed: onBack ?? onClose),
           actions: [
             if (onBack != null && onClose != null)

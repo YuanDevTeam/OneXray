@@ -51,11 +51,8 @@ void main() {
             ),
             home: Builder(
               builder: (context) => Scaffold(
-                appBar: PageAppBar.forPage(
-                  context,
+                appBar: PageAppBar(
                   title: const Text('Настройки подключения'),
-                  description:
-                      'Параметры соединения и данные этого устройства.',
                   actions: [
                     IconButton(
                       key: const Key('page-action'),
@@ -72,10 +69,6 @@ void main() {
         await tester.pumpAndSettle();
         final title = find.text('Настройки подключения');
         expect(title, findsOneWidget);
-        expect(
-          find.text('Параметры соединения и данные этого устройства.'),
-          findsNothing,
-        );
         expect(find.byKey(const ValueKey('page-heading')), findsNothing);
         expect(find.text('OneXray'), findsNothing);
         expect(find.byType(Image), findsNothing);
@@ -124,9 +117,8 @@ void main() {
           localizationsDelegates: AppLocalePolicy.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Builder(
-            builder: (context) => Scaffold(
-              appBar: PageAppBar.forPage(context, title: const Text('Servers')),
-            ),
+            builder: (context) =>
+                Scaffold(appBar: PageAppBar(title: const Text('Servers'))),
           ),
         ),
       ),
@@ -139,68 +131,62 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final inline in [false, true]) {
-    testWidgets(
-      'legacy heading action stays in the standard toolbar: $inline',
-      (tester) async {
-        tester.view.devicePixelRatio = 1;
-        tester.view.physicalSize = const Size(390, 844);
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        var actions = 0;
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: AppTheme.material(Brightness.light, mobile: true),
-            locale: const Locale('zh'),
-            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Builder(
-              builder: (context) => Scaffold(
-                appBar: PageAppBar.forPage(
-                  context,
-                  title: const Text('服务器'),
-                  description: '',
-                  inlineHeadingAction: inline,
-                  headingAction: IconButton(
-                    key: const Key('compact-heading-action'),
-                    onPressed: () => actions++,
-                    tooltip: '导入',
-                    icon: const Icon(Icons.add),
-                  ),
-                ),
-                body: const SizedBox.expand(key: Key('compact-page-body')),
+  testWidgets('page heading action stays in the standard toolbar', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var actions = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.material(Brightness.light, mobile: true),
+        locale: const Locale('zh'),
+        localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            appBar: PageAppBar(
+              title: const Text('服务器'),
+              headingAction: IconButton(
+                key: const Key('compact-heading-action'),
+                onPressed: () => actions++,
+                tooltip: '导入',
+                icon: const Icon(Icons.add),
               ),
             ),
+            body: const SizedBox.expand(key: Key('compact-page-body')),
           ),
-        );
-        await tester.pumpAndSettle();
-        final title = find.text('服务器');
-        final action = find.byKey(const Key('compact-heading-action'));
-        final titleBounds = tester.getRect(title);
-        final actionBounds = tester.getRect(action);
-        expect(action.hitTestable(), findsOneWidget);
-        expect(titleBounds.overlaps(actionBounds), isFalse);
-        expect(titleBounds.center.dy, closeTo(actionBounds.center.dy, .01));
-        expect(
-          tester.getRect(find.byType(AppBar)).contains(actionBounds.center),
-          isTrue,
-        );
-        expect(
-          tester.widget<AppBar>(find.byType(AppBar)).actions,
-          contains(tester.widget(action)),
-        );
-        expect(find.byType(SingleChildScrollView), findsNothing);
-        expect(
-          tester.getRect(find.byKey(const Key('compact-page-body'))).top,
-          tester.getRect(find.byType(AppBar)).bottom,
-        );
-        await tester.tap(action);
-        await tester.pumpAndSettle();
-        expect(actions, 1);
-        expect(tester.takeException(), isNull);
-      },
+        ),
+      ),
     );
-  }
+    await tester.pumpAndSettle();
+    final title = find.text('服务器');
+    final action = find.byKey(const Key('compact-heading-action'));
+    final titleBounds = tester.getRect(title);
+    final actionBounds = tester.getRect(action);
+    expect(action.hitTestable(), findsOneWidget);
+    expect(titleBounds.overlaps(actionBounds), isFalse);
+    expect(titleBounds.center.dy, closeTo(actionBounds.center.dy, .01));
+    expect(
+      tester.getRect(find.byType(AppBar)).contains(actionBounds.center),
+      isTrue,
+    );
+    expect(
+      tester.widget<AppBar>(find.byType(AppBar)).actions,
+      contains(tester.widget(action)),
+    );
+    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(
+      tester.getRect(find.byKey(const Key('compact-page-body'))).top,
+      tester.getRect(find.byType(AppBar)).bottom,
+    );
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(actions, 1);
+    expect(tester.takeException(), isNull);
+  });
 
   for (final locale in [const Locale('ru'), const Locale('fa')]) {
     testWidgets(
@@ -234,22 +220,20 @@ void main() {
               ),
               home: Builder(
                 builder: (context) => Scaffold(
-                  appBar: PageAppBar.forPage(
-                    context,
+                  appBar: PageAppBar(
                     title: const Text(titleText),
-                    inlineHeadingAction: true,
                     headingAction: IconButton(
-                      key: const Key('inline-import'),
+                      key: const Key('toolbar-import'),
                       tooltip: 'Import',
                       icon: const Icon(Icons.add),
                       onPressed: () => imports++,
                     ),
                   ),
-                  body: const SizedBox.expand(key: Key('inline-page-body')),
+                  body: const SizedBox.expand(key: Key('toolbar-page-body')),
                   bottomNavigationBar: PageActionBar(
                     children: [
                       FilledButton(
-                        key: const Key('inline-save'),
+                        key: const Key('toolbar-save'),
                         onPressed: () => saves++,
                         child: const Text('Save'),
                       ),
@@ -278,17 +262,17 @@ void main() {
             isSemantics(label: titleText, isHeader: true),
           );
           expect(
-            tester.getSize(find.byKey(const Key('inline-page-body'))).height,
+            tester.getSize(find.byKey(const Key('toolbar-page-body'))).height,
             greaterThanOrEqualTo(80),
           );
-          final action = find.byKey(const Key('inline-import'));
+          final action = find.byKey(const Key('toolbar-import'));
           expect(action.hitTestable(), findsOneWidget);
           expect(
-            find.byKey(const Key('inline-save')).hitTestable(),
+            find.byKey(const Key('toolbar-save')).hitTestable(),
             findsOneWidget,
           );
           await tester.tap(action);
-          await tester.tap(find.byKey(const Key('inline-save')));
+          await tester.tap(find.byKey(const Key('toolbar-save')));
           await tester.pumpAndSettle();
           expect(imports, 1);
           expect(saves, 1);
@@ -335,10 +319,8 @@ void main() {
               ),
               home: Builder(
                 builder: (context) => Scaffold(
-                  appBar: PageAppBar.forPage(
-                    context,
+                  appBar: PageAppBar(
                     title: Text(fileName),
-                    description: 'Resource source and update settings.',
                     leading: BackButton(onPressed: () => backs++),
                     headingAction: IconButton(
                       key: const Key('resource-heading-action'),
@@ -540,22 +522,14 @@ void main() {
                 routes: [
                   GoRoute(
                     path: primary.rootPath,
-                    builder: (context, _) => Scaffold(
-                      appBar: PageAppBar.forPage(
-                        context,
-                        title: Text(primary.name),
-                      ),
-                    ),
+                    builder: (context, _) =>
+                        Scaffold(appBar: PageAppBar(title: Text(primary.name))),
                     routes: [
                       for (final child in ['settings', 'detail'])
                         GoRoute(
                           path: child,
-                          builder: (context, _) => Scaffold(
-                            appBar: PageAppBar.forPage(
-                              context,
-                              title: Text(child),
-                            ),
-                          ),
+                          builder: (context, _) =>
+                              Scaffold(appBar: PageAppBar(title: Text(child))),
                         ),
                     ],
                   ),
@@ -613,8 +587,7 @@ void main() {
             length: 2,
             child: Builder(
               builder: (context) => Scaffold(
-                appBar: PageAppBar.forPage(
-                  context,
+                appBar: PageAppBar(
                   title: const Text('Advanced'),
                   bottom: const TabBar(
                     tabs: [
@@ -786,8 +759,7 @@ void main() {
         ),
         home: Builder(
           builder: (context) => Scaffold(
-            appBar: PageAppBar.forPage(
-              context,
+            appBar: PageAppBar(
               title: const Text('Root'),
               actions: [
                 IconButton(
@@ -805,8 +777,7 @@ void main() {
     navigator.currentState!.push(
       MaterialPageRoute<void>(
         builder: (context) => Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: const Text('Detail'),
             headingAction: IconButton(
               key: headingAction,

@@ -7,7 +7,6 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
-import 'package:onexray/service/connect/settings.dart';
 
 Future<T?> showConnectDialog<T>(BuildContext context, WidgetBuilder builder) =>
     showAppDialog<T>(context, builder);
@@ -172,14 +171,6 @@ class ConnectCallout extends StatelessWidget {
   }
 }
 
-typedef ConnectTrafficChoice = ({TrafficMode mode, int? id, bool edit});
-typedef ConnectCustomChoice = ({
-  int id,
-  String name,
-  int? ruleCount,
-  bool advanced,
-});
-
 Future<bool?> showCustomRoutingModeDialog(BuildContext context) =>
     showAppDialog<bool>(context, (dialogContext) {
       final l = AppLocalizations.of(dialogContext)!;
@@ -210,153 +201,16 @@ Future<bool?> showCustomRoutingModeDialog(BuildContext context) =>
       );
     });
 
-class ConnectTrafficMethodDialog extends StatelessWidget {
-  const ConnectTrafficMethodDialog({
-    super.key,
-    required this.current,
-    required this.customRoutes,
-  });
-  final ConnectionSettings current;
-  final List<ConnectCustomChoice> customRoutes;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    void choose(TrafficMode mode, int? id, {bool edit = false}) =>
-        Navigator.of(context).pop((mode: mode, id: id, edit: edit));
-    final mobile =
-        MediaQuery.sizeOf(context).width < AppLayout.mobileBreakpoint;
-    return ConnectDialog(
-      title: l.prototypeChooseTrafficMethod,
-      subtitle: l.prototypeTrafficMethodQuestion,
-      body: Padding(
-        padding: EdgeInsets.fromLTRB(
-          mobile ? 14 : 20,
-          18,
-          mobile ? 14 : 20,
-          20,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _MethodOption(
-              title: l.prototypeSmartRoutingRecommended,
-              description: l.prototypeSmartRoutingDescription,
-              selected: current.trafficMode == TrafficMode.smart,
-              onPressed: () => choose(TrafficMode.smart, null),
-              onEdit: () => choose(TrafficMode.smart, null, edit: true),
-            ),
-            const SizedBox(height: 10),
-            _MethodOption(
-              title: l.prototypeAllViaVpn,
-              description: l.prototypeAllViaVpnDescription,
-              selected: current.trafficMode == TrafficMode.allVpn,
-              onPressed: () => choose(TrafficMode.allVpn, null),
-            ),
-            const SizedBox(height: 19),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l.prototypeCustomRouting,
-                          style: AppTypography.dialogGroupTitle,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          l.prototypeChooseNamedRoute,
-                          style: AppTypography.dialogGroupMeta.copyWith(
-                            color: palette.mutedForeground,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${customRoutes.length}/3',
-                    textDirection: TextDirection.ltr,
-                    style: AppTypography.dialogGroupMeta.copyWith(
-                      color: palette.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            for (final route in customRoutes) ...[
-              const SizedBox(height: 10),
-              _MethodOption(
-                title: route.name,
-                description: route.ruleCount == null
-                    ? l.prototypeCannotReadCustomRoute
-                    : [
-                        if (route.advanced) l.routingAdvancedJson,
-                        l.prototypeRuleCount(route.ruleCount!),
-                      ].join(' · '),
-                selected:
-                    current.trafficMode == TrafficMode.custom &&
-                    current.customId == route.id,
-                onPressed: () => choose(TrafficMode.custom, route.id),
-                onEdit: () => choose(TrafficMode.custom, route.id, edit: true),
-              ),
-            ],
-            if (customRoutes.isEmpty || customRoutes.length >= 3)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(2, 20, 2, 10),
-                child: Text(
-                  customRoutes.isEmpty
-                      ? l.prototypeNoCustomRoutes
-                      : l.prototypeCustomRouteLimit,
-                  style: AppTypography.dialogGroupMeta.copyWith(
-                    color: palette.mutedForeground,
-                  ),
-                ),
-              ),
-            if (customRoutes.length < 3) ...[
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: () => choose(TrafficMode.custom, null, edit: true),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: palette.primary,
-                  textStyle: AppTypography.dialogAddAction,
-                  minimumSize: const Size.fromHeight(42),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  side: BorderSide(color: palette.borderStrong),
-                  shape: AppDashedBorder(
-                    borderRadius: const BorderRadius.all(
-                      Radius.circular(AppRadii.card),
-                    ),
-                  ),
-                ),
-                icon: const Icon(LucideIcons.plus, size: 17),
-                label: Text(l.prototypeNewCustomRoute),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _MethodOption extends StatelessWidget {
   const _MethodOption({
     required this.title,
     required this.description,
     required this.selected,
     required this.onPressed,
-    this.onEdit,
   });
   final String title, description;
   final bool selected;
   final VoidCallback onPressed;
-  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -421,20 +275,6 @@ class _MethodOption extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
-          if (onEdit != null) ...[
-            TextButton(
-              onPressed: onEdit,
-              style: TextButton.styleFrom(
-                foregroundColor: palette.primary,
-                minimumSize: const Size(0, 38),
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                textStyle: AppTypography.dialogOptionEdit,
-              ),
-              child: Text(AppLocalizations.of(context)!.prototypeEdit),
-            ),
-            const SizedBox(width: 10),
-          ],
           Icon(
             selected ? LucideIcons.circleCheck : LucideIcons.arrowRightDir,
             size: selected ? 21 : 18,

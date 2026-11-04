@@ -42,11 +42,7 @@ class _GeoDataPageState extends State<GeoDataPage> {
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         final palette = ColorManager.palette(context);
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
-            title: Text(l.prototypeRoutingData),
-            description: l.prototypeRoutingDataHint,
-          ),
+          appBar: PageAppBar(title: Text(l.prototypeRoutingData)),
           body: SafeArea(
             child: ResponsiveContent(
               desktopMaxWidth: AppLayout.advancedMaxWidth,

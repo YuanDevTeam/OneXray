@@ -7,11 +7,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
-import 'package:onexray/pages/advanced/tab_visibility.dart';
+import 'package:onexray/pages/main/page_visibility.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/advanced/xray/controller.dart';
 import 'package:onexray/pages/advanced/xray/config/params.dart';
-import 'package:onexray/pages/advanced/xray/log/params.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -26,7 +25,6 @@ class XrayRuntimePage extends StatelessWidget {
     required this.onGeodata,
     required this.onUpdates,
     required this.onSpeedTest,
-    required this.onLog,
     required this.onConfig,
     this.onDiagnostics,
     this.onLogSettings,
@@ -38,7 +36,6 @@ class XrayRuntimePage extends StatelessWidget {
   final void Function(BuildContext) onGeodata;
   final void Function(BuildContext) onUpdates;
   final void Function(BuildContext) onSpeedTest;
-  final void Function(BuildContext, LogFileViewerParams) onLog;
   final void Function(BuildContext, ConfigFileViewerParams) onConfig;
   final void Function(BuildContext)? onDiagnostics;
   final Future<bool?> Function(BuildContext)? onLogSettings;
@@ -59,8 +56,7 @@ class XrayRuntimePage extends StatelessWidget {
         final gutter = mobile
             ? AppSpacing.mobilePage
             : AppSpacing.advancedDesktopGutter(width);
-        return AdvancedTabVisibility(
-          tabIndex: 1,
+        return PageVisibility(
           onChanged: controller.reader.setVisible,
           child: Scaffold(
             body: controller.loading

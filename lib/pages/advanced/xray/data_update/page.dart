@@ -31,10 +31,8 @@ class AutoUpdatePage extends StatelessWidget {
             ? AppSpacing.mobilePage
             : AppSpacing.advancedDesktopGutter(width);
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(l.prototypeAutomaticUpdates),
-            description: l.pageXrayConfigurationDescription,
             actions: [
               const AppActivityIndicator(pinging: false),
               PageHelpButton(

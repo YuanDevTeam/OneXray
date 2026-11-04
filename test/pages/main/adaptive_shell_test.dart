@@ -998,14 +998,14 @@ void main() {
                         body: Center(
                           child: TextButton(
                             onPressed: () =>
-                                context.pushScoped(AppPageDestination.theme),
+                                context.pushScoped(AppPageDestination.language),
                             child: Text('open-${primary.name}'),
                           ),
                         ),
                       ),
                       routes: [
                         GoRoute(
-                          path: AppPageDestination.theme.segment,
+                          path: AppPageDestination.language.segment,
                           builder: (_, _) => Scaffold(
                             appBar: AppBar(
                               title: Text('detail-${primary.name}'),

@@ -16,8 +16,7 @@ class TunnelRootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: PageAppBar.forPage(
-      context,
+    appBar: PageAppBar(
       title: Text(AppLocalizations.of(context)!.prototypeVpnTunnel),
     ),
     body: VpnTunnelPane(
@@ -39,8 +38,7 @@ class XrayRootPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: PageAppBar.forPage(
-      context,
+    appBar: PageAppBar(
       title: Text(
         AppLocalizations.of(context)!.prototypeXrayRuntimeDiagnostics,
       ),
@@ -60,8 +58,6 @@ class XrayRootPage extends StatelessWidget {
       },
       onServerDialing: (context) =>
           context.pushScoped(AppPageDestination.serverDialing),
-      onLog: (context, params) =>
-          context.pushScoped(AppPageDestination.logFile, extra: params),
       onConfig: (context, params) => context.pushScoped(
         AppPageDestination.configFileViewer,
         extra: params,

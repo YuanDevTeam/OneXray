@@ -68,7 +68,6 @@ class _ServersImportPageState extends State<ServersImportPage> {
           canPop: state.canClose,
           child: ServerFormPage(
             title: l10n.prototypeAddServersToOneXray,
-            subtitle: l10n.serverImportPageDescription,
             onClose: () => controller.closeFlow(context),
             body: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -737,8 +736,7 @@ class ServerImportScannerPage extends StatelessWidget {
     value: controller,
     child: BlocBuilder<ServerImportController, ServerImportPageState>(
       builder: (context, state) => Scaffold(
-        appBar: PageAppBar.forPage(
-          context,
+        appBar: PageAppBar(
           title: Text(AppLocalizations.of(context)!.prototypeScanQrCode),
           actions: [
             IconButton(

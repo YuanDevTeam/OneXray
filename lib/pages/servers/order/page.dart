@@ -29,8 +29,7 @@ class ManualOrderPage extends StatelessWidget {
         return PopScope(
           canPop: !state.busy,
           child: Scaffold(
-            appBar: PageAppBar.forPage(
-              context,
+            appBar: PageAppBar(
               title: Text(
                 params.title,
                 maxLines: 1,

@@ -7,7 +7,6 @@ import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/connect/routing/options_form.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/routing/custom/controller.dart';
-import 'package:onexray/pages/connect/routing/custom/rule_page.dart';
 import 'package:onexray/pages/connect/routing/custom/sections.dart';
 import 'package:onexray/pages/connect/routing/widgets.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
@@ -50,7 +49,6 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    controller.setInlineEditing(false);
     if (!_started) {
       _started = true;
       controller.load(context);
@@ -72,8 +70,7 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(
               widget.profileId == null
                   ? l.routingNormalCreateTitle
@@ -120,11 +117,6 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                               _identity(context, mobile, state),
                               CustomRoutingSections(
                                 rules: _rules(context, mobile, state),
-                                editor: controller.inlineRule == null
-                                    ? null
-                                    : CustomRoutingRuleForm(
-                                        controller: controller.inlineRule!,
-                                      ),
                                 options: _proxySettings(context, state),
                                 dns: RoutingDnsSettingsForm(
                                   value: state.dns,

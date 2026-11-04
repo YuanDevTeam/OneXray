@@ -14,7 +14,6 @@ import 'package:onexray/pages/shared/widgets/settings_page.dart';
 
 class PolicyDetailScaffold extends StatelessWidget {
   final String title;
-  final String? description;
   final PolicyEditorController controller;
   final Widget body;
   final bool canSave;
@@ -24,7 +23,6 @@ class PolicyDetailScaffold extends StatelessWidget {
   const PolicyDetailScaffold({
     super.key,
     required this.title,
-    this.description,
     required this.controller,
     required this.body,
     this.canSave = true,
@@ -36,10 +34,8 @@ class PolicyDetailScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return Scaffold(
-      appBar: PageAppBar.forPage(
-        context,
+      appBar: PageAppBar(
         title: Text(title),
-        description: description,
         leading: BackButton(onPressed: () => controller.cancel(context)),
         actions: [
           if (help.isNotEmpty) PageHelpButton(title: title, messages: help),

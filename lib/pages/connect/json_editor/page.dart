@@ -115,8 +115,7 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                     if (!didPop) controller.closePage(context);
                   },
                   child: Scaffold(
-                    appBar: PageAppBar.forPage(
-                      context,
+                    appBar: PageAppBar(
                       title: Text(
                         controller.advanced
                             ? widget.configurationId == null
@@ -126,9 +125,6 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                             ? l10n.prototypeAddRawJson
                             : l10n.prototypeEditRawJson,
                       ),
-                      description: controller.advanced
-                          ? l10n.routingAdvancedDescription
-                          : null,
                       leading: BackButton(
                         onPressed:
                             state.closeBlocked ||

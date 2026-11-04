@@ -138,10 +138,7 @@ class AndroidAppsPage extends StatelessWidget {
         final rows = controller.visible;
         final missing = controller.missing;
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
-            title: Text(l.prototypeSelectApps),
-          ),
+          appBar: PageAppBar(title: Text(l.prototypeSelectApps)),
           body: SafeArea(
             child: ResponsiveContent(
               child: CustomScrollView(

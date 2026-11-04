@@ -13,7 +13,6 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 
 class SettingsPageScaffold extends StatelessWidget {
   final String title;
-  final String? description;
   final Widget body;
   final VoidCallback? onSave;
   final bool saveLoading;
@@ -23,7 +22,6 @@ class SettingsPageScaffold extends StatelessWidget {
   const SettingsPageScaffold({
     super.key,
     required this.title,
-    this.description,
     required this.body,
     this.onSave,
     this.saveLoading = false,
@@ -34,10 +32,8 @@ class SettingsPageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PageAppBar.forPage(
-        context,
+      appBar: PageAppBar(
         title: Text(title),
-        description: description,
         actions: [
           ...actions,
           if (onSave != null || saveLoading) _saveButton(context),

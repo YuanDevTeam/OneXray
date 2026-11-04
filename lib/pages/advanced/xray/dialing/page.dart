@@ -32,7 +32,6 @@ class ServerDialingPage extends StatelessWidget {
             : AppSpacing.advancedDesktopGutter(width);
         return PolicyDetailScaffold(
           title: l.serverDialingTitle,
-          description: l.pageXrayConfigurationDescription,
           controller: controller,
           canSave: state.draft != null,
           help: [

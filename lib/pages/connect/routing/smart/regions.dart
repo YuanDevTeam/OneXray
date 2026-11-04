@@ -161,10 +161,7 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
-            title: Text(l.prototypeDirectRegions),
-          ),
+          appBar: PageAppBar(title: Text(l.prototypeDirectRegions)),
           body: SafeArea(
             child: ResponsiveContent(
               desktopMaxWidth:

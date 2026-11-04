@@ -259,7 +259,7 @@ void main() {
       expect(find.text(l.prototypeTestServers), findsNothing);
       expect(find.text(l.prototypeNotTested), findsNothing);
       expect(find.text(l.prototypeTemporarilyUnavailable), findsNothing);
-      expect(find.byType(ServerUseButton), findsNothing);
+      expect(find.text(l.prototypeUseEntryServers(1)), findsNothing);
       await controller.test(context, profiles);
       expect(AppEventBus.instance.state.pinging, isFalse);
       expect(controller.state.serverTests, isEmpty);

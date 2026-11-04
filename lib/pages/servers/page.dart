@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/service/shared/failure.dart';
-import 'package:onexray/service/connect/settings.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -50,10 +49,8 @@ class _ServersPageState extends State<ServersPage> {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         final page = Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(l.prototypeServers),
-            description: l.serversPageDescription,
             actions: [
               if (!mobile)
                 IconButton(
@@ -100,32 +97,12 @@ class ServerGroupPage extends StatelessWidget {
       child: BlocBuilder<ServersController, ServersPageState>(
         builder: (context, _) {
           final l = AppLocalizations.of(context)!;
-          var group = controller
+          final group = controller
               .groups(l, filter: false)
-              .where((row) => row.id == params.groupId)
+              .where((row) => row.manual && row.id == params.groupId)
               .firstOrNull;
-          if (group == null) {
-            final source = controller.sources
-                .where(
-                  (source) =>
-                      params.groupId == 'subscription:${source.id}' &&
-                      controller.sourceCount(source.id) == 0,
-                )
-                .firstOrNull;
-            if (source != null) {
-              group = ServerGroup(
-                id: params.groupId,
-                name: source.name,
-                source: source,
-                selection: ServerSelection.source(source.id),
-                rows: const [],
-                visibleRows: const [],
-              );
-            }
-          }
           return Scaffold(
-            appBar: PageAppBar.forPage(
-              context,
+            appBar: PageAppBar(
               title: Text(
                 group?.name ?? l.prototypeServers,
                 maxLines: 1,

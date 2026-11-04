@@ -33,11 +33,7 @@ class LocalApiPage extends StatelessWidget {
             ? AppSpacing.mobilePage
             : AppSpacing.advancedDesktopGutter(width);
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
-            title: Text(l.localApiTitle),
-            description: l.localApiSummary,
-          ),
+          appBar: PageAppBar(title: Text(l.localApiTitle)),
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.advancedMaxWidth,
             expandDesktop: false,

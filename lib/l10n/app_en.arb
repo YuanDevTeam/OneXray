@@ -10,7 +10,6 @@
   "tunnelSystemCapture": "System capture",
   "tunnelConnectionParameters": "Connection parameters",
   "tunnelCurrentPlatform": "Current platform",
-  "serversPageDescription": "Manage nodes, full configurations and subscription sources.",
   "subscriptionInformationTitle": "Subscription information",
   "shareContentTitle": "Share content",
   "settingsAppLanguage": "App language",
@@ -19,9 +18,6 @@
   "settingsManualConnection": "Connect manually",
   "settingsAppearanceAndLanguage": "Appearance & language",
   "settingsStartupAndSystem": "Startup & system",
-  "settingsOverviewDescription": "Appearance, startup and data on this device.",
-  "settingsDevicePreferenceDescription": "Changes apply only to this device.",
-  "backupPageDescription": "Move connection assets and VPN settings for this platform.",
   "pageTunnelDescription": "System capture, tunnel networking and platform policies.",
   "pageXrayDescription": "Core runtime, diagnostics and connection resources.",
   "pageRoutingDescription": "Choose traffic handling or manage routing profiles.",
@@ -246,7 +242,6 @@
   "buttonOK": "OK",
   "buttonCancel": "Cancel",
   "buttonOpenSettings": "Open system settings",
-  "buttonSave": "Save",
   "buttonSaveFailed": "Save failed",
   "settingsDefaultsRestored": "Defaults restored in the editor. Save to apply.",
   "@settingsDefaultsRestored": {
@@ -1242,10 +1237,6 @@
   "@prototypeChooseTrafficMethod": {
     "description": "Approved prototype copy: Choose a traffic method"
   },
-  "prototypeTrafficMethodQuestion": "Which traffic should use the VPN?",
-  "@prototypeTrafficMethodQuestion": {
-    "description": "Approved prototype copy: Which traffic should use the VPN?"
-  },
   "prototypeChooseNamedRoute": "Choose one named route",
   "@prototypeChooseNamedRoute": {
     "description": "Approved prototype copy: Choose one named route"
@@ -1322,47 +1313,11 @@
   "@prototypeCustomConnectionReason": {
     "description": "Approved prototype copy: Your custom rules decide which traffic uses the VPN, stays direct, or is blocked. Rules do not store server choices."
   },
-  "prototypeNamedCustomConnectionReason": "{name} decides which traffic uses the VPN, stays direct, or is blocked. Rules do not store server choices.",
-  "@prototypeNamedCustomConnectionReason": {
-    "description": "Approved prototype copy: {name} decides which traffic uses the VPN, stays direct, or is blocked. Rules do not store server choices.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "prototypeRunningEntriesReason": "This connection selected {entries}. Retesting does not change the current connection.",
   "@prototypeRunningEntriesReason": {
     "description": "Approved prototype copy: This connection selected {entries}. Retesting does not change the current connection.",
     "placeholders": {
       "entries": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeMultipleEntriesReason": "OneXray selected {count} readable entry nodes. Cached successful delays only affect their order.",
-  "@prototypeMultipleEntriesReason": {
-    "description": "Approved prototype copy: OneXray selected {count} entry servers with the best speed and availability. New connections are distributed between them.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "prototypeFixedEntryReason": "You selected {server} directly.",
-  "@prototypeFixedEntryReason": {
-    "description": "Approved prototype copy: You selected {server} directly.",
-    "placeholders": {
-      "server": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeAutomaticEntryReason": "Selected {server} using cached successful delays and a stable order. No test is required before connecting.",
-  "@prototypeAutomaticEntryReason": {
-    "description": "Approved prototype copy: {server} had the best recent speed and availability among eligible servers.",
-    "placeholders": {
-      "server": {
         "type": "String"
       }
     }
@@ -1810,10 +1765,6 @@
   "prototypeAppInformation": "App information, documentation, and support.",
   "@prototypeAppInformation": {
     "description": "Approved prototype copy: App information, documentation, and support."
-  },
-  "prototypeCrossPlatformXrayClient": "A cross-platform Xray client",
-  "@prototypeCrossPlatformXrayClient": {
-    "description": "Approved prototype copy: A cross-platform Xray client"
   },
   "prototypeAppVersion": "App version",
   "@prototypeAppVersion": {
@@ -2680,10 +2631,6 @@
   "@prototypeManageSources": {
     "description": "Approved prototype copy: Manage updates and sources"
   },
-  "prototypeSourceUpdateGuard": "Updates replace the subscription only when at least one usable node is recognized.",
-  "@prototypeSourceUpdateGuard": {
-    "description": "Approved prototype copy: Updates replace the subscription only when at least one usable node is recognized."
-  },
   "prototypeSourceUpdateHint": "Download and import usable nodes directly",
   "@prototypeSourceUpdateHint": {
     "description": "Approved prototype copy: Download and import usable nodes directly"
@@ -2861,9 +2808,6 @@
   "@buttonCancel": {
     "description": "Approved prototype copy: Cancel"
   },
-  "@buttonSave": {
-    "description": "Approved prototype copy: Save"
-  },
   "@sharePageCopyLink": {
     "description": "Approved prototype copy: Copy share link"
   },
@@ -2941,14 +2885,6 @@
   "prototypeShareServerHint": "Share an importable server link",
   "@prototypeShareServerHint": {
     "description": "Approved prototype copy: Share an importable server link"
-  },
-  "prototypeLocalOnly": "Local only",
-  "@prototypeLocalOnly": {
-    "description": "Approved prototype copy: Local only"
-  },
-  "prototypeStoredOnThisDevice": "Stored on this device",
-  "@prototypeStoredOnThisDevice": {
-    "description": "Approved prototype copy: Stored on this device"
   },
   "prototypeUpdated": "Updated",
   "@prototypeUpdated": {
@@ -3099,7 +3035,6 @@
   "providerRoutingNotice": "Uses provider routing. App routing resumes when you switch back to managed nodes.",
   "providerConfigurationCount": "{count, plural, =1 {1 configuration} other {{count} configurations}}",
   "@providerConfigurationCount": {"placeholders": {"count": {"type": "int"}}},
-  "providerChooseConfiguration": "Choose configuration",
   "providerChooseConfigurationHint": "Select a configuration from this subscription to connect.",
   "providerViewConfiguration": "View JSON",
   "providerViewConfigurationHint": "View the original subscription JSON. Copy it to personal Raw to edit.",
@@ -3207,7 +3142,6 @@
   "connectionRememberedPlanUnavailable": "The previous plan is unavailable. Select a scope or node.",
   "clearConnectionResources": "Clear connection resources",
   "clearConnectionResourcesWarning": "Remove servers, subscriptions, routing configurations and saved connection choices. App preferences, permissions and the backup location are kept.",
-  "routingPageDescription": "Choose how traffic is routed, or edit your custom rules.",
   "routingStoredPreferenceNotice": "Complete configurations use their own routing. This selection applies when you return to ordinary servers.",
   "connectionRestoreOrdinary": "Use previous ordinary plan",
   "connectionPreparing": "Preparing connection",
@@ -3243,7 +3177,6 @@
   "xrayNotRunning": "Not running",
   "xrayLogsEnabled": "Recording enabled",
   "xrayLogsDisabled": "Recording disabled",
-  "tunnelDetailDescription": "View and manage how this device connects.",
   "pageXrayConfigurationDescription": "Manage configuration used by the core and connections.",
   "xrayLatencyTitle": "Latency probing",
   "xrayAutomaticSubscriptionUpdates": "Automatically update subscriptions",
@@ -3260,11 +3193,9 @@
   "routingNormalDescription": "Match rules in order; unmatched traffic uses VPN.",
   "routingOrderedRulesTitle": "Ordered rules",
   "routingEmptyRulesHint": "No rules yet. You can configure DNS and proxy connections before saving.",
-  "smartRoutingEditorDescription": "Edit direct, proxy, DNS, and traffic identification preferences.",
   "routingEntryCountLabel": "Entry node count",
   "routingSelectionModeLabel": "Selection method",
   "configurationTransferTitle": "Import, export, and share",
-  "routingAdvancedDescription": "Use App node slots to configure DNS and routing independently.",
   "configurationNameHint": "1–32 characters",
   "serverImportPageDescription": "Choose how to add subscriptions, nodes, or configurations.",
   "serverImportMethods": "Import method",

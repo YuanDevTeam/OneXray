@@ -62,7 +62,6 @@ void main() {
               onGeodata: (_) {},
               onUpdates: (_) {},
               onSpeedTest: (_) {},
-              onLog: (_, _) {},
               onConfig: (_, _) {},
               onLogSettings: (_) async => null,
             ),

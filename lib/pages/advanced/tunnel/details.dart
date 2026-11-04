@@ -44,7 +44,6 @@ class TunnelDnsPage extends StatelessWidget {
         );
         return PolicyDetailScaffold(
           title: l.prototypeTunnelDns,
-          description: l.tunnelDetailDescription,
           controller: controller,
           help: [
             l.tunnelDnsServerNameHint,
@@ -121,7 +120,6 @@ class TunnelNetworkPage extends StatelessWidget {
         final l = AppLocalizations.of(context)!;
         return PolicyDetailScaffold(
           title: 'IPv6',
-          description: l.tunnelDetailDescription,
           controller: controller,
           canSave: controller.validationHint(l) == null,
           contentPadding: EdgeInsets.zero,

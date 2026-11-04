@@ -56,10 +56,8 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(l.prototypeSmartRouting),
-            description: l.smartRoutingEditorDescription,
             leading: BackButton(onPressed: () => controller.cancel(context)),
           ),
           body: SafeArea(

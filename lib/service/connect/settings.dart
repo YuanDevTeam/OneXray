@@ -118,9 +118,6 @@ class SmartRoutingSettings {
     sniffing.validate(fakeDns: fakeDns);
     selection.validate();
   }
-
-  String get effectiveDirectDnsAddress =>
-      directDns ? directDnsAddress.trim() : RoutingDnsSettings.defaultAddress;
 }
 
 /// Retains the normal selection while Raw is active. The coordinator stores

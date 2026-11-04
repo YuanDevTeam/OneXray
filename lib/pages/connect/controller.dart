@@ -17,9 +17,6 @@ import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/connect/target_picker.dart';
 import 'package:onexray/service/connect/resolver.dart';
-import 'package:onexray/pages/theme/color.dart';
-import 'package:onexray/pages/theme/font.dart';
-import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
@@ -43,16 +40,13 @@ class ConnectPageState {
     ServerCatalog? catalog,
     List<CoreConfigData> raws = const [],
     List<RoutingConfiguration> customRoutes = const [],
-    this.expertView = false,
     this.ready = false,
     this.failed = false,
     this.pendingChange,
-    Set<int> deletingRawIds = const {},
   }) : configuration = configuration ?? ConnectionConfiguration(),
        catalog = catalog ?? ServerCatalog(),
        raws = List.unmodifiable(raws),
-       customRoutes = List.unmodifiable(customRoutes),
-       deletingRawIds = Set.unmodifiable(deletingRawIds);
+       customRoutes = List.unmodifiable(customRoutes);
 
   final ConnectionConfiguration configuration;
   final ConnectionView connectionView;
@@ -62,11 +56,9 @@ class ConnectPageState {
   final List<CoreConfigData> raws;
   final List<RoutingConfiguration> customRoutes;
   List<SubscriptionData> get sources => catalog.sources;
-  final bool expertView;
   final bool ready;
   final bool failed;
   final String? pendingChange;
-  final Set<int> deletingRawIds;
 
   ConnectPageState copyWith({
     ConnectionConfiguration? configuration,
@@ -75,11 +67,9 @@ class ConnectPageState {
     ServerCatalog? catalog,
     List<CoreConfigData>? raws,
     List<RoutingConfiguration>? customRoutes,
-    bool? expertView,
     bool? ready,
     bool? failed,
     Object? pendingChange = _unchanged,
-    Set<int>? deletingRawIds,
   }) => ConnectPageState(
     configuration: configuration ?? this.configuration,
     connectionView: connectionView ?? this.connectionView,
@@ -87,13 +77,11 @@ class ConnectPageState {
     catalog: catalog ?? this.catalog,
     raws: raws ?? this.raws,
     customRoutes: customRoutes ?? this.customRoutes,
-    expertView: expertView ?? this.expertView,
     ready: ready ?? this.ready,
     failed: failed ?? this.failed,
     pendingChange: identical(pendingChange, _unchanged)
         ? this.pendingChange
         : pendingChange as String?,
-    deletingRawIds: deletingRawIds ?? this.deletingRawIds,
   );
   bool sameContentAs(ConnectPageState other) =>
       configuration == other.configuration &&
@@ -103,8 +91,6 @@ class ConnectPageState {
         customRoutes,
         other.customRoutes,
       ) &&
-      const SetEquality<int>().equals(deletingRawIds, other.deletingRawIds) &&
-      expertView == other.expertView &&
       ready == other.ready &&
       failed == other.failed &&
       pendingChange == other.pendingChange &&
@@ -134,30 +120,14 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   final ConnectionCoordinator coordinator;
   final Future<PlatformPermissionResult> Function() _requestPermission;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
-  bool _viewInitialized = false;
   bool _pageVisible = false;
 
   @override
   ServerCatalog get catalog => state.catalog;
 
   ConnectionConfiguration get configuration => state.configuration;
-  set configuration(ConnectionConfiguration value) {
-    final previous = state.configuration.connection;
-    final next = value.connection;
-    final targetChanged =
-        previous.expert != next.expert ||
-        previous.rawId != next.rawId ||
-        previous.selection.kind != next.selection.kind ||
-        previous.selection.id != next.selection.id;
-    // Raw browsing is local until a target is selected. Other pages can replace
-    // that target, while unrelated settings must leave the browsing draft open.
-    emit(
-      state.copyWith(
-        configuration: value,
-        expertView: targetChanged ? next.expert : state.expertView,
-      ),
-    );
-  }
+  set configuration(ConnectionConfiguration value) =>
+      emit(state.copyWith(configuration: value));
 
   ConnectionView get connectionView => state.connectionView;
   List<CoreConfigData> get servers => state.servers;
@@ -171,8 +141,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   List<SubscriptionData> get sources => state.sources;
   set sources(List<SubscriptionData> value) =>
       emit(state.copyWith(catalog: catalog.copyWith(sources: value)));
-  bool get expertView => state.expertView;
-  set expertView(bool value) => emit(state.copyWith(expertView: value));
   bool get ready => state.ready;
   set ready(bool value) => emit(state.copyWith(ready: value));
   bool get failed => state.failed;
@@ -180,7 +148,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   String? get pendingChange => state.pendingChange;
   set pendingChange(String? value) =>
       emit(state.copyWith(pendingChange: value));
-  Set<int> get deletingRawIds => state.deletingRawIds;
 
   void _connectionChanged() {
     if (isPageActive) {
@@ -210,8 +177,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     try {
       if (!isPageActive) return;
       configuration = await coordinator.configuration;
-      if (!_viewInitialized) expertView = configuration.connection.expert;
-      _viewInitialized = true;
       if (_subscriptions.isEmpty) {
         _subscriptions.add(
           db.connectionConfigDao.watch().listen((row) {
@@ -394,7 +359,7 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
   ({int entryCount, String path})? get runningRoute {
     final view = connectionView;
     final runtime = view.runtime;
-    if (view.phase != ConnectionPhase.connected ||
+    if (!view.canDisconnect ||
         runtime == null ||
         runtime.configuration.connection.expert ||
         runtime.profile != null) {
@@ -430,17 +395,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
       return;
     }
     if (pendingChange != null) return;
-    if (!view.canDisconnect && expertView && !configuration.connection.expert) {
-      if (raws.isEmpty) {
-        await editRaw(context);
-        return;
-      }
-      ContextAlert.showToast(
-        context,
-        AppLocalizations.of(context)!.prototypeChooseRawConfiguration,
-      );
-      return;
-    }
     // A command may await permission, status reads or the serial queue before
     // publishing a VPN phase. Acknowledge the tap without inventing that phase.
     pendingChange = 'connection';
@@ -466,14 +420,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     } finally {
       pendingChange = null;
     }
-  }
-
-  Future<void> toggleExpert(BuildContext context, bool value) async {
-    if (connectionView.busy || pendingChange != null) return;
-    if (!value && configuration.connection.expert) {
-      if (!await change(context, {'expert': false})) return;
-    }
-    expertView = value;
   }
 
   Future<bool> change(
@@ -607,51 +553,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     }
   }
 
-  Future<void> deleteRaw(BuildContext context, CoreConfigData row) async {
-    if (connectionView.busy ||
-        pendingChange != null ||
-        deletingRawIds.contains(row.id)) {
-      return;
-    }
-    emit(state.copyWith(deletingRawIds: {...deletingRawIds, row.id}));
-    try {
-      await run(context, () async {
-        var active = false;
-        final deleted =
-            await RawEditorService(
-              database: db,
-              coordinator: coordinator,
-            ).delete(
-              row,
-              confirm: (selected, reconnect, disconnect) async {
-                if (!context.mounted) return false;
-                active = selected;
-                final l10n = AppLocalizations.of(context)!;
-                return await showDestructiveConfirmationDialog(
-                      context,
-                      title: l10n.prototypeDeleteRawQuestion,
-                      subtitle: row.name,
-                      warning: disconnect
-                          ? l10n.prototypeRawDeleteDisconnectNotice
-                          : selected
-                          ? l10n.prototypeActiveRawDeleteNotice
-                          : l10n.prototypeRawDeleteNotice,
-                      confirmLabel: disconnect
-                          ? l10n.prototypeDeleteAndDisconnect
-                          : reconnect
-                          ? l10n.prototypeDeleteAndReconnect
-                          : l10n.prototypeDelete,
-                    ) &&
-                    context.mounted;
-              },
-            );
-        if (deleted && active) expertView = false;
-      });
-    } finally {
-      emit(state.copyWith(deletingRawIds: {...deletingRawIds}..remove(row.id)));
-    }
-  }
-
   Future<void> addServers(BuildContext context) =>
       context.pushScoped(AppPageDestination.serversImport);
   Future<void> editRaw(BuildContext context, [int? id]) =>
@@ -701,70 +602,16 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     }
   }
 
-  Future<void> showRawActions(BuildContext context, CoreConfigData row) async {
-    if (deletingRawIds.contains(row.id)) return;
-    final edit = await showConnectDialog<bool>(context, (dialogContext) {
-      final l = AppLocalizations.of(dialogContext)!;
-      final palette = ColorManager.palette(dialogContext);
-      return ConnectDialog(
-        title: row.name,
-        body: ListTileTheme(
-          data: AppTheme.actionListTile,
-          child: Column(
-            children: [
-              ListTile(
-                leading: Icon(
-                  LucideIcons.pencil,
-                  color: palette.primary,
-                  size: 20,
-                ),
-                title: Text(
-                  l.prototypeEditRawJson,
-                  style: AppTypography.dialogGroupTitle,
-                ),
-                trailing: const Icon(LucideIcons.chevronRightDir, size: 18),
-                onTap: () => Navigator.of(dialogContext).pop(true),
-              ),
-              Divider(height: 1, color: palette.border),
-              ListTile(
-                enabled: !connectionView.busy,
-                leading: Icon(
-                  LucideIcons.trash2,
-                  color: palette.destructive,
-                  size: 20,
-                ),
-                title: Text(
-                  l.prototypeDelete,
-                  style: AppTypography.dialogGroupTitle.copyWith(
-                    color: palette.destructive,
-                  ),
-                ),
-                trailing: Icon(
-                  LucideIcons.chevronRightDir,
-                  color: palette.destructive,
-                  size: 18,
-                ),
-                onTap: () => Navigator.of(dialogContext).pop(false),
-              ),
-            ],
-          ),
-        ),
-      );
-    });
-    if (!context.mounted || edit == null) return;
-    if (edit) {
-      await editRaw(context, row.id);
-    } else {
-      await deleteRaw(context, row);
-    }
-  }
-
   Future<void> chooseTrafficMethod(BuildContext context) =>
       context.pushScoped(AppPageDestination.routing);
 
   Future<void> showWhy(BuildContext context) async {
+    final view = connectionView;
+    final runtime = view.runtime;
+    if (!view.canDisconnect || runtime == null) return;
+    final settings = runtime.configuration.connection;
     final l = AppLocalizations.of(context)!;
-    if (providerConfiguration || configuration.connection.expert) {
+    if (runtime.profile != null || settings.expert) {
       await showConnectDialog<void>(
         context,
         (dialogContext) => ConnectDialog(
@@ -773,7 +620,7 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
             padding: const EdgeInsets.all(22),
             child: ConnectExplanation(
               icon: LucideIcons.shieldCheck,
-              text: configuration.connection.expert
+              text: settings.expert
                   ? l.prototypeRawManagedSettingsNotice
                   : l.providerRoutingNotice,
             ),
@@ -788,26 +635,9 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
       );
       return;
     }
-    final view = connectionView;
-    final connected = view.phase == ConnectionPhase.connected;
-    final runtime = connected ? view.runtime : null;
-    final settings =
-        runtime?.configuration.connection ?? configuration.connection;
-    final names = connected
-        ? (runtime?.entries ?? const <RuntimeNode>[])
-              .map((entry) => entry.name)
-              .toList()
-        : _previewEntries(settings).map((row) => serverName(row)).toList();
+    final names = runtime.entries.map((entry) => entry.name).toList();
     final entryNames = names.join(' + ');
-    final exit = connected
-        ? runtime?.finalExit?.name
-        : servers
-              .where((row) => row.id == settings.finalExitId)
-              .map(serverName)
-              .firstOrNull;
-    final custom = customRoutes
-        .where((row) => row.id == settings.customId)
-        .firstOrNull;
+    final exit = runtime.finalExit?.name;
     final methodReason = names.isEmpty
         ? l.prototypeNoAvailableEntries
         : switch (settings.trafficMode) {
@@ -816,21 +646,11 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
                   ? l.prototypeSmartConnectionReason(entryNames)
                   : l.prototypeSmartConnectionChainReason(entryNames, exit),
             TrafficMode.allVpn => l.prototypeAllVpnConnectionReason(entryNames),
-            TrafficMode.custom =>
-              custom == null
-                  ? l.prototypeCustomConnectionReason
-                  : l.prototypeNamedCustomConnectionReason(custom.name),
+            TrafficMode.custom => l.prototypeCustomConnectionReason,
           };
     final selectionReason = names.isEmpty
         ? null
-        : connected
-        ? l.prototypeRunningEntriesReason(entryNames)
-        : names.length > 1
-        ? l.prototypeMultipleEntriesReason(names.length)
-        : switch (settings.selection.kind) {
-            SelectionKind.server => l.prototypeFixedEntryReason(entryNames),
-            _ => l.prototypeAutomaticEntryReason(entryNames),
-          };
+        : l.prototypeRunningEntriesReason(entryNames);
     await showConnectDialog<void>(
       context,
       (dialogContext) => ConnectDialog(
@@ -874,29 +694,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
 
   ConnectionSettings _ordinarySettings(ConnectionSettings settings) =>
       ConnectionSettings.fromJson({...settings.toJson(), 'expert': false});
-
-  /// Explain the cached candidate order without probing or selecting a
-  /// runtime input. The actual connection still resolves through the coordinator.
-  List<CoreConfigData> _previewEntries(ConnectionSettings settings) {
-    settings = _ordinarySettings(settings);
-    final count = _configuredEntryCount(settings);
-    if (count == null) return [];
-    final rows = servers.where((row) {
-      if (!catalog.outboundEligible(row) ||
-          row.id <= 0 ||
-          row.id == settings.finalExitId) {
-        return false;
-      }
-      final matches = switch (settings.selection.kind) {
-        SelectionKind.automatic => true,
-        SelectionKind.source => row.subId == settings.selection.id,
-        SelectionKind.server => row.id == settings.selection.id,
-      };
-      if (!matches) return false;
-      return catalog.display(row).readable;
-    }).toList()..sort(ConnectionResolver.compareCandidates);
-    return rows.length < count ? [] : rows.take(count).toList();
-  }
 
   Future<void> run(BuildContext context, Future<void> Function() action) async {
     await runConnectionAction(context, coordinator, action);

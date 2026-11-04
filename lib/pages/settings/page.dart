@@ -32,11 +32,7 @@ class SettingsPage extends StatelessWidget {
         final l10n = AppLocalizations.of(context)!;
         final controller = context.read<SettingsController>();
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
-            title: Text(l10n.prototypeSettings),
-            description: l10n.settingsOverviewDescription,
-          ),
+          appBar: PageAppBar(title: Text(l10n.prototypeSettings)),
           body: SafeArea(
             child: BlocBuilder<AppEventBus, AppEventBusState>(
               builder: (context, preferences) {

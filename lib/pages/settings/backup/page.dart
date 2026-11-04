@@ -48,9 +48,7 @@ class BackupPage extends StatelessWidget {
             .add_Hm();
         final busy = state.busy;
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
-            description: l.backupPageDescription,
+          appBar: PageAppBar(
             title: Text(l.backupTitle),
             actions: [
               PageHelpButton(

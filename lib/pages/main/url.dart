@@ -68,7 +68,6 @@ import 'package:onexray/pages/settings/app_icon/page.dart';
 import 'package:onexray/pages/advanced/xray/data_update/page.dart';
 import 'package:onexray/pages/settings/desktop/page.dart';
 import 'package:onexray/pages/settings/language/page.dart';
-import 'package:onexray/pages/settings/theme/page.dart';
 import 'package:onexray/pages/servers/subscription/params.dart';
 import 'package:onexray/pages/theme/theme.dart';
 
@@ -484,7 +483,6 @@ final _pageRoutes = <_PageRoute>[
     (_, _) => const DesktopSettingsPage(),
   ),
   _route(AppPageDestination.appIcon, (_, _) => const AppIconPage()),
-  _route(AppPageDestination.theme, (_, _) => const ThemePage()),
   _route(AppPageDestination.language, (_, _) => const LanguagePage()),
   _route(AppPageDestination.aboutOneXray, (_, _) => const AboutOneXrayPage()),
   _route(
@@ -521,8 +519,7 @@ class _InvalidRoutePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PageAppBar.forPage(
-        context,
+      appBar: PageAppBar(
         title: Text(
           AppLocalizations.of(context)!.prototypeTemporarilyUnavailable,
         ),
@@ -583,7 +580,7 @@ class _LogRouteGateState extends State<_LogRouteGate> {
       }
       final l = AppLocalizations.of(context)!;
       return Scaffold(
-        appBar: PageAppBar.forPage(context, title: Text(l.prototypeLogs)),
+        appBar: PageAppBar(title: Text(l.prototypeLogs)),
         body: SafeArea(
           child: Center(
             child: snapshot.connectionState != ConnectionState.done

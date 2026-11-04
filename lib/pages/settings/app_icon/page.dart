@@ -27,9 +27,7 @@ class AppIconPage extends StatelessWidget {
           final l10n = AppLocalizations.of(context)!;
           final useDockIconLabel = AppPlatform.isMacOS;
           return Scaffold(
-            appBar: PageAppBar.forPage(
-              context,
-              description: l10n.settingsDevicePreferenceDescription,
+            appBar: PageAppBar(
               title: Text(l10n.prototypeAppIcon),
               leading: BackButton(onPressed: () => controller.cancel(context)),
             ),

@@ -23,7 +23,6 @@ class ConnectView extends StatelessWidget {
     required this.raws,
     required this.activeRawId,
     this.pendingChange,
-    this.deletingRawIds = const {},
     required this.location,
     this.targetKind,
     this.runningPath,
@@ -35,13 +34,10 @@ class ConnectView extends StatelessWidget {
     this.methodEnabled = true,
     required this.onConnection,
     required this.onAddServers,
-    required this.onExpert,
     required this.onServer,
     required this.onMethod,
     required this.onWhy,
     required this.onRawAdd,
-    required this.onRawSelect,
-    required this.onRawActions,
   });
   final ConnectionView view;
   final Widget Function(bool desktop)? trafficBuilder;
@@ -50,7 +46,6 @@ class ConnectView extends StatelessWidget {
   final List<CoreConfigData> raws;
   final int? activeRawId;
   final String? pendingChange;
-  final Set<int> deletingRawIds;
   final String location;
   final String? targetKind;
   final String? runningPath;
@@ -64,8 +59,6 @@ class ConnectView extends StatelessWidget {
       onMethod,
       onWhy,
       onRawAdd;
-  final ValueChanged<bool> onExpert;
-  final ValueChanged<CoreConfigData> onRawSelect, onRawActions;
 
   bool get _connectionPending => pendingChange == 'connection';
   bool get _busy => view.busy || _connectionPending;
@@ -219,10 +212,7 @@ class ConnectView extends StatelessWidget {
                 ),
               ),
             ),
-            if (view.canDisconnect &&
-                (runningPath != null ||
-                    view.runtime?.profile != null ||
-                    view.runtime?.configuration.connection.expert == true)) ...[
+            if (view.canDisconnect && view.runtime != null) ...[
               const SizedBox(height: 16),
               Card(
                 margin: EdgeInsets.zero,

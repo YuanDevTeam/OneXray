@@ -25,11 +25,7 @@ class AboutOneXrayPage extends StatelessWidget {
         final l10n = AppLocalizations.of(context)!;
         final controller = context.read<SettingsController>();
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
-            title: Text(l10n.prototypeAboutOneXray),
-            description: l10n.prototypeCrossPlatformXrayClient,
-          ),
+          appBar: PageAppBar(title: Text(l10n.prototypeAboutOneXray)),
           body: SafeArea(
             child: SettingsPageScroll(
               desktopMaxWidth: AppLayout.routingMaxWidth,

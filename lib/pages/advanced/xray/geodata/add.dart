@@ -64,10 +64,8 @@ class GeoDataAddPage extends StatelessWidget {
         return PopScope(
           canPop: !state.formBusy,
           child: Scaffold(
-            appBar: PageAppBar.forPage(
-              context,
+            appBar: PageAppBar(
               title: Text(l.prototypeAddDataSource),
-              description: l.geodataAddDescription,
               leading: BackButton(onPressed: cancel),
             ),
             body: SafeArea(

@@ -80,9 +80,9 @@ class ServerAssetService {
        _subscriptions = subscriptions ?? SubscriptionService(),
        _schedule = schedule ?? PingService().schedulePingConfigIds;
 
-  Stream<List<CoreConfigData>> watch() => db.coreConfigDao.watchServers();
+  Stream<List<CoreConfigData>> _watch() => db.coreConfigDao.watchServers();
 
-  Future<List<CoreConfigData>> rows() =>
+  Future<List<CoreConfigData>> _rows() =>
       (db.select(db.coreConfig)..where(
             (row) => row.type.isIn([
               CoreConfigType.outbound.name,
@@ -90,10 +90,6 @@ class ServerAssetService {
             ]),
           ))
           .get();
-
-  static bool measured(CoreConfigData row) =>
-      row.type == CoreConfigType.outbound.name &&
-      row.delay != PingDelayConstants.unknown;
 
   static bool healthy(CoreConfigData row) =>
       row.type == CoreConfigType.outbound.name &&
@@ -108,15 +104,6 @@ class ServerAssetService {
       return true;
     } on FormatException {
       return false;
-    }
-  }
-
-  static String protocolLabel(CoreConfigData row) {
-    if (row.type != CoreConfigType.outbound.name) return '';
-    try {
-      return outboundProtocolLabel(readOutboundFromDbData(row));
-    } on FormatException {
-      return '';
     }
   }
 
@@ -312,7 +299,7 @@ class ServerAssetService {
       throw const FormatException('Manual group no longer exists');
     }
     final current = await coordinator.readForEditing();
-    final all = await rows();
+    final all = await _rows();
     final removed = manualGroupId != null
         ? all
               .where(
@@ -418,7 +405,7 @@ class ServerAssetService {
           throw const FormatException('Server became active before deletion');
         }
         if (preview.sourceId case final id?) {
-          final currentIds = (await rows())
+          final currentIds = (await _rows())
               .where((row) => row.subId == id)
               .map((row) => row.id)
               .toSet();
@@ -432,7 +419,7 @@ class ServerAssetService {
         } else {
           if (preview.manualGroupId case final groupId?) {
             final group = await db.manualServerGroupDao.searchRow(groupId);
-            final currentIds = (await rows())
+            final currentIds = (await _rows())
                 .where(
                   (row) =>
                       ManualServerGroupService.isManual(row) &&
@@ -472,7 +459,7 @@ class ServerAssetService {
       ConnectionPreparation(
         db: db,
         resolver: ConnectionResolver(
-          rows: () => watch().map(
+          rows: () => _watch().map(
             (rows) => rows.where((row) => !removed.contains(row.id)).toList(),
           ),
         ),

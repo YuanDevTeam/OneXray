@@ -25,8 +25,7 @@ class AndroidAutomationPage extends StatelessWidget {
         final controller = context.read<AutomationController>();
         final l = AppLocalizations.of(context)!;
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(l.automationTitle),
             actions: [
               PageHelpButton(

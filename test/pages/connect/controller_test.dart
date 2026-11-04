@@ -222,10 +222,13 @@ void main() {
   });
 
   testWidgets(
-    'Raw plan explains its own routing without changing ordinary preferences',
+    'Raw runtime explains its own routing without changing ordinary preferences',
     (tester) async {
       final coordinator = _Coordinator();
-      coordinator.state.value = const ConnectionView();
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.connected,
+        runtime: _runtime(expert: true),
+      );
       final configuration = ConnectionConfiguration(
         connection: ConnectionSettings(
           expert: true,
@@ -276,6 +279,104 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('connection explanation does not preview an unstarted plan', (
+    tester,
+  ) async {
+    final coordinator = _Coordinator();
+    final controller = ConnectController(
+      database: coordinator.db,
+      coordinator: coordinator,
+    )..configuration = coordinator.saved;
+    addTearDown(controller.close);
+    addTearDown(coordinator.dispose);
+    addTearDown(coordinator.db.close);
+    await tester.pumpWidget(
+      _testApp(
+        Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => controller.showWhy(context),
+              child: const Text('why'),
+            ),
+          ),
+        ),
+      ),
+    );
+    for (final view in [
+      const ConnectionView(),
+      ConnectionView(runtime: _runtime()),
+      const ConnectionView(phase: ConnectionPhase.failed, issue: 'stopFailed'),
+    ]) {
+      coordinator.state.value = view;
+      await tester.tap(find.text('why'));
+      await tester.pumpAndSettle();
+      expect(find.text('Why this connection?'), findsNothing);
+    }
+    expect(coordinator.applyCount, 0);
+    expect(coordinator.connectCount, 0);
+    expect(coordinator.disconnectCount, 0);
+  });
+
+  for (final phase in [ConnectionPhase.connected, ConnectionPhase.failed]) {
+    testWidgets(
+      'connection explanation uses only actual runtime even when the saved plan differs; phase=$phase',
+      (tester) async {
+        final coordinator = _Coordinator();
+        coordinator.state.value = ConnectionView(
+          phase: phase,
+          issue: phase == ConnectionPhase.failed ? 'stopFailed' : null,
+          runtime: _runtime(),
+        );
+        final controller = ConnectController(
+          database: coordinator.db,
+          coordinator: coordinator,
+        )..configuration = coordinator.saved;
+        addTearDown(controller.close);
+        addTearDown(coordinator.dispose);
+        addTearDown(coordinator.db.close);
+        await tester.pumpWidget(
+          _testApp(
+            Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => controller.showWhy(context),
+                  child: const Text('why'),
+                ),
+              ),
+            ),
+          ),
+        );
+        final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+        final before = coordinator.saved.encode();
+        expect(controller.configuration.connection.expert, isTrue);
+        await tester.tap(find.text('why'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            l.prototypeSmartConnectionChainReason(
+              'Singapore 03 + Japan 02',
+              'United States 01',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(l.prototypeRunningEntriesReason('Singapore 03 + Japan 02')),
+          findsOneWidget,
+        );
+        expect(find.text(l.prototypeRawManagedSettingsNotice), findsNothing);
+        expect(find.text(l.providerRoutingNotice), findsNothing);
+        expect(
+          controller.runningRoute?.path,
+          'Singapore 03 + Japan 02 → United States 01',
+        );
+        expect(coordinator.saved.encode(), before);
+        expect(coordinator.applyCount, 0);
+        expect(coordinator.connectCount, 0);
+      },
+    );
+  }
 
   testWidgets(
     'scope fallback uses frozen source and runtime identities only after connection',
@@ -783,13 +884,10 @@ void main() {
       'choosing ordinary scope from Raw follows the committed result; failure=$fail',
       (tester) async {
         final coordinator = _Coordinator(fail: fail);
-        final controller =
-            ConnectController(
-                database: coordinator.db,
-                coordinator: coordinator,
-              )
-              ..expertView = true
-              ..configuration = coordinator.saved;
+        final controller = ConnectController(
+          database: coordinator.db,
+          coordinator: coordinator,
+        )..configuration = coordinator.saved;
         addTearDown(controller.close);
         addTearDown(coordinator.dispose);
         addTearDown(coordinator.db.close);
@@ -826,7 +924,7 @@ void main() {
         await tester.tap(find.text('Apply and reconnect'));
         await tester.pumpAndSettle();
         await changing;
-        expect(controller.expertView, fail);
+        expect(controller.configuration.connection.expert, fail);
         expect(coordinator.saved.connection.expert, fail);
         if (!fail) {
           expect(controller.configuration.encode(), coordinator.saved.encode());
@@ -1346,13 +1444,10 @@ Widget _connectionScreen(ConnectController controller) => ShadTheme(
           method: 'Smart Routing',
           onConnection: () => controller.connectionAction(context),
           onAddServers: () {},
-          onExpert: (_) {},
           onServer: () {},
           onMethod: () {},
           onWhy: () {},
           onRawAdd: () {},
-          onRawSelect: (_) {},
-          onRawActions: (_) {},
         ),
       ),
     ),

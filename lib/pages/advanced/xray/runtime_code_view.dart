@@ -111,7 +111,7 @@ class RuntimeCodeScaffold extends StatelessWidget {
       ),
     );
     return Scaffold(
-      appBar: PageAppBar.forPage(context, title: Text(title)),
+      appBar: PageAppBar(title: Text(title)),
       body: SafeArea(
         child: ResponsiveContent(
           desktopMaxWidth: AppLayout.advancedMaxWidth,

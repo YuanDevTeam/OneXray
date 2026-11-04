@@ -17,26 +17,21 @@ import 'package:onexray/service/servers/sort.dart';
 import 'package:onexray/pages/servers/order/controller.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/failure.dart';
-import 'package:onexray/service/connect/routing/custom/service.dart';
-import 'package:onexray/service/connect/routing/custom/configuration.dart';
 
 import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/shared/share/params.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/servers/subscription/format_confirmation.dart';
-import 'package:onexray/pages/servers/menus.dart';
 import 'package:onexray/pages/servers/raw_copy_dialog.dart';
 import 'package:onexray/pages/servers/sources.dart';
 import 'package:onexray/pages/servers/subscription/params.dart';
-import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/service/servers/server.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
-import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/service/shared/ping/service.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/servers/subscription/failure.dart';
@@ -46,7 +41,7 @@ export 'catalog.dart';
 
 enum ServerAction { edit, test, copy, share, move, delete }
 
-enum SourceAction { update, test, edit, share, delete }
+enum SourceAction { update, edit, share, delete }
 
 class ServerGroupParams {
   final ServersController controller;
@@ -63,11 +58,9 @@ class ServersPageState {
     ConnectionConfiguration? configuration,
     this.connectionView = const ConnectionView(),
     ServerCatalog? catalog,
-    List<RoutingConfiguration> customRoutes = const [],
     this.ready = false,
     this.failed = false,
     this.failure,
-    this.activeServerGroupId,
     this.serverSearchQuery = '',
     Set<String> pendingServerActions = const {},
     Map<Object, PendingServerTest> serverTests = const {},
@@ -78,7 +71,6 @@ class ServersPageState {
     List<CoreConfigData> rawConfigurations = const [],
   }) : configuration = configuration ?? ConnectionConfiguration(),
        catalog = catalog ?? ServerCatalog(),
-       customRoutes = List.unmodifiable(customRoutes),
        pendingServerActions = Set.unmodifiable(pendingServerActions),
        serverTests = Map.unmodifiable(serverTests),
        favoritingServerIds = Set.unmodifiable(favoritingServerIds),
@@ -90,12 +82,10 @@ class ServersPageState {
   List<CoreConfigData> get servers => catalog.servers;
   List<SubscriptionData> get sources => catalog.sources;
   final ServerCatalog catalog;
-  final List<RoutingConfiguration> customRoutes;
   final bool ready;
   final bool failed;
   final Object? failure;
 
-  final String? activeServerGroupId;
   final String serverSearchQuery;
   final Set<String> pendingServerActions;
   final Map<Object, PendingServerTest> serverTests;
@@ -109,11 +99,9 @@ class ServersPageState {
     ConnectionConfiguration? configuration,
     ConnectionView? connectionView,
     ServerCatalog? catalog,
-    List<RoutingConfiguration>? customRoutes,
     bool? ready,
     bool? failed,
     Object? failure,
-    Object? activeServerGroupId = _unchanged,
     String? serverSearchQuery,
     Set<String>? pendingServerActions,
     Map<Object, PendingServerTest>? serverTests,
@@ -126,13 +114,9 @@ class ServersPageState {
     configuration: configuration ?? this.configuration,
     connectionView: connectionView ?? this.connectionView,
     catalog: catalog ?? this.catalog,
-    customRoutes: customRoutes ?? this.customRoutes,
     ready: ready ?? this.ready,
     failed: failed ?? this.failed,
     failure: failed == false ? null : failure ?? this.failure,
-    activeServerGroupId: identical(activeServerGroupId, _unchanged)
-        ? this.activeServerGroupId
-        : activeServerGroupId as String?,
     serverSearchQuery: serverSearchQuery ?? this.serverSearchQuery,
     pendingServerActions: pendingServerActions ?? this.pendingServerActions,
     serverTests: serverTests ?? this.serverTests,
@@ -180,10 +164,7 @@ class ServersController extends PageCubit<ServersPageState>
   ConnectionConfiguration get configuration => state.configuration;
   set configuration(ConnectionConfiguration value) =>
       emit(state.copyWith(configuration: value));
-  List<RoutingConfiguration> get customRoutes => state.customRoutes;
   List<CoreConfigData> get rawConfigurations => state.rawConfigurations;
-  set customRoutes(List<RoutingConfiguration> value) =>
-      emit(state.copyWith(customRoutes: value));
   ConnectionView get connectionView => state.connectionView;
   bool get ready => state.ready;
   set ready(bool value) => emit(state.copyWith(ready: value));
@@ -220,20 +201,6 @@ class ServersController extends PageCubit<ServersPageState>
             configuration = ConnectionConfiguration.fromJson(
               jsonDecode(row.configurationJson) as Map<String, dynamic>,
             );
-          }, onError: _readFailed),
-        );
-        _subscriptions.add(
-          db.routingProfileDao.allRowsStream.listen((rows) {
-            final readable = <RoutingConfiguration>[];
-            for (final row in rows) {
-              try {
-                readable.add(CustomRoutingService.readConfiguration(row));
-              } catch (_) {
-                // Keep the auxiliary entry-count catalog separate from row
-                // diagnostics and from genuine database stream failures.
-              }
-            }
-            customRoutes = readable;
           }, onError: _readFailed),
         );
       }
@@ -276,9 +243,6 @@ class ServersController extends PageCubit<ServersPageState>
   final PingService _ping;
   bool _confirmingTest = false;
   final search = TextEditingController();
-  String? get activeGroupId => state.activeServerGroupId;
-  set activeGroupId(String? value) =>
-      emit(state.copyWith(activeServerGroupId: value));
   Set<String> get _pending => state.pendingServerActions;
   Set<int> get favoritingIds => state.favoritingServerIds;
   ServerSelection? get selecting => state.selectingServers;
@@ -305,14 +269,13 @@ class ServersController extends PageCubit<ServersPageState>
       servers.any(
         (row) => row.subId == id && _pending.contains('server:${row.id}'),
       );
-  bool testingGroup(ServerGroup group) =>
-      state.serverTests.values.any((test) => test.groupId == group.id);
-  bool cancellingGroup(ServerGroup group) => state.serverTests.values
-      .where((test) => test.groupId == group.id)
-      .every((test) => test.cancelling);
-  bool selectingGroup(ServerSelection value) =>
-      selecting != null &&
-      jsonEncode(selecting!.toJson()) == jsonEncode(value.toJson());
+  bool testingGroup(String groupId) =>
+      state.serverTests.values.any((test) => test.groupId == groupId);
+  bool cancellingGroup(String groupId) =>
+      testingGroup(groupId) &&
+      state.serverTests.values
+          .where((test) => test.groupId == groupId)
+          .every((test) => test.cancelling);
 
   void _searchChanged() => searchChanged(search.text);
   void searchChanged(String value) {
@@ -321,179 +284,18 @@ class ServersController extends PageCubit<ServersPageState>
     }
   }
 
-  int entryCount(ServerSelection selection) {
-    final connection = ConnectionSettings.fromJson({
-      ...configuration.connection.toJson(),
-      'expert': false,
-      'selection': selection.toJson(),
-    });
-    int? customCount;
-    if (connection.trafficMode == TrafficMode.custom) {
-      final profile = customRoutes
-          .where((profile) => profile.id == connection.customId)
-          .firstOrNull;
-      if (profile == null) return 0;
-      customCount = profile.entryCount;
-    }
-    return connection.requiredEntries(customEntryCount: customCount);
-  }
-
   bool providerSource(SubscriptionData source) =>
       source.mode == SubscriptionMode.providerManaged.name;
-
-  bool providerGroup(ServerGroup group) =>
-      group.source != null && providerSource(group.source!);
 
   bool providerRow(CoreConfigData row) =>
       catalog.display(row).type == CoreConfigType.Remnawave.name;
 
   bool canTest(CoreConfigData row) => catalog.outboundEligible(row);
 
-  bool canUse(ServerGroup group) {
-    final selection = group.selection;
-    if (providerGroup(group) || selection == null) return false;
-    return canUseSelection(selection, group.rows);
-  }
-
-  bool canUseSelection(
-    ServerSelection selection,
-    Iterable<CoreConfigData> rows,
-  ) {
-    final count = entryCount(selection);
-    final finalExit = configuration.connection.trafficMode == TrafficMode.smart
-        ? configuration.connection.smart.finalExitId
-        : null;
-    return count > 0 &&
-        rows
-                .where(
-                  (row) =>
-                      row.id != finalExit && ServerAssetService.selectable(row),
-                )
-                .take(count)
-                .length >=
-            count;
-  }
-
   bool selected(ServerSelection selection) =>
       !configuration.connection.expert &&
       jsonEncode(configuration.connection.selection.toJson()) ==
           jsonEncode(selection.toJson());
-
-  // Display only: running identities come from the active runtime. Offline
-  // previews use the resolver's readable-candidate order, never start a probe
-  // or change a connection plan.
-  ({List<String> names, CoreConfigData? first}) get _displaySelection {
-    final settings = configuration.connection;
-    if (settings.expert) return (names: [], first: null);
-    final view = connectionView;
-    if (view.phase == ConnectionPhase.connected) {
-      final runtime = view.runtime;
-      if (runtime == null || runtime.configuration.connection.expert) {
-        return (names: [], first: null);
-      }
-      if (runtime.profile != null) {
-        return (
-          names: [runtime.profile!.name],
-          first: servers
-              .where((row) => row.id == runtime.profile!.id)
-              .firstOrNull,
-        );
-      }
-      final entries = runtime.entries;
-      return (
-        names: entries.map((entry) => entry.name).toList(),
-        first: servers
-            .where((row) => row.id == entries.firstOrNull?.id)
-            .firstOrNull,
-      );
-    }
-    final selection = settings.selection;
-    if (selection.kind == SelectionKind.server) {
-      final profile = servers
-          .where((row) => row.id == selection.id && providerRow(row))
-          .firstOrNull;
-      if (profile != null && catalog.selectable(profile)) {
-        return (names: [serverName(profile)], first: profile);
-      }
-    }
-    final count = entryCount(selection);
-    final rows = servers.where((row) {
-      if (row.id == settings.finalExitId ||
-          !catalog.outboundEligible(row) ||
-          !ServerAssetService.selectable(row)) {
-        return false;
-      }
-      return switch (selection.kind) {
-        SelectionKind.automatic => true,
-        SelectionKind.source => row.subId == selection.id,
-        SelectionKind.server => row.id == selection.id,
-      };
-    }).toList()..sort(ConnectionResolver.compareCandidates);
-    if (count <= 0 || rows.length < count) return (names: [], first: null);
-    return (
-      names: rows.take(count).map(serverName).toList(),
-      first: rows.first,
-    );
-  }
-
-  String? automaticResult(AppLocalizations l) {
-    if (!selected(const ServerSelection.automatic())) return null;
-    final display = _displaySelection;
-    if (display.names.isEmpty) return null;
-    final row = display.first;
-    return l.prototypeCurrentServerLatency(
-      display.names.first,
-      row != null && ServerAssetService.healthy(row) ? row.delay : '—',
-    );
-  }
-
-  ({String title, String detail})? currentSelectionSummary(AppLocalizations l) {
-    final settings = configuration.connection;
-    final selection = settings.selection;
-    if (settings.expert || selection.kind == SelectionKind.automatic) {
-      return null;
-    }
-    final display = _displaySelection;
-    final row =
-        display.first ??
-        servers.where((row) => row.id == selection.id).firstOrNull;
-    final title = switch (selection.kind) {
-      SelectionKind.automatic => l.prototypeAutomaticSelection,
-      SelectionKind.source =>
-        selection.id == 0
-            ? l.prototypeManualAdditions
-            : sources
-                      .where((source) => source.id == selection.id)
-                      .firstOrNull
-                      ?.name ??
-                  l.prototypeTemporarilyUnavailable,
-      SelectionKind.server =>
-        display.names.firstOrNull ??
-            (row == null ? l.prototypeTemporarilyUnavailable : serverName(row)),
-    };
-    return (
-      title: title,
-      detail: selection.kind == SelectionKind.server
-          ? row == null
-                ? ''
-                : sourceName(l, row)
-          : '${l.prototypeAutomaticSelection}${display.names.isEmpty ? '' : ' · ${display.names.join(' + ')}'}',
-    );
-  }
-
-  String? get currentGroupId {
-    final selection = configuration.connection.selection;
-    final first = _displaySelection.first;
-    final id = selection.kind == SelectionKind.source
-        ? selection.id
-        : first?.subId ?? connectionView.runtime?.profile?.sourceId;
-    if (id == 0 && first != null) {
-      return first.manualGroupId == null
-          ? 'manual:ungrouped'
-          : 'manual:${first.manualGroupId}';
-    }
-    return id == null || id == 0 ? null : 'subscription:$id';
-  }
 
   bool canChoose(CoreConfigData row) =>
       catalog.selectable(row) && !exitConflict(row);
@@ -522,9 +324,6 @@ class ServersController extends PageCubit<ServersPageState>
       : {};
 
   String summary(AppLocalizations l, ServerGroup group) {
-    if (providerGroup(group)) {
-      return l.providerConfigurationCount(group.rows.length);
-    }
     var available = 0;
     int? fastest;
     for (final row in group.rows) {
@@ -559,12 +358,7 @@ class ServersController extends PageCubit<ServersPageState>
     return null;
   }
 
-  Future<void> browse(
-    BuildContext context,
-    ServerGroup group, {
-    required bool mobile,
-  }) async {
-    activeGroupId = group.id;
+  Future<void> browse(BuildContext context, ServerGroup group) async {
     await context.pushScoped(
       AppPageDestination.serverGroup,
       extra: ServerGroupParams(this, group.id),
@@ -699,9 +493,12 @@ class ServersController extends PageCubit<ServersPageState>
     String? groupId,
   }) async {
     final ids = rows.where(canTest).map((row) => row.id).toSet();
-    if (ids.isEmpty) return;
+    if (ids.isEmpty || (groupId != null && testingGroup(groupId))) return;
     final confirmed = await _confirmManualTest(context);
-    if (!confirmed || !context.mounted || !_testPageVisible(context)) {
+    if (!confirmed ||
+        !context.mounted ||
+        !_testPageVisible(context) ||
+        (groupId != null && testingGroup(groupId))) {
       return;
     }
     await run(context, () async {
@@ -943,8 +740,7 @@ class ServersController extends PageCubit<ServersPageState>
     );
     if (name == null || !context.mounted || !isPageActive) return;
     await perform(context, () async {
-      final id = await manualGroupService.create(name);
-      activeGroupId = 'manual:$id';
+      await manualGroupService.create(name);
       if (context.mounted) ContextAlert.settingsSaved(context);
     });
   }
@@ -1050,7 +846,6 @@ class ServersController extends PageCubit<ServersPageState>
     ServerGroup group,
     bool closePage,
   ) {
-    if (activeGroupId == group.id) activeGroupId = 'manual:ungrouped';
     if (!context.mounted) return;
     ContextAlert.showToast(
       context,
@@ -1131,13 +926,6 @@ class ServersController extends PageCubit<ServersPageState>
             );
           }
         }, sourceId: source.id);
-      case SourceAction.test:
-        if (providerSource(source)) return;
-        await test(
-          context,
-          servers.where((row) => row.subId == source.id),
-          groupId: 'subscription:${source.id}',
-        );
       case SourceAction.edit:
         await context.pushScoped(
           AppPageDestination.subscriptionEdit,
@@ -1197,24 +985,6 @@ class ServersController extends PageCubit<ServersPageState>
       ids: ids,
       sourceId: sourceId,
     );
-  }
-
-  Future<void> openSources(BuildContext context) async {
-    final source = await showAppDialog<SubscriptionData>(
-      context,
-      (_) => ServerSourcesDialog(controller: this),
-      desktopMaxWidth: AppLayout.sourcesDialogWidth,
-    );
-    if (source == null || !context.mounted || !isPageActive) return;
-    final action = await showSourceActionsMenu(
-      context,
-      name: source.name,
-      count: sourceCount(source.id),
-      provider: providerSource(source),
-    );
-    if (action != null && context.mounted && isPageActive) {
-      await sourceAction(context, source, action);
-    }
   }
 
   Future<void> openServerHelp(BuildContext context) async {

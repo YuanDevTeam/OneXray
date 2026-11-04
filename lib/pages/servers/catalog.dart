@@ -80,9 +80,6 @@ mixin ServerGroups on ServerLabels {
         ].any((value) => value.toLowerCase().contains(query));
   }
 
-  List<CoreConfigData> favorites(AppLocalizations l) =>
-      servers.where((row) => row.favorite && matches(l, row)).toList();
-
   List<ServerGroup> groups(AppLocalizations l, {bool filter = true}) {
     final query = filter ? this.query.trim().toLowerCase() : '';
     final result = <ServerGroup>[];

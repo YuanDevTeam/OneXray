@@ -81,7 +81,6 @@ void main() {
     await waitForCatalog(
       () =>
           connect.customRoutes.any((row) => row.id == goodId) &&
-          servers.customRoutes.any((row) => row.id == goodId) &&
           connect.servers.any((row) => row.id == nodeId) &&
           servers.servers.any((row) => row.id == nodeId),
     );
@@ -113,9 +112,9 @@ void main() {
         expect(connect.ready && !connect.failed, isTrue);
         expect(servers.ready && !servers.failed, isTrue);
         expect(connect.customRoutes.map((row) => row.id), [goodId]);
-        expect(servers.customRoutes.map((row) => row.id), [goodId]);
         expect(connect.candidateCount(automatic), 1);
-        expect(servers.canUseSelection(automatic, servers.servers), isTrue);
+        expect(servers.canChoose(servers.servers.single), isTrue);
+        expect(servers.canTest(servers.servers.single), isTrue);
       }
 
       expect(
@@ -124,60 +123,47 @@ void main() {
         ),
         isTrue,
       );
-      await waitForCatalog(
-        () => connect.customRoutes.isEmpty && servers.customRoutes.isEmpty,
-      );
+      await waitForCatalog(() => connect.customRoutes.isEmpty);
       expect(connect.failed || servers.failed, isFalse);
-      expect(servers.canUseSelection(automatic, servers.servers), isTrue);
+      expect(servers.canChoose(servers.servers.single), isTrue);
+      expect(servers.canTest(servers.servers.single), isTrue);
 
       expect(await db.routingProfileDao.updateRow(originalGood), isTrue);
       await waitForCatalog(
-        () =>
-            connect.customRoutes.any((row) => row.id == goodId) &&
-            servers.customRoutes.any((row) => row.id == goodId),
+        () => connect.customRoutes.any((row) => row.id == goodId),
       );
       expect(connect.customRoutes.map((row) => row.id), [goodId]);
-      expect(servers.customRoutes.map((row) => row.id), [goodId]);
       expect(connect.failed || servers.failed, isFalse);
     },
   );
 
-  test(
-    'a selected damaged Custom route stays unavailable without changing mode',
-    () async {
-      final selected = ConnectionConfiguration(
-        connection: ConnectionSettings(
-          trafficMode: TrafficMode.custom,
-          customId: brokenId,
-        ),
-      );
-      await db.connectionConfigDao.commit(configurationJson: selected.encode());
-      await waitForCatalog(
-        () =>
-            connect.configuration.connection.customId == brokenId &&
-            servers.configuration.connection.customId == brokenId,
-      );
-      expect(connect.failed || servers.failed, isFalse);
-      expect(servers.entryCount(const ServerSelection.automatic()), 0);
-      expect(
-        servers.canUseSelection(
-          const ServerSelection.automatic(),
-          servers.servers,
-        ),
-        isFalse,
-      );
-      await expectLater(
-        CustomRoutingEditorService(
-          database: db,
-          coordinator: coordinator,
-        ).load((await coordinator.configuration).connection.customId),
-        throwsFormatException,
-      );
-      expect((await coordinator.configuration).encode(), selected.encode());
-      expect(connect.configuration.connection.trafficMode, TrafficMode.custom);
-      expect(servers.configuration.connection.trafficMode, TrafficMode.custom);
-      expect(connect.customRoutes.map((row) => row.id), [goodId]);
-      expect(servers.customRoutes.map((row) => row.id), [goodId]);
-    },
-  );
+  test('a selected damaged Custom route stays invalid without blocking node management', () async {
+    final selected = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        trafficMode: TrafficMode.custom,
+        customId: brokenId,
+      ),
+    );
+    await db.connectionConfigDao.commit(configurationJson: selected.encode());
+    await waitForCatalog(
+      () =>
+          connect.configuration.connection.customId == brokenId &&
+          servers.configuration.connection.customId == brokenId,
+    );
+    expect(connect.failed || servers.failed, isFalse);
+    expect(servers.canChoose(servers.servers.single), isTrue);
+    expect(servers.canTest(servers.servers.single), isTrue);
+    expect(connect.candidateCount(const ServerSelection.automatic()), 1);
+    await expectLater(
+      CustomRoutingEditorService(
+        database: db,
+        coordinator: coordinator,
+      ).load((await coordinator.configuration).connection.customId),
+      throwsFormatException,
+    );
+    expect((await coordinator.configuration).encode(), selected.encode());
+    expect(connect.configuration.connection.trafficMode, TrafficMode.custom);
+    expect(servers.configuration.connection.trafficMode, TrafficMode.custom);
+    expect(connect.customRoutes.map((row) => row.id), [goodId]);
+  });
 }

@@ -39,8 +39,7 @@ class _ConnectPageState extends State<ConnectPage> {
     child: PageVisibility(
       onChanged: controller.setPageVisible,
       child: Scaffold(
-        appBar: PageAppBar.forPage(
-          context,
+        appBar: PageAppBar(
           title: Text(AppLocalizations.of(context)!.prototypeConnect),
           actions: const [AppActivityIndicator()],
         ),
@@ -78,10 +77,9 @@ class _ConnectPageState extends State<ConnectPage> {
                           TrafficReadout(view: view, desktop: desktop),
                     ),
                 hasServers: state.servers.isNotEmpty,
-                expert: state.expertView,
+                expert: state.configuration.connection.expert,
                 raws: state.raws,
                 pendingChange: state.pendingChange,
-                deletingRawIds: state.deletingRawIds,
                 activeRawId: state.configuration.connection.expert
                     ? state.configuration.connection.rawId
                     : null,
@@ -98,13 +96,10 @@ class _ConnectPageState extends State<ConnectPage> {
                     !controller.providerConfiguration,
                 onConnection: () => controller.connectionAction(context),
                 onAddServers: () => controller.addServers(context),
-                onExpert: (value) => controller.toggleExpert(context, value),
                 onServer: () => controller.chooseServer(context),
                 onMethod: () => controller.chooseTrafficMethod(context),
                 onWhy: () => controller.showWhy(context),
                 onRawAdd: () => controller.editRaw(context),
-                onRawSelect: (row) => controller.selectRaw(context, row.id),
-                onRawActions: (row) => controller.showRawActions(context, row),
               );
             },
           ),

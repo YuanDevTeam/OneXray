@@ -9,7 +9,6 @@ import 'package:onexray/pages/connect/routing/options_form.dart';
 import 'package:onexray/pages/connect/routing/widgets.dart';
 import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/pages/shared/widgets/configuration_transfer.dart';
-import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
@@ -66,9 +65,13 @@ void main() {
         final l = AppLocalizations.of(
           tester.element(find.byType(CustomRoutingEditorPage)),
         )!;
-        final header = tester.widget<PageAppBar>(find.byType(PageAppBar));
-        expect((header.title as Text).data, l.routingNormalCreateTitle);
-        expect(header.description, isNull);
+        expect(
+          find.descendant(
+            of: find.byType(AppBar),
+            matching: find.text(l.routingNormalCreateTitle),
+          ),
+          findsOneWidget,
+        );
         expect(find.text(l.routingNormalDescription), findsOneWidget);
         expect(
           find.descendant(

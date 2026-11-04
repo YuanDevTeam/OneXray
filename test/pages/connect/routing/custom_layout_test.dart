@@ -27,7 +27,6 @@ void main() {
     WidgetTester tester, {
     required double width,
     double windowWidth = 1440,
-    CustomRoutingRuleController? editor,
     Locale locale = const Locale('en'),
     double textScale = 1,
     Brightness brightness = Brightness.light,
@@ -58,9 +57,6 @@ void main() {
                       key: _rules,
                       child: SizedBox(height: 180),
                     ),
-                    editor: editor == null
-                        ? null
-                        : CustomRoutingRuleForm(controller: editor),
                     options: RoutingCard(
                       key: _options,
                       child: Column(
@@ -170,7 +166,43 @@ void main() {
     (tester) async {
       final editor = CustomRoutingRuleController();
       addTearDown(editor.close);
-      await pumpSections(tester, width: 900, editor: editor);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 1100);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      Future<void> pumpRuleForm({
+        required double width,
+        Locale locale = const Locale('en'),
+        double textScale = 1,
+        Brightness brightness = Brightness.light,
+      }) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(brightness),
+            locale: locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(textScale)),
+              child: ShadTheme(data: AppTheme.shad(brightness), child: child!),
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: Center(
+                  child: SizedBox(
+                    width: width,
+                    child: CustomRoutingRuleForm(controller: editor),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpRuleForm(width: 900);
       final ruleInput = find
           .descendant(
             of: find.byType(CustomRoutingRuleForm),
@@ -189,20 +221,13 @@ void main() {
         (743.0, Locale('fa'), 1.6, Brightness.light),
         (680.0, Locale('zh'), 2.0, Brightness.dark),
       ]) {
-        await pumpSections(
-          tester,
+        await pumpRuleForm(
           width: width,
-          windowWidth: width < 400 ? 390 : 1440,
-          editor: editor,
           locale: locale,
           textScale: scale,
           brightness: brightness,
         );
-        final rules = tester.getRect(find.byKey(_rules));
         final form = tester.getRect(find.byType(CustomRoutingRuleForm));
-        expect(form.top, greaterThan(rules.bottom));
-        expect(form.left, rules.left);
-        expect(form.width, rules.width);
         expect(form.width, width);
         expect(editor.name.text, 'Edited rule');
         expect(editor.name.selection, selection);

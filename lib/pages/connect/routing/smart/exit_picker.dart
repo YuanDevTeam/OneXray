@@ -62,8 +62,7 @@ class ServerExitPickerView extends StatelessWidget {
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         final groups = controller.selectionGroups(l);
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(l.prototypeVpnFinalExit),
             actions: const [AppActivityIndicator()],
           ),

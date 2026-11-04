@@ -13,6 +13,10 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:onexray/service/connect/coordinator.dart';
+import 'package:onexray/core/pigeon/model.dart';
+import 'package:onexray/service/connect/compiler.dart';
+import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/service/connect/traffic.dart';
 import 'package:onexray/service/settings/backup/service.dart';
@@ -42,7 +46,6 @@ void main() {
     List<CoreConfigData> raws = const [],
     int? activeRawId,
     VoidCallback? onAddServers,
-    VoidCallback? onExpert,
     VoidCallback? onRawAdd,
     VoidCallback? onServer,
   }) => ConnectView(
@@ -59,13 +62,10 @@ void main() {
     methodEnabled: methodEnabled,
     onConnection: () {},
     onAddServers: onAddServers ?? () {},
-    onExpert: (_) => onExpert?.call(),
     onServer: onServer ?? () {},
     onMethod: onMethod ?? () {},
     onWhy: () {},
     onRawAdd: onRawAdd ?? () {},
-    onRawSelect: (_) {},
-    onRawActions: (_) {},
   );
 
   Widget app(
@@ -288,6 +288,43 @@ void main() {
     );
   }
 
+  testWidgets('connection explanation requires actual runtime metadata', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [390.0, 768.0, 1440.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 900));
+      for (final view in [
+        const ConnectionView(),
+        ConnectionView(runtime: _runtime()),
+        const ConnectionView(
+          phase: ConnectionPhase.failed,
+          issue: 'stopFailed',
+        ),
+      ]) {
+        await tester.pumpWidget(app(screen(view: view)));
+        await tester.pumpAndSettle();
+        expect(find.text('Why this connection?'), findsNothing);
+      }
+      await tester.pumpWidget(
+        app(
+          screen(
+            view: ConnectionView(
+              phase: ConnectionPhase.failed,
+              issue: 'stopFailed',
+              runtime: _runtime(),
+            ),
+            runningPath: 'Actual entry',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Why this connection?'), findsOneWidget);
+      expect(find.text('Actual entry'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('scope fallback remains visible beside the actual running path', (
     tester,
   ) async {
@@ -295,7 +332,10 @@ void main() {
     await tester.pumpWidget(
       app(
         screen(
-          view: const ConnectionView(phase: ConnectionPhase.connected),
+          view: ConnectionView(
+            phase: ConnectionPhase.connected,
+            runtime: _runtime(),
+          ),
           runningPath: 'Frozen entry → Frozen final exit',
           fallbackMessage: message,
         ),
@@ -319,7 +359,10 @@ void main() {
           app(
             screen(
               expert: expert,
-              view: const ConnectionView(phase: ConnectionPhase.connected),
+              view: ConnectionView(
+                phase: ConnectionPhase.connected,
+                runtime: _runtime(),
+              ),
               runningPath: 'Frozen entry → Frozen exit',
             ),
           ),
@@ -450,8 +493,9 @@ void main() {
         await tester.pumpWidget(
           app(
             screen(
-              view: const ConnectionView(
+              view: ConnectionView(
                 phase: ConnectionPhase.connected,
+                runtime: _runtime(),
                 issue: 'selectionReset',
               ),
               runningPath: path,
@@ -747,4 +791,30 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+}
+
+ConnectionRuntime _runtime() {
+  final configuration = ConnectionConfiguration();
+  return ConnectionRuntime.create(
+    configuration: configuration,
+    compiled: CompiledConnection(
+      xrayJson: '{}',
+      entries: [
+        ResolvedServer(
+          id: 1,
+          sourceId: 0,
+          outbound: {'protocol': 'freedom', 'tag': 'Actual entry'},
+        ),
+      ],
+      finalExit: null,
+      nodeTags: const {},
+    ),
+    platform: ConnectionPlatform.android,
+    request: StartVpnRequest(
+      configuration.policy.toTun(ConnectionPlatform.android),
+      null,
+      null,
+      '{}',
+    ),
+  );
 }

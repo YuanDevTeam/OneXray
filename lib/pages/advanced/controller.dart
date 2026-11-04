@@ -27,7 +27,7 @@ class AdvancedPageState {
   });
 }
 
-/// Runtime facts shared by the Advanced tabs; platform edits use their own draft.
+/// Runtime facts shared by Xray pages; platform edits use their own draft.
 class AdvancedController extends PageCubit<AdvancedPageState>
     with WidgetsBindingObserver {
   final ConnectionCoordinator coordinator;

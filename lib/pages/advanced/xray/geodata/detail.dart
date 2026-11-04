@@ -48,10 +48,8 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                 MediaQuery.sizeOf(context).width,
               );
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(file?.fileName ?? l.prototypeRoutingData),
-            description: l.pageXrayConfigurationDescription,
             actions: const [AppActivityIndicator(pinging: false)],
           ),
           body: SafeArea(

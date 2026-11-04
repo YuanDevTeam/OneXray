@@ -44,10 +44,8 @@ class _RoutingPageState extends State<RoutingPage> {
         final gutter = mobile ? AppSpacing.mobilePage : AppSpacing.page;
         final palette = ColorManager.palette(context);
         return Scaffold(
-          appBar: PageAppBar.forPage(
-            context,
+          appBar: PageAppBar(
             title: Text(l.navigationRouting),
-            description: l.routingPageDescription,
             headingAction: IconButton(
               tooltip: l.prototypeNewCustomRoute,
               onPressed: !state.busy && state.profiles.length < 3

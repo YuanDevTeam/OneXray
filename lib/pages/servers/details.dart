@@ -67,7 +67,7 @@ class ServerResourcePage extends StatelessWidget {
       final busy =
           row != null && (controller.busy || controller.serverBusy(row));
       return Scaffold(
-        appBar: PageAppBar.forPage(context, title: Text(name)),
+        appBar: PageAppBar(title: Text(name)),
         body: SafeArea(
           child: ResponsiveContent(
             child: ListView(
@@ -232,7 +232,7 @@ class ServerResourcePage extends StatelessWidget {
                             ServerAction.copy,
                           ),
                         ),
-                      if (!raw && !provider)
+                      if (!raw)
                         SettingRow(
                           title: row.favorite
                               ? l.prototypeRemoveFavorite
@@ -312,13 +312,15 @@ class ServerSourcePage extends StatelessWidget {
           .firstOrNull;
       final rows = state.servers.where((row) => row.subId == sourceId).toList();
       final busy = controller.sourceBusy(sourceId);
+      final testGroupId = 'subscription:$sourceId';
+      final testing = controller.testingGroup(testGroupId);
+      final cancelling = controller.cancellingGroup(testGroupId);
       final error = state.sourceErrors[sourceId];
       final package = source == null
           ? null
           : SubscriptionUserInfo.fromSubscription(source);
       return Scaffold(
-        appBar: PageAppBar.forPage(
-          context,
+        appBar: PageAppBar(
           title: Text(source?.name ?? l.prototypeSubscriptions),
         ),
         body: SafeArea(
@@ -468,14 +470,23 @@ class ServerSourcePage extends StatelessWidget {
                     children: [
                       if (!controller.providerSource(source))
                         SettingRow(
-                          title: l.prototypeTestServers,
-                          enabled: !busy && rows.isNotEmpty,
+                          key: ValueKey('source-test-action-$sourceId'),
+                          title: testing
+                              ? cancelling
+                                    ? l.prototypePleaseWait
+                                    : l.prototypeCancel
+                              : l.prototypeTestServers,
+                          enabled: testing
+                              ? !cancelling
+                              : !busy && rows.isNotEmpty,
                           leading: const Icon(LucideIcons.activity, size: 18),
-                          onTap: () => controller.test(
-                            context,
-                            rows,
-                            groupId: 'subscription:$sourceId',
-                          ),
+                          onTap: testing
+                              ? () => controller.cancelTest(testGroupId)
+                              : () => controller.test(
+                                  context,
+                                  rows,
+                                  groupId: testGroupId,
+                                ),
                         ),
                       SettingRow(
                         title: l.prototypeShareSubscription,

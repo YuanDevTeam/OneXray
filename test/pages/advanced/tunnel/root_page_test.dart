@@ -80,8 +80,7 @@ void main() {
           _app(
             Builder(
               builder: (context) => Scaffold(
-                appBar: PageAppBar.forPage(
-                  context,
+                appBar: PageAppBar(
                   title: Text(AppLocalizations.of(context)!.prototypeVpnTunnel),
                 ),
                 body: VpnTunnelPane(

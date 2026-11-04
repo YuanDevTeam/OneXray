@@ -25,9 +25,7 @@ class LanguagePage extends StatelessWidget {
           final controller = context.read<LanguageController>();
           final l10n = AppLocalizations.of(context)!;
           return Scaffold(
-            appBar: PageAppBar.forPage(
-              context,
-              description: l10n.settingsDevicePreferenceDescription,
+            appBar: PageAppBar(
               title: Text(l10n.prototypeLanguage),
               leading: BackButton(onPressed: () => controller.cancel(context)),
             ),

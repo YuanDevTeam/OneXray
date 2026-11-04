@@ -12,55 +12,14 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
   const PageAppBar({
     super.key,
     required this.title,
-    this.leading,
-    this.actions,
-    this.bottom,
-  }) : description = null,
-       headingAction = null,
-       inlineHeadingAction = false;
-
-  const PageAppBar._({
-    super.key,
-    required this.title,
-    this.description,
     this.headingAction,
-    this.inlineHeadingAction = false,
     this.leading,
     this.actions,
     this.bottom,
   });
 
-  /// Retains the page API while placing its title and actions in one AppBar.
-  /// Page introductions no longer add a separate heading below the toolbar.
-  factory PageAppBar.forPage(
-    BuildContext context, {
-    Key? key,
-    required Widget title,
-    String? description,
-    Widget? headingAction,
-    bool inlineHeadingAction = false,
-    Widget? leading,
-    List<Widget>? actions,
-    PreferredSizeWidget? bottom,
-  }) => PageAppBar._(
-    key: key,
-    title: title,
-    description: description,
-    headingAction: headingAction,
-    inlineHeadingAction: inlineHeadingAction,
-    leading: leading,
-    actions: actions,
-    bottom: bottom,
-  );
-
   final Widget title;
-
-  /// Kept for source compatibility; repeated page introductions are not drawn.
-  final String? description;
   final Widget? headingAction;
-
-  /// Kept for source compatibility; all actions now share the standard toolbar.
-  final bool inlineHeadingAction;
   final Widget? leading;
   final List<Widget>? actions;
   final PreferredSizeWidget? bottom;

@@ -183,7 +183,7 @@ Widget _screen(ConnectController controller) => MaterialApp(
         return ConnectView(
           view: state.connectionView,
           hasServers: state.servers.isNotEmpty,
-          expert: state.expertView,
+          expert: state.configuration.connection.expert,
           raws: state.raws,
           activeRawId: state.configuration.connection.expert
               ? state.configuration.connection.rawId
@@ -197,14 +197,11 @@ Widget _screen(ConnectController controller) => MaterialApp(
               !state.configuration.connection.expert &&
               !controller.providerConfiguration,
           onConnection: () => controller.connectionAction(context),
-          onExpert: (value) => controller.toggleExpert(context, value),
           onAddServers: () {},
           onServer: () => controller.chooseServer(context),
           onMethod: () {},
           onWhy: () {},
           onRawAdd: () {},
-          onRawSelect: (_) {},
-          onRawActions: (_) {},
         );
       },
     ),
@@ -265,7 +262,7 @@ void main() {
           );
         });
         await tester.pumpAndSettle();
-        expect(fixture.connect.expertView, isFalse);
+        expect(fixture.connect.configuration.connection.expert, isFalse);
         expect(find.byType(ShadSwitch), findsNothing);
         expect(find.text('Provider profile'), findsOneWidget);
         await tester.runAsync(() async {
@@ -294,6 +291,52 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'complete-configuration picker commits a Raw target without starting VPN',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      late _Fixture fixture;
+      await tester.runAsync(() async {
+        fixture = await _Fixture.create(expert: false);
+      });
+      addTearDown(() => tester.runAsync(fixture.close));
+      addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
+      await tester.pumpWidget(_screen(fixture.connect));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(tester.element(find.byType(ConnectView)))!;
+      // Keep the dialog's async caller in the real zone too: selecting Raw
+      // resumes that caller and commits through Drift before a new fake frame.
+      await tester.runAsync(() async {
+        await tester.tap(find.text(l.prototypeAutomaticSelection));
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(ChoiceChip, l.serverCompleteConfigurationsTab),
+      );
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        final selected = fixture.connect.stream.firstWhere(
+          (state) =>
+              state.configuration.connection.expert &&
+              state.configuration.connection.rawId == 63,
+        );
+        await tester.tap(find.widgetWithText(ListTile, 'Personal Raw'));
+        await selected.timeout(const Duration(seconds: 5));
+        final saved = await fixture.coordinator.configuration;
+        expect(saved.connection.expert, isTrue);
+        expect(saved.connection.rawId, 63);
+        expect(saved.connection.selection.kind, SelectionKind.automatic);
+      });
+      await tester.pumpAndSettle();
+      expect(find.byType(ConnectionTargetPicker), findsNothing);
+      expect(find.text('Personal Raw'), findsOneWidget);
+      expect(fixture.started, isEmpty);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
 
   testWidgets(
     'unrelated persisted settings preserve picker browsing; cancel does not commit its target',
@@ -374,7 +417,6 @@ void main() {
       await tester.tap(find.widgetWithText(ShadButton, l.prototypeCancel));
       await tester.pumpAndSettle();
       expect(find.byType(ConnectionTargetPicker), findsNothing);
-      expect(fixture.connect.expertView, isFalse);
       expect(fixture.connect.configuration.connection.expert, isFalse);
       expect(
         fixture.connect.configuration.connection.selection.kind,

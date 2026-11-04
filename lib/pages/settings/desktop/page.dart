@@ -36,7 +36,6 @@ class DesktopSettingsPage extends StatelessWidget {
         if (!(showDesktopOptions ?? AppPlatform.isDesktop)) {
           return SettingsPageScaffold(
             title: l.prototypeStartup,
-            description: l.settingsDevicePreferenceDescription,
             body: SettingsPageScroll(
               padding: EdgeInsets.zero,
               child: Padding(
@@ -58,7 +57,6 @@ class DesktopSettingsPage extends StatelessWidget {
                   final controller = context.read<DesktopSettingsController>();
                   return SettingsPageScaffold(
                     title: l.prototypeStartup,
-                    description: l.settingsDevicePreferenceDescription,
                     body: DesktopSettingsView(
                       state: state,
                       connectOnLaunch: connect,
