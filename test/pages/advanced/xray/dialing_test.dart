@@ -89,7 +89,8 @@ void main() {
       );
       expect(selectRect.left, closeTo(fieldRect.left, .5));
       expect(selectRect.right, closeTo(fieldRect.right, .5));
-      expect(find.text(l.pageXrayConfigurationDescription), findsOneWidget);
+      expect(find.widgetWithText(AppBar, l.serverDialingTitle), findsOneWidget);
+      expect(find.text(l.pageXrayConfigurationDescription), findsNothing);
       expect(find.byType(ShadSwitch), findsOneWidget);
       expect(
         tester.getSemantics(find.byType(ShadSwitch)).label,

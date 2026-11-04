@@ -68,7 +68,15 @@ void main() {
         )!;
         final header = tester.widget<PageAppBar>(find.byType(PageAppBar));
         expect((header.title as Text).data, l.routingNormalCreateTitle);
-        expect(header.description, l.routingNormalDescription);
+        expect(header.description, isNull);
+        expect(find.text(l.routingNormalDescription), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(AppBar),
+            matching: find.text(l.routingNormalDescription),
+          ),
+          findsNothing,
+        );
 
         final identity = find.byKey(const ValueKey('custom-identity'));
         final rules = find.byKey(const ValueKey('custom-rule-list'));

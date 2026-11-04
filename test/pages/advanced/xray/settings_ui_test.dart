@@ -286,7 +286,16 @@ void main() {
           final l = AppLocalizations.of(
             tester.element(find.byType(PageActionBar)),
           )!;
-          expect(find.text(l.pageXrayConfigurationDescription), findsOneWidget);
+          expect(
+            find.widgetWithText(
+              AppBar,
+              page is PingPage
+                  ? l.xrayLatencyTitle
+                  : l.prototypeAutomaticUpdates,
+            ),
+            findsOneWidget,
+          );
+          expect(find.text(l.pageXrayConfigurationDescription), findsNothing);
           for (final choice in choices) {
             final field = find.byKey(ValueKey('$choice-field'));
             final control = find.byKey(

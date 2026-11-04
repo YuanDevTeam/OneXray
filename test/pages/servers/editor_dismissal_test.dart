@@ -139,6 +139,17 @@ void main() {
     final card = find.ancestor(of: editor, matching: find.byType(ShadCard));
     expect(card, findsOneWidget);
     expect(
+      find.descendant(of: card, matching: find.text(_original.name)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text(_original.name),
+      ),
+      findsNothing,
+    );
+    expect(
       find.descendant(
         of: card,
         matching: find.text(l.configurationContentTitle),

@@ -50,7 +50,11 @@ void main() {
       final l = AppLocalizations.of(
         tester.element(find.byType(ServersImportPage)),
       )!;
-      expect(find.text(l.serverImportPageDescription), findsOneWidget);
+      expect(
+        find.widgetWithText(AppBar, l.prototypeAddServersToOneXray),
+        findsOneWidget,
+      );
+      expect(find.text(l.serverImportPageDescription), findsNothing);
       expect(find.byType(ShadCard), findsOneWidget);
       final card = find.byType(ShadCard);
       for (final action in [
@@ -1372,6 +1376,15 @@ void main() {
     expect(
       find.text('Changes apply to future updates, not the running connection.'),
       findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text(
+          'Changes apply to future updates, not the running connection.',
+        ),
+      ),
+      findsNothing,
     );
     expect(controller.secretKey.text, 'secret');
     expect(controller.publicKey.text, 'public');

@@ -34,7 +34,6 @@ class LanProxyPage extends StatelessWidget {
             : AppSpacing.advancedDesktopGutter(width);
         return PolicyDetailScaffold(
           title: l.lanProxyTitle,
-          description: l.lanProxyNextStartNotice,
           help: [
             l.lanProxyProtocolHint,
             l.lanProxyRawJsonNotice,
@@ -61,6 +60,12 @@ class LanProxyPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     spacing: 20,
                     children: [
+                      Text(
+                        l.lanProxyNextStartNotice,
+                        style: AppTypography.rowValue.copyWith(
+                          color: palette.mutedForeground,
+                        ),
+                      ),
                       SettingSection(
                         title: l.lanProxyTitle,
                         icon: LucideIcons.network,

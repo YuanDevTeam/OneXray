@@ -36,13 +36,22 @@ class ServerEditorPage extends StatelessWidget {
           },
           child: ServerFormPage(
             title: l.prototypeEditServer,
-            subtitle: state.name,
             onClose: () => controller.closePage(context),
             body: ServerFormSection(
               title: l.configurationContentTitle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (state.name case final name?
+                      when name.trim().isNotEmpty) ...[
+                    Text(
+                      name,
+                      style: AppTypography.rowTitle.copyWith(
+                        color: p.foreground,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Text(
                     l.prototypeXrayOutboundJson,
                     style: AppTypography.fieldLabel.copyWith(

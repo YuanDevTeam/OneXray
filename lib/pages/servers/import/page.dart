@@ -181,9 +181,6 @@ class ServerImportFormPage extends StatelessWidget {
                 : manual
                 ? l10n.prototypeAddManually
                 : l10n.prototypePasteLink,
-            subtitle: controller.editingSubscription
-                ? l10n.prototypeChangesApplyToFutureUpdates
-                : null,
             onBack: onBack,
             onClose: onClose ?? () => controller.closeFlow(context),
             body: Column(
@@ -197,7 +194,22 @@ class ServerImportFormPage extends StatelessWidget {
                       mobile ? 16 : 28,
                       0,
                     ),
-                    child: _subscription(context),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (controller.editingSubscription) ...[
+                          Text(
+                            l10n.prototypeChangesApplyToFutureUpdates,
+                            style: AppTypography.supporting.copyWith(
+                              color: ColorManager.palette(context)
+                                  .mutedForeground,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                        _subscription(context),
+                      ],
+                    ),
                   )
                 else if (manual)
                   _manual(context)

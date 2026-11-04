@@ -408,13 +408,7 @@ void main() {
       final l = AppLocalizations.of(
         tester.element(find.byType(PageActionBar)),
       )!;
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('page-heading')),
-          matching: find.text(l.backupTitle),
-        ),
-        findsOneWidget,
-      );
+      expect(find.widgetWithText(AppBar, l.backupTitle), findsOneWidget);
       expect(find.text(l.backupAutomatic), findsOneWidget);
       expect(storage.writes, 0);
       final sections = find.byType(SettingSection);

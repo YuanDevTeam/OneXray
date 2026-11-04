@@ -132,11 +132,11 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
         : pageTitle;
     return AppBar(
       title: toolbarTitle,
-      leading: effectiveLeading == null ? null : passThrough(effectiveLeading!),
+      leading: effectiveLeading == null ? null : passThrough(effectiveLeading),
       actions: [
         for (final action in effectiveActions) passThrough(action),
         if (headingAction != null) passThrough(headingAction!),
-        if (mobileSettingsAction != null) passThrough(mobileSettingsAction!),
+        if (mobileSettingsAction != null) passThrough(mobileSettingsAction),
       ],
       bottom: bottom,
     );
