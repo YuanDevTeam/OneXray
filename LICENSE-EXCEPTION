@@ -1,5 +1,5 @@
 OneXray VPN Provider Exception
-Version 1.0
+Version 1.1
 
 1. Scope
 
@@ -13,11 +13,21 @@ Exception. This Exception applies only to those rights.
 
 2. Eligibility and permission
 
-You may rely on this Exception only if both of the following apply:
+You may rely on this Exception only if all of the following apply:
 
   a) You are a VPN service provider.
-  b) You use the Covered Code to create a customized client for your own
-     VPN service.
+  b) You use the Covered Code to create a dedicated, customized client
+     that connects exclusively to your own VPN service.
+  c) The customized client does not include general-purpose
+     custom-configuration or subscription features, including the
+     ability to import or use arbitrary third-party VPN or proxy
+     configurations or subscription URLs.
+
+Configurations and subscriptions that you supply solely for access to
+your own VPN service are permitted. Branding the client for your service,
+distributing it only to your subscribers, or making your service the
+default does not satisfy these conditions if the client can also connect
+to third-party services.
 
 For that purpose, you may use, copy, modify, build and distribute the
 Covered Code and the resulting customized client under terms of your
@@ -28,7 +38,9 @@ under GPLv3, disclose Corresponding Source or supply Installation
 Information.
 
 This permission does not extend to closed-source clients for VPN services
-provided by others. It does not restrict anyone's rights under GPLv3.
+provided by others, including general-purpose clients that support both
+your own service and third-party services. It does not restrict anyone's
+rights under GPLv3.
 Uses outside this Exception remain subject to GPLv3 or another permission
 from the applicable copyright holders.
 
