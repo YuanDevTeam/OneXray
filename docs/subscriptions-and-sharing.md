@@ -127,7 +127,10 @@ Age App Link 只携带算法，不带公私钥；接收端生成新密钥对，�
   不能把它称为完整配置或任意 outbound 无损导入。手写节点 JSON 不经普通表单重建；
   完整订阅 JSON 使用上述独立路径，标准格式的接受/拒绝仍由 libXray 决定。
 - 名称使用 `tag`；仅键缺失时兼容旧 `name`，无名以协议补齐。`sendThrough` 保留绑定语义，不参与命名。
-  KCP seed/header、废弃 `allowInsecure` 不在标准分享内，App 不另校验协议算法或补写规范字段。
+- SOCKS 原始链接在独立导出副本上兼容旧 `settings.servers`：仅转换单服务器、至多一个用户，已有非 null 的 flat 地址按 Core 的优先级处理。
+  生成结果须有有效主机和显式有效端口；歧义配置或无效结果不提供原始链接分享和二维码，仍可使用完整 OneXray 链接。
+  此投影不修改数据库、节点原文、运行配置、备份或 OneXray 链接。
+- KCP seed/header、废弃 `allowInsecure` 不在标准分享内，App 不另校验协议算法或补写规范字段。
 - 文件直接使用系统选择器，扫码仅 iOS/Android。失败保留输入，成功 toast 后提交测速，不等待测速完成。
 
 ## App Link
