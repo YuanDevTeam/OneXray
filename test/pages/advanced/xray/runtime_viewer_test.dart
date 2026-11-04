@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show SemanticsAction;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -49,6 +50,82 @@ AppLocalizations _strings(WidgetTester tester) =>
     AppLocalizations.of(tester.element(find.byType(RuntimeCodeScaffold)))!;
 
 void main() {
+  testWidgets('paused runtime status exposes one button and activates once', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      _viewport(tester, size: const Size(1032, 768));
+      var resumes = 0;
+      await tester.pumpWidget(
+        _app(
+          RuntimeCodeScaffold(
+            title: 'Access log',
+            status: 'Resume following',
+            exportLabel: 'Export',
+            note: 'Local log',
+            code: const SizedBox.shrink(),
+            onStatusPressed: () => resumes++,
+          ),
+          mobile: false,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.semantics.byPredicate((node) {
+          final data = node.getSemanticsData();
+          return data.label == 'Resume following' &&
+              data.flagsCollection.isButton;
+        }),
+        findsOneWidget,
+      );
+      final node = tester.getSemantics(find.text('Resume following'));
+      expect(
+        node,
+        isSemantics(isButton: true, isEnabled: true, hasTapAction: true),
+      );
+      node.owner!.performAction(node.id, SemanticsAction.tap);
+      await tester.pumpAndSettle();
+      expect(resumes, 1);
+      await tester.tap(find.text('Resume following'));
+      await tester.pumpAndSettle();
+      expect(resumes, 2);
+      expect(tester.takeException(), isNull);
+    } finally {
+      semantics.dispose();
+    }
+  });
+
+  testWidgets('live and read-only runtime status has no button or tap action', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      _viewport(tester);
+      for (final status in ['Following', 'Read only']) {
+        await tester.pumpWidget(
+          _app(
+            RuntimeCodeScaffold(
+              title: 'Runtime diagnostics',
+              status: status,
+              exportLabel: 'Export',
+              note: 'Read only content',
+              code: const SizedBox.shrink(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final node = tester.getSemantics(find.text(status));
+        expect(node, isSemantics(isButton: false, hasTapAction: false));
+        await tester.tap(find.text(status), warnIfMissed: false);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+    } finally {
+      semantics.dispose();
+    }
+  });
+
   testWidgets(
     'desktop runtime viewers use the shared content width and top spacing',
     (tester) async {

@@ -42,7 +42,7 @@ class RuntimeCodeScaffold extends StatelessWidget {
         : AppSpacing.advancedDesktopGutter(width);
     const top = 20.0;
     final bottom = mobile ? 18.0 : 24.0;
-    final pill = Material(
+    final pillContent = Material(
       color: palette.surfaceHover,
       borderRadius: BorderRadius.circular(AppRadii.control),
       clipBehavior: Clip.antiAlias,
@@ -76,6 +76,12 @@ class RuntimeCodeScaffold extends StatelessWidget {
           ),
         ),
       ),
+    );
+    final pill = Semantics(
+      container: true,
+      button: onStatusPressed != null,
+      enabled: onStatusPressed == null ? null : true,
+      child: pillContent,
     );
     final export = OutlinedButton(
       onPressed: onExport,
