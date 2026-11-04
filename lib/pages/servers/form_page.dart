@@ -42,6 +42,7 @@ class ServerFormPage extends StatelessWidget {
     this.subtitle,
     required this.body,
     this.actions = const [],
+    this.expandBody = false,
     this.onBack,
     this.onClose,
   });
@@ -49,6 +50,9 @@ class ServerFormPage extends StatelessWidget {
   final String? subtitle;
   final Widget body;
   final List<Widget> actions;
+
+  /// Gives an editor workspace the Scaffold's finite remaining space.
+  final bool expandBody;
   final VoidCallback? onBack, onClose;
 
   @override
@@ -75,14 +79,16 @@ class ServerFormPage extends StatelessWidget {
           ],
         ),
         body: SafeArea(
-          child: ResponsiveContent(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [body, const SizedBox(height: 24)],
-              ),
-            ),
-          ),
+          child: expandBody
+              ? body
+              : ResponsiveContent(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [body, const SizedBox(height: 24)],
+                    ),
+                  ),
+                ),
         ),
         bottomNavigationBar: actions.isEmpty
             ? null

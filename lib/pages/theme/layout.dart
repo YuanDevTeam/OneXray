@@ -23,6 +23,7 @@ abstract final class AppLayout {
   static const settingsMaxWidth = 960.0;
   static const routingMaxWidth = 960.0;
   static const routingEditorMaxWidth = 760.0;
+  static const jsonEditorMinHeight = 160.0;
   static const contentBreakpoint = 840.0;
   static const pageActionMinHeight = 72.0;
   static const mobilePageActionMinHeight = 64.0;

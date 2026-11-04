@@ -10,8 +10,10 @@ import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/servers/editor/controller.dart';
 import 'package:onexray/pages/servers/editor/page.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
+import 'package:onexray/pages/shared/widgets/json_editor_workspace.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/server.dart';
 import 'package:onexray/service/settings/language/locale.dart';
@@ -130,67 +132,108 @@ void main() {
     }
   }
 
-  testWidgets('node JSON card keeps its draft and save above the keyboard', (
-    tester,
-  ) async {
-    final session = await openEditor(tester, size: const Size(390, 844));
-    final l = AppLocalizations.of(session.context)!;
-    final editor = find.byType(OutboundJsonEditor);
-    final card = find.ancestor(of: editor, matching: find.byType(ShadCard));
-    expect(card, findsOneWidget);
-    expect(
-      find.descendant(of: card, matching: find.text(_original.name)),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byType(AppBar),
-        matching: find.text(_original.name),
-      ),
-      findsNothing,
-    );
-    expect(
-      find.descendant(
-        of: card,
-        matching: find.text(l.configurationContentTitle),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: card,
-        matching: find.text(l.prototypeXrayOutboundJson),
-      ),
-      findsOneWidget,
-    );
-    expect(tester.getRect(editor).left, greaterThan(tester.getRect(card).left));
-    expect(tester.getRect(editor).right, lessThan(tester.getRect(card).right));
+  for (final size in const [
+    Size(390, 844),
+    Size(390, 667),
+    Size(1032, 1376),
+    Size(1160, 720),
+  ]) {
+    testWidgets(
+      'node JSON fills remaining space and keeps keyboard actions at $size',
+      (tester) async {
+        final session = await openEditor(tester, size: size);
+        final l = AppLocalizations.of(session.context)!;
+        final editor = find.byType(OutboundJsonEditor);
+        final workspace = find.byType(JsonEditorWorkspace);
+        expect(workspace, findsOneWidget);
+        expect(tester.widget<OutboundJsonEditor>(editor).expand, isTrue);
+        expect(
+          find.ancestor(of: editor, matching: find.byType(ShadCard)),
+          findsNothing,
+        );
+        expect(
+          find.ancestor(of: editor, matching: find.byType(Scrollable)),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: workspace, matching: find.text(_original.name)),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(AppBar),
+            matching: find.text(_original.name),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: workspace,
+            matching: find.text(l.prototypeXrayOutboundJson),
+          ),
+          findsOneWidget,
+        );
+        final gutter = size.width <= 720 ? 16.0 : 28.0;
+        expect(tester.getRect(editor).left, closeTo(gutter, .01));
+        expect(tester.getRect(editor).right, closeTo(size.width - gutter, .01));
+        final initialHeight = tester.getSize(editor).height;
+        tester.view.physicalSize = Size(size.width, size.height + 160);
+        await tester.pump();
+        expect(tester.getSize(editor).height, greaterThan(initialHeight + 120));
 
-    tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-    addTearDown(tester.view.resetViewInsets);
-    await tester.pump();
-    tester
-        .widget<CodeEditor>(find.byType(CodeEditor))
-        .focusNode!
-        .requestFocus();
-    await tester.pump();
-    await tester.ensureVisible(editor);
-    await tester.pump(const Duration(milliseconds: 200));
+        tester.view.physicalSize = size;
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        addTearDown(tester.view.resetViewInsets);
+        await tester.pump();
+        tester
+            .widget<CodeEditor>(find.byType(CodeEditor))
+            .focusNode!
+            .requestFocus();
+        await tester.pump(const Duration(milliseconds: 200));
 
-    final save = find.widgetWithText(FilledButton, l.prototypeSave);
-    expect(save.hitTestable(), findsOneWidget);
-    expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
-    expect(tester.getRect(save).bottom, lessThanOrEqualTo(544));
-    expect(
-      tester
-          .getRect(find.byType(CodeEditor))
-          .overlaps(Rect.fromLTRB(0, 0, 390, tester.getRect(save).top)),
-      isTrue,
+        final save = find.widgetWithText(FilledButton, l.prototypeSave);
+        expect(save.hitTestable(), findsOneWidget);
+        expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+        expect(
+          tester.getRect(save).bottom,
+          lessThanOrEqualTo(size.height - 300),
+        );
+        final actionRect = tester.getRect(save);
+        final bodyScrollers = find.ancestor(
+          of: editor,
+          matching: find.byType(Scrollable),
+        );
+        if (bodyScrollers.evaluate().isNotEmpty) {
+          final position = tester
+              .state<ScrollableState>(bodyScrollers.first)
+              .position;
+          position.jumpTo(position.maxScrollExtent);
+          await tester.pump();
+        }
+        await tester.ensureVisible(editor);
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(tester.getRect(save), actionRect);
+        expect(save.hitTestable(), findsOneWidget);
+        expect(find.byType(CodeEditor).hitTestable(), findsOneWidget);
+        expect(
+          tester.getSize(editor).height,
+          greaterThanOrEqualTo(AppLayout.jsonEditorMinHeight),
+        );
+        expect(tester.getSize(editor).height, lessThan(initialHeight));
+        expect(
+          tester
+              .getRect(find.byType(CodeEditor))
+              .overlaps(
+                Rect.fromLTRB(0, 0, size.width, tester.getRect(save).top),
+              ),
+          isTrue,
+        );
+        expect(controller.text.text, _initial);
+        expect(controller.state.dirty, isFalse);
+        expect(tester.takeException(), isNull);
+      },
     );
-    expect(controller.text.text, _initial);
-    expect(controller.state.dirty, isFalse);
-    expect(tester.takeException(), isNull);
-  });
+  }
 
   for (final restored in [false, true]) {
     testWidgets('clean editor closes without saving (restored: $restored)', (

@@ -16,6 +16,7 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
+import 'package:onexray/pages/shared/widgets/json_editor_workspace.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:onexray/pages/servers/form_page.dart';
@@ -183,45 +184,46 @@ class ServerImportFormPage extends StatelessWidget {
                 : l10n.prototypePasteLink,
             onBack: onBack,
             onClose: onClose ?? () => controller.closeFlow(context),
-            body: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (subscription)
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      mobile ? 16 : 28,
-                      16,
-                      mobile ? 16 : 28,
-                      0,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (controller.editingSubscription) ...[
-                          Text(
-                            l10n.prototypeChangesApplyToFutureUpdates,
-                            style: AppTypography.supporting.copyWith(
-                              color: ColorManager.palette(context)
-                                  .mutedForeground,
-                            ),
+            expandBody: manual,
+            body: manual
+                ? _manual(context)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (subscription)
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            mobile ? 16 : 28,
+                            16,
+                            mobile ? 16 : 28,
+                            0,
                           ),
-                          const SizedBox(height: 16),
-                        ],
-                        _subscription(context),
-                      ],
-                    ),
-                  )
-                else if (manual)
-                  _manual(context)
-                else
-                  _paste(context),
-                _ImportFeedback(state: state, showError: !manual),
-                ConnectCallout(
-                  icon: LucideIcons.lockKeyhole,
-                  text: l10n.prototypeLocalInputPrivacy,
-                ),
-              ],
-            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (controller.editingSubscription) ...[
+                                Text(
+                                  l10n.prototypeChangesApplyToFutureUpdates,
+                                  style: AppTypography.supporting.copyWith(
+                                    color: ColorManager.palette(context)
+                                        .mutedForeground,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              _subscription(context),
+                            ],
+                          ),
+                        )
+                      else
+                        _paste(context),
+                      _ImportFeedback(state: state, showError: !manual),
+                      ConnectCallout(
+                        icon: LucideIcons.lockKeyhole,
+                        text: l10n.prototypeLocalInputPrivacy,
+                      ),
+                    ],
+                  ),
             actions: [
               ConnectDialogButton(
                 label: l10n.prototypeCancel,
@@ -319,29 +321,34 @@ class ServerImportFormPage extends StatelessWidget {
   Widget _manual(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    return ServerFormSection(
-      title: l10n.configurationContentTitle,
-      child: Column(
-        spacing: 7,
+    return JsonEditorWorkspace(
+      header: Text(
+        l10n.prototypeXrayNodeJson,
+        style: AppTypography.fieldLabel.copyWith(color: palette.foreground),
+      ),
+      editor: OutboundJsonEditor(
+        controller: controller.jsonText,
+        expand: true,
+        diagnostic:
+            controller.state.jsonDiagnostic ??
+            (controller.state.error == null
+                ? null
+                : JsonDiagnostic(controller.state.error!)),
+      ),
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            l10n.prototypeXrayNodeJson,
-            style: AppTypography.fieldLabel.copyWith(color: palette.foreground),
-          ),
-          OutboundJsonEditor(
-            controller: controller.jsonText,
-            diagnostic:
-                controller.state.jsonDiagnostic ??
-                (controller.state.error == null
-                    ? null
-                    : JsonDiagnostic(controller.state.error!)),
-          ),
           Text(
             l10n.prototypeNodeJsonHint,
             style: AppTypography.importJsonHint.copyWith(
               color: palette.mutedForeground,
             ),
+          ),
+          _ImportFeedback(state: controller.state, showError: false),
+          ConnectCallout(
+            icon: LucideIcons.lockKeyhole,
+            text: l10n.prototypeLocalInputPrivacy,
           ),
         ],
       ),

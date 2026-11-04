@@ -14,7 +14,10 @@ import 'package:onexray/pages/connect/json_editor/controller.dart';
 import 'package:onexray/pages/connect/json_editor/page.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/json_editor.dart';
+import 'package:onexray/pages/shared/widgets/json_editor_workspace.dart';
+import 'package:onexray/pages/shared/widgets/configuration_transfer.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/custom/editor.dart';
@@ -148,6 +151,130 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final advanced in [false, true]) {
+    for (final size in const [
+      Size(390, 844),
+      Size(1032, 1376),
+      Size(1160, 720),
+    ]) {
+      testWidgets(
+        '${advanced ? "advanced" : "Raw"} JSON fills the remaining workspace at $size',
+        (tester) async {
+          final fixture = _DiagnosticFixture(advanced);
+          addTearDown(fixture.dispose);
+          final session = await _mountFullEditor(tester, fixture, size: size);
+          final l = AppLocalizations.of(session.context)!;
+          final workspace = find.byType(JsonEditorWorkspace);
+          final editor = find.byType(AppJsonEditor);
+          final slot = find.byKey(
+            const ValueKey('json-editor-workspace-editor'),
+          );
+          final header = find.byKey(
+            const ValueKey('json-editor-workspace-header'),
+          );
+          final footer = find.byKey(
+            const ValueKey('json-editor-workspace-footer'),
+          );
+          expect(workspace, findsOneWidget);
+          expect(editor, findsOneWidget);
+          expect(
+            find.ancestor(
+              of: editor,
+              matching: find.byType(SingleChildScrollView),
+            ),
+            findsNothing,
+          );
+          expect(
+            find.ancestor(of: editor, matching: find.byType(ShadCard)),
+            findsNothing,
+          );
+          final editorRect = tester.getRect(editor);
+          expect(editorRect, tester.getRect(slot));
+          final gutter = size.width <= 720 ? 16.0 : 28.0;
+          expect(editorRect.left, closeTo(gutter, .01));
+          expect(editorRect.right, closeTo(size.width - gutter, .01));
+          expect(editorRect.top, greaterThan(tester.getRect(header).bottom));
+          expect(editorRect.bottom, lessThan(tester.getRect(footer).top));
+          expect(editorRect.height, greaterThan(0));
+          if (size.width > 1000) {
+            expect(editorRect.width, greaterThan(960));
+          }
+          expect(
+            find.descendant(
+              of: footer,
+              matching: find.byType(ConfigurationTransferTools),
+            ),
+            findsOneWidget,
+          );
+          final nameField = find.byWidgetPredicate(
+            (widget) =>
+                widget is TextField &&
+                identical(widget.controller, fixture.controller.name),
+          );
+          expect(
+            find.descendant(of: header, matching: nameField),
+            findsOneWidget,
+          );
+          expect(tester.widget<TextField>(nameField).maxLength, 32);
+          if (advanced) {
+            expect(
+              find.ancestor(
+                of: nameField,
+                matching: find.byWidgetPredicate(
+                  (widget) =>
+                      widget is Semantics &&
+                      widget.properties.label == l.configurationNameLabel,
+                ),
+              ),
+              findsOneWidget,
+            );
+            expect(find.byTooltip(l.prototypeDocumentation), findsOneWidget);
+            expect(
+              find.byTooltip('${l.pageHelp} · ${l.routingAdvancedCardTitle}'),
+              findsOneWidget,
+            );
+          }
+          await tester.enterText(nameField, 'Workspace draft');
+          final source = const JsonEncoder.withIndent('  ').convert({
+            'outbounds': [{}],
+            'routing': {'rules': []},
+            'notes': List.generate(160, (index) => 'Line $index'),
+          });
+          fixture.controller.text.text = source;
+          await tester.pumpAndSettle();
+          final vertical = find.descendant(
+            of: find.byType(CodeEditor),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  (widget.axisDirection == AxisDirection.down ||
+                      widget.axisDirection == AxisDirection.up),
+            ),
+          );
+          expect(vertical, findsOneWidget);
+          final position = tester.state<ScrollableState>(vertical).position;
+          expect(position.maxScrollExtent, greaterThan(400));
+          position.jumpTo(320);
+          await tester.pumpAndSettle();
+          expect(position.pixels, 320);
+          final previousHeight = tester.getSize(editor).height;
+          tester.view.physicalSize = Size(size.width, size.height + 200);
+          await tester.pumpAndSettle();
+          expect(
+            tester.getSize(editor).height,
+            closeTo(previousHeight + 200, .01),
+          );
+          expect(fixture.controller.name.text, 'Workspace draft');
+          expect(fixture.controller.text.text, source);
+          expect(fixture.controller.state.dirty, isTrue);
+          expect(position.pixels, 320);
+          expect(session.result.isCompleted, isFalse);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+
   testWidgets(
     'advanced editor uses its own template and keeps imported fields on save',
     (tester) async {
@@ -233,6 +360,12 @@ void main() {
             .requestFocus();
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 200));
+
+        expect(find.byType(JsonEditorWorkspace), findsOneWidget);
+        expect(
+          tester.getSize(find.byType(AppJsonEditor)).height,
+          greaterThanOrEqualTo(AppLayout.jsonEditorMinHeight),
+        );
 
         final cancel = find.widgetWithText(ShadButton, l.prototypeCancel);
         final save = find.widgetWithText(ShadButton, l.prototypeSave);

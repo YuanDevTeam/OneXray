@@ -8,6 +8,7 @@ import 'package:onexray/pages/servers/editor/controller.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
+import 'package:onexray/pages/shared/widgets/json_editor_workspace.dart';
 
 class ServerEditorPage extends StatelessWidget {
   final int serverId;
@@ -37,9 +38,10 @@ class ServerEditorPage extends StatelessWidget {
           child: ServerFormPage(
             title: l.prototypeEditServer,
             onClose: () => controller.closePage(context),
-            body: ServerFormSection(
-              title: l.configurationContentTitle,
-              child: Column(
+            expandBody: true,
+            body: JsonEditorWorkspace(
+              header: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (state.name case final name?
@@ -50,7 +52,7 @@ class ServerEditorPage extends StatelessWidget {
                         color: p.foreground,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                   ],
                   Text(
                     l.prototypeXrayOutboundJson,
@@ -58,16 +60,19 @@ class ServerEditorPage extends StatelessWidget {
                       color: p.foreground,
                     ),
                   ),
-                  const SizedBox(height: 7),
-                  OutboundJsonEditor(
-                    controller: controller.text,
-                    diagnostic:
-                        state.diagnostic ??
-                        (state.error == null
-                            ? null
-                            : JsonDiagnostic(state.error!)),
-                  ),
-                  const SizedBox(height: 7),
+                ],
+              ),
+              editor: OutboundJsonEditor(
+                controller: controller.text,
+                expand: true,
+                diagnostic:
+                    state.diagnostic ??
+                    (state.error == null ? null : JsonDiagnostic(state.error!)),
+              ),
+              footer: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   Text(
                     state.fromSubscription
                         ? l.prototypeSubscriptionOutboundHint
@@ -81,17 +86,10 @@ class ServerEditorPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Semantics(
                         liveRegion: true,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: MediaQuery.sizeOf(context).height / 4,
-                          ),
-                          child: SingleChildScrollView(
-                            child: SelectableText(
-                              state.error!,
-                              style: AppTypography.subscriptionInfo.copyWith(
-                                color: p.destructive,
-                              ),
-                            ),
+                        child: SelectableText(
+                          state.error!,
+                          style: AppTypography.subscriptionInfo.copyWith(
+                            color: p.destructive,
                           ),
                         ),
                       ),
