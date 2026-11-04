@@ -112,6 +112,67 @@ void main() {
     expect(api.statuses, [VpnStatus.disconnecting, VpnStatus.disconnected]);
   });
 
+  test('clears only managed logs and tolerates missing files', () async {
+    final directory = await createTestDirectory('onexray-runtime-logs-');
+    addTearDown(() => directory.delete(recursive: true));
+    final api = _TestFfiApi(stopResult: true, directory: directory.path);
+    addTearDown(api.stopSharedIsolate);
+    await api.clearLogs();
+    final run = Directory(p.join(directory.path, 'run'));
+    await run.create();
+    for (final name in [
+      'access.log',
+      'error.log',
+      'start.json',
+      'export.log',
+    ]) {
+      await File(p.join(run.path, name)).writeAsString(name);
+    }
+    await api.clearLogs();
+    await api.clearLogs();
+    expect(await File(p.join(run.path, 'access.log')).exists(), isFalse);
+    expect(await File(p.join(run.path, 'error.log')).exists(), isFalse);
+    expect(
+      await File(p.join(run.path, 'start.json')).readAsString(),
+      'start.json',
+    );
+    expect(
+      await File(p.join(run.path, 'export.log')).readAsString(),
+      'export.log',
+    );
+  });
+
+  for (final link in [false, true]) {
+    test(
+      'rejects ${link ? 'linked' : 'directory'} logs before clearing either',
+      () async {
+        final directory = await createTestDirectory('onexray-invalid-logs-');
+        addTearDown(() => directory.delete(recursive: true));
+        final api = _TestFfiApi(stopResult: true, directory: directory.path);
+        addTearDown(api.stopSharedIsolate);
+        final access = File(p.join(directory.path, 'run', 'access.log'));
+        await access.parent.create();
+        await access.writeAsString('old access');
+        final error = p.join(access.parent.path, 'error.log');
+        if (link) {
+          final target = File(p.join(directory.path, 'outside.log'));
+          await target.writeAsString('outside');
+          await Link(error).create(target.path);
+        } else {
+          await Directory(error).create();
+        }
+      await expectLater(api.clearLogs(), throwsA(isA<FileSystemException>()));
+        expect(await access.readAsString(), 'old access');
+        if (link) {
+          expect(
+            await File(p.join(directory.path, 'outside.log')).readAsString(),
+            'outside',
+          );
+        }
+      },
+    );
+  }
+
   test('a stop failure never invents a connected state', () async {
     final api = _TestFfiApi(stopResult: false);
     addTearDown(api.stopSharedIsolate);
@@ -146,6 +207,8 @@ final class _TestFfiApi extends LinuxFfiApi {
 
   @override
   Future<bool> stopCore() async => stopResult;
+
+  Future<void> clearLogs() => clearRuntimeLogs();
 }
 
 LibXrayRunConfig _request(String json) => LibXrayRunConfig(

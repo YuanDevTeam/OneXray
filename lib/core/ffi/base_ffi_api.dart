@@ -79,6 +79,31 @@ abstract class BaseFfiApi {
     return LibXrayRunConfig.fromInvokeText(request.coreInvokeText!);
   }
 
+  /// Only call after the previous Core has stopped and before launching its replacement.
+  @protected
+  Future<void> clearRuntimeLogs() async {
+    final directory = p.join(await getTunFilesDir(), 'run');
+    final type = await FileSystemEntity.type(directory, followLinks: false);
+    if (type == FileSystemEntityType.notFound) return;
+    if (type != FileSystemEntityType.directory) {
+      throw FileSystemException('Invalid runtime log directory', directory);
+    }
+    final files = <File>[];
+    for (final name in ['access.log', 'error.log']) {
+      final file = File(p.join(directory, name));
+      final type = await FileSystemEntity.type(file.path, followLinks: false);
+      if (type == FileSystemEntityType.notFound) continue;
+      if (type != FileSystemEntityType.file) {
+        throw FileSystemException('Invalid runtime log file', file.path);
+      }
+      files.add(file);
+    }
+    // Validate both before removing either; never traverse the runtime directory.
+    for (final file in files) {
+      await file.delete();
+    }
+  }
+
   Future<String?> materializeRunXrayConfig(LibXrayRunConfig request) async {
     final runPath = p.join(await getTunFilesDir(), 'run');
     final root = Directory(p.join(runPath, 'core-inputs'));

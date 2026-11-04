@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:onexray/core/ffi/base_ffi_api.dart';
 import 'package:onexray/core/ffi/windows/ffi_api.dart';
+import 'package:onexray/core/ffi/windows/core_process.dart';
 import 'package:onexray/core/ffi/windows/model.dart';
 import 'package:onexray/core/ffi/windows/native_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
@@ -14,6 +15,7 @@ import 'package:onexray/core/tools/logger.dart';
 class WindowsMsixFfiApi extends WindowsFfiApi {
   WindowsMsixFfiApi({
     WindowsNativeApi? native,
+    WindowsCoreProcess? coreProcess,
     Future<StartVpnRequest> Function()? readRequest,
     Future<void> Function(VpnStatus)? notify,
     void Function(Object)? notifyError,
@@ -22,6 +24,7 @@ class WindowsMsixFfiApi extends WindowsFfiApi {
     this.startTimeout = const Duration(seconds: 30),
     this.stopTimeout = const Duration(seconds: 15),
   }) : _native = native ?? WindowsNativeApi(),
+       _coreProcess = coreProcess ?? WindowsCoreProcess(),
        _readRequest = readRequest ?? StartVpnRequestReader.readFromStartFile,
        _notify = notify ?? AppFlutterApi().vpnStatusChanged,
        _notifyError =
@@ -31,6 +34,7 @@ class WindowsMsixFfiApi extends WindowsFfiApi {
   static const _coreRelativePath = 'OneXrayCore.exe';
 
   final WindowsNativeApi _native;
+  final WindowsCoreProcess _coreProcess;
   final Future<StartVpnRequest> Function() _readRequest;
   final Future<void> Function(VpnStatus) _notify;
   final void Function(Object) _notifyError;
@@ -152,9 +156,16 @@ class WindowsMsixFfiApi extends WindowsFfiApi {
 
     _commandActive = true;
     var providerStartInvoked = false;
+    var previousStopped = false;
     String? coreConfig;
     try {
       final request = await _readRequest();
+      final stopped = await _native.stopVpn();
+      await _confirm(WindowsVpnStatus.disconnected, stopped.status);
+      if ((await _coreProcess.findPids()).isNotEmpty) {
+        throw StateError('The previous Windows Core process is still running.');
+      }
+      previousStopped = true;
       coreConfig = await _publishCoreConfig(readRunXrayRequest(request));
       final errorFile = desktopCoreErrorFile(coreConfig);
       await errorFile.writeAsString('', flush: true);
@@ -172,6 +183,7 @@ class WindowsMsixFfiApi extends WindowsFfiApi {
         ],
       );
 
+      await clearRuntimeLogs();
       await _emitWindowsStatus(WindowsVpnStatus.connecting);
       providerStartInvoked = true;
       final state = await _native.startVpn(
@@ -190,7 +202,7 @@ class WindowsMsixFfiApi extends WindowsFfiApi {
       return commandSuccess(status: VpnStatus.connected);
     } catch (error, stackTrace) {
       ygLogger('start Windows VPN failed: $error\n$stackTrace');
-      await _cleanupFailedStart(providerStartInvoked);
+      if (previousStopped) await _cleanupFailedStart(providerStartInvoked);
       return commandFailed(
         providerStartInvoked && coreConfig != null
             ? await readDesktopCoreStartError(coreConfig, error.toString())

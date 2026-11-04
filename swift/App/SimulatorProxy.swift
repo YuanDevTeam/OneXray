@@ -19,6 +19,7 @@ enum SimulatorProxy {
         )
         try JsonTool.encode(adapted).write(to: startURL, options: .atomic)
         // Persist exactly what is passed to the core; a failed write must not start it.
+        try clearXrayRuntimeLogs(in: startURL.deletingLastPathComponent())
         _ = try await invoke(adapted.coreInvokeText!)
     }
 

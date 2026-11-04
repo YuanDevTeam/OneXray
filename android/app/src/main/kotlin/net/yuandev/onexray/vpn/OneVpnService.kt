@@ -27,6 +27,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import libXray.DialerController
 import libXray.LibXray
 import net.yuandev.onexray.MainActivity
@@ -41,6 +44,7 @@ import net.yuandev.onexray.pigeon.PerAppVPNMode
 import net.yuandev.onexray.pigeon.StartVpnRequest
 import net.yuandev.onexray.pigeon.TunJson
 import net.yuandev.onexray.pigeon.VpnStatus
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -68,6 +72,7 @@ class OneVpnService : VpnService() {
         // Core retains protection callbacks for the lifetime of :native.
         private val controller = VPNController()
         private var controllerInit = false
+        private val coreLifecycleLock = Any()
 
         @Synchronized
         private fun initController() {
@@ -510,7 +515,15 @@ class OneVpnService : VpnService() {
                 if (generation != startGeneration.get() || tunnel !== establishedTunnel) {
                     return@launch
                 }
-                val result = LibXray.invoke(patchRuntimeEnv(coreInvokeText, establishedTunnel.fd))
+                val requestJson = patchRuntimeEnv(coreInvokeText, establishedTunnel.fd)
+                val result = synchronized(coreLifecycleLock) {
+                    if (generation != startGeneration.get() || tunnel !== establishedTunnel) {
+                        return@launch
+                    }
+                    check(!isXrayRunning()) { "The previous Xray instance is still running" }
+                    RuntimeLogFiles.clear(File(filesDir, "run"))
+                    LibXray.invoke(requestJson)
+                }
                 validateRunXrayResult(result)
                 if (generation != startGeneration.get() || tunnel !== establishedTunnel) {
                     XLog.d("OneVpnService: stale runXray result ignored")
@@ -547,8 +560,19 @@ class OneVpnService : VpnService() {
     }
 
     private fun stopXray() {
-        val request = LibXrayInvokeRequest(method = LibXrayMethod.STOP_XRAY)
-        LibXray.invoke(JsonTool.json.encodeToString(request))
+        synchronized(coreLifecycleLock) {
+            val request = LibXrayInvokeRequest(method = LibXrayMethod.STOP_XRAY)
+            validateRunXrayResult(LibXray.invoke(JsonTool.json.encodeToString(request)))
+        }
+    }
+
+    private fun isXrayRunning(): Boolean {
+        val request = LibXrayInvokeRequest(method = LibXrayMethod.GET_XRAY_STATE)
+        val result = LibXray.invoke(JsonTool.json.encodeToString(request))
+        validateRunXrayResult(result)
+        return JsonTool.json.parseToJsonElement(result).jsonObject["data"]
+            ?.jsonObject?.get("running")?.jsonPrimitive?.booleanOrNull
+            ?: throw IllegalStateException("Invalid Xray state response")
     }
 
     private fun patchRuntimeEnv(requestJson: String, fd: Int): String {

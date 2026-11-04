@@ -90,14 +90,20 @@ void main() {
       final fixture = await _Fixture.create();
       final process = _OwnedProcess(42);
       addTearDown(process.finish);
+      final access = File(p.join(fixture.directory.path, 'run', 'access.log'));
+      await access.parent.create(recursive: true);
+      await access.writeAsString('old access');
       final api = fixture.api(
         startProcess: (_, _) async {
+          expect(await access.exists(), isFalse);
+          await access.writeAsString('current connection');
           fixture.pids.add(process.pid);
           return process;
         },
       );
       await api.observeVpnStatus();
       expect(await api.startCore(_runConfig(), _tunConfig()), isTrue);
+      expect(await access.readAsString(), 'current connection');
       expect(fixture.watchedPids, isEmpty);
 
       final nextStatus = fixture.nextStatus();

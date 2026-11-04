@@ -154,15 +154,14 @@ class LinuxFfiApi extends BaseFfiApi {
       }
       final errorFile = desktopCoreErrorFile(inputs);
       await errorFile.writeAsString('', flush: true);
-      final process = await _startProcess(
-        corePath,
-        desktopCoreRunArguments(
-          dns: tun?.tunDnsIPv4 ?? '',
-          interfaceName: tun?.autoOutboundsInterface ?? '',
-          configPath: inputs,
-          errorFile: errorFile.path,
-        ),
+      final arguments = desktopCoreRunArguments(
+        dns: tun?.tunDnsIPv4 ?? '',
+        interfaceName: tun?.autoOutboundsInterface ?? '',
+        configPath: inputs,
+        errorFile: errorFile.path,
       );
+      await clearRuntimeLogs();
+      final process = await _startProcess(corePath, arguments);
       _coreProcess = process;
       _bindProcess(process);
       unawaited(_monitor.waitForExit(process.pid));

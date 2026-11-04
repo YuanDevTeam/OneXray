@@ -49,13 +49,15 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     }
 
     private static let stateQueue = DispatchQueue(label: "net.yuandev.onexray.tunnel.state")
-    private var startContinuation: CheckedContinuation<Void, Error>?
+    private let lifecycle = XrayRuntimeLifecycle()
+    private var startContinuation: (generation: UInt64, continuation: CheckedContinuation<Void, Error>)?
     private var pendingStartSignal = false
 
     override func startTunnel(
         options: [String: NSObject]? = nil,
         completionHandler: @escaping @Sendable (Error?) -> Void
     ) {
+        let generation = lifecycle.beginStart()
         #if os(iOS)
         AppleWidgetPublisher.publish(.connecting)
         #endif
@@ -69,7 +71,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
             }
         } catch {
             #if os(iOS)
-            AppleWidgetPublisher.publish(.unknown)
+            if lifecycle.isCurrent(generation) { AppleWidgetPublisher.publish(.unknown) }
             #endif
             completionHandler(error)
             return
@@ -77,29 +79,32 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         Task {
             do {
                 if let systemExtensionRequest {
-                    try await startTunnelSE(request: systemExtensionRequest, startedByApp: startedByApp)
+                    try await startTunnelSE(request: systemExtensionRequest, startedByApp: startedByApp, generation: generation)
                 } else {
-                    try await startTunnelLegacy()
+                    try await startTunnelLegacy(generation: generation)
                 }
+                try lifecycle.check(generation)
                 completionHandler(nil)
             } catch {
                 #if os(iOS)
-                AppleWidgetPublisher.publish(.unknown)
+                if lifecycle.isCurrent(generation) { AppleWidgetPublisher.publish(.unknown) }
                 #endif
                 completionHandler(error)
             }
         }
     }
 
-    private func startTunnelLegacy() async throws {
+    private func startTunnelLegacy(generation: UInt64) async throws {
+        try lifecycle.check(generation)
         guard let request = StartVpnRequest.startModel else {
             YGLog("startTunnel noStartModel")
             throw TunnelError.noStartModel
         }
         let settings = try buildSettings(request: request)
         try await setTunnelNetworkSettings(settings)
+        try lifecycle.check(generation)
         if let coreInvokeText = request.coreInvokeText {
-            try await startXray(coreInvokeText)
+            try await startXray(coreInvokeText, generation: generation)
         }
         YGLog("startTunnel finished")
     }
@@ -129,15 +134,6 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         if try !runtimeDirectoryExists(runDirectory) {
             try fm.createDirectory(at: runDirectory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         }
-        for name in ["access.log", "error.log"] {
-            let file = runDirectory.appending(path: name)
-            var attributes = stat()
-            if lstat(file.path(percentEncoded: false), &attributes) == 0 {
-                try fm.removeItem(at: file)
-            } else if errno != ENOENT {
-                throw RuntimeStateError.invalid
-            }
-        }
         // A failed transfer may leave only this shared temporary directory.
         let staging = extGroupURL.appending(path: "dat.staging")
         if try runtimeDirectoryExists(staging) { try fm.removeItem(at: staging) }
@@ -147,24 +143,27 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         return request
     }
 
-    private func startTunnelSE(request: StartVpnRequest, startedByApp: Bool) async throws {
+    private func startTunnelSE(request: StartVpnRequest, startedByApp: Bool, generation: UInt64) async throws {
+        try lifecycle.check(generation)
         // App-driven starts synchronize the shared root first. On Demand reuses
         // the last complete root published by an App-driven start.
         if startedByApp {
             YGLog("startTunnel awaiting start_xray signal")
-            try await waitStartSignal(timeout: 30)
+            try await waitStartSignal(timeout: 30, generation: generation)
         } else {
             YGLog("startTunnel on-demand, skipping XPC sync")
         }
+        try lifecycle.check(generation)
         guard let dat = datDir(), try DatFileTransfer.directoryExists(dat) else {
             throw TunnelError.noRoutingData
         }
 
         let settings = try buildSettings(request: request)
         try await setTunnelNetworkSettings(settings)
+        try lifecycle.check(generation)
 
         if let coreInvokeText = request.coreInvokeText {
-            try await startXray(coreInvokeText)
+            try await startXray(coreInvokeText, generation: generation)
         }
     }
 
@@ -253,20 +252,25 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         settings.ipv6Settings?.excludedRoutes = ipv6Routes
     }
 
-    private func waitStartSignal(timeout: TimeInterval) async throws {
+    private func waitStartSignal(timeout: TimeInterval, generation: UInt64) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             Self.stateQueue.async {
+                guard self.lifecycle.isCurrent(generation) else {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
                 if self.pendingStartSignal {
                     self.pendingStartSignal = false
                     continuation.resume(returning: ())
                     return
                 }
-                self.startContinuation = continuation
+                self.startContinuation?.continuation.resume(throwing: CancellationError())
+                self.startContinuation = (generation, continuation)
                 let deadline = DispatchTime.now() + timeout
                 Self.stateQueue.asyncAfter(deadline: deadline) {
-                    if let c = self.startContinuation {
+                    if let c = self.startContinuation, c.generation == generation {
                         self.startContinuation = nil
-                        c.resume(throwing: TunnelError.startXrayTimeout)
+                        c.continuation.resume(throwing: TunnelError.startXrayTimeout)
                     }
                 }
             }
@@ -277,7 +281,12 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         Self.stateQueue.async {
             if let c = self.startContinuation {
                 self.startContinuation = nil
-                c.resume(returning: ())
+                if self.lifecycle.isCurrent(c.generation) {
+                    c.continuation.resume(returning: ())
+                } else {
+                    c.continuation.resume(throwing: CancellationError())
+                    self.pendingStartSignal = true
+                }
             } else {
                 self.pendingStartSignal = true
             }
@@ -288,7 +297,19 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         #if os(iOS)
         AppleWidgetPublisher.publish(.disconnecting)
         #endif
-        self.stopXray()
+        let generation = await withCheckedContinuation { continuation in
+            let token = lifecycle.stop(operation: { self.stopXray() }) { token in
+                continuation.resume(returning: token)
+            }
+            Self.stateQueue.async {
+                if self.lifecycle.isCurrent(token) { self.pendingStartSignal = false }
+                if let pending = self.startContinuation, !self.lifecycle.isCurrent(pending.generation) {
+                    self.startContinuation = nil
+                    pending.continuation.resume(throwing: CancellationError())
+                }
+            }
+        }
+        guard lifecycle.isCurrent(generation) else { return }
         #if os(iOS)
         // Core stopped, but NetworkExtension has not confirmed its final status.
         AppleWidgetPublisher.publish(.unknown)
@@ -372,7 +393,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
 
     // MARK: - Xray lifecycle
 
-    private func startXray(_ requestJson: String) async throws {
+    private func startXray(_ requestJson: String, generation: UInt64) async throws {
+        try lifecycle.check(generation)
         guard let fd = self.tunnelFileDescriptor else {
             YGLog("PacketTunnelProvider TunnelError.noSocketFd")
             throw TunnelError.noSocketFd
@@ -383,19 +405,38 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         )
         let requestText = try request.toText()
 
-        let responseText = await Task.detached(priority: .userInitiated) {
-            requestText.withCString { p -> String? in
-                let p0 = UnsafeMutablePointer(mutating: p)
-                guard let response = CGoInvoke(p0) else { return nil }
-                defer { CGoFree(response) }
-                return String(cString: response)
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            lifecycle.start(generation: generation, operation: {
+                let stateText = self.invokeXray(try LibXrayInvokeRequest(method: .getXrayState).toText())
+                let stateResult = LibXrayInvokeResponse.fromText(stateText)
+                guard stateResult.isSuccess, let stateText,
+                      let data = try JsonTool.decodeObject(from: Data(stateText.utf8))["data"] as? [String: Any],
+                      let running = data["running"] as? Bool else {
+                    throw TunnelError.startXrayFailed(stateResult.error)
+                }
+                try self.lifecycle.check(generation)
+                guard !running else { throw TunnelError.startXrayFailed("Xray is already running") }
+                guard let container = extensionGroupContainerURL() else { throw TunnelError.noGroupContainer }
+                try clearXrayRuntimeLogs(in: container.appending(path: "run"))
+
+                let result = LibXrayInvokeResponse.fromText(self.invokeXray(requestText))
+                if !result.isSuccess {
+                    YGLog("PacketTunnelProvider startXray \(result.error)")
+                    throw TunnelError.startXrayFailed(result.error)
+                }
+            }) { error in
+                if let error { continuation.resume(throwing: error) }
+                else { continuation.resume(returning: ()) }
             }
-        }.value
-        let result = LibXrayInvokeResponse.fromText(responseText)
-        if !result.isSuccess {
-            let error = result.error
-            YGLog("PacketTunnelProvider startXray \(error)")
-            throw TunnelError.startXrayFailed(error)
+        }
+    }
+
+    private func invokeXray(_ requestText: String) -> String? {
+        requestText.withCString { p -> String? in
+            let p0 = UnsafeMutablePointer(mutating: p)
+            guard let response = CGoInvoke(p0) else { return nil }
+            defer { CGoFree(response) }
+            return String(cString: response)
         }
     }
 

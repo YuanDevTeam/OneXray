@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:onexray/core/ffi/windows/core_process.dart';
 import 'package:onexray/core/ffi/windows/msix_ffi_api.dart';
 import 'package:onexray/core/ffi/windows/model.dart';
 import 'package:onexray/core/ffi/windows/native_api.dart';
@@ -132,9 +133,15 @@ void main() {
       addTearDown(() => directory.delete(recursive: true));
       final calls = <String>[];
       final events = <VpnStatus>[];
+      final access = File('${directory.path}/run/access.log');
+      final logError = File('${directory.path}/run/error.log');
+      await access.parent.create();
+      await access.writeAsString('old access');
+      await logError.writeAsString('old error');
       File? errorFile;
       List<String>? arguments;
       final api = WindowsMsixFfiApi(
+        coreProcess: _CoreProcesses(),
         native: WindowsNativeApi.forTest((text) async {
           final request = jsonDecode(text) as Map<String, dynamic>;
           final method = request['method'] as String;
@@ -150,6 +157,9 @@ void main() {
             });
           }
           if (method == 'startVpn') {
+            expect(await access.exists(), isFalse);
+            expect(await logError.exists(), isFalse);
+            await logError.writeAsString('current connection');
             final process =
                 request['payload']['sessionBackend']['processes'].single;
             expect(process['executableRelativePath'], 'OneXrayCore.exe');
@@ -163,6 +173,7 @@ void main() {
             );
           }
           expect(method, 'stopVpn');
+          if (errorFile == null) return response('disconnected');
           // Diagnostics may finish writing while the failed session is stopped.
           if (diagnostic == null) {
             await errorFile!.delete();
@@ -206,8 +217,81 @@ void main() {
         arguments![arguments!.indexOf('-error-file') + 1],
         errorFile!.path,
       );
-      expect(calls, ['getEnvironment', 'startVpn', 'stopVpn']);
-      expect(events, [VpnStatus.connecting, VpnStatus.disconnected]);
+      expect(calls, ['stopVpn', 'getEnvironment', 'startVpn', 'stopVpn']);
+      expect(events, [
+        VpnStatus.disconnected,
+        VpnStatus.connecting,
+        VpnStatus.disconnected,
+      ]);
+      expect(await logError.readAsString(), 'current connection');
     });
+  }
+
+  for (final failure in ['stop', 'running', 'query']) {
+    test(
+      'MSIX preserves logs when previous Core cannot be confirmed stopped: $failure',
+      () async {
+        final root = await Directory('../references/windows-msix-tests')
+            .absolute
+            .create(recursive: true);
+        final directory = await root.createTemp('logs-');
+        addTearDown(() => directory.delete(recursive: true));
+        final access = File('${directory.path}/run/access.log');
+        await access.parent.create();
+        await access.writeAsString('previous connection');
+        final processes = _CoreProcesses()
+          ..pids = failure == 'running' ? {42} : {}
+          ..error = failure == 'query'
+              ? StateError('process enumeration denied')
+              : null;
+        final calls = <String>[];
+        final events = <VpnStatus>[];
+        final api = WindowsMsixFfiApi(
+          coreProcess: processes,
+          native: WindowsNativeApi.forTest((text) async {
+            final method = jsonDecode(text)['method'] as String;
+            calls.add(method);
+            expect(method, 'stopVpn');
+            if (failure == 'stop') throw StateError('Stop failed');
+            return response('disconnected');
+          }),
+          readRequest: () async => StartVpnRequest(null, null, null, null),
+          notify: (status) async => events.add(status),
+        );
+        addTearDown(api.stopSharedIsolate);
+        final result = await api.startVpn(
+          configYaml: 'fixture',
+          networkSettings: const WindowsVpnNetworkSettings(
+            ipv4Address: '172.19.0.1',
+            ipv6Address: '',
+            dnsIpv4Address: '8.8.8.8',
+            dnsIpv6Address: '',
+          ),
+        );
+        expect(result.state, NativeVpnCommandState.failed);
+        expect(
+          result.message,
+          contains(switch (failure) {
+            'stop' => 'Stop failed',
+            'running' => 'previous Windows Core process is still running',
+            _ => 'process enumeration denied',
+          }),
+        );
+        expect(calls, ['stopVpn']);
+        expect(await access.readAsString(), 'previous connection');
+        if (failure == 'stop') expect(events, isEmpty);
+      },
+    );
+  }
+}
+
+class _CoreProcesses extends WindowsCoreProcess {
+  Set<int> pids = {};
+  Object? error;
+
+  @override
+  Future<Set<int>> findPids() async {
+    if (error != null) throw error!;
+    return {...pids};
   }
 }
