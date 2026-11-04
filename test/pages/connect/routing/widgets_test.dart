@@ -1,4 +1,4 @@
-import 'dart:ui' show Tristate;
+import 'dart:ui' show SemanticsAction, Tristate;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/connect/routing/widgets.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch, ShadTheme;
@@ -112,7 +113,7 @@ void main() {
 
     for (final direction in [TextDirection.ltr, TextDirection.rtl]) {
       testWidgets(
-        'full-width entry count maps border coordinates and disabled semantics on $platform ($direction)',
+        'full-width entry dropdown keeps draft selection and disabled state on $platform ($direction)',
         (tester) async {
           tester.view.devicePixelRatio = 1;
           tester.view.physicalSize = const Size(320, 844);
@@ -163,7 +164,8 @@ void main() {
               ),
             );
             await tester.pumpAndSettle();
-            final picker = find.byType(EntryCountPicker);
+            final picker = find.byType(SettingSelect<int>);
+            expect(find.byType(EntryCountPicker), findsNothing);
             final l = AppLocalizations.of(tester.element(picker))!;
             final rect = tester.getRect(picker);
             final row = tester.getRect(find.byType(RoutingEntryCountRow));
@@ -176,59 +178,52 @@ void main() {
                 .01,
               ),
             );
-            for (final count in [1, 2, 3]) {
-              final segment = tester.getRect(
-                find.bySemanticsLabel(l.prototypeUseEntryServers(count)),
-              );
-              expect(segment.width, greaterThanOrEqualTo(extent));
-              expect(segment.height, greaterThanOrEqualTo(extent));
-            }
-            final segmentWidth = (rect.width - 2) / 3;
-            for (
-              var physicalSegment = 0;
-              physicalSegment < 3;
-              physicalSegment++
-            ) {
-              // The 1px outline is outside the child InkWells: this exercises
-              // the outer coordinate mapping rather than the segment callback.
-              await tester.tapAt(
-                Offset(
-                  rect.left + 1 + segmentWidth * (physicalSegment + .5),
-                  rect.top + .5,
+            expect(rect.height, greaterThanOrEqualTo(extent));
+            for (final count in [3, 1, 2]) {
+              final before = changes.length;
+              await tester.tap(picker);
+              await tester.pumpAndSettle();
+              for (final option in [1, 2, 3]) {
+                expect(
+                  find.widgetWithText(
+                    MenuItemButton,
+                    l.prototypeUseEntryServers(option),
+                  ),
+                  findsOneWidget,
+                );
+              }
+              await tester.tap(
+                find.widgetWithText(
+                  MenuItemButton,
+                  l.prototypeUseEntryServers(count),
                 ),
               );
-              await tester.pump();
-              expect(changes.length, physicalSegment + 1);
-              expect(
-                changes.last,
-                direction == TextDirection.rtl
-                    ? 3 - physicalSegment
-                    : physicalSegment + 1,
-              );
+              await tester.pumpAndSettle();
+              expect(changes.length, before + 1);
+              expect(changes.last, count);
+              expect(selected, count);
+              expect(tester.widget<SettingSelect<int>>(picker).value, count);
             }
-            await tester.tap(find.text('2'));
-            await tester.pump();
-            expect(changes.length, 4);
-            expect(changes.last, 2);
+            expect(changes, [3, 1, 2]);
             update(() => enabled = false);
             await tester.pump();
-            for (final count in [1, 2, 3]) {
-              final target = find.bySemanticsLabel(
-                l.prototypeUseEntryServers(count),
-              );
-              final flags = tester
-                  .getSemantics(target)
+            expect(tester.widget<SettingSelect<int>>(picker).onChanged, isNull);
+            final trigger = find.descendant(
+              of: picker,
+              matching: find.byType(InkWell),
+            );
+            expect(tester.widget<InkWell>(trigger).onTap, isNull);
+            expect(
+              tester
+                  .getSemantics(trigger)
                   .getSemanticsData()
-                  .flagsCollection;
-              expect(flags.isEnabled, Tristate.isFalse);
-              expect(
-                flags.isSelected,
-                count == 2 ? Tristate.isTrue : Tristate.isFalse,
-              );
-              await tester.tapAt(tester.getCenter(target));
-              await tester.pump();
-            }
-            expect(changes.length, 4);
+                  .hasAction(SemanticsAction.tap),
+              isFalse,
+            );
+            await tester.tap(picker, warnIfMissed: false);
+            await tester.pumpAndSettle();
+            expect(find.byType(MenuItemButton), findsNothing);
+            expect(changes, [3, 1, 2]);
             expect(selected, 2);
             expect(tester.takeException(), isNull);
           } finally {

@@ -6,6 +6,7 @@ import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/app_switch.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 
 class RoutingFakeDnsRow extends StatelessWidget {
   final bool value;
@@ -590,10 +591,17 @@ class RoutingEntryCountRow extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            EntryCountPicker(
+            SettingSelect<int>(
               value: value,
-              onChanged: onChanged,
-              fullWidth: true,
+              entries: {
+                for (final count in const [1, 2, 3])
+                  count: l.prototypeUseEntryServers(count),
+              },
+              onChanged: onChanged == null
+                  ? null
+                  : (selected) {
+                      if (selected != null) onChanged!(selected);
+                    },
             ),
           ],
         ),

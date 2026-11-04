@@ -9,6 +9,7 @@ import 'package:onexray/pages/connect/routing/options_form.dart';
 import 'package:onexray/pages/connect/routing/smart/controller.dart';
 import 'package:onexray/pages/connect/routing/smart/page.dart';
 import 'package:onexray/pages/connect/routing/widgets.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/routing/region_catalog.dart';
@@ -262,12 +263,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.state.draft.fakeDns, isTrue);
 
-      final count = find.descendant(
-        of: find.byType(EntryCountPicker),
-        matching: find.text('2'),
-      );
+      final count = find.byType(SettingSelect<int>);
       await tester.ensureVisible(count);
       await tester.tap(count);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(MenuItemButton, l.prototypeUseEntryServers(2)),
+      );
       await tester.pumpAndSettle();
       final selection = find
           .descendant(

@@ -332,7 +332,7 @@ class SettingSelect<T extends Object> extends StatelessWidget {
     onSelected: (value) => onChanged?.call(value),
     triggerBuilder: (open) => InkWell(
       onTap: onChanged == null ? null : open,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.control),
       child: Container(
         constraints: BoxConstraints(
           minHeight: AppLayout.touchExtent(
@@ -348,7 +348,7 @@ class SettingSelect<T extends Object> extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           border: Border.all(color: ColorManager.border(context)),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadii.control),
           color: ColorManager.surface(context),
         ),
         child: Row(

@@ -10,6 +10,7 @@ import 'package:onexray/pages/connect/routing/widgets.dart';
 import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/pages/shared/widgets/configuration_transfer.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
@@ -108,7 +109,7 @@ void main() {
           ),
           findsOneWidget,
         );
-        final count = find.byType(EntryCountPicker);
+        final count = find.byType(SettingSelect<int>);
         final selection = find.descendant(
           of: find.byType(RoutingSelectionSettingsForm),
           matching: find.byType(OutlinedButton),
@@ -118,10 +119,13 @@ void main() {
           closeTo(tester.getSize(selection).width, .01),
         );
 
-        final three = find.descendant(of: count, matching: find.text('3'));
-        await tester.ensureVisible(three);
-        await tester.tap(three);
-        await tester.pump();
+        await tester.ensureVisible(count);
+        await tester.tap(count);
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.widgetWithText(MenuItemButton, l.prototypeUseEntryServers(3)),
+        );
+        await tester.pumpAndSettle();
         expect(controller.state.entryCount, 3);
         expect(controller.profileState.entryCount, 3);
 
