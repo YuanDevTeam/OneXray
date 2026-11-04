@@ -79,7 +79,10 @@ void main() {
       expect(material.colorScheme.surface, palette.card);
       expect(material.iconTheme.color, palette.foreground);
       expect(material.dividerTheme.color, palette.border);
-      expect(material.navigationBarTheme, const NavigationBarThemeData());
+      expect(
+        material.navigationBarTheme.backgroundColor,
+        palette.card.withValues(alpha: 0.96),
+      );
       expect(material.appBarTheme.backgroundColor, palette.background);
       expect(material.appBarTheme.surfaceTintColor, Colors.transparent);
       expect(material.appBarTheme.elevation, 0);
@@ -237,10 +240,22 @@ void main() {
       expect(material.appBarTheme.surfaceTintColor, isNull);
       expect(material.appBarTheme.elevation, isNull);
       expect(material.appBarTheme.scrolledUnderElevation, isNull);
-      expect(material.navigationBarTheme, const NavigationBarThemeData());
+      final navigation = material.navigationBarTheme;
+      expect(navigation.height, isNull);
+      expect(navigation.indicatorColor, Colors.transparent);
+      expect(navigation.iconTheme!.resolve({})!.size, isNull);
       expect(
-        material.bottomNavigationBarTheme,
-        const BottomNavigationBarThemeData(),
+        navigation.iconTheme!.resolve({})!.color,
+        AppPalette.light.mutedStrong,
+      );
+      expect(navigation.labelTextStyle!.resolve({})!.fontSize, isNull);
+      expect(
+        navigation.labelTextStyle!.resolve({})!.fontWeight,
+        FontWeight.w400,
+      );
+      expect(
+        navigation.labelTextStyle!.resolve({WidgetState.selected})!.fontWeight,
+        FontWeight.w600,
       );
       expect(
         material.filledButtonTheme.style!.minimumSize!.resolve({}),

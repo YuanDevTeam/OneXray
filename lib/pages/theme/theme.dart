@@ -750,6 +750,30 @@ abstract final class AppTheme {
           palette.accent.withValues(alpha: 0.72),
         ),
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: palette.card.withValues(alpha: 0.96),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: Colors.transparent,
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? palette.sidebarPrimary
+                : palette.mutedStrong,
+          ),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            color: states.contains(WidgetState.selected)
+                ? palette.primary
+                : palette.mutedStrong,
+            fontWeight: states.contains(WidgetState.selected)
+                ? FontWeight.w600
+                : FontWeight.w400,
+          ),
+        ),
+      ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: palette.sidebar,
         indicatorColor: palette.selectedSurface,
