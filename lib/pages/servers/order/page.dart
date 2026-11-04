@@ -38,56 +38,57 @@ class ManualOrderPage extends StatelessWidget {
             ),
             body: SafeArea(
               child: ResponsiveContent(
-                child: Column(
-                  children: [
+                child: CustomScrollView(
+                  key: const PageStorageKey('manual-order'),
+                  slivers: [
                     if (state.failure != null)
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              state.failure is FormatException
-                                  ? l.manualOrderChanged
-                                  : appFailureMessage(l, state.failure),
-                              style: TextStyle(
-                                color: ColorManager.palette(context)
-                                    .destructive,
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                state.failure is FormatException
+                                    ? l.manualOrderChanged
+                                    : appFailureMessage(l, state.failure),
+                                style: TextStyle(
+                                  color: ColorManager.palette(context)
+                                      .destructive,
+                                ),
                               ),
-                            ),
-                            Align(
-                              alignment: AlignmentDirectional.centerEnd,
-                              child: TextButton(
-                                onPressed: state.busy
-                                    ? null
-                                    : controller.reload,
-                                child: Text(l.manualOrderReload),
+                              Align(
+                                alignment: AlignmentDirectional.centerEnd,
+                                child: TextButton(
+                                  onPressed: state.busy
+                                      ? null
+                                      : controller.reload,
+                                  child: Text(l.manualOrderReload),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          mobile ? 16 : 28,
-                          16,
-                          mobile ? 16 : 28,
-                          28,
-                        ),
-                        child: Material(
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(
+                        mobile ? 16 : 28,
+                        16,
+                        mobile ? 16 : 28,
+                        28,
+                      ),
+                      sliver: DecoratedSliver(
+                        key: const ValueKey('manual-order-card'),
+                        decoration: BoxDecoration(
                           color: ColorManager.palette(context).card,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadii.card),
-                            side: BorderSide(
-                              color: ColorManager.palette(context).border,
-                            ),
+                          borderRadius: BorderRadius.circular(AppRadii.card),
+                          border: Border.all(
+                            color: ColorManager.palette(context).border,
                           ),
-                          clipBehavior: Clip.antiAlias,
-                          child: ReorderableListView.builder(
-                            key: const PageStorageKey('manual-order'),
-                            padding: const EdgeInsets.all(18),
-                            buildDefaultDragHandles: false,
+                        ),
+                        sliver: SliverPadding(
+                          padding: const EdgeInsets.all(18),
+                          sliver: SliverReorderableList(
                             onReorderItem: controller.reorder,
                             itemCount: state.items.length,
                             itemBuilder: (context, index) {
