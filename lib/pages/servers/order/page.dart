@@ -9,6 +9,7 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/shared/failure.dart';
 
@@ -41,6 +42,24 @@ class ManualOrderPage extends StatelessWidget {
                 child: CustomScrollView(
                   key: const PageStorageKey('manual-order'),
                   slivers: [
+                    if (params.description != null)
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          mobile ? 16 : 28,
+                          16,
+                          mobile ? 16 : 28,
+                          0,
+                        ),
+                        sliver: SliverToBoxAdapter(
+                          child: Text(
+                            params.description!,
+                            style: AppTypography.supporting.copyWith(
+                              color: ColorManager.palette(context)
+                                  .mutedForeground,
+                            ),
+                          ),
+                        ),
+                      ),
                     if (state.failure != null)
                       SliverToBoxAdapter(
                         child: Padding(

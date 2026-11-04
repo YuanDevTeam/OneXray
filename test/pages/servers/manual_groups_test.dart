@@ -9,6 +9,8 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/details.dart';
 import 'package:onexray/pages/servers/manual_group_dialogs.dart';
+import 'package:onexray/pages/servers/order/controller.dart';
+import 'package:onexray/pages/servers/order/page.dart';
 import 'package:onexray/pages/servers/page.dart';
 import 'package:onexray/pages/servers/sources.dart';
 import 'package:onexray/pages/servers/view.dart';
@@ -17,6 +19,7 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
+import 'package:onexray/service/servers/sort.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 // ignore: depend_on_referenced_packages
@@ -111,6 +114,13 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     router = serverTestRouter(
+      extraRoutes: [
+        GoRoute(
+          path: 'manual-server-order',
+          builder: (_, state) =>
+              ManualOrderPage(params: state.extra! as ManualOrderParams),
+        ),
+      ],
       home: (_) => fullPage
           ? ServersPage(controller: controller)
           : Builder(
@@ -157,6 +167,254 @@ void main() {
     await databaseOperation(tester, () => db.connectionConfigDao.read());
     await settle(tester);
   }
+
+  testWidgets(
+    'the root arranges all ungrouped nodes without changing display sorting',
+    (tester) async {
+      final ids = await databaseOperation(
+        tester,
+        () async => [
+          await db.coreConfigDao.insertAssetRow(
+            outboundCompanion({'tag': 'Alpha', 'protocol': 'socks'}),
+          ),
+          await db.coreConfigDao.insertAssetRow(
+            outboundCompanion({'tag': 'Zulu', 'protocol': 'socks'}),
+          ),
+        ],
+      );
+      await settleUntil(tester, () => controller.servers.length == 2);
+      await pump(tester);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerBrowser)),
+      )!;
+      final selection = controller.configuration.toJson();
+      await tester.tap(find.byTooltip(l.serverSortTitle));
+      await settle(tester);
+      await tester.tap(find.text(l.serverSortName).last);
+      await settleUntil(
+        tester,
+        () =>
+            controller.catalog.sortOrder == ServerSortOrder.name &&
+            !controller.state.sortSaving,
+      );
+      await settle(tester);
+
+      Future<void> openOrder() async {
+        final entry = find.byKey(const ValueKey('manual-server-order'));
+        await tester.ensureVisible(entry);
+        await settle(tester);
+        await tester.tap(entry);
+        await settle(tester);
+        expect(find.byType(ManualServerOrderScopeDialog), findsNothing);
+        expect(find.byType(ManualOrderPage), findsOneWidget);
+        expect(find.text(l.manualOrderDisplayHint), findsOneWidget);
+        expect(
+          tester
+              .widget<ManualOrderPage>(find.byType(ManualOrderPage))
+              .params
+              .items
+              .map((item) => item.id),
+          ids,
+        );
+      }
+
+      await openOrder();
+      await tester.tap(find.byKey(ValueKey('move-up-${ids.last}')));
+      await settle(tester);
+      await tester.tap(find.text(l.prototypeCancel));
+      await settle(tester);
+      final afterCancel = await databaseOperation(
+        tester,
+        () => db.coreConfigDao.allActiveServerRows(),
+      );
+      expect(afterCancel.map((row) => row.manualSortOrder), [0, 1]);
+
+      await openOrder();
+      await tester.tap(find.byKey(ValueKey('move-up-${ids.last}')));
+      await settle(tester);
+      await tester.tap(find.text(l.prototypeSave));
+      await settleUntil(
+        tester,
+        () =>
+            controller.servers
+                .firstWhere((row) => row.id == ids.last)
+                .manualSortOrder ==
+            0,
+      );
+      await settle(tester);
+      expect(find.byType(ManualOrderPage), findsNothing);
+      expect(controller.catalog.sortOrder, ServerSortOrder.name);
+      expect(AppEventBus.instance.state.serverSort, ServerSortOrder.name);
+      expect(controller.servers.map((row) => row.id), ids);
+      expect(controller.configuration.toJson(), selection);
+
+      await tester.tap(find.byTooltip(l.serverSortTitle));
+      await settle(tester);
+      await tester.tap(find.text(l.serverSortDefault).last);
+      await settleUntil(
+        tester,
+        () =>
+            controller.catalog.sortOrder == ServerSortOrder.defaultOrder &&
+            !controller.state.sortSaving,
+      );
+      expect(controller.servers.map((row) => row.id), ids.reversed);
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'multiple manual scopes require a group and only save that complete group',
+    (tester) async {
+      final fixture = await databaseOperation(tester, () async {
+        final home = await controller.manualGroupService.create('Home');
+        final singleton = await controller.manualGroupService.create('Single');
+        final empty = await controller.manualGroupService.create('Empty');
+        final source = await db.subscriptionDao.insertRow(
+          SubscriptionCompanion.insert(
+            name: 'Subscription',
+            url: 'https://example.test/subscription',
+            timestamp: DateTime(2026),
+          ),
+        );
+        final subscription = await db.coreConfigDao.insertAssetRow(
+          outboundCompanion({'tag': 'Subscription node', 'protocol': 'socks'})
+              .copyWith(subId: Value(source)),
+        );
+        final raw = await db.coreConfigDao.insertAssetRow(
+          outboundCompanion({'tag': 'Personal Raw', 'protocol': 'socks'})
+              .copyWith(type: const Value('raw')),
+        );
+        Future<int> add(String name, int? group) async {
+          final id = await db.coreConfigDao.insertAssetRow(
+            outboundCompanion({'tag': name, 'protocol': 'socks'}),
+          );
+          if (group != null) {
+            await controller.manualGroupService.move({
+              id,
+            }, targetGroupId: group);
+          }
+          return id;
+        }
+
+        return (
+          home: home,
+          singleton: singleton,
+          empty: empty,
+          ungrouped: [
+            await add('Ungrouped A', null),
+            await add('Ungrouped B', null),
+          ],
+          grouped: [await add('Home A', home), await add('Home B', home)],
+          single: await add('Single A', singleton),
+          untouched: [
+            (await db.coreConfigDao.searchRow(subscription))!,
+            (await db.coreConfigDao.searchRow(raw))!,
+          ],
+        );
+      });
+      await settleUntil(
+        tester,
+        () =>
+            controller.servers.length == 6 &&
+            controller.rawConfigurations.length == 1 &&
+            controller.catalog.manualGroups.length == 3,
+      );
+      await pump(tester);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerBrowser)),
+      )!;
+      Future<void> chooseScope() async {
+        final entry = find.byKey(const ValueKey('manual-server-order'));
+        await tester.ensureVisible(entry);
+        await settle(tester);
+        await tester.tap(entry);
+        await settle(tester);
+        expect(find.byType(ManualServerOrderScopeDialog), findsOneWidget);
+        expect(find.byType(ManualOrderPage), findsNothing);
+      }
+
+      await chooseScope();
+      expect(find.text('Subscription'), findsNothing);
+      expect(find.text('Personal Raw'), findsNothing);
+      final ungrouped = find.byKey(
+        const ValueKey('manual-order-scope-manual:ungrouped'),
+      );
+      final home = find.byKey(
+        ValueKey('manual-order-scope-manual:${fixture.home}'),
+      );
+      expect(tester.widget<SettingRow>(ungrouped).enabled, isTrue);
+      expect(tester.widget<SettingRow>(home).enabled, isTrue);
+      expect(
+        tester
+            .widget<SettingRow>(
+              find.byKey(
+                ValueKey('manual-order-scope-manual:${fixture.singleton}'),
+              ),
+            )
+            .enabled,
+        isFalse,
+      );
+      expect(
+        tester
+            .widget<SettingRow>(
+              find.byKey(
+                ValueKey('manual-order-scope-manual:${fixture.empty}'),
+              ),
+            )
+            .enabled,
+        isFalse,
+      );
+      await tester.tap(home);
+      await settle(tester);
+      expect(
+        tester
+            .widget<ManualOrderPage>(find.byType(ManualOrderPage))
+            .params
+            .items
+            .map((item) => item.id),
+        fixture.grouped,
+      );
+      await tester.tap(find.byKey(ValueKey('move-up-${fixture.grouped.last}')));
+      await settle(tester);
+      await tester.tap(find.text(l.prototypeSave));
+      await settleUntil(
+        tester,
+        () =>
+            controller.servers
+                .firstWhere((row) => row.id == fixture.grouped.last)
+                .manualSortOrder ==
+            0,
+      );
+      await settle(tester);
+      final rows = await databaseOperation(
+        tester,
+        () => db.coreConfigDao.allActiveServerRows(),
+      );
+      final byId = {for (final row in rows) row.id: row};
+      expect(byId[fixture.grouped.first]!.manualSortOrder, 1);
+      expect(byId[fixture.grouped.last]!.manualSortOrder, 0);
+      expect(byId[fixture.ungrouped.first]!.manualSortOrder, 0);
+      expect(byId[fixture.ungrouped.last]!.manualSortOrder, 1);
+      expect(byId[fixture.single]!.manualSortOrder, 0);
+      final untouched = await databaseOperation(
+        tester,
+        () async => [
+          for (final row in fixture.untouched)
+            (await db.coreConfigDao.searchRow(row.id))!,
+        ],
+      );
+      expect(untouched, fixture.untouched);
+      expect(
+        rows
+            .where((row) => fixture.grouped.contains(row.id))
+            .map((row) => row.manualGroupId),
+        everyElement(fixture.home),
+      );
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'mobile subscriptions stay reachable independently of a long group list',
@@ -243,7 +501,8 @@ void main() {
       await settle(tester);
       expect(find.byType(ServerManualGroupsPage), findsOneWidget);
       expect(find.text('Empty folder'), findsOneWidget);
-      expect(find.text(l.manualGroupsDescription), findsOneWidget);
+      expect(find.widgetWithText(AppBar, l.manualGroupsTitle), findsOneWidget);
+      expect(find.text(l.manualGroupsDescription), findsNothing);
       expect(find.text(l.manualGroupsUngroupedFirst), findsOneWidget);
       expect(
         find.byWidgetPredicate(
@@ -423,11 +682,8 @@ void main() {
       final l = AppLocalizations.of(tester.element(find.byType(ServersPage)))!;
       final add = find.byKey(const ValueKey('servers-add'));
       expect(add.hitTestable(), findsOneWidget);
-      expect(tester.widget<FilledButton>(add).onPressed, isNotNull);
-      expect(
-        find.descendant(of: add, matching: find.text(l.prototypeAdd)),
-        findsOneWidget,
-      );
+      expect(tester.widget<IconButton>(add).onPressed, isNotNull);
+      expect(tester.widget<IconButton>(add).tooltip, l.prototypeAddServer);
       expect(find.byTooltip(l.manualGroupNew), findsNothing);
       expect(
         tester.getSize(find.text(l.prototypeServers)).width,

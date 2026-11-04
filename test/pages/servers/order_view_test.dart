@@ -105,6 +105,43 @@ void main() {
     });
   }
 
+  testWidgets(
+    'node arranging explains display order without changing its draft',
+    (tester) async {
+      const items = [ManualOrderItem(1, 'First'), ManualOrderItem(2, 'Second')];
+      const hint =
+          'Saved positions are shown by Default; Name and Latency stay unchanged.';
+      var saves = 0;
+      await open(
+        tester,
+        ManualOrderParams(
+          title: 'Arrange node order',
+          description: hint,
+          items: items,
+          reload: () async => items,
+          save: (_, _) async {
+            saves++;
+          },
+        ),
+      );
+      expect(find.text(hint), findsOneWidget);
+      expect(
+        tester
+            .element(find.byType(SliverReorderableList))
+            .read<ManualOrderController>()
+            .state
+            .items
+            .map((item) => item.id),
+        [1, 2],
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(saves, 0);
+      expect(find.byType(ManualOrderPage), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Cancel discards accessible position changes', (tester) async {
     final saved = <List<int>>[];
     const items = [ManualOrderItem(1, 'First'), ManualOrderItem(2, 'Second')];

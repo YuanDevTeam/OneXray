@@ -987,6 +987,7 @@
   "manualOrderChanged": "فهرست تغییر کرد. پیش از مرتب‌سازی دوباره بارگیری کنید.",
   "manualOrderReload": "بارگیری دوباره",
   "manualOrderClearSearch": "برای مرتب‌سازی، جستجو را پاک کنید.",
+  "manualOrderDisplayHint": "ترتیب ذخیره‌شده در مرتب‌سازی پیش‌فرض نمایش داده می‌شود. تنظیم مرتب‌سازی بر اساس نام یا تأخیر تغییر نمی‌کند.",
   "subscriptionAdvancedOff": "HWID و Age غیرفعال هستند",
   "subscriptionAdvancedConfigured": "پیکربندی‌شده: {options}",
   "@subscriptionAdvancedConfigured": {

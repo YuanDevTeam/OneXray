@@ -987,6 +987,7 @@
   "manualOrderChanged": "清單已變更，請重新載入後整理。",
   "manualOrderReload": "重新載入",
   "manualOrderClearSearch": "清空搜尋後可整理順序。",
+  "manualOrderDisplayHint": "儲存的順序會在「預設」排序下顯示；依名稱或延遲排序的設定維持不變。",
   "subscriptionAdvancedOff": "未開啟 HWID 和 Age",
   "subscriptionAdvancedConfigured": "已設定：{options}",
   "@subscriptionAdvancedConfigured": {

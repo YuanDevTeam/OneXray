@@ -3168,6 +3168,7 @@
   "manualOrderChanged": "The list changed. Reload it before arranging again.",
   "manualOrderReload": "Reload order",
   "manualOrderClearSearch": "Clear search to arrange.",
+  "manualOrderDisplayHint": "Saved positions are shown with Default sorting. Sorting by name or latency is unchanged.",
   "subscriptionAdvancedOff": "HWID and Age are off",
   "subscriptionAdvancedConfigured": "Configured: {options}",
   "@subscriptionAdvancedConfigured": {

@@ -858,6 +858,40 @@ class ServersController extends PageCubit<ServersPageState>
     );
   }
 
+  /// Each saved order belongs to one complete manual group, never a filter.
+  Future<void> openManualServerOrder(BuildContext context) async {
+    if (query.trim().isNotEmpty) return;
+    final l = AppLocalizations.of(context)!;
+    final scopes = groups(
+      l,
+      filter: false,
+    ).where((group) => group.manual).toList();
+    if (!scopes.any(
+      (group) => group.rows.length >= 2 && !manualGroupBusy(group),
+    )) {
+      return;
+    }
+    final nonempty = scopes.where((group) => group.rows.isNotEmpty).toList();
+    final id = nonempty.length == 1
+        ? nonempty.single.id
+        : await showAppDialog<String>(
+            context,
+            (_) => ManualServerOrderScopeDialog(
+              groups: scopes,
+              busyGroupIds: scopes
+                  .where(manualGroupBusy)
+                  .map((group) => group.id)
+                  .toSet(),
+            ),
+          );
+    if (id == null || !context.mounted || !isPageActive) return;
+    final group = groups(
+      l,
+      filter: false,
+    ).where((group) => group.id == id).firstOrNull;
+    if (group != null) await openServerOrder(context, group);
+  }
+
   Future<void> openServerOrder(BuildContext context, ServerGroup group) async {
     if (!group.manual ||
         query.trim().isNotEmpty ||
@@ -886,6 +920,7 @@ class ServersController extends PageCubit<ServersPageState>
       extra: ManualOrderParams(
         title:
             '${AppLocalizations.of(context)!.manualServerOrder} · ${group.name}',
+        description: AppLocalizations.of(context)!.manualOrderDisplayHint,
         items: items(catalog),
         reload: load,
         save: (expected, ordered) => manualGroupService.reorderServers(

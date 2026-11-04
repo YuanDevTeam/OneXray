@@ -227,6 +227,11 @@ class _ServerBrowserState extends State<ServerBrowser> {
         controller.query.trim().isNotEmpty ||
         validSource != -1 ||
         (!complete && favoritesOnly);
+    final showManualTools =
+        !complete &&
+        controller.query.trim().isEmpty &&
+        !favoritesOnly &&
+        validSource <= 0;
     final palette = ColorManager.palette(context);
     return CustomScrollView(
       controller: widget.scroll,
@@ -281,6 +286,8 @@ class _ServerBrowserState extends State<ServerBrowser> {
                     ),
                     if (!complete) ...[
                       ServerSortButton(controller: controller),
+                      if (showManualTools)
+                        ManualServerOrderButton(controller: controller),
                       IconButton(
                         tooltip: l.prototypeFavorites,
                         isSelected: favoritesOnly,
@@ -318,7 +325,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
                       ),
                   ],
                 ),
-                if (!complete && !filtered) ...[
+                if (showManualTools) ...[
                   SizedBox(height: gap),
                   SettingRow(
                     title: l.manualGroupsTitle,

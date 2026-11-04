@@ -83,3 +83,36 @@ class ManualGroupOrderButton extends StatelessWidget {
     );
   }
 }
+
+class ManualServerOrderButton extends StatelessWidget {
+  const ManualServerOrderButton({super.key, required this.controller});
+
+  final ServersController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final searching = controller.query.trim().isNotEmpty;
+    final enabled =
+        !searching &&
+        controller
+            .groups(l, filter: false)
+            .any(
+              (group) =>
+                  group.manual &&
+                  group.rows.length >= 2 &&
+                  !controller.manualGroupBusy(group),
+            );
+    return Tooltip(
+      message: searching ? l.manualOrderClearSearch : l.manualOrderDisplayHint,
+      child: OutlinedButton.icon(
+        key: const ValueKey('manual-server-order'),
+        onPressed: enabled
+            ? () => controller.openManualServerOrder(context)
+            : null,
+        icon: const Icon(LucideIcons.listOrdered, size: 17),
+        label: Text(l.manualServerOrder),
+      ),
+    );
+  }
+}

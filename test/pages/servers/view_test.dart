@@ -36,7 +36,7 @@ import 'package:shared_preferences_platform_interface/in_memory_shared_preferenc
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:shadcn_ui/shadcn_ui.dart'
-    show ShadTheme, ShadToaster, ShadToast;
+    show ShadTheme, ShadToaster, ShadToast, ShadOption;
 
 import 'fixtures/server_test_router.dart';
 
@@ -312,6 +312,93 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final width in [390.0, 1032.0, 1160.0]) {
+    testWidgets(
+      'manual ordering is reachable only for whole scopes at $width',
+      (tester) async {
+        controller.sources = [
+          SubscriptionData(
+            panel: 'generic',
+            mode: 'appManaged',
+            id: 8,
+            name: 'Ordinary subscription',
+            url: 'https://example.test/ordinary',
+            hwidEnabled: false,
+            timestamp: DateTime(2026),
+          ),
+        ];
+        controller.servers = [
+          _server(1, favorite: true),
+          _server(2),
+          _server(3).copyWith(subId: 8),
+        ];
+        await pumpBrowser(tester, width);
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerBrowser)),
+        )!;
+        final entry = find.byKey(const ValueKey('manual-server-order'));
+        final groups = find.text(l.manualGroupsTitle);
+        final selection = controller.configuration.toJson();
+        final ids = controller.servers.map((row) => row.id).toList();
+        expect(entry, findsOneWidget);
+        expect(tester.widget<OutlinedButton>(entry).onPressed, isNotNull);
+        expect(groups, findsOneWidget);
+
+        Future<void> source(int current, int next) async {
+          final filter = find.byKey(
+            ValueKey(('server-source-filter', current)),
+          );
+          await tester.ensureVisible(filter);
+          await tester.pumpAndSettle();
+          await tester.tap(filter);
+          await tester.pumpAndSettle();
+          await tester.tap(
+            find.byWidgetPredicate(
+              (widget) => widget is ShadOption<int> && widget.value == next,
+            ),
+          );
+          await tester.pumpAndSettle();
+        }
+
+        await source(-1, 0);
+        expect(entry, findsOneWidget);
+        expect(groups, findsOneWidget);
+        expect(tester.widget<OutlinedButton>(entry).onPressed, isNotNull);
+
+        await tester.enterText(find.byType(TextField).first, 'Node 1');
+        await tester.pumpAndSettle();
+        expect(entry, findsNothing);
+        expect(groups, findsNothing);
+        await tester.tap(find.byKey(const ValueKey('server-search-clear')));
+        await tester.pumpAndSettle();
+        expect(entry, findsOneWidget);
+
+        await tester.tap(find.byTooltip(l.prototypeFavorites));
+        await tester.pumpAndSettle();
+        expect(entry, findsNothing);
+        expect(groups, findsNothing);
+        await tester.tap(find.byTooltip(l.prototypeFavorites));
+        await tester.pumpAndSettle();
+        expect(entry, findsOneWidget);
+
+        await source(0, 8);
+        expect(entry, findsNothing);
+        expect(groups, findsNothing);
+        await source(8, -1);
+        expect(entry, findsOneWidget);
+        await tester.tap(find.text(l.serverCompleteConfigurationsTab).first);
+        await tester.pumpAndSettle();
+        expect(entry, findsNothing);
+        expect(groups, findsNothing);
+        expect(controller.servers.map((row) => row.id), ids);
+        expect(controller.configuration.toJson(), selection);
+        expect(controller.catalog.sortOrder, ServerSortOrder.defaultOrder);
+        expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets(
     'empty search can be cleared without changing selection or order',
