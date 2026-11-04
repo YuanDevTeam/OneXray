@@ -149,7 +149,6 @@ private struct ConnectionWidgetView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ScaledMetric(relativeTo: .headline) private var statusLineHeight: CGFloat = 22
     @ScaledMetric(relativeTo: .caption) private var brandLineHeight: CGFloat = 14
-    @ScaledMetric(relativeTo: .caption2) private var observationLineHeight: CGFloat = 12
     let entry: ConnectionWidgetEntry
 
     private let palette = ConnectionWidgetPalette()
@@ -213,11 +212,8 @@ private struct ConnectionWidgetView: View {
     private var smallContent: some View {
         GeometryReader { geometry in
             let showBrand = !largeText && geometry.size.height >= 44 + statusLineHeight + brandLineHeight + 12
-            let showObservation = !largeText && entry.snapshot != nil
-                && geometry.size.height >= 56 + statusLineHeight + brandLineHeight + observationLineHeight + 14
             let reservedHeight = statusLineHeight + 10
                 + (showBrand ? brandLineHeight + 4 : 0)
-                + (showObservation ? observationLineHeight + 3 : 0)
             let diameter = min(64, max(44, geometry.size.height - reservedHeight))
 
             VStack(spacing: 0) {
@@ -225,11 +221,8 @@ private struct ConnectionWidgetView: View {
                 Spacer(minLength: 4)
                 powerControl(diameter: diameter)
                 Spacer(minLength: 6)
-                VStack(spacing: 3) {
-                    statusLabel(lines: 1)
-                    if showObservation { observation(showPrefix: false) }
-                }
-                .frame(maxWidth: .infinity)
+                statusLabel(lines: 1)
+                    .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -251,9 +244,6 @@ private struct ConnectionWidgetView: View {
                                 .accessibilityHidden(true)
                             statusLabel(font: .title2.weight(.semibold), lines: 2)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                        if !largeText && entry.snapshot != nil && geometry.size.height >= 100 {
-                            observation(showPrefix: true)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -294,29 +284,6 @@ private struct ConnectionWidgetView: View {
             .lineLimit(lines)
             .minimumScaleFactor(largeText ? 0.4 : 0.75)
             .privacySensitive()
-    }
-
-    private func observation(showPrefix: Bool) -> some View {
-        Group {
-            if let snapshot = entry.snapshot {
-                HStack(spacing: 3) {
-                    if showPrefix { Text(text("Observed")).lineLimit(1) }
-                    Text(snapshot.observedAt, style: .time)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .layoutPriority(1)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityHint(showPrefix ? "" : text("Observed"))
-            } else {
-                Text(text("Open app to refresh"))
-                    .lineLimit(1)
-            }
-        }
-        .font(.caption2)
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .foregroundStyle(palette.secondary)
-        .privacySensitive()
     }
 
     @ViewBuilder private func powerControl(diameter: CGFloat) -> some View {

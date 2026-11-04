@@ -2,8 +2,6 @@
 "VPN status and actions that open OneXray." = "وضعیت VPN و اقداماتی که OneXray را باز می‌کنند.";
 "Open OneXray to perform this action." = "برای انجام این کار OneXray را باز کنید.";
 "Open app" = "باز کردن برنامه";
-"Open app to refresh" = "برای تازه‌سازی برنامه را باز کنید";
-"Observed" = "زمان مشاهده";
 "Start VPN" = "شروع VPN";
 "Stop VPN" = "توقف VPN";
 "Disconnected" = "قطع است";

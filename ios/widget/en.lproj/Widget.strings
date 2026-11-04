@@ -2,8 +2,6 @@
 "VPN status and actions that open OneXray." = "VPN status and actions that open OneXray.";
 "Open OneXray to perform this action." = "Open OneXray to perform this action.";
 "Open app" = "Open app";
-"Open app to refresh" = "Open app to refresh";
-"Observed" = "Observed";
 "Start VPN" = "Start VPN";
 "Stop VPN" = "Stop VPN";
 "Disconnected" = "Disconnected";
