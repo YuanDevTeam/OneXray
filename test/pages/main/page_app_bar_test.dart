@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:macos_window_utils/window_manipulator.dart';
 import 'package:material_ui/material_ui.dart';
@@ -12,6 +13,7 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/advanced/xray/geodata/model.dart';
+import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -24,7 +26,7 @@ void main() {
     (390.0, 844.0, 2.0, Locale('fa')),
   ]) {
     testWidgets(
-      'page header preserves title, description and actions at $width/$scale/$locale',
+      'standard page bar keeps title and actions at $width/$scale/$locale',
       (tester) async {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = Size(width, height);
@@ -62,36 +64,31 @@ void main() {
                     ),
                   ],
                 ),
-                body: const SizedBox(
-                  key: Key('page-body'),
-                  width: double.infinity,
-                ),
+                body: const SizedBox.expand(key: Key('page-body')),
               ),
             ),
           ),
         );
         await tester.pumpAndSettle();
         final title = find.text('Настройки подключения');
-        final description = find.text(
-          'Параметры соединения и данные этого устройства.',
-        );
         expect(title, findsOneWidget);
-        expect(description, findsOneWidget);
         expect(
-          tester.getRect(description).top,
-          greaterThanOrEqualTo(tester.getRect(title).bottom),
+          find.text('Параметры соединения и данные этого устройства.'),
+          findsNothing,
+        );
+        expect(find.byKey(const ValueKey('page-heading')), findsNothing);
+        expect(find.text('OneXray'), findsNothing);
+        expect(find.byType(Image), findsNothing);
+        final appBar = find.byType(AppBar);
+        final bar = tester.widget<AppBar>(appBar);
+        final context = tester.element(appBar);
+        expect(
+          tester.getSize(appBar).height,
+          AppBar.preferredHeightFor(context, bar.preferredSize),
         );
         expect(
           tester.getRect(find.byKey(const Key('page-body'))).top,
-          greaterThanOrEqualTo(tester.getRect(description).bottom),
-        );
-        expect(
-          tester.getRect(title).left,
-          greaterThanOrEqualTo(width <= 720 ? 16 : 28),
-        );
-        expect(
-          tester.getRect(title).right,
-          lessThanOrEqualTo(width - (width <= 720 ? 16 : 28)),
+          tester.getRect(appBar).bottom,
         );
         expect(
           find.ancestor(
@@ -103,7 +100,9 @@ void main() {
           ),
           findsOneWidget,
         );
-        await tester.tap(find.byKey(const Key('page-action')));
+        final action = find.byKey(const Key('page-action'));
+        expect(action.hitTestable(), findsOneWidget);
+        await tester.tap(action);
         await tester.pumpAndSettle();
         expect(actions, 1);
         expect(tester.takeException(), isNull);
@@ -111,74 +110,104 @@ void main() {
     );
   }
 
-  for (final inline in [false, true]) {
-    testWidgets('compact mobile heading action opts into one row: $inline', (
-      tester,
-    ) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(390, 844);
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      var actions = 0;
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.material(Brightness.light, mobile: true),
-          locale: const Locale('zh'),
+  testWidgets('page bar does not inject a theme shortcut when the bus exists', (
+    tester,
+  ) async {
+    final bus = AppEventBus();
+    addTearDown(bus.close);
+    await tester.pumpWidget(
+      BlocProvider.value(
+        value: bus,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          locale: const Locale('en'),
           localizationsDelegates: AppLocalePolicy.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Builder(
             builder: (context) => Scaffold(
-              appBar: PageAppBar.forPage(
-                context,
-                title: const Text('服务器'),
-                description: '',
-                inlineHeadingAction: inline,
-                headingAction: FilledButton.icon(
-                  key: const Key('compact-heading-action'),
-                  onPressed: () => actions++,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('导入'),
-                ),
-              ),
-              body: const SizedBox(
-                key: Key('compact-page-body'),
-                width: double.infinity,
-              ),
+              appBar: PageAppBar.forPage(context, title: const Text('Servers')),
             ),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
-      final heading = find.byKey(const ValueKey('page-heading'));
-      final title = find.descendant(of: heading, matching: find.text('服务器'));
-      final action = find.byKey(const Key('compact-heading-action'));
-      final titleBounds = tester.getRect(title);
-      final actionBounds = tester.getRect(action);
-      expect(tester.widget<Text>(title).maxLines, isNull);
-      expect(action.hitTestable(), findsOneWidget);
-      if (inline) {
+      ),
+    );
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(tester.element(find.byType(AppBar)))!;
+    expect(find.byTooltip(l.headerSwitchToLight), findsNothing);
+    expect(find.byTooltip(l.headerSwitchToDark), findsNothing);
+    expect(tester.widget<AppBar>(find.byType(AppBar)).actions, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final inline in [false, true]) {
+    testWidgets(
+      'legacy heading action stays in the standard toolbar: $inline',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(390, 844);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        var actions = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(Brightness.light, mobile: true),
+            locale: const Locale('zh'),
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Builder(
+              builder: (context) => Scaffold(
+                appBar: PageAppBar.forPage(
+                  context,
+                  title: const Text('服务器'),
+                  description: '',
+                  inlineHeadingAction: inline,
+                  headingAction: IconButton(
+                    key: const Key('compact-heading-action'),
+                    onPressed: () => actions++,
+                    tooltip: '导入',
+                    icon: const Icon(Icons.add),
+                  ),
+                ),
+                body: const SizedBox.expand(key: Key('compact-page-body')),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final title = find.text('服务器');
+        final action = find.byKey(const Key('compact-heading-action'));
+        final titleBounds = tester.getRect(title);
+        final actionBounds = tester.getRect(action);
+        expect(action.hitTestable(), findsOneWidget);
         expect(titleBounds.overlaps(actionBounds), isFalse);
         expect(titleBounds.center.dy, closeTo(actionBounds.center.dy, .01));
-        expect(titleBounds.right, lessThanOrEqualTo(actionBounds.left));
+        expect(
+          tester.getRect(find.byType(AppBar)).contains(actionBounds.center),
+          isTrue,
+        );
+        expect(
+          tester.widget<AppBar>(find.byType(AppBar)).actions,
+          contains(tester.widget(action)),
+        );
+        expect(find.byType(SingleChildScrollView), findsNothing);
         expect(
           tester.getRect(find.byKey(const Key('compact-page-body'))).top,
-          lessThanOrEqualTo(132),
+          tester.getRect(find.byType(AppBar)).bottom,
         );
-      } else {
-        expect(actionBounds.top, greaterThanOrEqualTo(titleBounds.bottom + 16));
-      }
-      expect(actionBounds.right, lessThanOrEqualTo(390 - 16));
-      await tester.tap(action);
-      await tester.pumpAndSettle();
-      expect(actions, 1);
-      expect(tester.takeException(), isNull);
-    });
+        await tester.tap(action);
+        await tester.pumpAndSettle();
+        expect(actions, 1);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   for (final locale in [const Locale('ru'), const Locale('fa')]) {
     testWidgets(
-      'inline heading wraps long identity and preserves short viewport actions: $locale',
+      'long toolbar identity preserves short viewport actions: $locale',
       (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = const Size(390, 360);
         addTearDown(tester.view.resetPhysicalSize);
@@ -207,12 +236,12 @@ void main() {
                 appBar: PageAppBar.forPage(
                   context,
                   title: const Text(titleText),
-                  description: '',
                   inlineHeadingAction: true,
-                  headingAction: TextButton(
+                  headingAction: IconButton(
                     key: const Key('inline-import'),
+                    tooltip: 'Import',
+                    icon: const Icon(Icons.add),
                     onPressed: () => imports++,
-                    child: const Text('Import'),
                   ),
                 ),
                 body: const SizedBox.expand(key: Key('inline-page-body')),
@@ -230,52 +259,52 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        final heading = find.byKey(const ValueKey('page-heading'));
-        final title = find.descendant(
-          of: heading,
-          matching: find.text(titleText),
-        );
-        expect(tester.widget<Text>(title).maxLines, isNull);
+        final title = find.text(titleText);
+        expect(title, findsOneWidget);
+        expect(tester.widget<Text>(title).data, titleText);
         expect(
-          tester.widget<Text>(title).overflow,
-          isNot(TextOverflow.ellipsis),
+          DefaultTextStyle.of(tester.element(title)).overflow,
+          TextOverflow.ellipsis,
         );
-        final titleBounds = tester.getRect(title);
-        expect(titleBounds.left, greaterThanOrEqualTo(16));
-        expect(titleBounds.right, lessThanOrEqualTo(374));
+        expect(
+          find.byWidgetPredicate(
+            (widget) => widget is Tooltip && widget.message == titleText,
+          ),
+          findsOneWidget,
+        );
+        expect(
+          tester.getSemantics(title),
+          containsSemantics(label: titleText, isHeader: true),
+        );
         expect(
           tester.getSize(find.byKey(const Key('inline-page-body'))).height,
           greaterThanOrEqualTo(80),
         );
-        final headingScrollable = find.descendant(
-          of: heading,
-          matching: find.byType(Scrollable),
-        );
-        expect(
-          tester
-              .state<ScrollableState>(headingScrollable)
-              .position
-              .maxScrollExtent,
-          greaterThan(0),
-        );
         final action = find.byKey(const Key('inline-import'));
-        await tester.ensureVisible(action);
-        await tester.pumpAndSettle();
         expect(action.hitTestable(), findsOneWidget);
+        expect(
+          find.byKey(const Key('inline-save')).hitTestable(),
+          findsOneWidget,
+        );
         await tester.tap(action);
         await tester.tap(find.byKey(const Key('inline-save')));
         await tester.pumpAndSettle();
         expect(imports, 1);
         expect(saves, 1);
         expect(tester.takeException(), isNull);
+        } finally {
+          semantics.dispose();
+        }
       },
     );
   }
 
   for (final height in [844.0, 360.0]) {
     testWidgets(
-      'long legal resource heading keeps content and footer reachable at 390x$height/2x',
+      'long legal resource toolbar keeps content and footer reachable at 390x$height/2x',
       (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = Size(390, height);
         addTearDown(tester.view.resetPhysicalSize);
@@ -310,10 +339,11 @@ void main() {
                   title: Text(fileName),
                   description: 'Resource source and update settings.',
                   leading: BackButton(onPressed: () => backs++),
-                  headingAction: TextButton(
+                  headingAction: IconButton(
                     key: const Key('resource-heading-action'),
+                    tooltip: 'Update',
+                    icon: const Icon(Icons.refresh),
                     onPressed: () => headingActions++,
-                    child: const Text('Update'),
                   ),
                 ),
                 body: ListView(
@@ -347,42 +377,31 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        final heading = find.byKey(const ValueKey('page-heading'));
-        final title = find.descendant(
-          of: heading,
-          matching: find.text(fileName),
-        );
+        final title = find.text(fileName);
         expect(title, findsOneWidget);
-        expect(tester.widget<Text>(title).maxLines, isNull);
+        expect(tester.widget<Text>(title).data, fileName);
         expect(
-          tester.widget<Text>(title).overflow,
-          isNot(TextOverflow.ellipsis),
-        );
-        final headingScrollable = find.descendant(
-          of: heading,
-          matching: find.byType(Scrollable),
+          find.byWidgetPredicate(
+            (widget) => widget is Tooltip && widget.message == fileName,
+          ),
+          findsOneWidget,
         );
         expect(
-          tester
-              .state<ScrollableState>(headingScrollable)
-              .position
-              .maxScrollExtent,
-          greaterThan(0),
+          tester.getSemantics(title),
+          containsSemantics(label: fileName, isHeader: true),
+        );
+        expect(
+          DefaultTextStyle.of(tester.element(title)).overflow,
+          TextOverflow.ellipsis,
         );
         final body = find.byKey(const Key('resource-body'));
         expect(tester.getSize(body).height, greaterThanOrEqualTo(80));
         final footer = tester.getRect(find.byType(PageActionBar));
         expect(footer.top, greaterThanOrEqualTo(tester.getRect(body).bottom));
         expect(footer.bottom, lessThanOrEqualTo(height));
-
-        await tester.scrollUntilVisible(
-          find.byKey(const Key('resource-heading-action')),
-          120,
-          scrollable: headingScrollable,
-          maxScrolls: 60,
-        );
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('resource-heading-action')));
+        final headingAction = find.byKey(const Key('resource-heading-action'));
+        expect(headingAction.hitTestable(), findsOneWidget);
+        await tester.tap(headingAction);
         await tester.pumpAndSettle();
         expect(headingActions, 1);
 
@@ -414,6 +433,9 @@ void main() {
         expect(backs, 1);
         expect(controller.text, 'https://example.test/resource.dat');
         expect(tester.takeException(), isNull);
+        } finally {
+          semantics.dispose();
+        }
       },
     );
   }
@@ -515,14 +537,22 @@ void main() {
                 routes: [
                   GoRoute(
                     path: primary.rootPath,
-                    builder: (_, _) =>
-                        Scaffold(appBar: PageAppBar(title: Text(primary.name))),
+                    builder: (context, _) => Scaffold(
+                      appBar: PageAppBar.forPage(
+                        context,
+                        title: Text(primary.name),
+                      ),
+                    ),
                     routes: [
                       for (final child in ['settings', 'detail'])
                         GoRoute(
                           path: child,
-                          builder: (_, _) =>
-                              Scaffold(appBar: PageAppBar(title: Text(child))),
+                          builder: (context, _) => Scaffold(
+                            appBar: PageAppBar.forPage(
+                              context,
+                              title: Text(child),
+                            ),
+                          ),
                         ),
                     ],
                   ),
@@ -570,16 +600,19 @@ void main() {
         theme: theme.copyWith(
           appBarTheme: theme.appBarTheme.copyWith(toolbarHeight: 64),
         ),
-        home: const DefaultTabController(
+        home: DefaultTabController(
           length: 2,
-          child: Scaffold(
-            appBar: PageAppBar(
-              title: Text('Advanced'),
-              bottom: TabBar(
-                tabs: [
-                  Tab(text: 'Tunnel'),
-                  Tab(text: 'Xray'),
-                ],
+          child: Builder(
+            builder: (context) => Scaffold(
+              appBar: PageAppBar.forPage(
+                context,
+                title: const Text('Advanced'),
+                bottom: const TabBar(
+                  tabs: [
+                    Tab(text: 'Tunnel'),
+                    Tab(text: 'Xray'),
+                  ],
+                ),
               ),
             ),
           ),
@@ -668,6 +701,7 @@ void main() {
     final navigator = GlobalKey<NavigatorState>();
     const rootAction = Key('root-action');
     const detailAction = Key('detail-action');
+    const headingAction = Key('heading-action');
     await tester.pumpWidget(
       MaterialApp(
         navigatorKey: navigator,
@@ -706,6 +740,11 @@ void main() {
           appBar: PageAppBar.forPage(
             context,
             title: const Text('Detail'),
+            headingAction: IconButton(
+              key: headingAction,
+              onPressed: () {},
+              icon: const Icon(Icons.refresh),
+            ),
             actions: [
               IconButton(
                 key: detailAction,
@@ -730,7 +769,11 @@ void main() {
       rectangles.values,
       contains(tester.getRect(find.byKey(detailAction))),
     );
-    expect(rectangles, hasLength(2));
+    expect(
+      rectangles.values,
+      contains(tester.getRect(find.byKey(headingAction))),
+    );
+    expect(rectangles, hasLength(3));
 
     navigator.currentState!.pop();
     await tester.pump();

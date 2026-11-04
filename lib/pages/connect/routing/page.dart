@@ -48,11 +48,12 @@ class _RoutingPageState extends State<RoutingPage> {
             context,
             title: Text(l.navigationRouting),
             description: l.routingPageDescription,
-            headingAction: ShadButton(
-              enabled: !state.busy && state.profiles.length < 3,
-              onPressed: () => controller.edit(context),
-              leading: const Icon(LucideIcons.plus, size: 18),
-              child: Text(l.prototypeNewCustomRoute),
+            headingAction: IconButton(
+              tooltip: l.prototypeNewCustomRoute,
+              onPressed: !state.busy && state.profiles.length < 3
+                  ? () => controller.edit(context)
+                  : null,
+              icon: const Icon(LucideIcons.plus),
             ),
           ),
           body: SafeArea(

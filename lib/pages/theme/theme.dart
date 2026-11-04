@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
-import 'package:flutter/services.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -31,26 +30,11 @@ abstract final class AppTheme {
     required Brightness brightness,
     required bool mobile,
   }) => AppBarTheme(
-    backgroundColor: palette.header,
-    foregroundColor: palette.foreground,
-    iconTheme: IconThemeData(color: palette.mutedStrong),
-    surfaceTintColor: Colors.transparent,
-    centerTitle: false,
-    elevation: 0,
-    scrolledUnderElevation: 0,
-    titleSpacing: mobile ? AppSpacing.mobileHeaderHorizontal : AppSpacing.page,
-    actionsPadding: EdgeInsetsDirectional.only(
-      end: mobile ? AppSpacing.mobileHeaderHorizontal : AppSpacing.page,
-    ),
-    systemOverlayStyle: SystemUiOverlayStyle(
-      statusBarColor: palette.header,
-      statusBarIconBrightness: brightness == Brightness.light
-          ? Brightness.dark
-          : Brightness.light,
-      statusBarBrightness: brightness,
-    ),
-    titleTextStyle: AppTypography.pageTitle.copyWith(
-      fontSize: mobile ? 24 : 26,
+    // The App uses a compact custom titleLarge elsewhere. Keep that global
+    // scale unchanged and use Material's standard AppBar typography here.
+    titleTextStyle: Typography.englishLike2021.titleLarge!.copyWith(
+      fontFamily: AppFontFamily.sans,
+      fontFamilyFallback: AppFontFamily.sansFallback,
       color: palette.foreground,
     ),
   );
