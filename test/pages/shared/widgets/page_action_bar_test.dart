@@ -171,6 +171,20 @@ void main() {
         await tester.pumpAndSettle();
         final cancel = tester.getRect(find.byKey(_cancel));
         final save = tester.getRect(find.byKey(_save));
+        final footerSurface = tester.widget<Material>(
+          find
+              .descendant(
+                of: find.byType(PageActionBar),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        expect(
+          footerSurface.color,
+          Theme.of(tester.element(find.byType(PageActionBar)))
+              .scaffoldBackgroundColor,
+        );
+        expect(footerSurface.borderRadius, isNull);
         for (final key in [_cancel, _save]) {
           final bounds = tester.getRect(find.byKey(key));
           final label = tester.getRect(

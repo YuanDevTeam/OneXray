@@ -30,6 +30,10 @@ abstract final class AppTheme {
     required Brightness brightness,
     required bool mobile,
   }) => AppBarTheme(
+    backgroundColor: mobile ? null : palette.background,
+    surfaceTintColor: mobile ? null : Colors.transparent,
+    elevation: mobile ? null : 0,
+    scrolledUnderElevation: mobile ? null : 0,
     // The App uses a compact custom titleLarge elsewhere. Keep that global
     // scale unchanged and use Material's standard AppBar typography here.
     titleTextStyle: Typography.englishLike2021.titleLarge!.copyWith(
@@ -744,30 +748,6 @@ abstract final class AppTheme {
         dividerColor: palette.border,
         overlayColor: WidgetStatePropertyAll(
           palette.accent.withValues(alpha: 0.72),
-        ),
-      ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: palette.card.withValues(alpha: 0.96),
-        elevation: 0,
-        surfaceTintColor: Colors.transparent,
-        indicatorColor: Colors.transparent,
-        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-        iconTheme: WidgetStateProperty.resolveWith(
-          (states) => IconThemeData(
-            color: states.contains(WidgetState.selected)
-                ? palette.sidebarPrimary
-                : palette.mutedStrong,
-          ),
-        ),
-        labelTextStyle: WidgetStateProperty.resolveWith(
-          (states) => TextStyle(
-            color: states.contains(WidgetState.selected)
-                ? palette.primary
-                : palette.mutedStrong,
-            fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w600
-                : FontWeight.w400,
-          ),
         ),
       ),
       navigationRailTheme: NavigationRailThemeData(

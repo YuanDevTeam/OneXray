@@ -37,7 +37,9 @@ class PageActionBar extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Material(
-        color: Theme.of(context).colorScheme.surface,
+        color: mobile
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).scaffoldBackgroundColor,
         child: DecoratedBox(
           decoration: BoxDecoration(
             border: Border(

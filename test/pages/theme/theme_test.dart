@@ -25,7 +25,7 @@ void main() {
       expect(material.iconTheme.color, palette.foreground);
       expect(material.colorScheme.error, palette.destructive);
       expect(material.colorScheme.outline, palette.border);
-      expect(material.appBarTheme.backgroundColor, isNull);
+      expect(material.appBarTheme.backgroundColor, palette.background);
       expect(material.appBarTheme.foregroundColor, isNull);
       expect(material.appBarTheme.toolbarHeight, isNull);
       expect(material.appBarTheme.centerTitle, isNull);
@@ -42,9 +42,9 @@ void main() {
       expect(material.appBarTheme.titleTextStyle?.color, palette.foreground);
       expect(material.appBarTheme.titleSpacing, isNull);
       expect(material.appBarTheme.actionsPadding, isNull);
-      expect(material.appBarTheme.elevation, isNull);
-      expect(material.appBarTheme.scrolledUnderElevation, isNull);
-      expect(material.appBarTheme.surfaceTintColor, isNull);
+      expect(material.appBarTheme.elevation, 0);
+      expect(material.appBarTheme.scrolledUnderElevation, 0);
+      expect(material.appBarTheme.surfaceTintColor, Colors.transparent);
       expect(material.appBarTheme.iconTheme, isNull);
       expect(material.appBarTheme.actionsIconTheme, isNull);
       expect(material.appBarTheme.systemOverlayStyle, isNull);
@@ -79,10 +79,11 @@ void main() {
       expect(material.colorScheme.surface, palette.card);
       expect(material.iconTheme.color, palette.foreground);
       expect(material.dividerTheme.color, palette.border);
-      expect(
-        material.navigationBarTheme.backgroundColor,
-        palette.card.withValues(alpha: 0.96),
-      );
+      expect(material.navigationBarTheme, const NavigationBarThemeData());
+      expect(material.appBarTheme.backgroundColor, palette.background);
+      expect(material.appBarTheme.surfaceTintColor, Colors.transparent);
+      expect(material.appBarTheme.elevation, 0);
+      expect(material.appBarTheme.scrolledUnderElevation, 0);
       expect(material.appBarTheme.systemOverlayStyle, isNull);
       expect(material.appBarTheme.titleTextStyle?.color, palette.foreground);
 
@@ -232,23 +233,11 @@ void main() {
       expect(material.appBarTheme.toolbarHeight, isNull);
       expect(material.appBarTheme.titleSpacing, isNull);
       expect(material.appBarTheme.actionsPadding, isNull);
-      final navigation = material.navigationBarTheme;
-      expect(navigation.height, isNull);
-      expect(navigation.indicatorColor, Colors.transparent);
-      expect(navigation.iconTheme!.resolve({})!.size, isNull);
-      expect(
-        navigation.iconTheme!.resolve({})!.color,
-        AppPalette.light.mutedStrong,
-      );
-      expect(navigation.labelTextStyle!.resolve({})!.fontSize, isNull);
-      expect(
-        navigation.labelTextStyle!.resolve({})!.fontWeight,
-        FontWeight.w400,
-      );
-      expect(
-        navigation.labelTextStyle!.resolve({WidgetState.selected})!.fontWeight,
-        FontWeight.w600,
-      );
+      expect(material.appBarTheme.backgroundColor, isNull);
+      expect(material.appBarTheme.surfaceTintColor, isNull);
+      expect(material.appBarTheme.elevation, isNull);
+      expect(material.appBarTheme.scrolledUnderElevation, isNull);
+      expect(material.navigationBarTheme, const NavigationBarThemeData());
       expect(
         material.filledButtonTheme.style!.minimumSize!.resolve({}),
         Size.square(AppLayout.touchExtent(AppLayout.mobileButtonMinHeight)),
