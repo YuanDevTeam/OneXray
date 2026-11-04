@@ -300,6 +300,7 @@ class SubscriptionFormView extends StatelessWidget {
           messages: [hwidDescription],
         ),
         enabled: onHwidChanged != null,
+        buttonSemantics: false,
         onTap: onHwidChanged == null
             ? null
             : () => onHwidChanged!(!hwidEnabled),

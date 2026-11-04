@@ -91,6 +91,9 @@ class SettingRow extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool enabled;
+
+  /// Toggle rows keep their control's role instead of becoming a button.
+  final bool buttonSemantics;
   final bool showChevron;
   final int titleMaxLines;
   final int valueMaxLines;
@@ -114,6 +117,7 @@ class SettingRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.enabled = true,
+    this.buttonSemantics = true,
     this.showChevron = false,
     this.titleMaxLines = 2,
     this.valueMaxLines = 1,
@@ -174,7 +178,12 @@ class SettingRow extends StatelessWidget {
             ],
             if (trailing != null) ...[
               const SizedBox(width: 12),
-              IconTheme.merge(data: _iconTheme(context), child: trailing!),
+              IconTheme.merge(
+                data: _iconTheme(context),
+                child: onTap != null && buttonSemantics
+                    ? Semantics(container: true, child: trailing!)
+                    : trailing!,
+              ),
             ] else if (showChevron) ...[
               const SizedBox(width: 12),
               IconTheme.merge(
@@ -186,17 +195,21 @@ class SettingRow extends StatelessWidget {
         ),
       ),
     );
-    if (onTap == null || !enabled) {
-      return content;
-    }
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.control),
-        child: content,
-      ),
-    );
+    // InkWell supplies the tap action, but not a button role. Keep descendant
+    // controls as separate semantic nodes; do not merge or exclude them.
+    final row = onTap == null || !enabled
+        ? content
+        : Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+              child: content,
+            ),
+          );
+    return onTap != null && buttonSemantics
+        ? Semantics(container: true, button: true, enabled: enabled, child: row)
+        : row;
   }
 
   Widget _title(BuildContext context) {
@@ -296,6 +309,7 @@ class SwitchSettingRow extends StatelessWidget {
       subtitle: subtitle,
       leading: leading,
       enabled: onChanged != null,
+      buttonSemantics: false,
       onTap: onChanged == null ? null : () => onChanged!(!value),
       trailing: AppSwitch(
         value: value,

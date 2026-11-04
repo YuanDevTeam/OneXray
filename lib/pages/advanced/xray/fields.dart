@@ -59,6 +59,7 @@ class XrayToggleField extends StatelessWidget {
           ),
     titleMaxLines: 4,
     enabled: onChanged != null,
+    buttonSemantics: false,
     contentPadding: const EdgeInsets.symmetric(vertical: 10),
     onTap: onChanged == null ? null : () => onChanged!(!value),
     leading: Semantics(
