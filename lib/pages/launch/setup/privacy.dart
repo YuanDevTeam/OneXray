@@ -6,9 +6,9 @@ import 'package:onexray/pages/launch/setup/widgets.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
-import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/shared/doc/helper.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -70,82 +70,37 @@ class SetupPrivacyView extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    final detailStyle =
-        (mobile ? AppTypography.setupPoint : AppTypography.setupDesktopPoint)
-            .copyWith(color: palette.mutedStrong);
+    final detailStyle = AppTypography.rowValue.copyWith(
+      color: palette.mutedForeground,
+    );
     return Scaffold(
-      appBar: mobile
-          ? null
-          : PageAppBar(
-              leading: IconButton(
-                tooltip: l.prototypeBack,
-                onPressed: onBack,
-                icon: const Icon(LucideIcons.arrowLeftDir),
-              ),
-              title: Text(l.prototypePrivacyPolicy),
-            ),
+      appBar: PageAppBar(
+        leading: IconButton(
+          tooltip: l.prototypeBack,
+          onPressed: onBack,
+          icon: const Icon(LucideIcons.arrowLeftDir),
+        ),
+        title: Text(l.prototypePrivacyPolicy),
+      ),
       body: SafeArea(
+        top: false,
         bottom: false,
         child: SetupBody(
-          top: mobile ? 56 : 24,
           children: [
-            if (mobile) ...[
-              Text(l.prototypePrivacyPolicy, style: AppTypography.setupTitle),
-              const SizedBox(height: 12),
-            ],
-            Text(
-              l.prototypeNoDataUpload,
-              style: AppTypography.setupSubtitle.copyWith(
-                color: palette.mutedStrong,
-              ),
-            ),
-            const SizedBox(height: 36),
+            Text(l.prototypeNoDataUpload, style: AppTypography.rowValue),
+            const SizedBox(height: 24),
+            Text(l.prototypeConfiguredSourcesNotice, style: detailStyle),
+            const SizedBox(height: 24),
+            Text(l.prototypeRegionPrivacyNotice, style: detailStyle),
+            const SizedBox(height: 24),
             Align(
               alignment: AlignmentDirectional.centerStart,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: mobile ? 760 : 460),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l.prototypeConfiguredSourcesNotice,
-                      style: detailStyle,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(l.prototypeRegionPrivacyNotice, style: detailStyle),
-                    const SizedBox(height: 24),
-                    TextButton(
-                      onPressed: busy ? null : onOpenPolicy,
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 38),
-                        alignment: AlignmentDirectional.topStart,
-                        foregroundColor: palette.mutedStrong,
-                        textStyle: detailStyle.copyWith(
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: ButtonProgress(
-                              busy: busy,
-                              child: Text(l.prototypeReadFullPrivacyPolicy),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Icon(
-                            LucideIcons.chevronRightDir,
-                            size: 16,
-                            color: palette.primary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              child: TextButton.icon(
+                onPressed: busy ? null : onOpenPolicy,
+                icon: const Icon(LucideIcons.externalLink, size: 18),
+                label: ButtonProgress(
+                  busy: busy,
+                  child: Text(l.prototypeReadFullPrivacyPolicy),
                 ),
               ),
             ),
@@ -153,7 +108,7 @@ class SetupPrivacyView extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: SetupFooter(
+      bottomNavigationBar: PageActionBar(
         children: [
           SetupActionButton(label: l.prototypeBack, onPressed: onBack),
         ],

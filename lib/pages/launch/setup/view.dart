@@ -4,10 +4,11 @@ import 'package:onexray/pages/launch/setup/controller.dart';
 import 'package:onexray/pages/launch/setup/selectors.dart';
 import 'package:onexray/pages/launch/setup/widgets.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
+import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
-import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/launch/setup.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -30,75 +31,61 @@ class SetupView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final welcome = state.step == SetupStep.welcome;
     return PopScope(
       canPop: false,
       child: Scaffold(
+        appBar: PageAppBar(
+          title: Text(
+            welcome ? l.prototypeWelcome : l.prototypeGetReadyToConnect,
+          ),
+          leading: welcome
+              ? null
+              : IconButton(
+                  tooltip: l.prototypeBack,
+                  onPressed: _action(SetupAction.back),
+                  icon: const Icon(LucideIcons.arrowLeftDir),
+                ),
+        ),
         body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: (constraints.maxHeight - 48).clamp(
-                    0,
-                    double.infinity,
+          top: false,
+          bottom: false,
+          child: SetupBody(
+            children: [
+              if (welcome) ...[
+                Text(
+                  l.prototypeWelcomeSubtitle,
+                  style: AppTypography.rowValue.copyWith(
+                    color: ColorManager.palette(context).mutedForeground,
                   ),
                 ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 600),
-                    child: SettingSection(
-                      title: welcome
-                          ? l.prototypeWelcome
-                          : l.prototypeGetReadyToConnect,
-                      description: welcome ? l.prototypeWelcomeSubtitle : null,
-                      padding: EdgeInsets.zero,
-                      children: [
-                        if (welcome) ...[
-                          Text(
-                            l.prototypeNoDataCollection,
-                            style: AppTypography.rowValue,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            l.prototypeBringOwnServers,
-                            style: AppTypography.rowValue,
-                          ),
-                          const SizedBox(height: 16),
-                          OutlinedButton(
-                            onPressed: _action(SetupAction.privacy),
-                            child: Text(l.prototypePrivacyPolicy),
-                          ),
-                        ] else
-                          ..._configuration(context, mobile),
-                        ..._feedback(context),
-                        if (state.step != SetupStep.complete) ...[
-                          const SizedBox(height: 24),
-                          if (welcome)
-                            ..._actions(l)
-                          else
-                            OverflowBar(
-                              spacing: 10,
-                              overflowSpacing: 10,
-                              children: _actions(l),
-                            ),
-                        ],
-                      ],
-                    ),
-                  ),
+                const SizedBox(height: 24),
+                Text(
+                  l.prototypeNoDataCollection,
+                  style: AppTypography.rowValue,
                 ),
-              ),
-            ),
+                const SizedBox(height: 16),
+                Text(l.prototypeBringOwnServers, style: AppTypography.rowValue),
+                const SizedBox(height: 24),
+                SettingRow(
+                  title: l.prototypePrivacyPolicy,
+                  leading: const Icon(LucideIcons.shieldCheck),
+                  onTap: _action(SetupAction.privacy),
+                ),
+              ] else
+                ..._configuration(context),
+              ..._feedback(context),
+            ],
           ),
         ),
+        bottomNavigationBar: state.step == SetupStep.complete
+            ? null
+            : PageActionBar(children: _actions(l)),
       ),
     );
   }
 
-  List<Widget> _configuration(BuildContext context, bool mobile) {
+  List<Widget> _configuration(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
     return [

@@ -3,7 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/launch/setup/page.dart';
+import 'package:onexray/pages/launch/setup/widgets.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
+import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/launch/setup.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -58,21 +61,44 @@ void main() {
       );
       await tester.pumpAndSettle();
       final l = AppLocalizations.of(tester.element(find.byType(SetupView)))!;
-      final card = find.byType(ShadCard);
-      expect(card, findsOneWidget);
+      expect(find.byType(ShadCard), findsNothing);
+      expect(find.byType(PageAppBar), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(PageAppBar),
+          matching: find.text(l.prototypeWelcome),
+        ),
+        findsOneWidget,
+      );
       for (final text in [
-        l.prototypeWelcome,
+        l.prototypeWelcomeSubtitle,
         l.prototypeNoDataCollection,
         l.prototypeBringOwnServers,
-        l.prototypeAgreeAndContinue,
       ]) {
         expect(
-          find.descendant(of: card, matching: find.text(text)),
+          find.descendant(
+            of: find.byType(SetupBody),
+            matching: find.text(text),
+          ),
           findsOneWidget,
         );
       }
-      expect(tester.getRect(card).left, greaterThanOrEqualTo(24));
-      expect(tester.getRect(card).right, lessThanOrEqualTo(366));
+      expect(
+        tester.getTopLeft(find.text(l.prototypeWelcomeSubtitle)).dy,
+        closeTo(tester.getBottomLeft(find.byType(PageAppBar)).dy + 16, 1),
+      );
+      final continueButton = find.descendant(
+        of: find.byType(PageActionBar),
+        matching: find.widgetWithText(
+          FilledButton,
+          l.prototypeAgreeAndContinue,
+        ),
+      );
+      expect(continueButton, findsOneWidget);
+      expect(
+        find.ancestor(of: continueButton, matching: find.byType(Scrollable)),
+        findsNothing,
+      );
       await tester.ensureVisible(find.text(l.prototypePrivacyPolicy));
       await tester.tap(find.text(l.prototypePrivacyPolicy));
       await tester.tap(find.text(l.prototypeAgreeAndContinue));
@@ -109,16 +135,19 @@ void main() {
         expect(find.text(l.prototypeSetUpVpn), findsNothing);
         expect(find.text(l.prototypeAddServers), findsNothing);
         expect(find.text(l.prototypeVpnPermission), findsNothing);
-        expect(find.byType(ShadCard), findsOneWidget);
+        expect(find.byType(ShadCard), findsNothing);
         expect(
           find.descendant(
-            of: find.byType(ShadCard),
+            of: find.byType(PageActionBar),
             matching: find.text(l.prototypeGoToHome),
           ),
           findsOneWidget,
         );
         await tester.drag(
-          find.byType(SingleChildScrollView),
+          find.descendant(
+            of: find.byType(SetupBody),
+            matching: find.byType(SingleChildScrollView),
+          ),
           const Offset(0, -300),
         );
         await tester.pumpAndSettle();

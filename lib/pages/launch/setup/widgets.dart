@@ -2,13 +2,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
-import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
+import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 
-/// Small setup forms fill the viewport but still scroll on a short screen or
-/// with a larger system text size. Long selector lists use slivers instead.
+/// Setup uses the same top-aligned, single-column content flow as other pages.
 class SetupBody extends StatelessWidget {
-  const SetupBody({super.key, required this.children, this.top = 48});
+  const SetupBody({super.key, required this.children, this.top = 16});
 
   final List<Widget> children;
   final double top;
@@ -17,162 +16,20 @@ class SetupBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight),
-          child: IntrinsicHeight(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: mobile ? 620 : AppLayout.setupContentMaxWidth + 48,
-                ),
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(24, top, 24, mobile ? 28 : 36),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: children,
-                  ),
-                ),
-              ),
-            ),
+    return SingleChildScrollView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: ResponsiveContent(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            mobile ? AppSpacing.mobilePage : AppSpacing.page,
+            top,
+            mobile ? AppSpacing.mobilePage : AppSpacing.page,
+            24,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class SetupDesktopBody extends StatelessWidget {
-  const SetupDesktopBody({
-    super.key,
-    required this.progress,
-    required this.children,
-    this.bodyTop = 48,
-  });
-
-  final Widget progress;
-  final List<Widget> children;
-  final double bodyTop;
-
-  @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    child: Padding(
-      padding: const EdgeInsetsDirectional.only(
-        start: AppSpacing.setupDesktopHorizontal,
-        top: AppSpacing.setupDesktopTop,
-        end: AppSpacing.setupDesktopHorizontal,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('OneXray', style: AppTypography.setupBrand),
-          const SizedBox(height: 10),
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppLayout.setupProgressMaxWidth,
-              ),
-              child: progress,
-            ),
-          ),
-          _content(),
-        ],
-      ),
-    ),
-  );
-
-  Widget _content() => Align(
-    alignment: AlignmentDirectional.topCenter,
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(
-        maxWidth: AppLayout.setupContentMaxWidth,
-      ),
-      child: Padding(
-        padding: EdgeInsets.only(top: bodyTop, bottom: 36),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        ),
-      ),
-    ),
-  );
-}
-
-class SetupFooter extends StatelessWidget {
-  const SetupFooter({super.key, required this.children, this.note});
-
-  final List<Widget> children;
-  final String? note;
-
-  @override
-  Widget build(BuildContext context) {
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    if (mobile) {
-      return PageActionBar(
-        horizontalPadding: 24,
-        verticalPadding: 16,
-        spacing: 14,
-        children: children,
-      );
-    }
-    final palette = ColorManager.palette(context);
-    return Material(
-      color: palette.card,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: palette.border)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Center(
-            heightFactor: 1,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: AppLayout.setupFooterMaxWidth,
-                minHeight: AppLayout.setupFooterMinHeight,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.setupDesktopHorizontal,
-                  vertical: 18,
-                ),
-                child: children.length == 1
-                    ? Row(
-                        children: [
-                          const Spacer(),
-                          SizedBox(
-                            width: AppLayout.setupFooterButtonWidth,
-                            child: children.single,
-                          ),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          SizedBox(
-                            width: AppLayout.setupFooterButtonWidth,
-                            child: children.first,
-                          ),
-                          Expanded(
-                            child: note == null
-                                ? const SizedBox.shrink()
-                                : Text(
-                                    note!,
-                                    textAlign: TextAlign.center,
-                                    style: AppTypography.setupStatus.copyWith(
-                                      color: palette.mutedForeground,
-                                    ),
-                                  ),
-                          ),
-                          SizedBox(
-                            width: AppLayout.setupFooterButtonWidth,
-                            child: children.last,
-                          ),
-                        ],
-                      ),
-              ),
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children,
           ),
         ),
       ),
