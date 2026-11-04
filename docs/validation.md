@@ -241,10 +241,14 @@ Pigeon、FFI、Drift 或本地化变更先生成对应输出；只改测试时�
 - Apple 文件备份：`bash tool/test_backup_file_store.sh` 编译生产文件存储实现，验证首字节内容探测、绑定不覆盖、替换写入、
   新实例重新访问、解绑保留文件及大小限制。命令行使用普通 bookmark，持久沙盒授权需在签名 App 中核对。
 - iOS Widget 原生：`bash tool/test_apple_widget.sh` 以纯 Swift 编译生产快照与动作收件箱，
-  验证状态/语言独立原子更新、五语言归一化、缺失/损坏/未知版本与过期状态、早到动作只消费一次及保留最后动作。
-  Dart 定向测试位于 `test/service/shared/apple_widget/` 与 `test/service/shared/menu/short_cut/`，
-  覆盖冷启动抑制自动连接、运行中停止不被启动阻塞、重复动作、回前台读取、未知输入及导航 URL 边界。
-  这些测试不执行实际 App Intent、不证明 WidgetKit 展示或 NetworkExtension 状态。
+  检查状态/语言独立原子更新、五语言归一化、缺失/损坏/未知版本与过期状态，以及 envelope 消费、真实状态动作分流、
+  重复启动、Stop 淘汰 token、维护阻断与恢复。它使用可控原生状态回复，不执行实际 App Intent 或真实 VPN。
+  Dart 定向测试位于 `test/service/shared/apple_widget/`、`test/service/shared/menu/short_cut/`、
+  `test/service/connect/runtime_host_test.dart`、`test/service/connect/coordinator_test.dart` 和
+  `test/service/settings/data_cleanup_test.dart`；检查冷启动抑制顺序、匹配 token 取消、登记回包前失效、
+  暂停准备/原生提交后的 Stop、新启动不受旧通知影响、类型化取消不重复停止、iOS 不先写文件、
+  系统连接时间只更新内存，以及旧快捷入口与公开导航 URL 边界。
+  这些自动化测试不证明 WidgetKit 展示、Intent 实际执行宿主或 NetworkExtension 状态。
 - macOS SE 激活：`bash tool/test_system_extension_activation.sh` 编译生产 Swift，
   验证待批准时重试、已安装时跳过、强制替换及并发请求合并；使用可控系统回复，不申请真实扩展授权或启动 VPN。
   页面测试核对授权未完成时不连接、批准说明持续显示、取消与打开设置，以及设置打开失败的反馈。
@@ -265,6 +269,7 @@ Pigeon、FFI、Drift 或本地化变更先生成对应输出；只改测试时�
 
 Android 模拟器直接使用当前分支构建覆盖已经安装的 OneXray，保留已有数据，不另建测试包或 applicationId。
 验证使用脱敏输入或临时响应替身，调用真实原生解析；完成后只清理本轮新增的测试数据。
+iOS 同样沿用正常 bundle ID、App Group 和已有真机，使用签名包覆盖安装；不另建验收 App 或新模拟器。
 
 - Android UI 用模拟器验证；系统导入、导出和扫码可记录跳过。Widget 检查 4×2 最小尺寸、
   缩放、旋转、主题、语言与启动/停止。通知和真实代理请求需运行 VPN 后验证。
@@ -277,14 +282,24 @@ Android 模拟器直接使用当前分支构建覆盖已经安装的 OneXray，�
 - 完整配置适配在 Android 验证 Raw/提供方真实 VPN 启动、DNS 查询、受控网页响应、连续重连和隧道 DNS 设置变更。
   iOS 模拟器只验证配置与 SOCKS 路径，不能验收真机 DNS、DoT 或 includeAllNetworks；这些项目需要 Apple 真机。
 - iOS/iPadOS Widget 最低部署版本为 16.0；16 验证主屏幕小号/中号静态导航及两种锁屏 accessory。
-  在系统图库与实际主屏幕/锁屏验证系统支持的 family；
-  17 起验证主屏幕小号/中号启动、停止实际前台打开 App，并使用当前选择而非最近生成的 saved-start。
-  18 起在控制中心图库添加两个显式动作，核对准确的打开 App 说明、启停交付与语言切换；不以按钮动画证明已连接。
-  覆盖冷启动、App 已运行/后台、重复点击和启动中停止，确认连接协调器、权限失败与页面/通知反馈。
+  在系统图库与实际主屏幕/锁屏验证系统支持的 family。17 起主屏幕单个启停按钮、18 起单个控制中心 VPN 按钮
+  均验证主 App 进程后台执行；17–25 验证 Runner-only `ForegroundContinuableIntent` 及旧前台继续方法，
+  26 验证后台/动态前台模式与 `continueInForeground`，27 起额外验证 `.main` 执行目标。
+  正常启停均复用最近保存输入；故意让 DB 选择与已保存输入不同，确认不自动重编译当前选择，前台修复回退只导航。
+  覆盖 App 冷态、前台、后台，重复点击、连接中停止、断开中再点、缺输入/权限和实际启动失败；
+  主屏未连接表达启动，已连接/连接中表达停止；未知/过期时主屏显示未知、控制中心显示待确认，且仍可点击。
+  两类按钮均新读系统状态和进行中操作，不从展示快照推断切换目标，断开中不追加启动。
+  两次 Toggle 查询重叠时，较后的关闭不能被较早的查询或启动吞掉。
+  已有 App Start 准备/提交时发原生 Stop，确认旧 Dart 工作不再提交或重复停止；随后新 Start 正常且不受迟到通知影响。
+  检查 Stop 后再次启动恢复保存的 profile 路由/按需策略，App 回前台会话时间与系统连接时间一致。
+  逐次确认真实代理 HTTP 响应和服务端收据；按钮动画、Widget 快照和系统已连接均不能代替网络证据。
   核对五语言及系统语言匹配、波斯语 RTL、大字、明暗主题、可访问名称，以及未知/过期状态不会继续展示已连接，
   Widget 不泄露配置名、订阅、地址或流量。签名安装包须检查 Widget 扩展嵌入、独立 provisioning profile、
   App/隧道扩展/Widget 的共享 App Group 权限。模拟器与无签名构建不能证明真机 NE 授权、锁屏交互或后台刷新，
-  App Intent 前台执行、WidgetKit 调度与系统限制须在对应真机签名渠道单独验收。
+  App Intent 执行、WidgetKit 调度与系统限制须在对应真机签名渠道单独验收。
+  后台路径按官方 API availability 启用，未测范围不改变功能版本门槛。各阶段的设备结果、未测项、截图、网络收据和
+  临时数据恢复记录保存在工作区 `references/`；分别记录自动化、构建和各版本设备结果，不以旧 UI 或新版本编译通过
+  替代当前布局及旧系统的设备验收。
 - Android 自动化需普通第三方 UID 的后台启停、冷进程、Token 撤销和清理/恢复阻断，
   至少联调一款真实工具；shell 广播不等于工具联调。
 - macOS 桌面 UI 使用 Flutter Debug 验证；VPN、Apple 授权、按需连接、SE 跨容器交接
