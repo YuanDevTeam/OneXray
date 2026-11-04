@@ -597,37 +597,102 @@ void main() {
   });
 
   testWidgets('page bar preserves themed sizing and tabs', (tester) async {
-    final theme = AppTheme.light;
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: theme.copyWith(
-          appBarTheme: theme.appBarTheme.copyWith(toolbarHeight: 64),
-        ),
-        home: DefaultTabController(
-          length: 2,
-          child: Builder(
-            builder: (context) => Scaffold(
-              appBar: PageAppBar.forPage(
-                context,
-                title: const Text('Advanced'),
-                bottom: const TabBar(
-                  tabs: [
-                    Tab(text: 'Tunnel'),
-                    Tab(text: 'Xray'),
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1160, 720);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final brightness in Brightness.values) {
+      final theme = AppTheme.material(brightness);
+      await tester.pumpWidget(
+        MaterialApp(
+          key: ValueKey(brightness),
+          theme: theme.copyWith(
+            appBarTheme: theme.appBarTheme.copyWith(toolbarHeight: 64),
+          ),
+          home: DefaultTabController(
+            length: 2,
+            child: Builder(
+              builder: (context) => Scaffold(
+                appBar: PageAppBar.forPage(
+                  context,
+                  title: const Text('Advanced'),
+                  bottom: const TabBar(
+                    tabs: [
+                      Tab(text: 'Tunnel'),
+                      Tab(text: 'Xray'),
+                    ],
+                  ),
+                ),
+                body: ListView.builder(
+                  key: const ValueKey('page-bar-scroll-body'),
+                  itemCount: 30,
+                  itemExtent: 64,
+                  itemBuilder: (_, index) => Text('Setting $index'),
+                ),
+                bottomNavigationBar: PageActionBar(
+                  children: [
+                    OutlinedButton(
+                      onPressed: () {},
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(onPressed: () {}, child: const Text('Save')),
                   ],
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-    final tabs = tester.widget<TabBar>(find.byType(TabBar));
-    expect(
-      tester.getSize(find.byType(AppBar)).height,
-      64 + tabs.preferredSize.height,
-    );
-    expect(tester.widget<AppBar>(find.byType(AppBar)).backgroundColor, isNull);
+      );
+      await tester.pumpAndSettle();
+      final tabs = tester.widget<TabBar>(find.byType(TabBar));
+      expect(
+        tester.getSize(find.byType(AppBar)).height,
+        64 + tabs.preferredSize.height,
+      );
+      final list = find.byKey(const ValueKey('page-bar-scroll-body'));
+      for (final scrolled in [false, true]) {
+        if (scrolled) {
+          await tester.drag(list, const Offset(0, -400));
+          await tester.pumpAndSettle();
+          final scrollable = tester.state<ScrollableState>(
+            find.descendant(of: list, matching: find.byType(Scrollable)),
+          );
+          expect(scrollable.position.pixels, greaterThan(0));
+        }
+        final appBar = tester.widget<Material>(
+          find
+              .descendant(
+                of: find.byType(AppBar),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        final footer = tester.widget<Material>(
+          find
+              .descendant(
+                of: find.byType(PageActionBar),
+                matching: find.byType(Material),
+              )
+              .first,
+        );
+        expect(
+          appBar.color,
+          theme.scaffoldBackgroundColor,
+          reason: '$brightness AppBar, scrolled=$scrolled',
+        );
+        expect(appBar.elevation, 0);
+        expect(
+          footer.color,
+          theme.scaffoldBackgroundColor,
+          reason: '$brightness footer, scrolled=$scrolled',
+        );
+        expect(
+          tester.widget<AppBar>(find.byType(AppBar)).backgroundColor,
+          isNull,
+        );
+        expect(tester.takeException(), isNull);
+      }
+    }
   });
 
   testWidgets(

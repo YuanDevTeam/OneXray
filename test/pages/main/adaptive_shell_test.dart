@@ -13,7 +13,6 @@ import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/main/url.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/pages/theme/color.dart';
-import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
@@ -218,6 +217,16 @@ void main() {
       tester.getSize(desktopNavigation).width,
       AppLayout.desktopSidebarWidth,
     );
+    final content = find.byKey(const ValueKey('primary-content'));
+    expect(tester.widget<ColoredBox>(content).color, palette.background);
+    expect(
+      tester.getRect(content),
+      Rect.fromLTRB(AppLayout.desktopSidebarWidth, 0, 1200, 800),
+    );
+    expect(
+      find.ancestor(of: content, matching: find.byType(ClipRRect)),
+      findsNothing,
+    );
     final desktopConnect = find.byKey(
       const ValueKey('primary-navigation-connect'),
     );
@@ -296,44 +305,43 @@ void main() {
       const ValueKey('primary-navigation-connect'),
     );
     expect(navigation, findsOneWidget);
-    final navigationCard = tester.widget<Container>(navigation);
-    expect(navigationCard.margin, const EdgeInsets.fromLTRB(12, 0, 12, 10));
-    expect(navigationCard.padding, const EdgeInsets.all(6));
-    final decoration = navigationCard.decoration! as BoxDecoration;
-    expect(decoration.color, palette.card);
-    expect(decoration.borderRadius, BorderRadius.circular(22));
+    final navigationBar = tester.widget<NavigationBar>(navigation);
+    expect(navigationBar.selectedIndex, AppPrimaryDestination.connect.index);
+    expect(navigationBar.destinations, hasLength(5));
+    expect(navigationBar.height, isNull);
+    expect(navigationBar.backgroundColor, isNull);
+    expect(navigationBar.elevation, isNull);
+    expect(navigationBar.indicatorColor, isNull);
+    expect(navigationBar.indicatorShape, isNull);
+    expect(navigationBar.labelTextStyle, isNull);
+    expect(navigationBar.labelBehavior, isNull);
+    expect(navigationBar.labelPadding, isNull);
+    expect(navigationBar.overlayColor, isNull);
     expect(
-      find.descendant(of: navigation, matching: find.byType(InkWell)),
+      find.descendant(
+        of: navigation,
+        matching: find.byType(NavigationDestination),
+      ),
       findsNWidgets(5),
     );
+    expect(
+      find.ancestor(of: navigation, matching: find.byType(SafeArea)),
+      findsNothing,
+    );
+    expect(tester.getRect(navigation).left, 0);
+    expect(tester.getRect(navigation).right, 720);
     expect(
       find.byKey(const ValueKey('primary-navigation-settings')),
       findsNothing,
     );
     expect(
-      tester.widget<Semantics>(connectDestination).properties.label,
+      tester.widget<NavigationDestination>(connectDestination).label,
       'Connect',
     );
-    expect(
-      tester.widget<Semantics>(connectDestination).properties.selected,
-      isTrue,
-    );
-    expect(tester.getSize(connectDestination).height, 56);
-    final selectedMobileSurface = tester.widget<Material>(
-      find
-          .descendant(of: connectDestination, matching: find.byType(Material))
-          .first,
-    );
-    expect(selectedMobileSurface.color, palette.primarySolid);
-    final mobileLabel = tester.widget<Text>(
-      find.descendant(of: connectDestination, matching: find.byType(Text)),
-    );
-    expect(mobileLabel.style!.fontSize, 11);
-    expect(mobileLabel.style!.color, palette.primaryForeground);
-    expect(
-      mobileLabel.style!.fontWeight,
-      AppTypography.selectedMobileNavigationLabel.fontWeight,
-    );
+    final mobileIcon =
+        tester.widget<NavigationDestination>(connectDestination).icon as Icon;
+    expect(mobileIcon.size, isNull);
+    expect(mobileIcon.color, isNull);
     expect(find.byType(Badge), findsNothing);
     router.go('/settings');
     await tester.pumpAndSettle();
@@ -429,7 +437,7 @@ void main() {
       (2.0, Locale('fa'), Brightness.dark),
     ]) {
       testWidgets(
-        'inset mobile navigation stays reachable on $platform in $locale at $scale',
+        'standard mobile navigation stays reachable on $platform in $locale at $scale',
         (tester) async {
           await tester.binding.setSurfaceSize(const Size(390, 360));
           addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -463,10 +471,16 @@ void main() {
           final navigation = find.byKey(
             const ValueKey('primary-mobile-navigation'),
           );
-          final palette = ColorManager.palette(tester.element(navigation));
           final rect = tester.getRect(navigation);
-          expect(rect.bottom, lessThanOrEqualTo(360 - padding.bottom));
+          expect(rect.left, 0);
+          expect(rect.right, 390);
+          expect(rect.bottom, 360);
           expect(rect.top, greaterThanOrEqualTo(padding.top));
+          final navigationBar = tester.widget<NavigationBar>(navigation);
+          expect(navigationBar.height, isNull);
+          expect(navigationBar.indicatorColor, isNull);
+          expect(navigationBar.indicatorShape, isNull);
+          expect(navigationBar.labelTextStyle, isNull);
           expect(
             Directionality.of(tester.element(navigation)),
             locale.languageCode == 'fa' ? TextDirection.rtl : TextDirection.ltr,
@@ -474,6 +488,7 @@ void main() {
           final destinations = AppPrimaryDestination.values.where(
             (primary) => primary != AppPrimaryDestination.settings,
           );
+          final labelRects = <Rect>[];
           for (final primary in destinations) {
             final destination = find.byKey(
               ValueKey('primary-navigation-${primary.name}'),
@@ -485,7 +500,12 @@ void main() {
                 AppLayout.touchExtent(0, platform: platform),
               ),
             );
-            expect(size.height, greaterThanOrEqualTo(56));
+            expect(
+              size.height,
+              greaterThanOrEqualTo(
+                AppLayout.touchExtent(0, platform: platform),
+              ),
+            );
             expect(
               size.height,
               closeTo(
@@ -500,23 +520,40 @@ void main() {
             final labelRect = tester.getRect(
               find.descendant(of: destination, matching: find.byType(Text)),
             );
+            labelRects.add(labelRect);
             final iconRect = tester.getRect(
               find.descendant(of: destination, matching: find.byType(Icon)),
             );
             final destinationRect = tester.getRect(destination);
             expect(
-              size.height,
-              greaterThanOrEqualTo(
-                iconRect.height + 5 + labelRect.height + 12 - .01,
-              ),
+              destinationRect.bottom,
+              lessThanOrEqualTo(360 - padding.bottom),
             );
-            expect(labelRect.left, greaterThanOrEqualTo(destinationRect.left));
-            expect(labelRect.right, lessThanOrEqualTo(destinationRect.right));
+            // Material's destination delegate centers icon + wrapped label as
+            // a group, which may paint above its fixed destination slot. Keep
+            // that default behavior, but require visible, nonoverlapping labels
+            // within the whole bar and icons within the unobstructed viewport.
+            expect(iconRect.top, greaterThanOrEqualTo(padding.top));
+            expect(iconRect.bottom, lessThanOrEqualTo(rect.bottom));
+            expect(labelRect.left, greaterThanOrEqualTo(rect.left));
+            expect(labelRect.right, lessThanOrEqualTo(rect.right));
+            expect(labelRect.top, greaterThanOrEqualTo(rect.top));
+            expect(labelRect.bottom, lessThanOrEqualTo(rect.bottom));
+            final selectionSemantics = find
+                .ancestor(
+                  of: destination,
+                  matching: find.byWidgetPredicate(
+                    (widget) =>
+                        widget is Semantics &&
+                        widget.properties.selected != null,
+                  ),
+                )
+                .first;
+            final semantics = tester.getSemantics(selectionSemantics);
             expect(
-              labelRect.bottom,
-              lessThanOrEqualTo(destinationRect.bottom - 6 + .01),
+              semantics.getSemanticsData().label,
+              contains(tester.widget<NavigationDestination>(destination).label),
             );
-            final semantics = tester.getSemantics(destination);
             expect(
               semantics.getSemanticsData().hasAction(SemanticsAction.tap),
               isTrue,
@@ -529,15 +566,13 @@ void main() {
             );
             expect(find.text('${primary.name}-content'), findsOneWidget);
             expect(
-              tester.widget<Semantics>(destination).properties.selected,
+              tester.widget<Semantics>(selectionSemantics).properties.selected,
               isTrue,
             );
-            final surface = tester.widget<Material>(
-              find
-                  .descendant(of: destination, matching: find.byType(Material))
-                  .first,
+            expect(
+              tester.widget<NavigationBar>(navigation).selectedIndex,
+              primary.index,
             );
-            expect(surface.color, palette.primarySolid);
             await tester.tap(destination);
             await tester.pumpAndSettle();
             expect(
@@ -546,13 +581,13 @@ void main() {
             );
             expect(tester.takeException(), isNull);
           }
-          final destinationHeight = tester
-              .getSize(find.byKey(const ValueKey('primary-navigation-connect')))
-              .height;
-          expect(
-            destinationHeight,
-            scale > 1 ? greaterThan(56) : greaterThanOrEqualTo(56),
-          );
+          for (var index = 1; index < labelRects.length; index++) {
+            expect(
+              labelRects[index - 1].overlaps(labelRects[index]),
+              isFalse,
+              reason: 'Adjacent default navigation labels must remain separate',
+            );
+          }
           if (locale.languageCode == 'fa') {
             expect(
               tester
@@ -1058,12 +1093,11 @@ void main() {
         } else {
           expect(
             tester
-                .widget<Semantics>(
-                  find.byKey(ValueKey('primary-navigation-${primary.name}')),
+                .widget<NavigationBar>(
+                  find.byKey(const ValueKey('primary-mobile-navigation')),
                 )
-                .properties
-                .selected,
-            isTrue,
+                .selectedIndex,
+            primary.index,
           );
         }
         expect(tester.takeException(), isNull);

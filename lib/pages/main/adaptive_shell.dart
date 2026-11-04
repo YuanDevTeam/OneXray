@@ -266,7 +266,9 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   }
 
   Widget _bottomNavigationScaffold(BuildContext context) {
-    final palette = ColorManager.palette(context);
+    final destinations = AppPrimaryDestination.values
+        .where((primary) => primary != AppPrimaryDestination.settings)
+        .toList(growable: false);
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar:
@@ -282,94 +284,20 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
           ? null
           : navigationShell.currentIndex == AppPrimaryDestination.settings.index
           ? null
-          : SafeArea(
-              top: false,
-              child: Container(
-                key: const ValueKey('primary-mobile-navigation'),
-                margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: palette.card,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final primary in AppPrimaryDestination.values.where(
-                        (p) => p != AppPrimaryDestination.settings,
-                      ))
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            child: _mobileDestination(context, primary),
-                          ),
-                        ),
-                    ],
+          : NavigationBar(
+              key: const ValueKey('primary-mobile-navigation'),
+              selectedIndex: navigationShell.currentIndex,
+              onDestinationSelected: (index) =>
+                  context.goPrimary(navigationShell, destinations[index]),
+              destinations: [
+                for (final primary in destinations)
+                  NavigationDestination(
+                    key: ValueKey('primary-navigation-${primary.name}'),
+                    icon: Icon(_icon(primary)),
+                    label: _label(context, primary),
                   ),
-                ),
-              ),
+              ],
             ),
-    );
-  }
-
-  Widget _mobileDestination(
-    BuildContext context,
-    AppPrimaryDestination primary,
-  ) {
-    final palette = ColorManager.palette(context);
-    final selected = primary.index == navigationShell.currentIndex;
-    final color = selected
-        ? palette.primaryForeground
-        : palette.mutedForeground;
-    return Semantics(
-      key: ValueKey('primary-navigation-${primary.name}'),
-      label: _label(context, primary),
-      selected: selected,
-      button: true,
-      child: Material(
-        color: selected ? palette.primarySolid : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadii.control),
-        child: InkWell(
-          onTap: () => context.goPrimary(navigationShell, primary),
-          borderRadius: BorderRadius.circular(AppRadii.control),
-          hoverColor: selected ? palette.primarySolid : palette.secondary,
-          child: ExcludeSemantics(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: AppLayout.touchExtent(
-                  56,
-                  platform: Theme.of(context).platform,
-                ),
-                minWidth: AppLayout.touchExtent(
-                  0,
-                  platform: Theme.of(context).platform,
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(_icon(primary), size: 19, color: color),
-                    const SizedBox(height: 5),
-                    Text(
-                      _label(context, primary),
-                      textAlign: TextAlign.center,
-                      style:
-                          (selected
-                                  ? AppTypography.selectedMobileNavigationLabel
-                                  : AppTypography.mobileNavigationLabel)
-                              .copyWith(color: color),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -409,13 +337,9 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
               ),
             ),
             Expanded(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
-                decoration: BoxDecoration(
-                  color: palette.background,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                clipBehavior: Clip.antiAlias,
+              child: ColoredBox(
+                key: const ValueKey('primary-content'),
+                color: palette.background,
                 child:
                     nativeSidebar &&
                         Directionality.of(context) == TextDirection.ltr
