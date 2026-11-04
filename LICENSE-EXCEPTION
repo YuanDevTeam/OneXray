@@ -1,5 +1,5 @@
 OneXray VPN Provider Exception
-Version 1.1
+Version 1.2
 
 1. Scope
 
@@ -22,6 +22,11 @@ You may rely on this Exception only if all of the following apply:
      custom-configuration or subscription features, including the
      ability to import or use arbitrary third-party VPN or proxy
      configurations or subscription URLs.
+  d) Each customized client you distribute under closed-source terms
+     includes a clear, reasonably accessible acknowledgment in its user
+     interface that it is based on the OneXray project, together with a
+     link to https://github.com/YuanDevTeam/OneXray. An About, Credits or
+     Open-source Notices screen may be used for this acknowledgment.
 
 Configurations and subscriptions that you supply solely for access to
 your own VPN service are permitted. Branding the client for your service,
@@ -29,9 +34,10 @@ distributing it only to your subscribers, or making your service the
 default does not satisfy these conditions if the client can also connect
 to third-party services.
 
-For that purpose, you may use, copy, modify, build and distribute the
-Covered Code and the resulting customized client under terms of your
-choice, including proprietary, closed-source terms. You need not comply
+For that purpose and subject to the conditions above, you may use, copy,
+modify, build and distribute the Covered Code and the resulting
+customized client under terms of your choice, including proprietary,
+closed-source terms. You need not comply
 with GPLv3's conditions for the Covered Code in that permitted use,
 including its requirements to license the client or your modifications
 under GPLv3, disclose Corresponding Source or supply Installation

@@ -110,6 +110,8 @@ VPN service providers may build and distribute dedicated, customized closed-sour
 
 To qualify, the client must not include general-purpose custom-configuration or subscription features, including the ability to import or use arbitrary third-party VPN or proxy configurations or subscription URLs. Configurations and subscriptions supplied by the provider solely for access to its own VPN service are permitted. Branding the client for the provider, distributing it only to the provider's subscribers, or making the provider's service the default is not sufficient if the client can also connect to third-party services.
 
+Each closed-source client distributed under this exception must clearly acknowledge that it is based on the OneXray project and include a link to [OneXray](https://github.com/YuanDevTeam/OneXray) in a reasonably accessible part of its user interface, such as an About, Credits or Open-source Notices screen.
+
 These conditions apply to eligibility for the exception. Other uses remain subject to the GPL or another applicable permission.
 
 Yuan Dev Team guarantees that it will not introduce direct third-party dependencies that require a qualifying customized client as a whole to be GPL-licensed or to disclose its source code under the GPL. Third-party licenses and their component-specific obligations still apply; the exception only covers rights Yuan Dev Team owns or is authorized to license.
