@@ -151,7 +151,18 @@ private struct ConnectionWidgetView: View {
 
     private let palette = ConnectionWidgetPalette()
     private var largeText: Bool { dynamicTypeSize >= .xxxLarge }
-    private var emphasizeStop: Bool { entry.status == .connected || entry.status == .connecting }
+
+    private var toggleAction: ConnectionWidgetAction {
+        switch entry.status {
+        case .connected, .connecting: .stop
+        case .disconnected: .start
+        case .unknown, .disconnecting: .toggle
+        }
+    }
+
+    private var toggleLabelKey: String {
+        entry.status == .disconnecting ? "Disconnecting" : toggleAction.labelKey
+    }
 
     private var isAccessory: Bool {
         family == .accessoryCircular || family == .accessoryRectangular
@@ -210,7 +221,7 @@ private struct ConnectionWidgetView: View {
                 .frame(maxWidth: .infinity)
                 Spacer(minLength: 6)
                 if #available(iOS 17.0, *) {
-                    actions(compact: true, iconsOnly: compactHeight && dynamicTypeSize >= .xxLarge)
+                    toggleButton(compact: true, iconsOnly: compactHeight && dynamicTypeSize >= .xxLarge)
                 } else {
                     openApp(compact: true)
                 }
@@ -242,7 +253,7 @@ private struct ConnectionWidgetView: View {
                 .accessibilityHint(text("Open app"))
                 Group {
                     if #available(iOS 17.0, *) {
-                        actions(compact: false)
+                        toggleButton(compact: false)
                     } else {
                         openApp(compact: false)
                     }
@@ -309,41 +320,30 @@ private struct ConnectionWidgetView: View {
     }
 
     @available(iOS 17.0, *)
-    @ViewBuilder private func actions(compact: Bool, iconsOnly: Bool = false) -> some View {
-        if compact {
-            HStack(spacing: 8) {
-                startButton(compact: true, iconsOnly: iconsOnly)
-                stopButton(compact: true, iconsOnly: iconsOnly)
-            }
-        } else {
-            VStack(spacing: 8) {
-                startButton(compact: false, iconsOnly: iconsOnly)
-                stopButton(compact: false, iconsOnly: iconsOnly)
-            }
+    private func toggleButton(compact: Bool, iconsOnly: Bool = false) -> some View {
+        // The snapshot only controls presentation. The intent queries native
+        // state, so an old label never changes the command into a stale Start/Stop.
+        Button(intent: ToggleVpnWidgetIntent()) {
+            actionLabel(
+                toggleAction, compact: compact, iconsOnly: iconsOnly,
+                labelKey: entry.status == .disconnecting ? "Disconnecting" : nil
+            )
         }
+        .buttonStyle(ConnectionWidgetButtonStyle(palette: palette, action: toggleAction, prominent: true))
+        .accessibilityLabel(text(toggleLabelKey))
+        // Remain actionable while disconnecting; native execution returns
+        // inProgress without queuing another connection request.
     }
 
-    @available(iOS 17.0, *)
-    private func startButton(compact: Bool, iconsOnly: Bool) -> some View {
-        Button(intent: StartVpnWidgetIntent()) { actionLabel(.start, compact: compact, iconsOnly: iconsOnly) }
-            .buttonStyle(ConnectionWidgetButtonStyle(palette: palette, action: .start, prominent: !emphasizeStop))
-            .accessibilityLabel(text("Start VPN"))
-    }
-
-    @available(iOS 17.0, *)
-    private func stopButton(compact: Bool, iconsOnly: Bool) -> some View {
-        Button(intent: StopVpnWidgetIntent()) { actionLabel(.stop, compact: compact, iconsOnly: iconsOnly) }
-            .buttonStyle(ConnectionWidgetButtonStyle(palette: palette, action: .stop, prominent: emphasizeStop))
-            .accessibilityLabel(text("Stop VPN"))
-    }
-
-    private func actionLabel(_ action: ConnectionWidgetAction, compact: Bool, iconsOnly: Bool = false) -> some View {
+    private func actionLabel(
+        _ action: ConnectionWidgetAction, compact: Bool, iconsOnly: Bool = false, labelKey: String? = nil
+    ) -> some View {
         HStack(spacing: compact ? 3 : 4) {
             Image(systemName: action.symbol)
                 .font(.system(size: largeText || iconsOnly ? 18 : 12, weight: .semibold))
             if !largeText && !iconsOnly {
-                Text(text(compact ? action.compactKey : action.labelKey))
-                    .lineLimit(compact && action != .open ? 1 : 2)
+                Text(text(labelKey ?? (compact ? action.compactKey : action.labelKey)))
+                    .lineLimit(compact && action != .open && action != .toggle ? 1 : 2)
                     .minimumScaleFactor(0.92)
             }
         }
@@ -382,12 +382,13 @@ private struct ConnectionWidgetView: View {
 }
 
 private enum ConnectionWidgetAction {
-    case start, stop, open
+    case start, stop, toggle, open
 
     var symbol: String {
         switch self {
         case .start: "play.fill"
         case .stop: "stop.fill"
+        case .toggle: "power"
         case .open: "arrow.up.forward"
         }
     }
@@ -396,6 +397,7 @@ private enum ConnectionWidgetAction {
         switch self {
         case .start: "Start VPN"
         case .stop: "Stop VPN"
+        case .toggle: "Start or stop VPN"
         case .open: "Open app"
         }
     }
@@ -404,6 +406,7 @@ private enum ConnectionWidgetAction {
         switch self {
         case .start: "Start"
         case .stop: "Stop"
+        case .toggle: "Start or stop VPN"
         case .open: "Open app"
         }
     }
