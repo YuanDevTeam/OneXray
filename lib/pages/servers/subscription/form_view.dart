@@ -640,12 +640,12 @@ class SubscriptionFormView extends StatelessWidget {
             decoration: ShadDecoration(
               hasError: errorText != null,
               border: ShadBorder.all(
-                color: palette.border,
-                radius: BorderRadius.circular(AppRadii.card),
+                color: palette.input,
+                radius: BorderRadius.circular(AppRadii.control),
               ),
               errorBorder: ShadBorder.all(
                 color: palette.destructive,
-                radius: BorderRadius.circular(AppRadii.card),
+                radius: BorderRadius.circular(AppRadii.control),
               ),
             ),
           ),
