@@ -125,50 +125,151 @@ void main() {
     });
   }
 
-  testWidgets('short dialog scrolls large action labels without shrinking', (
-    tester,
-  ) async {
-    final keyboard = ValueNotifier(0.0);
-    addTearDown(keyboard.dispose);
-    var calls = 0;
-    const label = 'Apply the saved configuration and reconnect';
-    await _openDialog(
-      tester,
-      (context) => ShadTheme(
-        data: AppTheme.shad(Brightness.light, mobile: true),
-        child: AppDialog(
-          title: 'Changes',
-          body: const SizedBox(height: 1000),
-          actions: [
-            ShadButton(
-              onPressed: () {
-                calls++;
-                Navigator.pop(context);
-              },
-              child: const Text(label),
+  for (final size in const [
+    Size(390, 844),
+    Size(768, 1024),
+    Size(1032, 1376),
+    Size(1160, 720),
+  ]) {
+    testWidgets(
+      'expanded dialog keeps actions visible and content scrollable at $size',
+      (tester) async {
+        final keyboard = ValueNotifier(0.0);
+        addTearDown(keyboard.dispose);
+        var expanded = false;
+        await _openDialog(
+          tester,
+          (context) => StatefulBuilder(
+            builder: (context, setState) => AppDialog(
+              title: 'Share resource',
+              body: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextButton(
+                    onPressed: () => setState(() => expanded = !expanded),
+                    child: const Text('Show QR'),
+                  ),
+                  if (expanded) ...[
+                    const SizedBox(
+                      height: 200,
+                      child: Center(child: Text('QR content')),
+                    ),
+                    const SizedBox(height: 1000),
+                    const Text('End of content'),
+                  ],
+                ],
+              ),
+              actions: [
+                OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(onPressed: () {}, child: const Text('Share')),
+              ],
             ),
-          ],
-        ),
-      ),
-      keyboard: keyboard,
-      size: const Size(390, 360),
-      safeBottom: 0,
-      textScale: 2,
+          ),
+          keyboard: keyboard,
+          size: size,
+          safeBottom: 0,
+        );
+        await tester.tap(find.text('Show QR'));
+        await tester.pumpAndSettle();
+        final scroll = find.descendant(
+          of: find.byType(AppDialog),
+          matching: find.byType(SingleChildScrollView),
+        );
+        for (final label in ['Cancel', 'Share']) {
+          expect(find.text(label).hitTestable(), findsOneWidget);
+          expect(
+            find.descendant(of: scroll, matching: find.text(label)),
+            findsNothing,
+          );
+          expect(
+            tester.getRect(find.text(label)).bottom,
+            lessThan(size.height),
+          );
+        }
+        final before = tester.getRect(find.byType(FilledButton));
+        final scrollable = tester.state<ScrollableState>(
+          find.descendant(of: scroll, matching: find.byType(Scrollable)),
+        );
+        expect(scrollable.position.maxScrollExtent, greaterThan(0));
+        await tester.drag(scroll, const Offset(0, -500));
+        await tester.pumpAndSettle();
+        expect(scrollable.position.pixels, greaterThan(0));
+        expect(tester.getRect(find.byType(FilledButton)), before);
+        expect(find.text('Cancel').hitTestable(), findsOneWidget);
+        expect(find.text('Share').hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AppDialog), findsNothing);
+      },
     );
-    expect(tester.takeException(), isNull);
-    await tester.ensureVisible(find.text(label));
-    await tester.pumpAndSettle();
-    expect(find.text(label).hitTestable(), findsOneWidget);
-    expect(
-      DefaultTextStyle.of(tester.element(find.text(label))).style.fontSize,
-      14,
+  }
+
+  for (final (size, textScale) in const [
+    (Size(390, 360), 2.0),
+    (Size(375, 667), 3.2),
+    (Size(1160, 320), 1.0),
+  ]) {
+    testWidgets(
+      'short or large-type dialog scrolls actions without shrinking at $size / $textScale',
+      (tester) async {
+        final keyboard = ValueNotifier(0.0);
+        addTearDown(keyboard.dispose);
+        var calls = 0;
+        const label = 'Apply the saved configuration and reconnect';
+        await _openDialog(
+          tester,
+          (context) => ShadTheme(
+            data: AppTheme.shad(Brightness.light, mobile: true),
+            child: AppDialog(
+              title: 'Changes',
+              body: const SizedBox(height: 1000),
+              actions: [
+                ShadButton(
+                  onPressed: () {
+                    calls++;
+                    Navigator.pop(context);
+                  },
+                  child: const Text(label),
+                ),
+              ],
+            ),
+          ),
+          keyboard: keyboard,
+          size: size,
+          safeBottom: 0,
+          textScale: textScale,
+        );
+        expect(tester.takeException(), isNull);
+        expect(
+          find.descendant(
+            of: find.byType(SingleChildScrollView),
+            matching: find.text(label),
+          ),
+          findsOneWidget,
+        );
+        await tester.ensureVisible(find.text(label));
+        await tester.pumpAndSettle();
+        expect(find.text(label).hitTestable(), findsOneWidget);
+        expect(
+          DefaultTextStyle.of(tester.element(find.text(label))).style.fontSize,
+          14,
+        );
+        expect(
+          MediaQuery.textScalerOf(tester.element(find.text(label))).scale(14),
+          closeTo(14 * textScale, .01),
+        );
+        await tester.tap(find.text(label));
+        await tester.pumpAndSettle();
+        expect(calls, 1);
+        expect(find.byType(AppDialog), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
     );
-    await tester.tap(find.text(label));
-    await tester.pumpAndSettle();
-    expect(calls, 1);
-    expect(find.byType(AppDialog), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  }
 
   testWidgets('wizard hides the covered card and restores its live draft', (
     tester,

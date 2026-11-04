@@ -138,8 +138,6 @@ class AppDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = ColorManager.palette(context);
     final narrow = MediaQuery.sizeOf(context).width < 640;
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final closeSize = AppLayout.touchExtent(
       40,
       platform: Theme.of(context).platform,
@@ -208,7 +206,6 @@ class AppDialog extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final pinActions =
-              mobile &&
               constraints.maxHeight >= 380 &&
               MediaQuery.textScalerOf(context).scale(14) <= 28;
           return Stack(
