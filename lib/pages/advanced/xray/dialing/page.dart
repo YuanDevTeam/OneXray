@@ -1,4 +1,3 @@
-import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -6,6 +5,7 @@ import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/advanced/xray/dialing/controller.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
+import 'package:onexray/pages/advanced/xray/fields.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/dialing.dart';
 
@@ -32,6 +32,7 @@ class ServerDialingPage extends StatelessWidget {
             : AppSpacing.advancedDesktopGutter(width);
         return PolicyDetailScaffold(
           title: l.serverDialingTitle,
+          description: l.pageXrayConfigurationDescription,
           controller: controller,
           canSave: state.draft != null,
           help: [
@@ -57,55 +58,45 @@ class ServerDialingPage extends StatelessWidget {
               : Padding(
                   padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 24),
                   child: SettingSection(
-                    title: l.serverDialingTitle,
+                    title: l.serverDialingParametersTitle,
                     padding: EdgeInsets.zero,
                     children: [
-                      SettingRow(
-                        title: l.serverDialingDomainStrategy,
-                        trailing: SizedBox(
-                          width: mobile ? 165 : 210,
-                          child: SettingSelect<ServerDomainStrategy>(
-                            key: const ValueKey('server-dialing-strategy'),
-                            value: controller.dialing.domainStrategy,
-                            entries: {
-                              ServerDomainStrategy.system:
-                                  l.serverDialingSystem,
-                              ServerDomainStrategy.useIp: l.serverDialingUseIp,
-                              ServerDomainStrategy.ipv4: 'IPv4',
-                              ServerDomainStrategy.ipv6: 'IPv6',
-                              ServerDomainStrategy.ipv4First:
-                                  l.serverDialingIpv4First,
-                              ServerDomainStrategy.ipv6First:
-                                  l.serverDialingIpv6First,
-                            },
-                            onChanged: controller.blocked
-                                ? null
-                                : controller.setDomainStrategy,
-                          ),
+                      XrayLabeledField(
+                        key: const ValueKey('server-dialing-domain-field'),
+                        label: l.serverDialingDomainStrategy,
+                        child: SettingSelect<ServerDomainStrategy>(
+                          key: const ValueKey('server-dialing-strategy'),
+                          value: controller.dialing.domainStrategy,
+                          entries: {
+                            ServerDomainStrategy.system: l.serverDialingSystem,
+                            ServerDomainStrategy.useIp: l.serverDialingUseIp,
+                            ServerDomainStrategy.ipv4: 'IPv4',
+                            ServerDomainStrategy.ipv6: 'IPv6',
+                            ServerDomainStrategy.ipv4First:
+                                l.serverDialingIpv4First,
+                            ServerDomainStrategy.ipv6First:
+                                l.serverDialingIpv6First,
+                          },
+                          onChanged: controller.blocked
+                              ? null
+                              : controller.setDomainStrategy,
                         ),
                       ),
-                      SettingRow(
+                      const SizedBox(height: 16),
+                      XrayToggleField(
+                        switchKey: const ValueKey(
+                          'server-dialing-happy-eyeballs',
+                        ),
                         title: 'Happy Eyeballs',
-                        titleMaxLines: 3,
-                        subtitle: controller.happyEyeballsAvailable
+                        description: controller.happyEyeballsAvailable
                             ? null
                             : l.serverDialingHappyEyeballsUnavailable,
-                        enabled:
-                            !controller.blocked &&
-                            controller.happyEyeballsAvailable,
-                        trailing: Semantics(
-                          label: 'Happy Eyeballs',
-                          child: AppSwitch(
-                            key: const ValueKey(
-                              'server-dialing-happy-eyeballs',
-                            ),
-                            value: controller.dialing.happyEyeballs,
-                            enabled:
-                                !controller.blocked &&
-                                controller.happyEyeballsAvailable,
-                            onChanged: controller.setHappyEyeballs,
-                          ),
-                        ),
+                        value: controller.dialing.happyEyeballs,
+                        onChanged:
+                            controller.blocked ||
+                                !controller.happyEyeballsAvailable
+                            ? null
+                            : controller.setHappyEyeballs,
                       ),
                     ],
                   ),

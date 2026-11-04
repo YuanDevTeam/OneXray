@@ -139,14 +139,15 @@ class SettingsActionButton extends StatelessWidget {
     builder: (context, constraints) {
       final mobile =
           MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
+      final labelStyle = AppTypography.control.copyWith(
+        fontFamily: AppFontFamily.sans,
+      );
+      final locale = Localizations.localeOf(context);
       final painter = TextPainter(
-        text: TextSpan(
-          text: label,
-          style: AppTypography.control.copyWith(fontFamily: AppFontFamily.sans),
-        ),
+        text: TextSpan(text: label, style: labelStyle),
         textDirection: Directionality.of(context),
         textScaler: MediaQuery.textScalerOf(context),
-        locale: Localizations.localeOf(context),
+        locale: locale,
       )..layout();
       final progressWidth = busy ? 24.0 : 0.0;
       // Shad's outline border sits outside the button's content constraints.
@@ -159,30 +160,33 @@ class SettingsActionButton extends StatelessWidget {
         painter.width.ceilToDouble() + 32 + progressWidth + borderExtent,
       );
       final width = math.max(0.0, outerWidth - borderExtent);
-      painter.layout(maxWidth: math.max(1.0, width - 32 - progressWidth));
-      final height = math.max(
-        AppLayout.touchExtent(
-              mobile ? 48 : 42,
-              platform: Theme.of(context).platform,
-            ) -
-            borderExtent,
-        painter.height.ceilToDouble() + 16,
-      );
       painter.dispose();
-      return ShadButton.raw(
-        variant: variant,
-        enabled: enabled && onPressed != null,
-        onPressed: onPressed,
-        width: width,
-        height: height,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        expands: true,
-        child: ButtonProgress(
-          busy: busy,
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: AppTypography.control,
+      // Let the rendered label determine its height, including script fallback
+      // and wrapping. A measured tight height can clip a late line break.
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: AppLayout.touchExtent(
+            mobile ? 48 : 42,
+            platform: Theme.of(context).platform,
+          ),
+        ),
+        child: ShadButton.raw(
+          variant: variant,
+          enabled: enabled && onPressed != null,
+          onPressed: onPressed,
+          width: width,
+          height: 0,
+          textStyle: labelStyle,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          expands: true,
+          child: ButtonProgress(
+            busy: busy,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: labelStyle,
+              locale: locale,
+            ),
           ),
         ),
       );

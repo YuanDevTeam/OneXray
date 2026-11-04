@@ -18,6 +18,7 @@ import 'package:onexray/pages/shared/widgets/configuration_transfer.dart';
 import 'package:onexray/pages/shared/widgets/json_editor.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
+import 'package:onexray/pages/shared/widgets/section.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:onexray/service/shared/share/configuration_transfer.dart';
 
@@ -122,11 +123,16 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                       context,
                       title: Text(
                         controller.advanced
-                            ? l10n.routingAdvancedJson
+                            ? widget.configurationId == null
+                                  ? l10n.routingAdvancedCreateTitle
+                                  : l10n.routingAdvancedEditTitle
                             : widget.configurationId == null
                             ? l10n.prototypeAddRawJson
                             : l10n.prototypeEditRawJson,
                       ),
+                      description: controller.advanced
+                          ? l10n.routingAdvancedSummary
+                          : null,
                       leading: BackButton(
                         onPressed:
                             state.closeBlocked ||
@@ -136,17 +142,14 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                             : () => controller.closePage(context),
                       ),
                       actions: [
-                        PageHelpButton(
-                          title: controller.advanced
-                              ? l10n.routingAdvancedJson
-                              : l10n.xrayRawPageTitle,
-                          messages: controller.advanced
-                              ? [l10n.routingAdvancedNotice]
-                              : [
-                                  l10n.prototypeRawManagedSettingsNotice,
-                                  l10n.prototypeRawAdditionalSettingsNotice,
-                                ],
-                        ),
+                        if (!controller.advanced)
+                          PageHelpButton(
+                            title: l10n.xrayRawPageTitle,
+                            messages: [
+                              l10n.prototypeRawManagedSettingsNotice,
+                              l10n.prototypeRawAdditionalSettingsNotice,
+                            ],
+                          ),
                       ],
                     ),
                     body: SafeArea(
@@ -160,128 +163,147 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
                         ),
                         child: ResponsiveContent(
                           desktopMaxWidth: AppLayout.routingMaxWidth,
-                          child: RoutingCard(
-                            padding: const EdgeInsets.all(18),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                ConfigurationTransferTools(
-                                  controller: controller.transfers,
-                                  disabled: state.busy || !state.loaded,
-                                ),
-                                if (state.sharingDataCount case final count?
-                                    when count > 0)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8),
-                                    child: _RawNote(
-                                      l10n.prototypeSharingDataSourceLinks(
-                                        count,
+                          child: controller.advanced
+                              ? _advancedContent(context, state, mobile: mobile)
+                              : RoutingCard(
+                                  padding: const EdgeInsets.all(18),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      ConfigurationTransferTools(
+                                        controller: controller.transfers,
+                                        disabled: state.busy || !state.loaded,
                                       ),
-                                    ),
-                                  ),
-                                SizedBox(height: gap),
-                                Text(
-                                  l10n.prototypeConfigurationName,
-                                  style: AppTypography.fieldLabel.copyWith(
-                                    color: palette.foreground,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    minHeight: AppLayout.touchExtent(44),
-                                  ),
-                                  child: TextField(
-                                    controller: controller.name,
-                                    maxLength: 32,
-                                    enabled: state.loaded,
-                                    style: AppTypography.rowValue,
-                                    decoration: InputDecoration(
-                                      hintText: l10n.prototypeConfigurationName,
-                                      hintStyle: AppTypography.rowValue
-                                          .copyWith(
-                                            color: palette.mutedForeground,
+                                      if (state.sharingDataCount
+                                          case final count? when count > 0)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 8,
                                           ),
-                                      counterText: '',
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 12,
+                                          child: _RawNote(
+                                            l10n.prototypeSharingDataSourceLinks(
+                                              count,
+                                            ),
                                           ),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: gap),
-                                Text(
-                                  controller.advanced
-                                      ? l10n.routingAdvancedTemplate
-                                      : l10n.prototypeCompleteXrayConfiguration,
-                                  style: AppTypography.fieldLabel.copyWith(
-                                    color: palette.foreground,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  height: AppJsonEditor.heightForViewport(
-                                    context,
-                                    mobile ? 392 : 412,
-                                  ),
-                                  child: AbsorbPointer(
-                                    absorbing: !state.loaded,
-                                    child: AppJsonEditor(
-                                      controller: controller.text,
-                                      kind: controller.advanced
-                                          ? JsonEditorKind.advancedRouting
-                                          : JsonEditorKind.raw,
-                                      diagnostic:
-                                          state.diagnostic ??
-                                          (state.error == null
-                                              ? null
-                                              : JsonDiagnostic(state.error!)),
-                                      domainSuggestions:
-                                          state.domainSuggestions,
-                                      ipSuggestions: state.ipSuggestions,
-                                    ),
-                                  ),
-                                ),
-                                if (controller.advanced)
-                                  Align(
-                                    alignment: AlignmentDirectional.centerStart,
-                                    child: TextButton.icon(
-                                      onPressed: () =>
-                                          controller.openDocumentation(context),
-                                      icon: const Icon(LucideIcons.bookOpen),
-                                      label: Text(l10n.prototypeDocumentation),
-                                    ),
-                                  ),
-                                if (!state.loaded && state.busy)
-                                  const LinearProgressIndicator(),
-                                if (!state.loaded && state.error != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 12),
-                                    child: Semantics(
-                                      liveRegion: true,
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxHeight:
-                                              MediaQuery.sizeOf(context)
-                                                  .height /
-                                              4,
                                         ),
-                                        child: SingleChildScrollView(
-                                          child: SelectableText(
-                                            state.error!,
-                                            style: AppTypography.rawNote
+                                      SizedBox(height: gap),
+                                      Text(
+                                        l10n.prototypeConfigurationName,
+                                        style: AppTypography.fieldLabel
+                                            .copyWith(
+                                              color: palette.foreground,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          minHeight: AppLayout.touchExtent(44),
+                                        ),
+                                        child: TextField(
+                                          controller: controller.name,
+                                          maxLength: 32,
+                                          enabled: state.loaded,
+                                          style: AppTypography.rowValue,
+                                          decoration: InputDecoration(
+                                            hintText:
+                                                l10n.prototypeConfigurationName,
+                                            hintStyle: AppTypography.rowValue
                                                 .copyWith(
-                                                  color: palette.destructive,
+                                                  color:
+                                                      palette.mutedForeground,
+                                                ),
+                                            counterText: '',
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 12,
                                                 ),
                                           ),
                                         ),
                                       ),
-                                    ),
+                                      SizedBox(height: gap),
+                                      Text(
+                                        controller.advanced
+                                            ? l10n.routingAdvancedTemplate
+                                            : l10n.prototypeCompleteXrayConfiguration,
+                                        style: AppTypography.fieldLabel
+                                            .copyWith(
+                                              color: palette.foreground,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SizedBox(
+                                        height: AppJsonEditor.heightForViewport(
+                                          context,
+                                          mobile ? 392 : 412,
+                                        ),
+                                        child: AbsorbPointer(
+                                          absorbing: !state.loaded,
+                                          child: AppJsonEditor(
+                                            controller: controller.text,
+                                            kind: controller.advanced
+                                                ? JsonEditorKind.advancedRouting
+                                                : JsonEditorKind.raw,
+                                            diagnostic:
+                                                state.diagnostic ??
+                                                (state.error == null
+                                                    ? null
+                                                    : JsonDiagnostic(
+                                                        state.error!,
+                                                      )),
+                                            domainSuggestions:
+                                                state.domainSuggestions,
+                                            ipSuggestions: state.ipSuggestions,
+                                          ),
+                                        ),
+                                      ),
+                                      if (controller.advanced)
+                                        Align(
+                                          alignment:
+                                              AlignmentDirectional.centerStart,
+                                          child: TextButton.icon(
+                                            onPressed: () => controller
+                                                .openDocumentation(context),
+                                            icon: const Icon(
+                                              LucideIcons.bookOpen,
+                                            ),
+                                            label: Text(
+                                              l10n.prototypeDocumentation,
+                                            ),
+                                          ),
+                                        ),
+                                      if (!state.loaded && state.busy)
+                                        const LinearProgressIndicator(),
+                                      if (!state.loaded && state.error != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                            top: 12,
+                                          ),
+                                          child: Semantics(
+                                            liveRegion: true,
+                                            child: ConstrainedBox(
+                                              constraints: BoxConstraints(
+                                                maxHeight:
+                                                    MediaQuery.sizeOf(context)
+                                                        .height /
+                                                    4,
+                                              ),
+                                              child: SingleChildScrollView(
+                                                child: SelectableText(
+                                                  state.error!,
+                                                  style: AppTypography.rawNote
+                                                      .copyWith(
+                                                        color:
+                                                            palette.destructive,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
-                              ],
-                            ),
-                          ),
+                                ),
                         ),
                       ),
                     ),
@@ -317,6 +339,141 @@ class _JsonConfigurationEditorState extends State<JsonConfigurationEditorPage> {
           },
         ),
   );
+
+  Widget _advancedContent(
+    BuildContext context,
+    JsonConfigurationEditorState state, {
+    required bool mobile,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final palette = ColorManager.palette(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 20,
+      children: [
+        SectionView(
+          title: l10n.prototypeConfigurationName,
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.configurationNameLabel,
+                style: AppTypography.fieldLabel.copyWith(
+                  color: palette.foreground,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: AppLayout.touchExtent(44),
+                ),
+                child: Semantics(
+                  label: l10n.configurationNameLabel,
+                  child: TextField(
+                    controller: controller.name,
+                    maxLength: 32,
+                    enabled: state.loaded,
+                    style: AppTypography.rowValue,
+                    decoration: InputDecoration(
+                      hintText: l10n.prototypeConfigurationName,
+                      hintStyle: AppTypography.rowValue.copyWith(
+                        color: palette.mutedForeground,
+                      ),
+                      counterText: '',
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SectionView(
+          title: l10n.routingAdvancedCardTitle,
+          icon: LucideIcons.fileJson,
+          action: PageHelpButton(
+            title: l10n.routingAdvancedCardTitle,
+            messages: [l10n.routingAdvancedNotice],
+          ),
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'JSON',
+                style: AppTypography.fieldLabel.copyWith(
+                  color: palette.foreground,
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: AppJsonEditor.heightForViewport(
+                  context,
+                  mobile ? 392 : 412,
+                ),
+                child: AbsorbPointer(
+                  absorbing: !state.loaded,
+                  child: AppJsonEditor(
+                    controller: controller.text,
+                    kind: JsonEditorKind.advancedRouting,
+                    diagnostic:
+                        state.diagnostic ??
+                        (state.error == null
+                            ? null
+                            : JsonDiagnostic(state.error!)),
+                    domainSuggestions: state.domainSuggestions,
+                    ipSuggestions: state.ipSuggestions,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ConfigurationTransferTools(
+                controller: controller.transfers,
+                disabled: state.busy || !state.loaded,
+              ),
+              if (state.sharingDataCount case final count? when count > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: _RawNote(l10n.prototypeSharingDataSourceLinks(count)),
+                ),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  onPressed: () => controller.openDocumentation(context),
+                  icon: const Icon(LucideIcons.bookOpen),
+                  label: Text(l10n.prototypeDocumentation),
+                ),
+              ),
+              if (!state.loaded && state.busy) const LinearProgressIndicator(),
+              if (!state.loaded && state.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Semantics(
+                    liveRegion: true,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.sizeOf(context).height / 4,
+                      ),
+                      child: SingleChildScrollView(
+                        child: SelectableText(
+                          state.error!,
+                          style: AppTypography.rawNote.copyWith(
+                            color: palette.destructive,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _RawNote extends StatelessWidget {

@@ -1060,5 +1060,17 @@
   "xrayCurrentConnection": "اتصال فعلی",
   "xrayNotRunning": "در حال اجرا نیست",
   "xrayLogsEnabled": "ثبت رویداد فعال است",
-  "xrayLogsDisabled": "ثبت رویداد غیرفعال است"
+  "xrayLogsDisabled": "ثبت رویداد غیرفعال است",
+  "tunnelDetailDescription": "روش اتصال این دستگاه را مشاهده و مدیریت کنید.",
+  "pageXrayConfigurationDescription": "پیکربندی مورد استفاده هسته و اتصال‌ها را مدیریت کنید.",
+  "xrayLatencyTitle": "بررسی تأخیر",
+  "xrayAutomaticSubscriptionUpdates": "به‌روزرسانی خودکار اشتراک‌ها",
+  "xraySubscriptionUpdateInterval": "بازه به‌روزرسانی اشتراک‌ها",
+  "xrayAutomaticGeodataUpdates": "به‌روزرسانی خودکار داده‌های مسیریابی",
+  "xrayGeodataUpdateInterval": "بازه به‌روزرسانی داده‌های مسیریابی",
+  "serverDialingParametersTitle": "حل آدرس و اتصال",
+  "routingAdvancedCreateTitle": "قالب پیشرفته جدید",
+  "routingAdvancedEditTitle": "ویرایش قالب پیشرفته",
+  "routingAdvancedCardTitle": "قالب پیشرفته JSON",
+  "configurationNameLabel": "نام"
 }

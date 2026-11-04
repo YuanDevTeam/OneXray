@@ -3241,5 +3241,17 @@
   "xrayCurrentConnection": "Current connection",
   "xrayNotRunning": "Not running",
   "xrayLogsEnabled": "Recording enabled",
-  "xrayLogsDisabled": "Recording disabled"
+  "xrayLogsDisabled": "Recording disabled",
+  "tunnelDetailDescription": "View and manage how this device connects.",
+  "pageXrayConfigurationDescription": "Manage configuration used by the core and connections.",
+  "xrayLatencyTitle": "Latency probing",
+  "xrayAutomaticSubscriptionUpdates": "Automatically update subscriptions",
+  "xraySubscriptionUpdateInterval": "Subscription update interval",
+  "xrayAutomaticGeodataUpdates": "Automatically update routing data",
+  "xrayGeodataUpdateInterval": "Routing data update interval",
+  "serverDialingParametersTitle": "Address resolution and connection",
+  "routingAdvancedCreateTitle": "New advanced template",
+  "routingAdvancedEditTitle": "Edit advanced template",
+  "routingAdvancedCardTitle": "Advanced JSON template",
+  "configurationNameLabel": "Name"
 }

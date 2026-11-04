@@ -51,6 +51,7 @@ class AppleVpnPage extends StatelessWidget {
         final controller = context.read<AppleVpnController>();
         return PolicyDetailScaffold(
           title: l.prototypeAppleSystemVpn,
+          description: l.tunnelDetailDescription,
           help: [
             l.prototypeAllowLocalNetworkHint,
             l.prototypeBypassCellularServicesHint,

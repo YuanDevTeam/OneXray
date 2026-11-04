@@ -9,6 +9,7 @@ import 'package:onexray/core/backup/storage.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/backup/page.dart';
+import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/settings/backup/existing_file_dialog.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
@@ -16,6 +17,7 @@ import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
 import 'package:onexray/service/settings/backup/assets.dart';
@@ -86,6 +88,89 @@ void main() {
     ),
     home: BackupPage(service: service),
   );
+
+  for (final (label, width, scale, busy, locale) in [
+    ('使用 iCloud Drive', 640.0, 1.0, false, const Locale('zh')),
+    ('Use iCloud Drive', 640.0, 1.0, false, const Locale('en')),
+    ('Сохранить и переподключить', 130.0, 2.0, false, const Locale('ru')),
+    ('ذخیره و اتصال مجدد', 140.0, 2.0, true, const Locale('fa')),
+  ]) {
+    testWidgets(
+      'backup action measures its rendered label at $width/$scale/$locale',
+      (tester) async {
+        var calls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(Brightness.light, mobile: width < 390),
+            locale: locale,
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: ShadTheme(
+                data: AppTheme.shad(Brightness.light),
+                child: child!,
+              ),
+            ),
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: width,
+                  child: SettingsActionButton(
+                    label: label,
+                    busy: busy,
+                    enabled: !busy,
+                    variant: busy
+                        ? ShadButtonVariant.outline
+                        : ShadButtonVariant.primary,
+                    onPressed: () => calls++,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final action = find.byType(SettingsActionButton);
+        final bounds = tester.getRect(action);
+        expect(bounds.width, lessThanOrEqualTo(width));
+        final labelFinder = find.text(label);
+        final rich = tester.widget<RichText>(
+          find.descendant(of: labelFinder, matching: find.byType(RichText)),
+        );
+        final labelBounds = tester.getRect(labelFinder);
+        expect(rich.text.style!.fontFamily, AppFontFamily.sans);
+        expect(rich.text.style!.fontSize, 14);
+        expect(labelBounds.left, greaterThanOrEqualTo(bounds.left));
+        expect(labelBounds.right, lessThanOrEqualTo(bounds.right));
+        expect(labelBounds.top, greaterThanOrEqualTo(bounds.top));
+        expect(labelBounds.bottom, lessThanOrEqualTo(bounds.bottom));
+        final painter = TextPainter(
+          text: rich.text,
+          textDirection:
+              rich.textDirection ??
+              Directionality.of(tester.element(labelFinder)),
+          textScaler: rich.textScaler,
+          locale: rich.locale,
+        )..layout(maxWidth: labelBounds.width);
+        if (width == 640) {
+          expect(painter.computeLineMetrics(), hasLength(1));
+          expect(bounds.height, 44);
+        } else {
+          expect(painter.computeLineMetrics().length, greaterThan(1));
+          expect(bounds.height, greaterThan(48));
+        }
+        expect(labelBounds.height, closeTo(painter.height, .01));
+        painter.dispose();
+        await tester.tap(action);
+        await tester.pump();
+        expect(calls, busy ? 0 : 1);
+        expect(tester.takeException(), isNull);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
 
   for (final brightness in Brightness.values) {
     testWidgets(

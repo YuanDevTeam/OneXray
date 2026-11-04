@@ -81,6 +81,15 @@ void main() {
       )!;
       expect(find.text(l.serverDialingSystem), findsOneWidget);
       expect(find.byType(SettingSelect<ServerDomainStrategy>), findsOneWidget);
+      final fieldRect = tester.getRect(
+        find.byKey(const ValueKey('server-dialing-domain-field')),
+      );
+      final selectRect = tester.getRect(
+        find.byKey(const ValueKey('server-dialing-strategy')),
+      );
+      expect(selectRect.left, closeTo(fieldRect.left, .5));
+      expect(selectRect.right, closeTo(fieldRect.right, .5));
+      expect(find.text(l.pageXrayConfigurationDescription), findsOneWidget);
       expect(find.byType(ShadSwitch), findsOneWidget);
       expect(
         tester.getSemantics(find.byType(ShadSwitch)).label,

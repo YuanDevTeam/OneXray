@@ -57,6 +57,7 @@ class XrayLogSettingsPage extends StatelessWidget {
             appBar: PageAppBar.forPage(
               context,
               title: Text(l.prototypeLogs),
+              description: l.pageXrayConfigurationDescription,
               leading: BackButton(onPressed: cancel),
               actions: [
                 PageHelpButton(

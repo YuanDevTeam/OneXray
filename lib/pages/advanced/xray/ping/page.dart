@@ -13,6 +13,7 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
+import 'package:onexray/pages/advanced/xray/fields.dart';
 import 'package:onexray/service/shared/ping/state.dart';
 
 class PingPage extends StatelessWidget {
@@ -34,7 +35,8 @@ class PingPage extends StatelessWidget {
         return Scaffold(
           appBar: PageAppBar.forPage(
             context,
-            title: Text(l.prototypeSpeedTest),
+            title: Text(l.xrayLatencyTitle),
+            description: l.pageXrayConfigurationDescription,
             actions: [
               const AppActivityIndicator(downloading: false),
               PageHelpButton(
@@ -110,19 +112,84 @@ class PingPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           SettingSection(
-                            title: l.prototypeTimeout,
-                            icon: LucideIcons.activity,
+                            title: l.xrayLatencyTitle,
                             padding: EdgeInsets.zero,
                             children: [
-                              SettingRow(
-                                title: l.prototypeTimeout,
-                                titleStyle: AppTypography.settingsSelect,
-                                contentPadding:
-                                    const EdgeInsetsDirectional.symmetric(
-                                      horizontal: 12,
-                                      vertical: 12,
+                              XrayLabeledField(
+                                key: const ValueKey('ping-url-field'),
+                                label: l.prototypeSpeedTestUrl,
+                                child: SettingSelect<String>(
+                                  key: const ValueKey('ping-url-preset'),
+                                  value: value.url.name,
+                                  entries: {
+                                    for (final option in PingUrl.values)
+                                      option.name: option == PingUrl.custom
+                                          ? l.prototypeCustom
+                                          : option.name,
+                                  },
+                                  onChanged: state.saving
+                                      ? null
+                                      : (url) {
+                                          if (url != null) {
+                                            controller.updateUrl(url);
+                                          }
+                                        },
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              if (value.url == PingUrl.custom)
+                                XrayLabeledField(
+                                  key: const ValueKey('ping-custom-url-field'),
+                                  label: l.prototypeCustomUrl,
+                                  child: TextField(
+                                    key: const ValueKey('ping-custom-url'),
+                                    controller: controller.customUrlController,
+                                    focusNode: controller.customUrlFocusNode,
+                                    enabled: !state.saving,
+                                    textDirection: TextDirection.ltr,
+                                    textAlign: TextAlign.left,
+                                    keyboardType: TextInputType.url,
+                                    autocorrect: false,
+                                    style: AppTypography.settingsInput.copyWith(
+                                      color: palette.foreground,
                                     ),
-                                trailing: SettingSelect<double>(
+                                    decoration: InputDecoration(
+                                      errorText: state.invalidUrl
+                                          ? l.prototypeEnterHttpUrl
+                                          : null,
+                                      errorMaxLines: 3,
+                                      isDense: true,
+                                      hintText:
+                                          'https://example.com/generate_204',
+                                      hintTextDirection: TextDirection.ltr,
+                                      hintStyle: AppTypography.settingsInput
+                                          .copyWith(
+                                            color: palette.mutedForeground,
+                                          ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  child: SelectableText(
+                                    value.realUrl,
+                                    textDirection: TextDirection.ltr,
+                                    textAlign: TextAlign.left,
+                                    style: AppTypography.rowValue.copyWith(
+                                      color: palette.mutedStrong,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 16),
+                              XrayLabeledField(
+                                key: const ValueKey('ping-timeout-field'),
+                                label: l.prototypeTimeout,
+                                child: SettingSelect<double>(
+                                  key: const ValueKey('ping-timeout'),
                                   value: value.timeout,
                                   entries: {
                                     for (
@@ -143,123 +210,20 @@ class PingPage extends StatelessWidget {
                                         },
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          SettingSection(
-                            title: l.prototypeSpeedTestUrl,
-                            icon: LucideIcons.globe,
-                            padding: EdgeInsets.zero,
-                            dividerIndent: 0,
-                            children: [
-                              SettingRow(
-                                title: l.prototypeSpeedTestUrl,
-                                titleStyle: AppTypography.settingsSelect,
-                                contentPadding:
-                                    const EdgeInsetsDirectional.symmetric(
-                                      horizontal: 12,
-                                      vertical: 12,
-                                    ),
-                                trailing: SettingSelect<String>(
-                                  value: value.url.name,
-                                  entries: {
-                                    for (final option in PingUrl.values)
-                                      option.name: option == PingUrl.custom
-                                          ? l.prototypeCustom
-                                          : option.name,
-                                  },
-                                  onChanged: state.saving
-                                      ? null
-                                      : (url) {
-                                          if (url != null) {
-                                            controller.updateUrl(url);
-                                          }
-                                        },
+                              const SizedBox(height: 16),
+                              ShadAlert(
+                                icon: const Icon(
+                                  LucideIcons.circleHelp,
+                                  size: 18,
+                                ),
+                                description: Text(
+                                  l.pingVpnAccuracyHint,
+                                  style: AppTypography.supporting.copyWith(
+                                    color: palette.mutedForeground,
+                                  ),
                                 ),
                               ),
-                              if (value.url == PingUrl.custom)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        l.prototypeCustomUrl,
-                                        style: AppTypography.fieldLabel
-                                            .copyWith(
-                                              color: palette.foreground,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      TextField(
-                                        key: const ValueKey('ping-custom-url'),
-                                        controller:
-                                            controller.customUrlController,
-                                        focusNode:
-                                            controller.customUrlFocusNode,
-                                        enabled: !state.saving,
-                                        textDirection: TextDirection.ltr,
-                                        textAlign: TextAlign.left,
-                                        keyboardType: TextInputType.url,
-                                        autocorrect: false,
-                                        style: AppTypography.settingsInput
-                                            .copyWith(
-                                              color: palette.foreground,
-                                            ),
-                                        decoration: InputDecoration(
-                                          errorText: state.invalidUrl
-                                              ? l.prototypeEnterHttpUrl
-                                              : null,
-                                          errorMaxLines: 3,
-                                          isDense: true,
-                                          hintText: 'https://example.com/generate_204',
-                                          hintTextDirection: TextDirection.ltr,
-                                          hintStyle: AppTypography.settingsInput
-                                              .copyWith(
-                                                color: palette.mutedForeground,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
-                              else
-                                SizedBox(
-                                  height: 46,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                    ),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: SelectableText(
-                                        value.realUrl,
-                                        textDirection: TextDirection.ltr,
-                                        textAlign: TextAlign.left,
-                                        style:
-                                            (mobile
-                                                    ? AppTypography
-                                                          .settingsDetailNote
-                                                    : AppTypography
-                                                          .settingsInput)
-                                                .copyWith(
-                                                  color: palette.mutedStrong,
-                                                ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
                             ],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            l.pingVpnAccuracyHint,
-                            style: AppTypography.supporting.copyWith(
-                              color: palette.mutedForeground,
-                            ),
                           ),
                           if (state.error != null)
                             Padding(

@@ -1060,5 +1060,17 @@
   "xrayCurrentConnection": "Текущее подключение",
   "xrayNotRunning": "Не запущено",
   "xrayLogsEnabled": "Запись включена",
-  "xrayLogsDisabled": "Запись выключена"
+  "xrayLogsDisabled": "Запись выключена",
+  "tunnelDetailDescription": "Просматривайте и настраивайте подключение этого устройства.",
+  "pageXrayConfigurationDescription": "Настройка параметров ядра и подключений.",
+  "xrayLatencyTitle": "Проверка задержки",
+  "xrayAutomaticSubscriptionUpdates": "Автоматически обновлять подписки",
+  "xraySubscriptionUpdateInterval": "Интервал обновления подписок",
+  "xrayAutomaticGeodataUpdates": "Автоматически обновлять данные маршрутизации",
+  "xrayGeodataUpdateInterval": "Интервал обновления данных маршрутизации",
+  "serverDialingParametersTitle": "Разрешение адресов и подключение",
+  "routingAdvancedCreateTitle": "Новый расширенный шаблон",
+  "routingAdvancedEditTitle": "Изменить расширенный шаблон",
+  "routingAdvancedCardTitle": "Расширенный шаблон JSON",
+  "configurationNameLabel": "Название"
 }

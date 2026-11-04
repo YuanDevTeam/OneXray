@@ -1060,5 +1060,17 @@
   "xrayCurrentConnection": "目前連線",
   "xrayNotRunning": "尚未執行",
   "xrayLogsEnabled": "記錄已開啟",
-  "xrayLogsDisabled": "記錄已關閉"
+  "xrayLogsDisabled": "記錄已關閉",
+  "tunnelDetailDescription": "檢視並管理此裝置的連線方式。",
+  "pageXrayConfigurationDescription": "管理核心與連線使用的設定。",
+  "xrayLatencyTitle": "延遲探測",
+  "xrayAutomaticSubscriptionUpdates": "自動更新訂閱",
+  "xraySubscriptionUpdateInterval": "訂閱更新週期",
+  "xrayAutomaticGeodataUpdates": "自動更新路由資料",
+  "xrayGeodataUpdateInterval": "路由資料更新週期",
+  "serverDialingParametersTitle": "位址解析與連線",
+  "routingAdvancedCreateTitle": "新增進階範本",
+  "routingAdvancedEditTitle": "編輯進階範本",
+  "routingAdvancedCardTitle": "進階 JSON 範本",
+  "configurationNameLabel": "名稱"
 }

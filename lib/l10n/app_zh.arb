@@ -1060,5 +1060,17 @@
   "xrayCurrentConnection": "当前连接",
   "xrayNotRunning": "尚未运行",
   "xrayLogsEnabled": "记录已开启",
-  "xrayLogsDisabled": "记录已关闭"
+  "xrayLogsDisabled": "记录已关闭",
+  "tunnelDetailDescription": "查看并管理此设备的连接方式。",
+  "pageXrayConfigurationDescription": "管理内核与连接使用的配置。",
+  "xrayLatencyTitle": "延迟探测",
+  "xrayAutomaticSubscriptionUpdates": "自动更新订阅",
+  "xraySubscriptionUpdateInterval": "订阅更新周期",
+  "xrayAutomaticGeodataUpdates": "自动更新路由数据",
+  "xrayGeodataUpdateInterval": "路由数据更新周期",
+  "serverDialingParametersTitle": "地址解析与连接",
+  "routingAdvancedCreateTitle": "新建高级模板",
+  "routingAdvancedEditTitle": "编辑高级模板",
+  "routingAdvancedCardTitle": "高级 JSON 模板",
+  "configurationNameLabel": "名称"
 }
