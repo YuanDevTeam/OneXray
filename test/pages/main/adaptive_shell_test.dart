@@ -301,29 +301,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(desktopNavigation, findsNothing);
     final navigation = find.byKey(const ValueKey('primary-mobile-navigation'));
-    final connectDestination = find.byKey(
-      const ValueKey('primary-navigation-connect'),
-    );
     expect(navigation, findsOneWidget);
-    final navigationBar = tester.widget<NavigationBar>(navigation);
-    expect(navigationBar.selectedIndex, AppPrimaryDestination.connect.index);
-    expect(navigationBar.destinations, hasLength(5));
-    expect(navigationBar.height, isNull);
+    final navigationBar = tester.widget<BottomNavigationBar>(navigation);
+    expect(navigationBar.currentIndex, AppPrimaryDestination.connect.index);
+    expect(navigationBar.type, BottomNavigationBarType.fixed);
+    expect(navigationBar.items, hasLength(5));
     expect(navigationBar.backgroundColor, isNull);
     expect(navigationBar.elevation, isNull);
-    expect(navigationBar.indicatorColor, isNull);
-    expect(navigationBar.indicatorShape, isNull);
-    expect(navigationBar.labelTextStyle, isNull);
-    expect(navigationBar.labelBehavior, isNull);
-    expect(navigationBar.labelPadding, isNull);
-    expect(navigationBar.overlayColor, isNull);
-    expect(
-      find.descendant(
-        of: navigation,
-        matching: find.byType(NavigationDestination),
-      ),
-      findsNWidgets(5),
-    );
+    expect(navigationBar.selectedItemColor, isNull);
+    expect(navigationBar.unselectedItemColor, isNull);
+    expect(navigationBar.selectedIconTheme, isNull);
+    expect(navigationBar.unselectedIconTheme, isNull);
+    expect(navigationBar.selectedLabelStyle, isNull);
+    expect(navigationBar.unselectedLabelStyle, isNull);
+    expect(navigationBar.showSelectedLabels, isNull);
+    expect(navigationBar.showUnselectedLabels, isNull);
+    expect(find.byType(NavigationBar), findsNothing);
     expect(
       find.ancestor(of: navigation, matching: find.byType(SafeArea)),
       findsNothing,
@@ -334,12 +327,8 @@ void main() {
       find.byKey(const ValueKey('primary-navigation-settings')),
       findsNothing,
     );
-    expect(
-      tester.widget<NavigationDestination>(connectDestination).label,
-      'Connect',
-    );
-    final mobileIcon =
-        tester.widget<NavigationDestination>(connectDestination).icon as Icon;
+    expect(navigationBar.items.first.label, 'Connect');
+    final mobileIcon = navigationBar.items.first.icon as Icon;
     expect(mobileIcon.size, isNull);
     expect(mobileIcon.color, isNull);
     expect(find.byType(Badge), findsNothing);
@@ -437,7 +426,7 @@ void main() {
       (2.0, Locale('fa'), Brightness.dark),
     ]) {
       testWidgets(
-        'standard mobile navigation stays reachable on $platform in $locale at $scale',
+        'fixed BottomNavigationBar stays reachable on $platform in $locale at $scale',
         (tester) async {
           await tester.binding.setSurfaceSize(const Size(390, 360));
           addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -476,11 +465,13 @@ void main() {
           expect(rect.right, 390);
           expect(rect.bottom, 360);
           expect(rect.top, greaterThanOrEqualTo(padding.top));
-          final navigationBar = tester.widget<NavigationBar>(navigation);
-          expect(navigationBar.height, isNull);
-          expect(navigationBar.indicatorColor, isNull);
-          expect(navigationBar.indicatorShape, isNull);
-          expect(navigationBar.labelTextStyle, isNull);
+          final navigationBar = tester.widget<BottomNavigationBar>(navigation);
+          expect(navigationBar.type, BottomNavigationBarType.fixed);
+          expect(navigationBar.items, hasLength(5));
+          expect(navigationBar.selectedItemColor, isNull);
+          expect(navigationBar.unselectedItemColor, isNull);
+          expect(navigationBar.selectedLabelStyle, isNull);
+          expect(navigationBar.unselectedLabelStyle, isNull);
           expect(
             Directionality.of(tester.element(navigation)),
             locale.languageCode == 'fa' ? TextDirection.rtl : TextDirection.ltr,
@@ -490,9 +481,14 @@ void main() {
           );
           final labelRects = <Rect>[];
           for (final primary in destinations) {
-            final destination = find.byKey(
-              ValueKey('primary-navigation-${primary.name}'),
+            final item = navigationBar.items[primary.index];
+            final label = find.descendant(
+              of: navigation,
+              matching: find.text(item.label!),
             );
+            final destination = find
+                .ancestor(of: label, matching: find.byType(InkResponse))
+                .first;
             final size = tester.getSize(destination);
             expect(
               size.width,
@@ -506,20 +502,8 @@ void main() {
                 AppLayout.touchExtent(0, platform: platform),
               ),
             );
-            expect(
-              size.height,
-              closeTo(
-                tester
-                    .getSize(
-                      find.byKey(const ValueKey('primary-navigation-connect')),
-                    )
-                    .height,
-                .01,
-              ),
-            );
-            final labelRect = tester.getRect(
-              find.descendant(of: destination, matching: find.byType(Text)),
-            );
+            expect(size.width, closeTo(rect.width / 5, .01));
+            final labelRect = tester.getRect(label);
             labelRects.add(labelRect);
             final iconRect = tester.getRect(
               find.descendant(of: destination, matching: find.byType(Icon)),
@@ -529,19 +513,15 @@ void main() {
               destinationRect.bottom,
               lessThanOrEqualTo(360 - padding.bottom),
             );
-            // Material's destination delegate centers icon + wrapped label as
-            // a group, which may paint above its fixed destination slot. Keep
-            // that default behavior, but require visible, nonoverlapping labels
-            // within the whole bar and icons within the unobstructed viewport.
-            expect(iconRect.top, greaterThanOrEqualTo(padding.top));
-            expect(iconRect.bottom, lessThanOrEqualTo(rect.bottom));
+            expect(iconRect.top, greaterThanOrEqualTo(destinationRect.top));
+            expect(iconRect.bottom, lessThanOrEqualTo(destinationRect.bottom));
             expect(labelRect.left, greaterThanOrEqualTo(rect.left));
             expect(labelRect.right, lessThanOrEqualTo(rect.right));
             expect(labelRect.top, greaterThanOrEqualTo(rect.top));
             expect(labelRect.bottom, lessThanOrEqualTo(rect.bottom));
             final selectionSemantics = find
                 .ancestor(
-                  of: destination,
+                  of: label,
                   matching: find.byWidgetPredicate(
                     (widget) =>
                         widget is Semantics &&
@@ -550,10 +530,7 @@ void main() {
                 )
                 .first;
             final semantics = tester.getSemantics(selectionSemantics);
-            expect(
-              semantics.getSemanticsData().label,
-              contains(tester.widget<NavigationDestination>(destination).label),
-            );
+            expect(semantics.getSemanticsData().label, contains(item.label!));
             expect(
               semantics.getSemanticsData().hasAction(SemanticsAction.tap),
               isTrue,
@@ -570,7 +547,7 @@ void main() {
               isTrue,
             );
             expect(
-              tester.widget<NavigationBar>(navigation).selectedIndex,
+              tester.widget<BottomNavigationBar>(navigation).currentIndex,
               primary.index,
             );
             await tester.tap(destination);
@@ -1093,10 +1070,10 @@ void main() {
         } else {
           expect(
             tester
-                .widget<NavigationBar>(
+                .widget<BottomNavigationBar>(
                   find.byKey(const ValueKey('primary-mobile-navigation')),
                 )
-                .selectedIndex,
+                .currentIndex,
             primary.index,
           );
         }

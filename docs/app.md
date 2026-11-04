@@ -6,8 +6,8 @@
 ## 导航与交互
 
 - 六个根目的地为连接、服务器、路由、VPN 隧道、Xray、设置，独立保留导航栈。
-  手机根页使用 Flutter 默认 Material 3 `NavigationBar` 与 `NavigationDestination`，包含前五项入口；设置由顶部按钮进入。
-  底栏不另包圆角悬浮卡片，不自定义高度、指示器、标签或图标样式，选中状态沿用 Material 3 默认表现。
+  手机根页使用 Flutter `BottomNavigationBar` 与 `BottomNavigationBarItem`，前五项入口采用内置 `BottomNavigationBarType.fixed` 模式；设置由顶部按钮进入。
+  底栏不另包圆角悬浮卡片，不额外限定高度或定制颜色、标签和图标样式，选中状态沿用组件默认表现。
   设置页和二级页面隐藏底部根导航。平板和桌面宽布局保留带文字的左侧导航，
   连接、服务器和路由归入“工作区”，VPN 隧道和 Xray 归入“系统与内核”，设置位于侧栏底部；
   不再提供“高级”的二级 Tab 容器。侧栏选中项使用无边框卡片底色与强调色文字。
@@ -39,7 +39,7 @@ App 不在运行时读取原型配置；优先调整共享主题，页面不重�
 长标题和系统大字号下仍保留返回、设置及主要动作的可达性，不通过缩小文字适配。
 平板与桌面宽布局的共享 AppBar、`PageActionBar` 背景均与 `Scaffold` 背景一致，滚动时不额外着色或增加抬升效果；
 手机 AppBar 沿用 Material 默认表现。业务卡片和弹窗继续使用各自的背景、边框与圆角。
-字号为整数，正文和一般辅助文字不小于 12；侧栏分组名使用共享的 11px 导航角色，手机底栏标签遵循 Material 3 默认排版。
+字号为整数，正文和一般辅助文字不小于 12；侧栏分组名使用共享的 11px 导航角色，手机底栏标签遵循 `BottomNavigationBar` 默认排版。
 字重为整百值，正文共享原型的 1.45 行高，不额外设置字距或 `fontVariations`。
 界面复用 shadcn 内置 Geist，代码使用 GeistMono；其余字形使用系统回退，Windows 保留 Microsoft YaHei UI / Microsoft YaHei。不新增自定义字体资源。
 

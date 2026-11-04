@@ -239,6 +239,10 @@ void main() {
       expect(material.appBarTheme.scrolledUnderElevation, isNull);
       expect(material.navigationBarTheme, const NavigationBarThemeData());
       expect(
+        material.bottomNavigationBarTheme,
+        const BottomNavigationBarThemeData(),
+      );
+      expect(
         material.filledButtonTheme.style!.minimumSize!.resolve({}),
         Size.square(AppLayout.touchExtent(AppLayout.mobileButtonMinHeight)),
       );

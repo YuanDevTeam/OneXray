@@ -284,16 +284,19 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
           ? null
           : navigationShell.currentIndex == AppPrimaryDestination.settings.index
           ? null
-          : NavigationBar(
+          : BottomNavigationBar(
               key: const ValueKey('primary-mobile-navigation'),
-              selectedIndex: navigationShell.currentIndex,
-              onDestinationSelected: (index) =>
+              type: BottomNavigationBarType.fixed,
+              currentIndex: navigationShell.currentIndex,
+              onTap: (index) =>
                   context.goPrimary(navigationShell, destinations[index]),
-              destinations: [
+              items: [
                 for (final primary in destinations)
-                  NavigationDestination(
-                    key: ValueKey('primary-navigation-${primary.name}'),
-                    icon: Icon(_icon(primary)),
+                  BottomNavigationBarItem(
+                    icon: Icon(
+                      _icon(primary),
+                      key: ValueKey('primary-navigation-${primary.name}'),
+                    ),
                     label: _label(context, primary),
                   ),
               ],
