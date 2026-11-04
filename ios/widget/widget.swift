@@ -147,6 +147,9 @@ struct VpnControl: ControlWidget {
 private struct ConnectionWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .headline) private var statusLineHeight: CGFloat = 22
+    @ScaledMetric(relativeTo: .caption) private var brandLineHeight: CGFloat = 14
+    @ScaledMetric(relativeTo: .caption2) private var observationLineHeight: CGFloat = 12
     let entry: ConnectionWidgetEntry
 
     private let palette = ConnectionWidgetPalette()
@@ -209,22 +212,24 @@ private struct ConnectionWidgetView: View {
 
     private var smallContent: some View {
         GeometryReader { geometry in
-            let compactHeight = geometry.size.height < 124
-            VStack(alignment: .leading, spacing: 0) {
-                if !largeText && !compactHeight { brand }
-                Spacer(minLength: 3)
-                VStack(spacing: 2) {
-                    if !largeText { statusSymbol(size: geometry.size.height >= 136 ? 24 : 20) }
+            let showBrand = !largeText && geometry.size.height >= 44 + statusLineHeight + brandLineHeight + 12
+            let showObservation = !largeText && entry.snapshot != nil
+                && geometry.size.height >= 56 + statusLineHeight + brandLineHeight + observationLineHeight + 14
+            let reservedHeight = statusLineHeight + 10
+                + (showBrand ? brandLineHeight + 4 : 0)
+                + (showObservation ? observationLineHeight + 3 : 0)
+            let diameter = min(64, max(44, geometry.size.height - reservedHeight))
+
+            VStack(spacing: 0) {
+                if showBrand { brand }
+                Spacer(minLength: 4)
+                powerControl(diameter: diameter)
+                Spacer(minLength: 6)
+                VStack(spacing: 3) {
                     statusLabel(lines: 1)
-                    observation(showPrefix: !largeText)
+                    if showObservation { observation(showPrefix: false) }
                 }
                 .frame(maxWidth: .infinity)
-                Spacer(minLength: 6)
-                if #available(iOS 17.0, *) {
-                    toggleButton(compact: true, iconsOnly: compactHeight && dynamicTypeSize >= .xxLarge)
-                } else {
-                    openApp(compact: true)
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -232,30 +237,41 @@ private struct ConnectionWidgetView: View {
 
     private var mediumContent: some View {
         GeometryReader { geometry in
-            let actionWidth = largeText ? 64 : geometry.size.width * 0.44
+            let actionWidth: CGFloat = geometry.size.width < 300 ? 88 : 104
+            let diameter = min(72, max(44, geometry.size.height - (largeText ? 0 : 36)))
             HStack(spacing: 16) {
                 Link(destination: connectionURL) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
                         if !largeText { brand }
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 8) {
-                                if !largeText { statusSymbol(size: geometry.size.width < 310 ? 24 : 32) }
-                                statusLabel(lines: 1)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            observation(showPrefix: !largeText)
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(statusColor)
+                                .frame(width: 6, height: 6)
+                                .privacySensitive()
+                                .accessibilityHidden(true)
+                            statusLabel(font: .title2.weight(.semibold), lines: 2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        if !largeText && entry.snapshot != nil && geometry.size.height >= 100 {
+                            observation(showPrefix: true)
                         }
                     }
-                    .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint(text("Open app"))
-                Group {
-                    if #available(iOS 17.0, *) {
-                        toggleButton(compact: false)
-                    } else {
-                        openApp(compact: false)
+
+                VStack(spacing: 8) {
+                    powerControl(diameter: diameter)
+                    if !largeText {
+                        Text(text(powerCaptionKey))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(palette.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
+                            .accessibilityHidden(true)
                     }
                 }
                 .frame(width: actionWidth)
@@ -271,21 +287,13 @@ private struct ConnectionWidgetView: View {
             .lineLimit(1)
     }
 
-    private func statusLabel(lines: Int) -> some View {
+    private func statusLabel(font: Font = .headline, lines: Int) -> some View {
         Text(statusText)
-            .font(.headline)
-            .foregroundStyle(palette.foreground)
+            .font(font)
+            .foregroundStyle(entry.status == .connected ? palette.success : palette.foreground)
             .lineLimit(lines)
             .minimumScaleFactor(largeText ? 0.4 : 0.75)
             .privacySensitive()
-    }
-
-    private func statusSymbol(size: CGFloat) -> some View {
-        Image(systemName: statusIcon)
-            .font(.system(size: size, weight: .regular))
-            .foregroundStyle(statusColor)
-            .privacySensitive()
-            .accessibilityHidden(true)
     }
 
     private func observation(showPrefix: Bool) -> some View {
@@ -311,43 +319,34 @@ private struct ConnectionWidgetView: View {
         .privacySensitive()
     }
 
-    private func openApp(compact: Bool) -> some View {
-        Link(destination: connectionURL) {
-            actionLabel(.open, compact: compact)
-        }
-        .buttonStyle(ConnectionWidgetButtonStyle(palette: palette, action: .open, prominent: true))
-        .accessibilityLabel(text("Open app"))
-    }
-
-    @available(iOS 17.0, *)
-    private func toggleButton(compact: Bool, iconsOnly: Bool = false) -> some View {
-        // The snapshot only controls presentation. The intent queries native
-        // state, so an old label never changes the command into a stale Start/Stop.
-        Button(intent: ToggleVpnWidgetIntent()) {
-            actionLabel(
-                toggleAction, compact: compact, iconsOnly: iconsOnly,
-                labelKey: entry.status == .disconnecting ? "Disconnecting" : nil
-            )
-        }
-        .buttonStyle(ConnectionWidgetButtonStyle(palette: palette, action: toggleAction, prominent: true))
-        .accessibilityLabel(text(toggleLabelKey))
-        // Remain actionable while disconnecting; native execution returns
-        // inProgress without queuing another connection request.
-    }
-
-    private func actionLabel(
-        _ action: ConnectionWidgetAction, compact: Bool, iconsOnly: Bool = false, labelKey: String? = nil
-    ) -> some View {
-        HStack(spacing: compact ? 3 : 4) {
-            Image(systemName: action.symbol)
-                .font(.system(size: largeText || iconsOnly ? 18 : 12, weight: .semibold))
-            if !largeText && !iconsOnly {
-                Text(text(labelKey ?? (compact ? action.compactKey : action.labelKey)))
-                    .lineLimit(compact && action != .open && action != .toggle ? 1 : 2)
-                    .minimumScaleFactor(0.92)
+    @ViewBuilder private func powerControl(diameter: CGFloat) -> some View {
+        if #available(iOS 17.0, *) {
+            // Snapshot state only changes presentation. Native execution reads
+            // current status, and disconnecting never queues a new connection.
+            Button(intent: ToggleVpnWidgetIntent()) {
+                powerSymbol(diameter: diameter)
             }
+            .buttonStyle(ConnectionWidgetPowerButtonStyle(palette: palette, action: toggleAction, diameter: diameter))
+            .accessibilityLabel(text(toggleLabelKey))
+            .accessibilityValue(statusText)
+        } else {
+            Link(destination: connectionURL) { powerSymbol(diameter: diameter) }
+                .buttonStyle(ConnectionWidgetPowerButtonStyle(palette: palette, action: .open, diameter: diameter))
+                .accessibilityLabel(text("Open app"))
         }
-        .padding(.horizontal, compact ? 2 : 8)
+    }
+
+    private func powerSymbol(diameter: CGFloat) -> some View {
+        Image(systemName: "power")
+            .font(.system(size: diameter * 0.4, weight: .medium))
+            .accessibilityHidden(true)
+    }
+
+    private var powerCaptionKey: String {
+        if #available(iOS 17.0, *) {
+            return entry.status == .disconnecting ? "Disconnecting" : toggleAction.compactKey
+        }
+        return "Open app"
     }
 
     private var statusText: String {
@@ -384,15 +383,6 @@ private struct ConnectionWidgetView: View {
 private enum ConnectionWidgetAction {
     case start, stop, toggle, open
 
-    var symbol: String {
-        switch self {
-        case .start: "play.fill"
-        case .stop: "stop.fill"
-        case .toggle: "power"
-        case .open: "arrow.up.forward"
-        }
-    }
-
     var labelKey: String {
         switch self {
         case .start: "Start VPN"
@@ -412,34 +402,39 @@ private enum ConnectionWidgetAction {
     }
 }
 
-private struct ConnectionWidgetButtonStyle: ButtonStyle {
+private struct ConnectionWidgetPowerButtonStyle: ButtonStyle {
     let palette: ConnectionWidgetPalette
     let action: ConnectionWidgetAction
-    let prominent: Bool
+    let diameter: CGFloat
 
     private var foreground: Color {
-        prominent ? .white : (action == .stop ? palette.destructive : palette.primaryText)
+        switch action {
+        case .stop: palette.destructive
+        case .toggle: palette.secondary
+        case .start, .open: palette.primaryText
+        }
     }
 
-    private var fill: Color {
-        if prominent { return action == .stop ? palette.destructiveSolid : palette.primarySolid }
-        return action == .stop ? .clear : palette.accent
+    private var tint: Color {
+        switch action {
+        case .stop: palette.destructiveSolid
+        case .toggle: palette.secondary
+        case .start, .open: palette.primarySolid
+        }
     }
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.caption.weight(.semibold))
             .foregroundStyle(foreground)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(width: diameter, height: diameter)
             .background {
-                RoundedRectangle(cornerRadius: 8).fill(fill).widgetAccentable()
+                Circle().fill(tint.opacity(0.12)).widgetAccentable()
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(prominent ? .clear : palette.border, lineWidth: 1)
+                Circle().strokeBorder(tint.opacity(0.35), lineWidth: 1)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 8))
-            .opacity(configuration.isPressed ? 0.75 : 1)
+            .contentShape(Circle())
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
