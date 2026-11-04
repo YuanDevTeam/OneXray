@@ -13,6 +13,111 @@ import 'package:re_editor/re_editor.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 void main() {
+  testWidgets(
+    'landscape keyboard reveals the rendered caret without page assistance',
+    (tester) async {
+      final source = const JsonEncoder.withIndent('  ').convert({
+        'values': [for (var i = 0; i < 40; i++) 'Item $i'],
+      });
+      final controller = CodeLineEditingController.fromText(source);
+      addTearDown(controller.dispose);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1160, 720);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.material(Brightness.light),
+          localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          builder: (_, child) =>
+              ShadTheme(data: AppTheme.shad(Brightness.light), child: child!),
+          home: Scaffold(
+            appBar: AppBar(title: const Text('JSON')),
+            body: JsonEditorWorkspace(
+              header: const Text('Configuration JSON'),
+              editor: OutboundJsonEditor(controller: controller, expand: true),
+              footer: const Text('Stored locally'),
+            ),
+            bottomNavigationBar: PageActionBar(
+              children: [
+                FilledButton(onPressed: () {}, child: const Text('Save')),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final focus = tester
+          .widget<CodeEditor>(find.byType(CodeEditor))
+          .focusNode!;
+      controller.selection = const CodeLineSelection.collapsed(
+        index: 0,
+        offset: 0,
+      );
+      focus.requestFocus();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      tester.view.physicalSize = const Size(844, 390);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 200);
+      // Wait through both geometry frames and the production reveal animation.
+      // Deliberately do not ensureVisible or move any outer scroll position.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
+      final outer = find.byKey(const ValueKey('json-editor-workspace-scroll'));
+      expect(outer, findsOneWidget);
+      final viewport = tester.getRect(outer);
+      final outerScroll = tester.state<ScrollableState>(
+        find.descendant(of: outer, matching: find.byType(Scrollable)).first,
+      );
+      void expectCaretVisible() {
+        final numbers = tester.widget<DefaultCodeLineNumber>(
+          find.byType(DefaultCodeLineNumber),
+        );
+        final paragraph = numbers.notifier.value!.paragraphs.singleWhere(
+          (paragraph) => paragraph.index == controller.selection.extentIndex,
+        );
+        final caret = paragraph.getOffset(
+          controller.selection.extent.textPosition,
+        )!;
+        final render = tester.renderObject<RenderBox>(
+          find.byType(DefaultCodeLineNumber),
+        );
+        final top = render
+            .localToGlobal(Offset(0, paragraph.offset.dy + caret.dy))
+            .dy;
+        expect(top, greaterThanOrEqualTo(viewport.top - .01));
+        expect(
+          top + paragraph.preferredLineHeight,
+          lessThanOrEqualTo(viewport.bottom + .01),
+        );
+        expect(focus.hasFocus, isTrue);
+      }
+
+      expect(controller.selection.extentIndex, 0);
+      expectCaretVisible();
+      final firstLineScroll = outerScroll.position.pixels;
+      controller.moveCursorToPageEnd();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pump(const Duration(milliseconds: 250));
+      await tester.pumpAndSettle();
+      expect(controller.selection.extentIndex, controller.codeLines.length - 1);
+      expectCaretVisible();
+      expect(outerScroll.position.pixels, greaterThan(firstLineScroll));
+      expect(controller.text, source);
+      expect(
+        find.widgetWithText(FilledButton, 'Save').hitTestable(),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
   testWidgets('expanded workspace fills the body and bounds keyboard chrome', (
     tester,
   ) async {
