@@ -35,7 +35,7 @@
 
 **请自备服务器或订阅。** OneXray 不提供 VPN 服务或代理服务器。
 
-[![Mac、iPad 与 iPhone 上的 OneXray](./images/devices-zh.png)](./images/devices-zh.png)
+[![Mac、iPad 与 iPhone 上的 OneXray](https://onexray.com/images/screenshots/devices-zh.png)](https://onexray.com/images/screenshots/devices-zh.png)
 
 ## 为什么选择 OneXray
 
