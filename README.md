@@ -35,7 +35,7 @@
 
 **Bring your own servers or subscription.** OneXray does not provide VPN access or proxy servers.
 
-[![OneXray running on Mac, iPad and iPhone](./readme/images/devices-en.png)](./readme/images/devices-en.png)
+[![OneXray running on Mac, iPad and iPhone](https://onexray.com/images/screenshots/devices-en.png)](https://onexray.com/images/screenshots/devices-en.png)
 
 ## Why OneXray
 
