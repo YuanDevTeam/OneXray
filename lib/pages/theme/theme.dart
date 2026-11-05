@@ -54,6 +54,20 @@ abstract final class AppTheme {
     );
   }
 
+  static ChipThemeData choiceChips(BuildContext context) {
+    final palette = ColorManager.palette(context);
+    return ChipTheme.of(context).copyWith(
+      backgroundColor: palette.muted,
+      selectedColor: palette.primarySolid,
+      secondarySelectedColor: palette.primarySolid,
+      labelStyle: AppTypography.control.copyWith(color: palette.foreground),
+      secondaryLabelStyle: AppTypography.control.copyWith(
+        color: palette.primaryForeground,
+      ),
+      side: BorderSide.none,
+    );
+  }
+
   static ThemeData pageActions(BuildContext context) {
     final theme = Theme.of(context);
     final style = ButtonStyle(

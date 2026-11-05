@@ -7,6 +7,8 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -302,6 +304,11 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                           style: AppTypography.dialogTitle,
                         ),
                       ),
+                      if (tab == 2)
+                        PageHelpButton(
+                          title: l.serverCompleteConfigurationsTab,
+                          messages: [l.completeConfigurationDefinition],
+                        ),
                       IconButton(
                         tooltip: l.prototypeClose,
                         onPressed: () => Navigator.of(context).pop(),
@@ -318,55 +325,52 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: LayoutBuilder(
-                            builder: (context, tabConstraints) => Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: [
-                                for (final entry in [
-                                  l.serverSelectionAutomaticScope,
-                                  l.serverSelectionFixedNode,
-                                  l.serverCompleteConfigurationsTab,
-                                ].indexed)
-                                  ChoiceChip(
-                                    label: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        minHeight: 36,
-                                        maxWidth: math.max(
-                                          1.0,
-                                          tabConstraints.maxWidth - 24,
+                            builder: (context, tabConstraints) => ChipTheme(
+                              data: AppTheme.choiceChips(context),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  for (final entry in [
+                                    l.serverSelectionAutomaticScope,
+                                    l.serverSelectionFixedNode,
+                                    l.serverCompleteConfigurationsTab,
+                                  ].indexed)
+                                    ChoiceChip(
+                                      label: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          minHeight: 36,
+                                          maxWidth: math.max(
+                                            1.0,
+                                            tabConstraints.maxWidth - 24,
+                                          ),
+                                        ),
+                                        child: Align(
+                                          widthFactor: 1,
+                                          heightFactor: 1,
+                                          child: Text(
+                                            entry.$2,
+                                            textAlign: TextAlign.center,
+                                          ),
                                         ),
                                       ),
-                                      child: Align(
-                                        widthFactor: 1,
-                                        heightFactor: 1,
-                                        child: Text(
-                                          entry.$2,
-                                          textAlign: TextAlign.center,
+                                      labelPadding: EdgeInsets.zero,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      showCheckmark: false,
+                                      shape: const RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(4),
                                         ),
                                       ),
+                                      selected: tab == entry.$1,
+                                      onSelected: (_) =>
+                                          setState(() => tab = entry.$1),
                                     ),
-                                    labelStyle: AppTypography.control.copyWith(
-                                      color: palette.foreground,
-                                    ),
-                                    labelPadding: EdgeInsets.zero,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    showCheckmark: false,
-                                    side: BorderSide.none,
-                                    backgroundColor: palette.muted,
-                                    selectedColor: palette.background,
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.all(
-                                        Radius.circular(4),
-                                      ),
-                                    ),
-                                    selected: tab == entry.$1,
-                                    onSelected: (_) =>
-                                        setState(() => tab = entry.$1),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),

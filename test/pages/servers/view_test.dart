@@ -263,12 +263,22 @@ void main() {
         tester.element(find.byType(ServerBrowser)),
       )!;
       final selection = controller.configuration.toJson();
+      final help = find.byTooltip(
+        '${l.pageHelp} · ${l.serverCompleteConfigurationsTab}',
+      );
+      expect(help, findsNothing);
       final completeTab = find.text(l.serverCompleteConfigurationsTab).first;
       await tester.ensureVisible(completeTab);
       await tester.tap(completeTab);
       await tester.pumpAndSettle();
-      expect(find.text(l.prototypeNoRawJson), findsOneWidget);
+      expect(find.text(l.serverNoCompleteConfigurations), findsOneWidget);
       expect(find.text(l.prototypeAddRawJson), findsNothing);
+      await tester.ensureVisible(help);
+      await tester.tap(help);
+      await tester.pumpAndSettle();
+      expect(find.text(l.completeConfigurationDefinition), findsOneWidget);
+      await tester.tap(find.byTooltip(l.prototypeCloseDialog));
+      await tester.pumpAndSettle();
 
       final toolbarAdd = find.widgetWithText(
         FilledButton,

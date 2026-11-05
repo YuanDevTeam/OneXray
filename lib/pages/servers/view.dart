@@ -15,6 +15,7 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/catalog.dart';
@@ -310,12 +311,17 @@ class _ServerBrowserState extends State<ServerBrowser> {
                           icon: const Icon(LucideIcons.layers, size: 17),
                           label: Text(l.prototypeManualAdditions),
                         ),
-                    ] else
+                    ] else ...[
                       FilledButton.icon(
                         onPressed: () => controller.addServers(context),
                         icon: const Icon(LucideIcons.plus, size: 17),
                         label: Text(l.prototypeAddServer),
                       ),
+                      PageHelpButton(
+                        title: l.serverCompleteConfigurationsTab,
+                        messages: [l.completeConfigurationDefinition],
+                      ),
+                    ],
                     IconButton(
                       key: const ValueKey('server-favorites-filter'),
                       tooltip: l.prototypeFavorites,
@@ -374,7 +380,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
                           filtered
                               ? l.serverNoMatchingResources
                               : complete
-                              ? l.prototypeNoRawJson
+                              ? l.serverNoCompleteConfigurations
                               : l.prototypeNoServersYet,
                           textAlign: TextAlign.center,
                         ),

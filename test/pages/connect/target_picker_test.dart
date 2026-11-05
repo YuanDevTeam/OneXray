@@ -74,6 +74,7 @@ void main() {
     Size size = const Size(960, 1100),
     EdgeInsets viewInsets = EdgeInsets.zero,
     double textScale = 1,
+    Brightness brightness = Brightness.light,
     ServerCatalog? catalogOverride,
   }) async {
     await tester.binding.setSurfaceSize(size);
@@ -82,7 +83,7 @@ void main() {
     completions = 0;
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.light,
+        theme: AppTheme.material(brightness),
         locale: const Locale('en'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: AppLocalePolicy.localizationsDelegates,
@@ -92,10 +93,7 @@ void main() {
             viewInsets: viewInsets,
             textScaler: TextScaler.linear(textScale),
           ),
-          child: ShadTheme(
-            data: AppTheme.shad(Brightness.light),
-            child: child!,
-          ),
+          child: ShadTheme(data: AppTheme.shad(brightness), child: child!),
         ),
         home: Builder(
           builder: (context) => Scaffold(
@@ -240,8 +238,13 @@ void main() {
       for (final chip in tester.widgetList<ChoiceChip>(
         find.byType(ChoiceChip),
       )) {
-        expect(chip.labelStyle!.fontSize, 14);
-        expect(chip.labelStyle!.fontWeight, FontWeight.w600);
+        final label = find.descendant(
+          of: find.byWidget(chip),
+          matching: find.byType(Text),
+        );
+        final style = DefaultTextStyle.of(tester.element(label)).style;
+        expect(style.fontSize, 14);
+        expect(style.fontWeight, FontWeight.w600);
       }
       final firstTab = find.widgetWithText(
         ChoiceChip,
@@ -255,6 +258,62 @@ void main() {
       expect(completions, 1);
       expect(tester.takeException(), isNull);
     });
+  }
+
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'target categories keep a distinct selected state: $brightness',
+      (tester) async {
+        final settings = ConnectionSettings();
+        final before = settings.toJson();
+        await open(tester, settings, brightness: brightness);
+        final labels = [
+          l.serverSelectionAutomaticScope,
+          l.serverSelectionFixedNode,
+          l.serverCompleteConfigurationsTab,
+        ];
+        final palette = ColorManager.palette(
+          tester.element(find.byType(ConnectionTargetPicker)),
+        );
+        for (final selected in labels) {
+          await tab(tester, selected);
+          for (final label in labels) {
+            final chip = find.widgetWithText(ChoiceChip, label);
+            final text = find.descendant(of: chip, matching: find.text(label));
+            final style = DefaultTextStyle.of(tester.element(text)).style;
+            final surface = tester.widget<Ink>(
+              find.ancestor(of: text, matching: find.byType(Ink)).first,
+            );
+            final fill = (surface.decoration! as ShapeDecoration).color!;
+            final active = label == selected;
+            expect(tester.widget<ChoiceChip>(chip).selected, active);
+            expect(fill, active ? palette.primarySolid : palette.muted);
+            expect(
+              style.color,
+              active ? palette.primaryForeground : palette.foreground,
+            );
+            if (active) {
+              final a = fill.computeLuminance();
+              final b = style.color!.computeLuminance();
+              expect((b + .05) / (a + .05), greaterThanOrEqualTo(4.5));
+            }
+          }
+          expect(choice, isNull);
+          expect(completions, 0);
+          expect(settings.toJson(), before);
+        }
+        await tester.tap(
+          find.byTooltip(
+            '${l.pageHelp} · ${l.serverCompleteConfigurationsTab}',
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text(l.completeConfigurationDefinition), findsOneWidget);
+        expect(settings.toJson(), before);
+        expect(completions, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   testWidgets(

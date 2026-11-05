@@ -816,10 +816,6 @@
   "@prototypeOrdinaryConnectionRunning": {
     "description": "Approved prototype copy: The ordinary connection is still running. Select a configuration to switch."
   },
-  "prototypeNoRawJson": "No Raw JSON configurations yet",
-  "@prototypeNoRawJson": {
-    "description": "Approved prototype copy: No Raw JSON configurations yet"
-  },
   "prototypeAddRawJsonHint": "Add a complete Xray configuration, then select it here to connect.",
   "@prototypeAddRawJsonHint": {
     "description": "Approved prototype copy: Add a complete Xray configuration, then select it here to connect."
@@ -3119,6 +3115,8 @@
   "navigationRouting": "Routing",
   "serverNodesTab": "Nodes",
   "serverCompleteConfigurationsTab": "Configurations",
+  "serverNoCompleteConfigurations": "No configurations yet",
+  "completeConfigurationDefinition": "Runs the entire Xray JSON configuration without applying routing preferences for ordinary nodes.\n\nIncludes personal Raw JSON and provider configurations delivered by subscriptions. Personal Raw JSON is editable. Provider configurations are read-only and update with the subscription; copy one to personal Raw JSON to edit it.",
   "serverAllSources": "All sources",
   "connectionPlan": "Connection plan",
   "serverSelectionAutomaticScope": "Automatic scope",
