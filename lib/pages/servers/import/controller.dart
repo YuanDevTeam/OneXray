@@ -9,6 +9,7 @@ import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
+import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/servers/import/page.dart';
 import 'package:onexray/pages/servers/subscription/format_confirmation.dart';
 import 'package:onexray/service/servers/import.dart';
@@ -20,7 +21,7 @@ import 'package:onexray/service/servers/subscription/validator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:re_editor/re_editor.dart';
 
-enum ServerImportAction { scan, paste, subscription, file, json }
+enum ServerImportAction { scan, paste, subscription, file, json, raw }
 
 enum SubscriptionFormField { name, url, userAgent }
 
@@ -306,6 +307,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
 
   bool canSubmit(ServerImportAction action) {
     if (state.busy || state.generatingAgeKey || state.loadFailed) return false;
+    if (action == ServerImportAction.raw) return false;
     if (action == ServerImportAction.subscription) {
       return _subscriptionValidation == null;
     }
@@ -452,7 +454,12 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       state.copyWith(error: null, committedResult: null, activeAction: action),
     );
     ServerImportResult? result;
-    if (action == ServerImportAction.file ||
+    if (action == ServerImportAction.raw) {
+      final id = await context.pushScoped<int>(AppPageDestination.rawEditor);
+      if (id != null) {
+        result = const ServerImportResult(count: 0, rawCount: 1);
+      }
+    } else if (action == ServerImportAction.file ||
         action == ServerImportAction.scan) {
       String? input;
       emit(state.copyWith(busy: true, openingAction: action));

@@ -312,9 +312,9 @@ class _ServerBrowserState extends State<ServerBrowser> {
                         ),
                     ] else
                       FilledButton.icon(
-                        onPressed: () => controller.editRaw(context),
+                        onPressed: () => controller.addServers(context),
                         icon: const Icon(LucideIcons.plus, size: 17),
-                        label: Text(l.prototypeAddRawJson),
+                        label: Text(l.prototypeAddServer),
                       ),
                     IconButton(
                       key: const ValueKey('server-favorites-filter'),
@@ -394,14 +394,8 @@ class _ServerBrowserState extends State<ServerBrowser> {
                           )
                         else
                           TextButton(
-                            onPressed: () => complete
-                                ? controller.editRaw(context)
-                                : controller.addServers(context),
-                            child: Text(
-                              complete
-                                  ? l.prototypeAddRawJson
-                                  : l.prototypeAddServer,
-                            ),
+                            onPressed: () => controller.addServers(context),
+                            child: Text(l.prototypeAddServer),
                           ),
                       ],
                     ),

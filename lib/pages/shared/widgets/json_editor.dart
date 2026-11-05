@@ -272,97 +272,110 @@ class _AppJsonEditorState extends State<AppJsonEditor>
     return MaterialUiCompatibilityBridge(
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: CodeEditor(
-          controller: widget.controller,
-          onChanged: (_) {
-            if (_focus.hasFocus) _revealEditor();
-          },
-          focusNode: _focus,
-          scrollController: _scroll,
-          toolbarController: _toolbar,
-          shortcutOverrideActions: state.completions.isEmpty
-              ? null
-              : {
-                  CodeShortcutCursorMoveIntent:
-                      CallbackAction<CodeShortcutCursorMoveIntent>(
-                        onInvoke: (intent) {
-                          if (intent.direction == AxisDirection.up) {
-                            _cubit.selectCompletion(-1);
-                          } else if (intent.direction == AxisDirection.down) {
-                            _cubit.selectCompletion(1);
-                          } else {
-                            widget.controller.moveCursor(intent.direction);
-                          }
-                          return null;
-                        },
-                      ),
-                  CodeShortcutNewLineIntent:
-                      CallbackAction<CodeShortcutNewLineIntent>(
-                        onInvoke: (_) {
-                          _applyCompletion();
-                          return null;
-                        },
-                      ),
-                  CodeShortcutIndentIntent:
-                      CallbackAction<CodeShortcutIndentIntent>(
-                        onInvoke: (_) {
-                          _applyCompletion();
-                          return null;
-                        },
-                      ),
-                  CodeShortcutEscIntent: CallbackAction<CodeShortcutEscIntent>(
-                    onInvoke: (_) {
-                      _cubit.dismissCompletions();
-                      return null;
+        // re_editor paints its border behind the gutter and code viewport.
+        // Keep our frame above that content and clip the whole editor, including
+        // scrollbars, to the same rounded outline.
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            border: Border.all(color: palette.input),
+            borderRadius: BorderRadius.circular(AppRadii.control),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            child: CodeEditor(
+              controller: widget.controller,
+              onChanged: (_) {
+                if (_focus.hasFocus) _revealEditor();
+              },
+              focusNode: _focus,
+              scrollController: _scroll,
+              toolbarController: _toolbar,
+              shortcutOverrideActions: state.completions.isEmpty
+                  ? null
+                  : {
+                      CodeShortcutCursorMoveIntent:
+                          CallbackAction<CodeShortcutCursorMoveIntent>(
+                            onInvoke: (intent) {
+                              if (intent.direction == AxisDirection.up) {
+                                _cubit.selectCompletion(-1);
+                              } else if (intent.direction ==
+                                  AxisDirection.down) {
+                                _cubit.selectCompletion(1);
+                              } else {
+                                widget.controller.moveCursor(intent.direction);
+                              }
+                              return null;
+                            },
+                          ),
+                      CodeShortcutNewLineIntent:
+                          CallbackAction<CodeShortcutNewLineIntent>(
+                            onInvoke: (_) {
+                              _applyCompletion();
+                              return null;
+                            },
+                          ),
+                      CodeShortcutIndentIntent:
+                          CallbackAction<CodeShortcutIndentIntent>(
+                            onInvoke: (_) {
+                              _applyCompletion();
+                              return null;
+                            },
+                          ),
+                      CodeShortcutEscIntent:
+                          CallbackAction<CodeShortcutEscIntent>(
+                            onInvoke: (_) {
+                              _cubit.dismissCompletions();
+                              return null;
+                            },
+                          ),
                     },
-                  ),
-                },
-          autofocus: false,
-          autocompleteSymbols: true,
-          wordWrap: false,
-          padding: EdgeInsets.symmetric(
-            horizontal: 13,
-            vertical:
-                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
-                ? 14
-                : 12,
-          ),
-          border: Border.all(color: palette.input),
-          borderRadius: BorderRadius.circular(AppRadii.control),
-          clipBehavior: Clip.antiAlias,
-          style: CodeEditorStyle(
-            fontFamily: AppFontFamily.mono,
-            fontSize: style.fontSize,
-            fontHeight: style.height,
-            textColor: palette.foreground,
-            backgroundColor: palette.card,
-            selectionColor: palette.selection,
-            cursorColor: palette.primary,
-            cursorLineColor: palette.primary.withValues(alpha: .05),
-            codeTheme: CodeHighlightTheme(
-              languages: {'json': CodeHighlightThemeMode(mode: langJson)},
-              theme: codeTheme,
-            ),
-          ),
-          indicatorBuilder: (context, editingController, _, notifier) {
-            _indicatorValue = notifier;
-            return Container(
-              key: _indicatorKey,
-              color: Color.lerp(palette.card, palette.surfaceHover, .76),
-              // Paragraph offsets already include the editor's top padding.
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: DefaultCodeLineNumber(
-                controller: editingController,
-                notifier: notifier,
-                textStyle: lineNumberStyle,
-                focusedTextStyle: lineNumberStyle.copyWith(
-                  color: palette.primary,
-                  fontWeight: FontWeight.w600,
+              autofocus: false,
+              autocompleteSymbols: true,
+              wordWrap: false,
+              padding: EdgeInsets.symmetric(
+                horizontal: 13,
+                vertical:
+                    MediaQuery.sizeOf(context).width <=
+                        AppLayout.mobileBreakpoint
+                    ? 14
+                    : 12,
+              ),
+              style: CodeEditorStyle(
+                fontFamily: AppFontFamily.mono,
+                fontSize: style.fontSize,
+                fontHeight: style.height,
+                textColor: palette.foreground,
+                backgroundColor: palette.card,
+                selectionColor: palette.selection,
+                cursorColor: palette.primary,
+                cursorLineColor: palette.primary.withValues(alpha: .05),
+                codeTheme: CodeHighlightTheme(
+                  languages: {'json': CodeHighlightThemeMode(mode: langJson)},
+                  theme: codeTheme,
                 ),
               ),
-            );
-          },
-          leadingDivider: Container(width: 1, color: palette.border),
+              indicatorBuilder: (context, editingController, _, notifier) {
+                _indicatorValue = notifier;
+                return Container(
+                  key: _indicatorKey,
+                  color: Color.lerp(palette.card, palette.surfaceHover, .76),
+                  // Paragraph offsets already include the editor's top padding.
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: DefaultCodeLineNumber(
+                    controller: editingController,
+                    notifier: notifier,
+                    textStyle: lineNumberStyle,
+                    focusedTextStyle: lineNumberStyle.copyWith(
+                      color: palette.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              },
+              leadingDivider: Container(width: 1, color: palette.border),
+            ),
+          ),
         ),
       ),
     );

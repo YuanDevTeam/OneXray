@@ -113,6 +113,14 @@ class _ServersImportPageState extends State<ServersImportPage> {
                         ServerImportAction.json,
                         LucideIcons.fileJson,
                         l10n.prototypeAddManually,
+                        subtitle: l10n.prototypeXrayNodeJson,
+                      ),
+                      _choice(
+                        context,
+                        ServerImportAction.raw,
+                        LucideIcons.fileJson,
+                        l10n.prototypeAddRawJson,
+                        subtitle: l10n.prototypeCompleteXrayConfiguration,
                       ),
                     ],
                   ),
@@ -130,10 +138,12 @@ class _ServersImportPageState extends State<ServersImportPage> {
     BuildContext context,
     ServerImportAction action,
     IconData icon,
-    String title,
-  ) => SettingRow(
+    String title, {
+    String? subtitle,
+  }) => SettingRow(
     key: ValueKey('server-import-choice-${action.name}'),
     title: title,
+    subtitle: subtitle,
     enabled: !controller.state.busy,
     showChevron: true,
     onTap: () => controller.open(context, action),

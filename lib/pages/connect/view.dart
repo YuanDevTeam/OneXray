@@ -37,7 +37,6 @@ class ConnectView extends StatelessWidget {
     required this.onServer,
     required this.onMethod,
     required this.onWhy,
-    required this.onRawAdd,
   });
   final ConnectionView view;
   final Widget Function(bool desktop)? trafficBuilder;
@@ -53,12 +52,7 @@ class ConnectView extends StatelessWidget {
   final String? locationDetail, locationHealth, methodDetail;
   final String method;
   final bool methodEnabled;
-  final VoidCallback onConnection,
-      onAddServers,
-      onServer,
-      onMethod,
-      onWhy,
-      onRawAdd;
+  final VoidCallback onConnection, onAddServers, onServer, onMethod, onWhy;
 
   bool get _connectionPending => pendingChange == 'connection';
   bool get _busy => view.busy || _connectionPending;
@@ -143,8 +137,6 @@ class ConnectView extends StatelessWidget {
           description: l.prototypeFirstConnectionHint,
           primaryLabel: l.prototypeAddServers,
           onPrimary: onAddServers,
-          secondaryLabel: l.prototypeUseCompleteRawJson,
-          onSecondary: onRawAdd,
         ),
       );
     }

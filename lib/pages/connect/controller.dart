@@ -555,8 +555,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
 
   Future<void> addServers(BuildContext context) =>
       context.pushScoped(AppPageDestination.serversImport);
-  Future<void> editRaw(BuildContext context, [int? id]) =>
-      context.pushScoped(AppPageDestination.rawEditor, extra: id);
   Future<void> chooseServer(BuildContext context) async {
     if (connectionView.busy || pendingChange != null) return;
     final l = AppLocalizations.of(context)!;

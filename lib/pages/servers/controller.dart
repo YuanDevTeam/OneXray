@@ -365,7 +365,7 @@ class ServersController extends PageCubit<ServersPageState>
     );
   }
 
-  Future<void> editRaw(BuildContext context, [int? id]) =>
+  Future<void> editRaw(BuildContext context, int id) =>
       context.pushScoped(AppPageDestination.rawEditor, extra: id);
 
   Future<void> chooseRaw(BuildContext context, CoreConfigData row) async {

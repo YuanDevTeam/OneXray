@@ -65,6 +65,7 @@ void main() {
         ServerImportAction.subscription,
         ServerImportAction.file,
         ServerImportAction.json,
+        ServerImportAction.raw,
       ]) {
         final choice = find.byKey(
           ValueKey('server-import-choice-${action.name}'),
@@ -75,7 +76,7 @@ void main() {
       }
       expect(
         find.byType(SettingRow),
-        findsNWidgets(controller.supportsScan ? 5 : 4),
+        findsNWidgets(controller.supportsScan ? 6 : 5),
       );
       expect(tester.takeException(), isNull);
     },
@@ -902,7 +903,8 @@ void main() {
           .controller,
       same(controller),
     );
-    await tester.tap(find.byTooltip('Close dialog'));
+    expect(find.byTooltip('Close dialog'), findsNothing);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
     await tester.pumpAndSettle();
     expect(completed, isTrue);
     expect(result, isNull);

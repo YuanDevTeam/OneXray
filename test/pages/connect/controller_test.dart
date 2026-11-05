@@ -1447,7 +1447,6 @@ Widget _connectionScreen(ConnectController controller) => ShadTheme(
           onServer: () {},
           onMethod: () {},
           onWhy: () {},
-          onRawAdd: () {},
         ),
       ),
     ),

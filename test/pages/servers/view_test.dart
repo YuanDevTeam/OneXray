@@ -256,6 +256,40 @@ void main() {
   }
 
   testWidgets(
+    'complete configuration toolbar and empty state use the shared add-server action',
+    (tester) async {
+      await pumpBrowser(tester, 390);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerBrowser)),
+      )!;
+      final selection = controller.configuration.toJson();
+      final completeTab = find.text(l.serverCompleteConfigurationsTab).first;
+      await tester.ensureVisible(completeTab);
+      await tester.tap(completeTab);
+      await tester.pumpAndSettle();
+      expect(find.text(l.prototypeNoRawJson), findsOneWidget);
+      expect(find.text(l.prototypeAddRawJson), findsNothing);
+
+      final toolbarAdd = find.widgetWithText(
+        FilledButton,
+        l.prototypeAddServer,
+      );
+      await tester.ensureVisible(toolbarAdd);
+      await tester.tap(toolbarAdd);
+      expect(controller.addOpened, isTrue);
+      controller.addOpened = false;
+
+      final emptyAdd = find.widgetWithText(TextButton, l.prototypeAddServer);
+      await tester.ensureVisible(emptyAdd);
+      await tester.tap(emptyAdd);
+      expect(controller.addOpened, isTrue);
+      expect(controller.configuration.toJson(), selection);
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'sorting changes display order without selecting or testing nodes',
     (tester) async {
       controller.servers = [

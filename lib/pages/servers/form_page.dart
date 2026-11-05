@@ -1,7 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
@@ -65,14 +63,6 @@ class ServerFormPage extends StatelessWidget {
         appBar: PageAppBar(
           title: Text(title),
           leading: BackButton(onPressed: onBack ?? onClose),
-          actions: [
-            if (onBack != null && onClose != null)
-              IconButton(
-                tooltip: AppLocalizations.of(context)!.prototypeCloseDialog,
-                onPressed: onClose,
-                icon: const Icon(LucideIcons.x, size: 20),
-              ),
-          ],
         ),
         body: SafeArea(
           child: expandBody

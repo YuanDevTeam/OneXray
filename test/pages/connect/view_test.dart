@@ -46,7 +46,6 @@ void main() {
     List<CoreConfigData> raws = const [],
     int? activeRawId,
     VoidCallback? onAddServers,
-    VoidCallback? onRawAdd,
     VoidCallback? onServer,
   }) => ConnectView(
     view: view,
@@ -65,7 +64,6 @@ void main() {
     onServer: onServer ?? () {},
     onMethod: onMethod ?? () {},
     onWhy: () {},
-    onRawAdd: onRawAdd ?? () {},
   );
 
   Widget app(
@@ -519,15 +517,16 @@ void main() {
     );
   }
 
-  testWidgets('empty connection offers complete configuration import', (
+  testWidgets('empty connection opens the shared add-server flow', (
     tester,
   ) async {
     var switched = false;
     await tester.pumpWidget(
-      app(screen(hasServers: false, onRawAdd: () => switched = true)),
+      app(screen(hasServers: false, onAddServers: () => switched = true)),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Use a complete Raw JSON configuration'));
+    expect(find.text('Use a complete Raw JSON configuration'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'Add servers'));
     expect(switched, isTrue);
   });
 
@@ -580,12 +579,8 @@ void main() {
         greaterThanOrEqualTo(AppLayout.emptyStateDesktopMinHeight),
       );
       final add = find.widgetWithText(FilledButton, l.prototypeAddServers);
-      final complete = find.widgetWithText(
-        TextButton,
-        l.prototypeUseCompleteRawJson,
-      );
       expect(add.hitTestable(), findsOneWidget);
-      expect(complete.hitTestable(), findsOneWidget);
+      expect(find.text(l.prototypeUseCompleteRawJson), findsNothing);
       if (BackupService.supported) {
         expect(
           find
@@ -604,32 +599,26 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       for (final size in [const Size(760, 240), const Size(390, 600)]) {
         var added = false;
-        var switched = false;
         await tester.binding.setSurfaceSize(size);
         await tester.pumpWidget(
           app(
-            screen(
-              hasServers: false,
-              onAddServers: () => added = true,
-              onRawAdd: () => switched = true,
-            ),
+            screen(hasServers: false, onAddServers: () => added = true),
             scale: 1.5,
           ),
         );
         await tester.pumpAndSettle();
         for (final action in [
           find.widgetWithText(FilledButton, 'Add servers'),
-          find.widgetWithText(
-            TextButton,
-            'Use a complete Raw JSON configuration',
-          ),
         ]) {
           await tester.ensureVisible(action);
           await tester.pumpAndSettle();
           await tester.tap(action);
         }
         expect(added, isTrue);
-        expect(switched, isTrue);
+        expect(
+          find.text('Use a complete Raw JSON configuration'),
+          findsNothing,
+        );
         expect(tester.takeException(), isNull);
       }
     },
