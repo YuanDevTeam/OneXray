@@ -258,11 +258,29 @@ void main() {
           await tester.pumpAndSettle();
           expect(position.pixels, 320);
           final previousHeight = tester.getSize(editor).height;
+          final previousWorkspaceHeight = tester.getSize(workspace).height;
+          final previousHeaderHeight = tester.getSize(header).height;
+          final previousFooterRect = tester.getRect(footer);
           tester.view.physicalSize = Size(size.width, size.height + 200);
           await tester.pumpAndSettle();
+          // Wrapped tools (including Linux's Copy link) can expand their capped
+          // footer as the viewport grows. The editor fills the space left over.
+          final headerGrowth =
+              tester.getSize(header).height - previousHeaderHeight;
+          final footerGrowth =
+              tester.getSize(footer).height - previousFooterRect.height;
+          expect(
+            tester.getSize(workspace).height,
+            closeTo(previousWorkspaceHeight + 200, .01),
+          );
           expect(
             tester.getSize(editor).height,
-            closeTo(previousHeight + 200, .01),
+            closeTo(previousHeight + 200 - headerGrowth - footerGrowth, .01),
+          );
+          expect(tester.getRect(editor), tester.getRect(slot));
+          expect(
+            tester.getRect(footer).bottom,
+            closeTo(previousFooterRect.bottom + 200, .01),
           );
           expect(fixture.controller.name.text, 'Workspace draft');
           expect(fixture.controller.text.text, source);
