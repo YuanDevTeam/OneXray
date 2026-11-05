@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -81,7 +82,9 @@ class OutboundInterfaceView extends StatelessWidget {
       final palette = ColorManager.palette(context);
       final width = MediaQuery.sizeOf(context).width;
       final mobile = width <= AppLayout.mobileBreakpoint;
-      final gutter = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
+      final gutter = mobile
+          ? AppSpacing.mobilePage
+          : AppSpacing.advancedDesktopGutter(width);
       final selected = controller.value['xrayOutboundInterfaceName'] as String;
       return PolicyDetailScaffold(
         title: l.prototypeXrayOutboundInterface,
@@ -90,24 +93,12 @@ class OutboundInterfaceView extends StatelessWidget {
             !controller.loading && !controller.failed && selected.isNotEmpty,
         contentPadding: EdgeInsets.zero,
         body: Padding(
-          padding: EdgeInsets.fromLTRB(
-            gutter,
-            mobile ? 12 : 48,
-            gutter,
-            mobile ? 18 : 24,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          padding: EdgeInsets.fromLTRB(gutter, 20, gutter, mobile ? 18 : 24),
+          child: SettingSection(
+            title: l.prototypeChooseInterface,
+            description: l.prototypeInterfaceSelectionNotice,
+            padding: EdgeInsets.zero,
             children: [
-              Text(
-                l.prototypeChooseInterface,
-                style: AppTypography.platformDetailTitle,
-              ),
-              Text(
-                l.prototypeInterfaceSelectionNotice,
-                style: AppTypography.platformDetailBody,
-              ),
-              SizedBox(height: mobile ? 12 : 14),
               if (controller.loading)
                 const Center(child: CircularProgressIndicator())
               else if (controller.failed || controller.interfaces.isEmpty)
@@ -131,11 +122,8 @@ class OutboundInterfaceView extends StatelessWidget {
                     }
                   },
                   items: [
-                    Container(
+                    SizedBox(
                       width: double.infinity,
-                      decoration: BoxDecoration(
-                        border: Border(top: BorderSide(color: palette.border)),
-                      ),
                       child: Column(
                         children: [
                           for (final value in controller.interfaces)
@@ -210,10 +198,7 @@ class _InterfaceRow extends StatelessWidget {
             onTap: enabled ? onTap : null,
             child: Container(
               constraints: const BoxConstraints(minHeight: 68),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: palette.border)),
-              ),
+              padding: const EdgeInsets.all(12),
               child: Row(
                 children: [
                   Padding(

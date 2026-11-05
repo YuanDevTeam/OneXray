@@ -27,7 +27,6 @@ void main() {
     WidgetTester tester, {
     required double width,
     double windowWidth = 1440,
-    CustomRoutingRuleController? editor,
     Locale locale = const Locale('en'),
     double textScale = 1,
     Brightness brightness = Brightness.light,
@@ -58,9 +57,6 @@ void main() {
                       key: _rules,
                       child: SizedBox(height: 180),
                     ),
-                    editor: editor == null
-                        ? null
-                        : CustomRoutingRuleForm(controller: editor),
                     options: RoutingCard(
                       key: _options,
                       child: Column(
@@ -93,20 +89,23 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('desktop settings use two columns without reserving an editor', (
+  testWidgets('all content widths keep rules and settings in one column', (
     tester,
   ) async {
-    for (final width in [1220.0, 876.0, 743.0, 720.0]) {
+    for (final width in [1220.0, 876.0, 743.0, 720.0, 680.0]) {
       await pumpSections(tester, width: width);
       final rules = tester.getRect(find.byKey(_rules));
       final dns = tester.getRect(find.byType(RoutingDnsSettingsForm));
       final options = tester.getRect(find.byKey(_options));
       final sniffing = tester.getRect(find.byType(RoutingSniffingSettingsForm));
       expect(rules.width, width);
-      expect(dns.top, options.top);
-      expect(dns.right, lessThan(options.left));
-      expect(sniffing.left, options.left);
-      expect(sniffing.top, greaterThan(options.bottom));
+      expect(options.top, greaterThan(rules.bottom));
+      expect(dns.top, greaterThan(options.bottom));
+      expect(sniffing.top, greaterThan(dns.bottom));
+      for (final rect in [options, dns, sniffing]) {
+        expect(rect.width, width);
+        expect(rect.left, rules.left);
+      }
       expect(tester.takeException(), isNull);
     }
 
@@ -163,11 +162,47 @@ void main() {
   }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
   testWidgets(
-    'rule editing and settings adapt independently with scaled text',
+    'rule draft keeps text, focus and selection in a full-width form',
     (tester) async {
       final editor = CustomRoutingRuleController();
       addTearDown(editor.close);
-      await pumpSections(tester, width: 900, editor: editor);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1440, 1100);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      Future<void> pumpRuleForm({
+        required double width,
+        Locale locale = const Locale('en'),
+        double textScale = 1,
+        Brightness brightness = Brightness.light,
+      }) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(brightness),
+            locale: locale,
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(textScale)),
+              child: ShadTheme(data: AppTheme.shad(brightness), child: child!),
+            ),
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: Center(
+                  child: SizedBox(
+                    width: width,
+                    child: CustomRoutingRuleForm(controller: editor),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpRuleForm(width: 900);
       final ruleInput = find
           .descendant(
             of: find.byType(CustomRoutingRuleForm),
@@ -186,25 +221,14 @@ void main() {
         (743.0, Locale('fa'), 1.6, Brightness.light),
         (680.0, Locale('zh'), 2.0, Brightness.dark),
       ]) {
-        await pumpSections(
-          tester,
+        await pumpRuleForm(
           width: width,
-          windowWidth: width < 400 ? 390 : 1440,
-          editor: editor,
           locale: locale,
           textScale: scale,
           brightness: brightness,
         );
-        final rules = tester.getRect(find.byKey(_rules));
         final form = tester.getRect(find.byType(CustomRoutingRuleForm));
-        if (width >= 876) {
-          expect(form.top, rules.top);
-          expect(form.left, greaterThan(rules.right));
-          expect(form.width, rules.width);
-          expect(form.width, (width - 16) / 2);
-        } else {
-          expect(form.top, greaterThan(rules.bottom));
-        }
+        expect(form.width, width);
         expect(editor.name.text, 'Edited rule');
         expect(editor.name.selection, selection);
         expect(

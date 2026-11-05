@@ -60,6 +60,9 @@ class _AppJsonEditorState extends State<AppJsonEditor>
   final _focus = FocusNode();
   final _scroll = CodeScrollController();
   final _suggestionScroll = ScrollController();
+  final _indicatorKey = GlobalKey();
+  CodeIndicatorValueNotifier? _indicatorValue;
+  bool _revealScheduled = false;
   late JsonEditorCubit _cubit;
 
   @override
@@ -114,17 +117,86 @@ class _AppJsonEditorState extends State<AppJsonEditor>
   }
 
   void _revealEditor() {
+    if (_revealScheduled) return;
+    _revealScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_focus.hasFocus) return;
-      final scrollable = Scrollable.maybeOf(context, axis: Axis.vertical);
-      final render = context.findRenderObject();
-      if (scrollable == null || render == null) return;
-      scrollable.position.ensureVisible(
-        render,
-        alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-        duration: const Duration(milliseconds: 120),
-      );
+      if (!mounted ||
+          !_focus.hasFocus ||
+          Scrollable.maybeOf(context, axis: Axis.vertical) == null) {
+        _revealScheduled = false;
+        return;
+      }
+      // Let re_editor reveal the selection in its own viewport first. Its
+      // published paragraph geometry is refreshed by the following layout.
+      _scroll.makeVisible(widget.controller.selection.extent);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _revealScheduled = false;
+        if (!mounted || !_focus.hasFocus) return;
+        final scrollable = Scrollable.maybeOf(context, axis: Axis.vertical);
+        final viewport = scrollable?.context.findRenderObject();
+        final editor = context.findRenderObject();
+        if (scrollable != null &&
+            viewport is RenderBox &&
+            viewport.hasSize &&
+            editor is RenderBox &&
+            editor.hasSize &&
+            editor.size.height <= viewport.size.height) {
+          // Keep completions and diagnostics visible when the full editor fits.
+          unawaited(
+            scrollable.position.ensureVisible(
+              editor,
+              alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+              duration: const Duration(milliseconds: 120),
+            ),
+          );
+          return;
+        }
+        final indicator = _indicatorKey.currentContext?.findRenderObject();
+        final selection = widget.controller.selection;
+        final paragraph = _indicatorValue?.value?.paragraphs
+            .where((paragraph) => paragraph.index == selection.extentIndex)
+            .firstOrNull;
+        final caret = paragraph?.getOffset(selection.extent.textPosition);
+        if (scrollable == null ||
+            viewport is! RenderBox ||
+            indicator is! RenderBox ||
+            !viewport.hasSize ||
+            !indicator.hasSize ||
+            paragraph == null ||
+            caret == null) {
+          return;
+        }
+        // Indicator paragraphs share the code field's vertical origin and
+        // already include its padding and internal scroll offset. Use the
+        // rendered caret line, rather than the whole editor's minimum height.
+        final caretTop = indicator
+            .localToGlobal(Offset(0, paragraph.offset.dy + caret.dy))
+            .dy;
+        final caretBottom = caretTop + paragraph.preferredLineHeight;
+        final viewportTop = viewport.localToGlobal(Offset.zero).dy;
+        final viewportBottom = viewportTop + viewport.size.height;
+        final delta = caretTop < viewportTop
+            ? caretTop - viewportTop
+            : caretBottom > viewportBottom
+            ? caretBottom - viewportBottom
+            : 0.0;
+        final position = scrollable.position;
+        final target = (position.pixels + delta)
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble();
+        if (target != position.pixels) {
+          unawaited(
+            position.animateTo(
+              target,
+              duration: const Duration(milliseconds: 120),
+              curve: Curves.ease,
+            ),
+          );
+        }
+      });
+      WidgetsBinding.instance.ensureVisualUpdate();
     });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   @override
@@ -178,7 +250,7 @@ class _AppJsonEditorState extends State<AppJsonEditor>
 
   Widget _buildEditor(BuildContext context, JsonEditorState state) {
     final palette = ColorManager.palette(context);
-    final style = widget.textStyle ?? AppTypography.code;
+    final style = widget.textStyle ?? AppTypography.jsonEditor;
     final codeTheme = Map<String, TextStyle>.from(
       Theme.of(context).brightness == Brightness.dark
           ? atomOneDarkTheme
@@ -200,84 +272,110 @@ class _AppJsonEditorState extends State<AppJsonEditor>
     return MaterialUiCompatibilityBridge(
       child: Directionality(
         textDirection: TextDirection.ltr,
-        child: CodeEditor(
-          controller: widget.controller,
-          focusNode: _focus,
-          scrollController: _scroll,
-          toolbarController: _toolbar,
-          shortcutOverrideActions: state.completions.isEmpty
-              ? null
-              : {
-                  CodeShortcutCursorMoveIntent:
-                      CallbackAction<CodeShortcutCursorMoveIntent>(
-                        onInvoke: (intent) {
-                          if (intent.direction == AxisDirection.up) {
-                            _cubit.selectCompletion(-1);
-                          } else if (intent.direction == AxisDirection.down) {
-                            _cubit.selectCompletion(1);
-                          } else {
-                            widget.controller.moveCursor(intent.direction);
-                          }
-                          return null;
-                        },
-                      ),
-                  CodeShortcutNewLineIntent:
-                      CallbackAction<CodeShortcutNewLineIntent>(
-                        onInvoke: (_) {
-                          _applyCompletion();
-                          return null;
-                        },
-                      ),
-                  CodeShortcutIndentIntent:
-                      CallbackAction<CodeShortcutIndentIntent>(
-                        onInvoke: (_) {
-                          _applyCompletion();
-                          return null;
-                        },
-                      ),
-                  CodeShortcutEscIntent: CallbackAction<CodeShortcutEscIntent>(
-                    onInvoke: (_) {
-                      _cubit.dismissCompletions();
-                      return null;
-                    },
-                  ),
-                },
-          autofocus: false,
-          autocompleteSymbols: true,
-          wordWrap: false,
-          padding: const EdgeInsets.all(14),
-          border: Border.all(color: palette.border),
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          clipBehavior: Clip.antiAlias,
-          style: CodeEditorStyle(
-            fontFamily: AppFontFamily.mono,
-            fontSize: style.fontSize,
-            textColor: palette.foreground,
-            backgroundColor: palette.muted,
-            selectionColor: palette.selection,
-            cursorColor: palette.primary,
-            cursorLineColor: palette.primary.withValues(alpha: .05),
-            codeTheme: CodeHighlightTheme(
-              languages: {'json': CodeHighlightThemeMode(mode: langJson)},
-              theme: codeTheme,
-            ),
+        // re_editor paints its border behind the gutter and code viewport.
+        // Keep our frame above that content and clip the whole editor, including
+        // scrollbars, to the same rounded outline.
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            border: Border.all(color: palette.input),
+            borderRadius: BorderRadius.circular(AppRadii.control),
           ),
-          indicatorBuilder: (context, editingController, _, notifier) =>
-              Container(
-                color: Color.lerp(palette.card, palette.surfaceHover, .76),
-                // Paragraph offsets already include the editor's top padding.
-                padding: const EdgeInsets.symmetric(horizontal: 5),
-                child: DefaultCodeLineNumber(
-                  controller: editingController,
-                  notifier: notifier,
-                  textStyle: lineNumberStyle,
-                  focusedTextStyle: lineNumberStyle.copyWith(
-                    color: palette.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            child: CodeEditor(
+              controller: widget.controller,
+              onChanged: (_) {
+                if (_focus.hasFocus) _revealEditor();
+              },
+              focusNode: _focus,
+              scrollController: _scroll,
+              toolbarController: _toolbar,
+              shortcutOverrideActions: state.completions.isEmpty
+                  ? null
+                  : {
+                      CodeShortcutCursorMoveIntent:
+                          CallbackAction<CodeShortcutCursorMoveIntent>(
+                            onInvoke: (intent) {
+                              if (intent.direction == AxisDirection.up) {
+                                _cubit.selectCompletion(-1);
+                              } else if (intent.direction ==
+                                  AxisDirection.down) {
+                                _cubit.selectCompletion(1);
+                              } else {
+                                widget.controller.moveCursor(intent.direction);
+                              }
+                              return null;
+                            },
+                          ),
+                      CodeShortcutNewLineIntent:
+                          CallbackAction<CodeShortcutNewLineIntent>(
+                            onInvoke: (_) {
+                              _applyCompletion();
+                              return null;
+                            },
+                          ),
+                      CodeShortcutIndentIntent:
+                          CallbackAction<CodeShortcutIndentIntent>(
+                            onInvoke: (_) {
+                              _applyCompletion();
+                              return null;
+                            },
+                          ),
+                      CodeShortcutEscIntent:
+                          CallbackAction<CodeShortcutEscIntent>(
+                            onInvoke: (_) {
+                              _cubit.dismissCompletions();
+                              return null;
+                            },
+                          ),
+                    },
+              autofocus: false,
+              autocompleteSymbols: true,
+              wordWrap: false,
+              padding: EdgeInsets.symmetric(
+                horizontal: 13,
+                vertical:
+                    MediaQuery.sizeOf(context).width <=
+                        AppLayout.mobileBreakpoint
+                    ? 14
+                    : 12,
+              ),
+              style: CodeEditorStyle(
+                fontFamily: AppFontFamily.mono,
+                fontSize: style.fontSize,
+                fontHeight: style.height,
+                textColor: palette.foreground,
+                backgroundColor: palette.card,
+                selectionColor: palette.selection,
+                cursorColor: palette.primary,
+                cursorLineColor: palette.primary.withValues(alpha: .05),
+                codeTheme: CodeHighlightTheme(
+                  languages: {'json': CodeHighlightThemeMode(mode: langJson)},
+                  theme: codeTheme,
                 ),
               ),
-          leadingDivider: Container(width: 1, color: palette.border),
+              indicatorBuilder: (context, editingController, _, notifier) {
+                _indicatorValue = notifier;
+                return Container(
+                  key: _indicatorKey,
+                  color: Color.lerp(palette.card, palette.surfaceHover, .76),
+                  // Paragraph offsets already include the editor's top padding.
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  child: DefaultCodeLineNumber(
+                    controller: editingController,
+                    notifier: notifier,
+                    textStyle: lineNumberStyle,
+                    focusedTextStyle: lineNumberStyle.copyWith(
+                      color: palette.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              },
+              leadingDivider: Container(width: 1, color: palette.border),
+            ),
+          ),
         ),
       ),
     );

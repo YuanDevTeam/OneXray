@@ -7,7 +7,9 @@ import 'package:onexray/service/settings/app_update/service.dart';
 enum AppPrimaryDestination {
   connect(AppPageDestination.connect),
   servers(AppPageDestination.servers),
-  advanced(AppPageDestination.advanced),
+  routing(AppPageDestination.routing),
+  tunnel(AppPageDestination.tunnel),
+  xray(AppPageDestination.xray),
   settings(AppPageDestination.settings);
 
   final AppPageDestination page;
@@ -33,9 +35,17 @@ enum AppPageDestination {
   connect("connect"),
   servers("servers"),
   advanced("advanced"),
+  routing("routing"),
+  tunnel("tunnel"),
+  xray("xray"),
   settings("settings"),
   serversImport("servers-import"),
   serverGroup("server-group"),
+  serverResource("server-resource"),
+  sourceDetails("source-details"),
+  serverManualGroups("server-manual-groups"),
+  xrayDiagnostics("xray-diagnostics"),
+  xrayLogs("xray-logs"),
   manualServerOrder("manual-server-order"),
   serverEditor("server-editor"),
   serverFinalExitPicker("server-final-exit-picker"),
@@ -45,6 +55,8 @@ enum AppPageDestination {
   customRouting("custom-routing"),
   advancedRouting("advanced-routing"),
   customRule("custom-rule"),
+  tunnelDns("tunnel-dns"),
+  tunnelNetwork("tunnel-network"),
   appleVpn("apple-vpn"),
   appleWifi("apple-wifi"),
   androidVpn("android-vpn"),
@@ -53,6 +65,7 @@ enum AppPageDestination {
   windowsVpn("windows-vpn"),
   outboundInterface("outbound-interface"),
   routingData("routing-data"),
+  routingDataAdd("routing-data-add"),
   routingDataFile("routing-data-file"),
   share("share"),
   subscriptionEdit("subscription-edit"),
@@ -66,7 +79,6 @@ enum AppPageDestination {
   backup("backup"),
   desktopSettings("desktop-settings"),
   appIcon("app-icon"),
-  theme("theme"),
   language("language"),
   aboutOneXray("about-onexray"),
   appUpdate("app-update");
@@ -75,12 +87,7 @@ enum AppPageDestination {
 
   const AppPageDestination(this.segment);
 
-  static const adaptiveDialogs = {
-    serversImport,
-    serverEditor,
-    share,
-    subscriptionEdit,
-  };
+  static const adaptiveDialogs = {share};
 }
 
 extension AppNavigationContext on BuildContext {

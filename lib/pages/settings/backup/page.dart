@@ -2,8 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:intl/intl.dart' show DateFormat;
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/backup/controller.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
@@ -11,13 +9,14 @@ import 'package:onexray/pages/shared/widgets/menu_picker.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
+import 'package:onexray/pages/settings/widgets.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
-import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/settings/backup/service.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
-import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch;
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/service/shared/failure.dart';
 
 class BackupPage extends StatelessWidget {
@@ -45,8 +44,6 @@ class BackupPage extends StatelessWidget {
           TargetPlatform.macOS,
           TargetPlatform.windows,
         }.contains(platform);
-        final mobile =
-            MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         final date = DateFormat.yMd(Localizations.localeOf(context).toString())
             .add_Hm();
         final busy = state.busy;
@@ -72,25 +69,24 @@ class BackupPage extends StatelessWidget {
           bottomNavigationBar: supported
               ? PageActionBar(
                   children: [
-                    OutlinedButton(
+                    SettingsActionButton(
+                      label: l.backupRestore,
+                      variant: ShadButtonVariant.outline,
+                      enabled: !busy && target != null,
+                      busy: state.action == BackupPageAction.restoring,
                       onPressed: busy || target == null
                           ? null
                           : () => controller.restore(context),
-                      child: ButtonProgress(
-                        busy: state.action == BackupPageAction.restoring,
-                        child: Text(l.backupRestore),
-                      ),
                     ),
-                    FilledButton(
+                    SettingsActionButton(
+                      label: l.backupNow,
+                      enabled: !busy && target != null,
+                      busy:
+                          state.action == BackupPageAction.writing ||
+                          backup.operation == BackupOperation.writing,
                       onPressed: busy || target == null
                           ? null
                           : () => controller.backup(context),
-                      child: ButtonProgress(
-                        busy:
-                            state.action == BackupPageAction.writing ||
-                            backup.operation == BackupOperation.writing,
-                        child: Text(l.backupNow),
-                      ),
                     ),
                   ],
                 )
@@ -102,12 +98,10 @@ class BackupPage extends StatelessWidget {
                 ? Center(child: Text(l.prototypeTemporarilyUnavailable))
                 : SettingsPageScroll(
                     child: Padding(
-                      padding: EdgeInsets.all(
-                        mobile ? AppSpacing.mobilePage : AppSpacing.page,
-                      ),
+                      padding: settingsContentPadding(context),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: 24,
+                        spacing: 20,
                         children: [
                           SettingSection(
                             title: l.backupLocation,
@@ -115,7 +109,7 @@ class BackupPage extends StatelessWidget {
                             padding: EdgeInsets.zero,
                             children: [
                               Padding(
-                                padding: const EdgeInsets.all(14),
+                                padding: EdgeInsets.zero,
                                 child: Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
@@ -125,7 +119,7 @@ class BackupPage extends StatelessWidget {
                                       SelectableText(
                                         target.label,
                                         textDirection: TextDirection.ltr,
-                                        style: AppTypography.code,
+                                        style: AppTypography.supporting,
                                       )
                                     else
                                       Text(l.backupNotConfigured),
@@ -135,16 +129,25 @@ class BackupPage extends StatelessWidget {
                                       children: [
                                         if (target == null) ...[
                                           if (apple)
-                                            FilledButton(
+                                            SettingsActionButton(
+                                              label: l.backupUseICloud,
+                                              enabled: !busy,
                                               onPressed: busy
                                                   ? null
                                                   : () => controller.select(
                                                       context,
                                                       create: false,
                                                     ),
-                                              child: Text(l.backupUseICloud),
                                             ),
-                                          OutlinedButton(
+                                          SettingsActionButton(
+                                            label: android || apple
+                                                ? l.backupChooseExisting
+                                                : l.backupChooseFolder,
+                                            variant: ShadButtonVariant.outline,
+                                            enabled: !busy,
+                                            busy:
+                                                state.action ==
+                                                BackupPageAction.selecting,
                                             onPressed: busy
                                                 ? null
                                                 : () => controller.select(
@@ -152,19 +155,16 @@ class BackupPage extends StatelessWidget {
                                                     create: false,
                                                     local: apple,
                                                   ),
-                                            child: ButtonProgress(
-                                              busy:
-                                                  state.action ==
-                                                  BackupPageAction.selecting,
-                                              child: Text(
-                                                android || apple
-                                                    ? l.backupChooseExisting
-                                                    : l.backupChooseFolder,
-                                              ),
-                                            ),
                                           ),
                                           if (android || apple)
-                                            OutlinedButton(
+                                            SettingsActionButton(
+                                              label: l.backupCreateFile,
+                                              variant:
+                                                  ShadButtonVariant.outline,
+                                              enabled: !busy,
+                                              busy:
+                                                  state.action ==
+                                                  BackupPageAction.creating,
                                               onPressed: busy
                                                   ? null
                                                   : () => controller.select(
@@ -172,26 +172,20 @@ class BackupPage extends StatelessWidget {
                                                       create: true,
                                                       local: apple,
                                                     ),
-                                              child: ButtonProgress(
-                                                busy:
-                                                    state.action ==
-                                                    BackupPageAction.creating,
-                                                child: Text(l.backupCreateFile),
-                                              ),
                                             ),
                                         ] else ...[
-                                          TextButton(
+                                          SettingsActionButton(
+                                            label: l.backupUnbind,
+                                            variant: ShadButtonVariant.ghost,
+                                            enabled: !busy,
+                                            busy:
+                                                state.action ==
+                                                BackupPageAction.unbinding,
                                             onPressed: busy
                                                 ? null
                                                 : () => controller.unbind(
                                                     context,
                                                   ),
-                                            child: ButtonProgress(
-                                              busy:
-                                                  state.action ==
-                                                  BackupPageAction.unbinding,
-                                              child: Text(l.backupUnbind),
-                                            ),
                                           ),
                                           if (android ||
                                               (apple &&
@@ -213,42 +207,43 @@ class BackupPage extends StatelessWidget {
                                                     create: create,
                                                     local: apple,
                                                   ),
-                                              triggerBuilder: (open) => OutlinedButton(
-                                                onPressed: busy ? null : open,
-                                                child: ButtonProgress(
-                                                  busy:
-                                                      state.action ==
-                                                          BackupPageAction
-                                                              .selecting ||
-                                                      state.action ==
-                                                          BackupPageAction
-                                                              .creating,
-                                                  child: Text(
-                                                    apple
+                                              triggerBuilder: (open) =>
+                                                  SettingsActionButton(
+                                                    label: apple
                                                         ? l.backupSwitchToLocal
                                                         : l.backupChangeLocation,
+                                                    variant: ShadButtonVariant
+                                                        .outline,
+                                                    enabled: !busy,
+                                                    busy:
+                                                        state.action ==
+                                                            BackupPageAction
+                                                                .selecting ||
+                                                        state.action ==
+                                                            BackupPageAction
+                                                                .creating,
+                                                    onPressed: busy
+                                                        ? null
+                                                        : open,
                                                   ),
-                                                ),
-                                              ),
                                             )
                                           else
-                                            OutlinedButton(
+                                            SettingsActionButton(
+                                              label: apple
+                                                  ? l.backupSwitchToCloud
+                                                  : l.backupChangeLocation,
+                                              variant:
+                                                  ShadButtonVariant.outline,
+                                              enabled: !busy,
+                                              busy:
+                                                  state.action ==
+                                                  BackupPageAction.selecting,
                                               onPressed: busy
                                                   ? null
                                                   : () => controller.select(
                                                       context,
                                                       create: false,
                                                     ),
-                                              child: ButtonProgress(
-                                                busy:
-                                                    state.action ==
-                                                    BackupPageAction.selecting,
-                                                child: Text(
-                                                  apple
-                                                      ? l.backupSwitchToCloud
-                                                      : l.backupChangeLocation,
-                                                ),
-                                              ),
                                             ),
                                         ],
                                       ],
@@ -273,11 +268,7 @@ class BackupPage extends StatelessWidget {
                                   ),
                                 Semantics(
                                   label: l.backupAutomatic,
-                                  enabled:
-                                      !backup.changingAutomatic &&
-                                      state.action !=
-                                          BackupPageAction.restoring,
-                                  child: ShadSwitch(
+                                  child: AppSwitch(
                                     value: backup.automatic,
                                     enabled:
                                         !backup.changingAutomatic &&
@@ -325,17 +316,11 @@ class BackupPage extends StatelessWidget {
                               ),
                             ],
                           ),
-                          Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: palette.warningSurface,
-                              borderRadius: BorderRadius.circular(
-                                AppRadii.compact,
-                              ),
-                            ),
-                            child: Text(
-                              l.backupSensitiveWarning,
-                              style: AppTypography.settingsDetailNote,
+                          ShadAlert(
+                            icon: const Icon(LucideIcons.circleHelp, size: 18),
+                            description: Text(l.backupSensitiveWarning),
+                            descriptionStyle: AppTypography.supporting.copyWith(
+                              color: palette.mutedStrong,
                             ),
                           ),
                           Text(
@@ -346,7 +331,7 @@ class BackupPage extends StatelessWidget {
                                       backup.settings.lastSuccess!.toLocal(),
                                     ),
                                   ),
-                            style: AppTypography.settingsDetailNote,
+                            style: AppTypography.supporting,
                           ),
                           if (backup.error != null)
                             SelectableText(
@@ -355,7 +340,7 @@ class BackupPage extends StatelessWidget {
                                 backup.error,
                                 operation: l.backupFailed,
                               ),
-                              style: AppTypography.settingsDetailNote.copyWith(
+                              style: AppTypography.supporting.copyWith(
                                 color: palette.destructive,
                               ),
                             ),

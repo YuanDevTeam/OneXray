@@ -122,7 +122,7 @@ void main() {
     }
   }
 
-  testWidgets('a newly routed editor also blocks Settings before a frame', (
+  testWidgets('a full-page editor keeps its stack and draft across Settings', (
     tester,
   ) async {
     final harness = _MenuHarness();
@@ -132,8 +132,39 @@ void main() {
     unawaited(harness.router.push<void>('/connect/server-editor'));
     await harness.menu.receive();
     await tester.pumpAndSettle();
+    expect(harness.location, '/settings');
+    await tester.tap(find.byKey(const ValueKey('primary-navigation-connect')));
+    await tester.pumpAndSettle();
     expect(harness.location, '/connect/server-editor');
-    expect(find.text('Editor modal'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('editor-draft')),
+      'Unsaved editor draft',
+    );
+    await harness.menu.receive();
+    await tester.pumpAndSettle();
+    expect(harness.location, '/settings');
+    await tester.tap(find.byKey(const ValueKey('primary-navigation-connect')));
+    await tester.pumpAndSettle();
+    expect(harness.location, '/connect/server-editor');
+    expect(find.text('Unsaved editor draft'), findsOneWidget);
+    harness.router.pop();
+    await tester.pumpAndSettle();
+    expect(harness.location, '/connect');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a routed share popup blocks Settings before its first frame', (
+    tester,
+  ) async {
+    final harness = _MenuHarness();
+    addTearDown(harness.dispose);
+    await tester.pumpWidget(harness.app());
+    await tester.pumpAndSettle();
+    unawaited(harness.router.push<void>('/connect/share'));
+    await harness.menu.receive();
+    await tester.pumpAndSettle();
+    expect(harness.location, '/connect/share');
+    expect(find.text('Share modal'), findsOneWidget);
     harness.router.pop();
     await tester.pumpAndSettle();
     expect(harness.location, '/connect');
@@ -165,6 +196,35 @@ void main() {
     expect(harness.location, '/connect');
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'a popup opened before the admitted Settings frame cancels navigation',
+    (tester) async {
+      final harness = _MenuHarness();
+      addTearDown(harness.dispose);
+      await tester.pumpWidget(harness.app());
+      await tester.pumpAndSettle();
+      final context = tester.element(find.text('connect-content'));
+      await harness.menu.receive();
+      final closed = showDialog<void>(
+        context: context,
+        requestFocus: false,
+        builder: (_) => const AlertDialog(title: Text('Before Settings frame')),
+      );
+      await tester.pumpAndSettle();
+      expect(harness.location, '/connect');
+      expect(find.text('Before Settings frame'), findsOneWidget);
+      Navigator.of(tester.element(find.byType(AlertDialog))).pop();
+      await tester.pumpAndSettle();
+      await closed;
+      // A rejected switch must not revive when the popup closes.
+      expect(harness.location, '/connect');
+      await harness.menu.receive();
+      await tester.pumpAndSettle();
+      expect(harness.location, '/settings');
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('a popup in an inactive branch does not block Settings', (
     tester,
@@ -292,7 +352,7 @@ void main() {
     },
   );
 
-  testWidgets('a routed editor and nested confirmation are not replaced', (
+  testWidgets('an editor confirmation blocks Settings until dismissed', (
     tester,
   ) async {
     final harness = _MenuHarness();
@@ -301,8 +361,12 @@ void main() {
     await tester.pumpAndSettle();
     unawaited(harness.router.push<void>('/connect/server-editor'));
     await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('editor-draft')),
+      'Draft behind confirmation',
+    );
     final closed = showDialog<void>(
-      context: tester.element(find.text('Editor modal')),
+      context: tester.element(find.text('editor-content')),
       requestFocus: false,
       useRootNavigator: false,
       builder: (_) => const AlertDialog(title: Text('Discard changes?')),
@@ -319,8 +383,11 @@ void main() {
     await closed;
     await harness.menu.receive();
     await tester.pumpAndSettle();
-    expect(find.text('Editor modal'), findsOneWidget);
+    expect(harness.location, '/settings');
+    await tester.tap(find.byKey(const ValueKey('primary-navigation-connect')));
+    await tester.pumpAndSettle();
     expect(harness.location, '/connect/server-editor');
+    expect(find.text('Draft behind confirmation'), findsOneWidget);
     harness.router.pop();
     await tester.pumpAndSettle();
     expect(harness.location, '/connect');
@@ -428,10 +495,14 @@ class _MenuHarness {
                       ),
                       GoRoute(
                         path: AppPageDestination.serverEditor.segment,
+                        builder: (_, _) => const _DraftView(name: 'editor'),
+                      ),
+                      GoRoute(
+                        path: AppPageDestination.share.segment,
                         pageBuilder: (_, state) => AppDialogPage<void>(
                           key: state.pageKey,
                           builder: (_) =>
-                              const AlertDialog(title: Text('Editor modal')),
+                              const AlertDialog(title: Text('Share modal')),
                         ),
                       ),
                     ],

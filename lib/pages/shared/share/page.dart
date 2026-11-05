@@ -81,25 +81,29 @@ class SharePage extends StatelessWidget {
       );
     }
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppRadii.card),
+      borderRadius: BorderRadius.circular(AppRadii.control),
       borderSide: BorderSide(color: palette.border),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
+          child: Text(l.shareContentTitle, style: AppTypography.panelTitle),
+        ),
         Semantics(
           label: l.prototypeLinkFormat,
           child: Container(
-            margin: const EdgeInsets.fromLTRB(22, 16, 22, 0),
+            margin: const EdgeInsets.fromLTRB(18, 16, 18, 0),
             decoration: BoxDecoration(
               color: palette.card,
               border: Border.all(color: palette.border),
               borderRadius: BorderRadius.circular(AppRadii.control),
             ),
             clipBehavior: Clip.antiAlias,
-            child: SizedBox(
-              height: 41,
+            child: IntrinsicHeight(
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (final format in ShareLinkFormat.values)
                     if (state.supportsOriginal ||
@@ -118,7 +122,7 @@ class SharePage extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -126,38 +130,34 @@ class SharePage extends StatelessWidget {
                 params.type == ShareType.subscription
                     ? l.prototypeSubscriptionLink
                     : l.prototypeServerShareLink,
-                style: AppTypography.subscriptionField.copyWith(
-                  color: palette.mutedStrong,
+                style: AppTypography.fieldLabel.copyWith(
+                  color: palette.foreground,
                 ),
               ),
               const SizedBox(height: 8),
-              SizedBox(
-                height: 92,
-                child: TextFormField(
-                  key: ValueKey(state.format),
-                  initialValue: state.selectedLink,
-                  readOnly: true,
-                  textDirection: TextDirection.ltr,
-                  textAlignVertical: TextAlignVertical.top,
-                  expands: true,
-                  minLines: null,
-                  maxLines: null,
-                  style: AppTypography.shareLink.copyWith(
-                    color: palette.foreground,
+              TextFormField(
+                key: ValueKey(state.format),
+                initialValue: state.selectedLink,
+                readOnly: true,
+                textDirection: TextDirection.ltr,
+                textAlignVertical: TextAlignVertical.top,
+                minLines: 3,
+                maxLines: 6,
+                style: AppTypography.shareLink.copyWith(
+                  color: palette.foreground,
+                ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: palette.muted,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 11,
                   ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    filled: true,
-                    fillColor: palette.muted,
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 11,
-                    ),
-                    border: border,
-                    enabledBorder: border,
-                    focusedBorder: border.copyWith(
-                      borderSide: BorderSide(color: palette.primary),
-                    ),
+                  border: border,
+                  enabledBorder: border,
+                  focusedBorder: border.copyWith(
+                    borderSide: BorderSide(color: palette.primary),
                   ),
                 ),
               ),
@@ -176,7 +176,7 @@ class SharePage extends StatelessWidget {
         if (params.type == ShareType.subscription &&
             state.format == ShareLinkFormat.onexray)
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 10, 22, 0),
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
             child: Text(
               l.prototypeSubscriptionShareAgeHint,
               style: AppTypography.shareHint.copyWith(
@@ -185,7 +185,7 @@ class SharePage extends StatelessWidget {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(22, 16, 22, 0),
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -196,18 +196,31 @@ class SharePage extends StatelessWidget {
                   onTap: state.selectedLink.isEmpty
                       ? null
                       : controller.toggleQr,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (state.qrExpanded &&
-                          state.qrCode == null &&
-                          state.qrError.isEmpty)
-                        const ButtonProgressIndicator(size: 18)
-                      else
-                        const Icon(LucideIcons.qrCode, size: 18),
-                      const SizedBox(width: 8),
-                      Text(l.sharePageShowQRCode, style: AppTypography.shareQr),
-                    ],
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: AppLayout.touchExtent(
+                        40,
+                        platform: Theme.of(context).platform,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (state.qrExpanded &&
+                            state.qrCode == null &&
+                            state.qrError.isEmpty)
+                          const ButtonProgressIndicator(size: 18)
+                        else
+                          const Icon(LucideIcons.qrCode, size: 18),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            l.sharePageShowQRCode,
+                            style: AppTypography.shareQr,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -280,7 +293,13 @@ class SharePage extends StatelessWidget {
         onTap: onPressed,
         child: Container(
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 13),
+          constraints: BoxConstraints(
+            minHeight: AppLayout.touchExtent(
+              40,
+              platform: Theme.of(context).platform,
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
           decoration: BoxDecoration(
             color: selected ? palette.selectedSurface : palette.card,
             border: selected

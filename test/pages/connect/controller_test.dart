@@ -19,6 +19,7 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/connect/controller.dart';
 import 'package:onexray/pages/connect/view.dart';
+import 'package:onexray/pages/connect/target_picker.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/connect/routing/smart/exit_picker_controller.dart';
@@ -102,10 +103,6 @@ void main() {
               body: Column(
                 children: [
                   TextButton(
-                    onPressed: () => controller.chooseTrafficMethod(context),
-                    child: const Text('methods'),
-                  ),
-                  TextButton(
                     onPressed: () => controller.showWhy(context),
                     child: const Text('why'),
                   ),
@@ -130,9 +127,6 @@ void main() {
       expect(controller.methodDescription(l), l.providerRoutingNotice);
       expect(controller.selectionHealth(l), isNull);
       expect(controller.runningRoute, isNull);
-      await tester.tap(find.text('methods'));
-      await tester.pumpAndSettle();
-      expect(find.text(l.prototypeChooseTrafficMethod), findsNothing);
       await tester.tap(find.text('change-method'));
       await tester.pumpAndSettle();
       expect(changed, isFalse);
@@ -149,7 +143,8 @@ void main() {
       );
       controller.sources = await db.subscriptionDao.allRows;
       controller.servers = [];
-      expect(controller.selectionTitle(l), 'Provider profile');
+      expect(controller.selectionTitle(l), l.prototypeTemporarilyUnavailable);
+      expect(controller.runningProfile?.name, 'Provider profile');
       expect(controller.providerConfiguration, isTrue);
       expect(controller.runningRoute, isNull);
       await tester.tap(find.text('why'));
@@ -178,8 +173,17 @@ void main() {
         );
         expect(controller.selectedProvider, isNull);
         expect(controller.providerConfiguration, isTrue);
-        expect(controller.selectionTitle(l), row.name);
-        expect(controller.selectionDetail(l), l.providerRoutingNotice);
+        expect(
+          controller.selectionTitle(l),
+          selection.kind == SelectionKind.automatic
+              ? l.prototypeAutomaticSelection
+              : 'Provider source',
+        );
+        expect(
+          controller.selectionDetail(l),
+          '${l.connectionCandidates(0)} · ${l.connectionRequiredEntries(3)}',
+        );
+        expect(controller.runningProfile?.name, row.name);
         expect(controller.homeMethodTitle(l), l.providerConfigurationTitle);
         expect(controller.selectionHealth(l), isNull);
         expect(controller.runningRoute, isNull);
@@ -196,9 +200,9 @@ void main() {
   test('updated failure counts rebuild the connection status', () {
     final before = ConnectPageState(
       connectionView: const ConnectionView(
-        issue: 'insufficientHealthyServers',
+        issue: 'insufficientCandidates',
         error: ConnectionResolutionException(
-          ConnectionResolutionFailure.insufficientHealthyServers,
+          ConnectionResolutionFailure.insufficientCandidates,
           requiredCount: 3,
           availableCount: 0,
         ),
@@ -206,9 +210,9 @@ void main() {
     );
     final after = before.copyWith(
       connectionView: const ConnectionView(
-        issue: 'insufficientHealthyServers',
+        issue: 'insufficientCandidates',
         error: ConnectionResolutionException(
-          ConnectionResolutionFailure.insufficientHealthyServers,
+          ConnectionResolutionFailure.insufficientCandidates,
           requiredCount: 3,
           availableCount: 1,
         ),
@@ -216,6 +220,213 @@ void main() {
     );
     expect(before.sameContentAs(after), isFalse);
   });
+
+  testWidgets(
+    'Raw runtime explains its own routing without changing ordinary preferences',
+    (tester) async {
+      final coordinator = _Coordinator();
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.connected,
+        runtime: _runtime(expert: true),
+      );
+      final configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          expert: true,
+          rawId: 9,
+          trafficMode: TrafficMode.allVpn,
+          selection: const ServerSelection.source(17),
+          smart: SmartRoutingSettings(entryCount: 3, finalExitId: 900),
+        ),
+      );
+      coordinator.saved = configuration;
+      final controller = ConnectController(
+        database: coordinator.db,
+        coordinator: coordinator,
+      )..configuration = configuration;
+      addTearDown(controller.close);
+      addTearDown(coordinator.dispose);
+      addTearDown(coordinator.db.close);
+      await tester.pumpWidget(
+        _testApp(
+          Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => controller.showWhy(context),
+                child: const Text('why'),
+              ),
+            ),
+          ),
+        ),
+      );
+      final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+      final before = configuration.encode();
+      expect(
+        controller.homeMethodTitle(l),
+        l.completeConfigurationRoutingTitle,
+      );
+      expect(
+        controller.methodDescription(l),
+        l.completeConfigurationRoutingNotice,
+      );
+      expect(controller.selectionDetail(l), l.xrayRawPageTitle);
+      await tester.tap(find.text('why'));
+      await tester.pumpAndSettle();
+      expect(find.text(l.prototypeRawManagedSettingsNotice), findsOneWidget);
+      expect(find.text(l.prototypeAllViaVpnDescription), findsNothing);
+      expect(controller.configuration.encode(), before);
+      expect(coordinator.saved.encode(), before);
+      expect(coordinator.applyCount, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('connection explanation does not preview an unstarted plan', (
+    tester,
+  ) async {
+    final coordinator = _Coordinator();
+    final controller = ConnectController(
+      database: coordinator.db,
+      coordinator: coordinator,
+    )..configuration = coordinator.saved;
+    addTearDown(controller.close);
+    addTearDown(coordinator.dispose);
+    addTearDown(coordinator.db.close);
+    await tester.pumpWidget(
+      _testApp(
+        Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => controller.showWhy(context),
+              child: const Text('why'),
+            ),
+          ),
+        ),
+      ),
+    );
+    for (final view in [
+      const ConnectionView(),
+      ConnectionView(runtime: _runtime()),
+      const ConnectionView(phase: ConnectionPhase.failed, issue: 'stopFailed'),
+    ]) {
+      coordinator.state.value = view;
+      await tester.tap(find.text('why'));
+      await tester.pumpAndSettle();
+      expect(find.text('Why this connection?'), findsNothing);
+    }
+    expect(coordinator.applyCount, 0);
+    expect(coordinator.connectCount, 0);
+    expect(coordinator.disconnectCount, 0);
+  });
+
+  for (final phase in [ConnectionPhase.connected, ConnectionPhase.failed]) {
+    testWidgets(
+      'connection explanation uses only actual runtime even when the saved plan differs; phase=$phase',
+      (tester) async {
+        final coordinator = _Coordinator();
+        coordinator.state.value = ConnectionView(
+          phase: phase,
+          issue: phase == ConnectionPhase.failed ? 'stopFailed' : null,
+          runtime: _runtime(),
+        );
+        final controller = ConnectController(
+          database: coordinator.db,
+          coordinator: coordinator,
+        )..configuration = coordinator.saved;
+        addTearDown(controller.close);
+        addTearDown(coordinator.dispose);
+        addTearDown(coordinator.db.close);
+        await tester.pumpWidget(
+          _testApp(
+            Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => controller.showWhy(context),
+                  child: const Text('why'),
+                ),
+              ),
+            ),
+          ),
+        );
+        final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+        final before = coordinator.saved.encode();
+        expect(controller.configuration.connection.expert, isTrue);
+        await tester.tap(find.text('why'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            l.prototypeSmartConnectionChainReason(
+              'Singapore 03 + Japan 02',
+              'United States 01',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(l.prototypeRunningEntriesReason('Singapore 03 + Japan 02')),
+          findsOneWidget,
+        );
+        expect(find.text(l.prototypeRawManagedSettingsNotice), findsNothing);
+        expect(find.text(l.providerRoutingNotice), findsNothing);
+        expect(
+          controller.runningRoute?.path,
+          'Singapore 03 + Japan 02 → United States 01',
+        );
+        expect(coordinator.saved.encode(), before);
+        expect(coordinator.applyCount, 0);
+        expect(coordinator.connectCount, 0);
+      },
+    );
+  }
+
+  testWidgets(
+    'scope fallback uses frozen source and runtime identities only after connection',
+    (tester) async {
+      final coordinator = _Coordinator();
+      final controller = ConnectController(
+        database: coordinator.db,
+        coordinator: coordinator,
+      )..configuration = ConnectionConfiguration();
+      addTearDown(controller.close);
+      addTearDown(coordinator.dispose);
+      addTearDown(coordinator.db.close);
+      await tester.pumpWidget(_testApp(const Scaffold(body: SizedBox())));
+      final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+      final runtime = _runtime(
+        selectionFallback: const RuntimeSelectionFallback(
+          originalSelection: ServerSelection.source(7),
+          reason: 'selectionUnavailable',
+          sourceName: 'Source when connected',
+        ),
+      );
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.preparing,
+        runtime: runtime,
+      );
+      expect(controller.fallbackMessage(l), isNull);
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.connected,
+        runtime: runtime,
+      );
+      controller.sources = const [];
+      expect(
+        controller.fallbackMessage(l),
+        l.connectionScopeFallback(
+          'Source when connected',
+          'Singapore 03 + Japan 02',
+        ),
+      );
+      expect(
+        controller.configuration.connection.selection.kind,
+        SelectionKind.automatic,
+      );
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.disconnected,
+        runtime: runtime,
+      );
+      expect(controller.fallbackMessage(l), isNull);
+      expect(coordinator.applyCount, 0);
+    },
+  );
 
   test('metrics updates leave non-traffic connection content unchanged', () {
     final before = ConnectPageState(
@@ -437,11 +648,11 @@ void main() {
       await tester.pumpWidget(_testApp(const Scaffold(body: SizedBox())));
       final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
       coordinator.state.value = const ConnectionView();
+      expect(controller.selectionTitle(l), l.prototypeAutomaticSelection);
       expect(
-        controller.selectionTitle(l),
-        'Automatic selection · 3 entry nodes',
+        controller.selectionDetail(l),
+        '${l.connectionCandidates(0)} · ${l.connectionRequiredEntries(3)}',
       );
-      expect(controller.selectionDetail(l), 'Choose by speed and availability');
       expect(controller.homeMethodTitle(l), 'Smart Routing (recommended)');
       expect(controller.selectionHealth(l), isNull);
       coordinator.state.value = ConnectionView(
@@ -458,6 +669,11 @@ void main() {
           delay: 42,
           subId: 0,
           favorite: false,
+          data: base64Encode(
+            utf8.encode(
+              '{"outbounds":[{"protocol":"socks","settings":{"servers":[{"address":"one.example","port":1080}]}}]}',
+            ),
+          ),
         ),
         CoreConfigData(
           manualSortOrder: 0,
@@ -468,12 +684,14 @@ void main() {
           delay: 1,
           subId: 0,
           favorite: false,
+          data: base64Encode(
+            utf8.encode(
+              '{"outbounds":[{"protocol":"socks","settings":{"servers":[{"address":"two.example","port":1080}]}}]}',
+            ),
+          ),
         ),
       ];
-      expect(
-        controller.selectionTitle(l),
-        'Automatic selection · 2 entry nodes',
-      );
+      expect(controller.selectionTitle(l), l.prototypeAutomaticSelection);
       expect(controller.selectionHealth(l), 'Fast · 42 ms');
       final running = controller.servers.first;
       for (final (delay, label) in [
@@ -494,8 +712,12 @@ void main() {
         expect(controller.selectionHealth(l), label);
       }
       expect(
-        controller.selectionDetail(l),
+        controller.runningRoute?.path,
         'Singapore 03 + Japan 02 → United States 01',
+      );
+      expect(
+        controller.selectionDetail(l),
+        '${l.connectionCandidates(2)} · ${l.connectionRequiredEntries(3)}',
       );
       controller.servers = controller.servers.sublist(1);
       expect(controller.selectionHealth(l), isNull);
@@ -503,16 +725,16 @@ void main() {
   );
 
   testWidgets(
-    'connect actions keep editors, server browsing and groups in the source tab',
+    'routing uses its page and target picker cancellation does not commit; management stays scoped',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(390, 844));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final coordinator = _Coordinator()..saved = ConnectionConfiguration();
       coordinator.state.value = const ConnectionView();
-      final controller =
-          ConnectController(database: coordinator.db, coordinator: coordinator)
-            ..configuration = coordinator.saved
-            ..expertView = true;
+      final controller = ConnectController(
+        database: coordinator.db,
+        coordinator: coordinator,
+      )..configuration = coordinator.saved;
       final servers = ServersController(
         database: coordinator.db,
         coordinator: coordinator,
@@ -527,10 +749,6 @@ void main() {
                 children: [
                   const Text('connection-home'),
                   TextButton(
-                    onPressed: () => controller.connectionAction(context),
-                    child: const Text('connect-action'),
-                  ),
-                  TextButton(
                     onPressed: () => controller.chooseTrafficMethod(context),
                     child: const Text('methods-action'),
                   ),
@@ -543,8 +761,19 @@ void main() {
             ),
             routes: [
               GoRoute(
-                path: 'raw-editor',
-                builder: (_, _) => const Scaffold(body: Text('raw-editor')),
+                path: 'routing',
+                builder: (context, _) => Scaffold(
+                  body: Column(
+                    children: [
+                      const Text('routing-home'),
+                      TextButton(
+                        onPressed: () =>
+                            context.pushScoped(AppPageDestination.smartRouting),
+                        child: const Text('edit-smart'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
               GoRoute(
                 path: 'smart-routing',
@@ -595,29 +824,34 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('connect-action'));
-      await tester.pumpAndSettle();
-      expect(find.text('raw-editor'), findsOneWidget);
-      router.pop();
-      await tester.pumpAndSettle();
-      controller.expertView = false;
       await tester.tap(find.text('methods-action'));
       await tester.pumpAndSettle();
-      expect(find.text('Choose a traffic method'), findsOneWidget);
-      await tester.tap(find.text('Edit'));
+      expect(find.text('routing-home'), findsOneWidget);
+      expect(
+        GoRouterState.of(tester.element(find.text('routing-home'))).uri.path,
+        '/connect/routing',
+      );
+      await tester.tap(find.text('edit-smart'));
       await tester.pumpAndSettle();
       expect(find.text('smart-editor'), findsOneWidget);
       router.pop();
       await tester.pumpAndSettle();
+      expect(find.text('routing-home'), findsOneWidget);
+      router.pop();
+      await tester.pumpAndSettle();
       expect(find.text('connection-home'), findsOneWidget);
-      expect(find.text('Choose a traffic method'), findsNothing);
-      // The backdrop remains a dismiss target outside the compact dialog.
-      await tester.tap(find.text('methods-action'));
-      await tester.pumpAndSettle();
-      await tester.tapAt(const Offset(8, 8));
-      await tester.pumpAndSettle();
-      expect(find.text('Choose a traffic method'), findsNothing);
+      final before = coordinator.saved.encode();
       await tester.tap(find.text('location-action'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ConnectionTargetPicker), findsOneWidget);
+      await tester.tap(find.widgetWithText(ShadButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(coordinator.saved.encode(), before);
+      expect(coordinator.applyCount, 0);
+      expect(router.canPop(), isFalse);
+      await tester.tap(find.text('location-action'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Servers'));
       await tester.pumpAndSettle();
       expect(
         GoRouterState.of(tester.element(find.text('servers-browser'))).uri.path,
@@ -646,48 +880,114 @@ void main() {
   );
 
   for (final fail in [false, true]) {
-    testWidgets('leaving Raw follows the committed result; failure=$fail', (
-      tester,
-    ) async {
-      final coordinator = _Coordinator(fail: fail);
-      final controller =
-          ConnectController(database: coordinator.db, coordinator: coordinator)
-            ..expertView = true
-            ..configuration = coordinator.saved;
+    testWidgets(
+      'choosing ordinary scope from Raw follows the committed result; failure=$fail',
+      (tester) async {
+        final coordinator = _Coordinator(fail: fail);
+        final controller = ConnectController(
+          database: coordinator.db,
+          coordinator: coordinator,
+        )..configuration = coordinator.saved;
+        addTearDown(controller.close);
+        addTearDown(coordinator.dispose);
+        addTearDown(coordinator.db.close);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            locale: const Locale('en'),
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            builder: (_, child) => ShadTheme(
+              data: AppTheme.shad(Brightness.light),
+              child: ShadToaster(child: child!),
+            ),
+            home: const Scaffold(body: SizedBox()),
+          ),
+        );
+        final context = tester.element(find.byType(Scaffold));
+        final changing = controller.chooseServer(context);
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(context)!;
+        await tester.tap(
+          find.widgetWithText(ChoiceChip, l.serverSelectionAutomaticScope),
+        );
+        await tester.pumpAndSettle();
+        final manualScope = find.widgetWithText(
+          ListTile,
+          l.prototypeManualAdditions,
+        );
+        await tester.ensureVisible(manualScope);
+        await tester.pumpAndSettle();
+        expect(manualScope.hitTestable(), findsOneWidget);
+        await tester.tap(manualScope);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Apply and reconnect'));
+        await tester.pumpAndSettle();
+        await changing;
+        expect(controller.configuration.connection.expert, fail);
+        expect(coordinator.saved.connection.expert, fail);
+        if (!fail) {
+          expect(controller.configuration.encode(), coordinator.saved.encode());
+          expect(
+            controller.configuration.connection.selection.kind,
+            SelectionKind.automatic,
+          );
+          expect(coordinator.state.value.issue, 'selectionReset');
+        }
+      },
+    );
+  }
+
+  testWidgets(
+    'cancelling target reconnection keeps the saved plan and running snapshot',
+    (tester) async {
+      final coordinator = _Coordinator();
+      final runtime = _runtime(expert: true);
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.connected,
+        runtime: runtime,
+      );
+      final controller = ConnectController(
+        database: coordinator.db,
+        coordinator: coordinator,
+      )..configuration = coordinator.saved;
       addTearDown(controller.close);
       addTearDown(coordinator.dispose);
       addTearDown(coordinator.db.close);
       await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          locale: const Locale('en'),
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: AppLocalePolicy.localizationsDelegates,
-          builder: (_, child) => ShadTheme(
-            data: AppTheme.shad(Brightness.light),
-            child: ShadToaster(child: child!),
-          ),
-          home: const Scaffold(body: SizedBox()),
-        ),
+        _testApp(ShadToaster(child: const Scaffold(body: SizedBox()))),
       );
       final context = tester.element(find.byType(Scaffold));
-      final changing = controller.toggleExpert(context, false);
+      final l = AppLocalizations.of(context)!;
+      final before = coordinator.saved.encode();
+      final choosing = controller.chooseServer(context);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Apply and reconnect'));
+      await tester.tap(
+        find.widgetWithText(ChoiceChip, l.serverSelectionAutomaticScope),
+      );
       await tester.pumpAndSettle();
-      await changing;
-      expect(controller.expertView, fail);
-      expect(coordinator.saved.connection.expert, fail);
-      if (!fail) {
-        expect(controller.configuration.encode(), coordinator.saved.encode());
-        expect(
-          controller.configuration.connection.selection.kind,
-          SelectionKind.automatic,
-        );
-        expect(coordinator.state.value.issue, 'selectionReset');
-      }
-    });
-  }
+      final manualScope = find.widgetWithText(
+        ListTile,
+        l.prototypeManualAdditions,
+      );
+      await tester.ensureVisible(manualScope);
+      await tester.pumpAndSettle();
+      expect(manualScope.hitTestable(), findsOneWidget);
+      await tester.tap(manualScope);
+      await tester.pumpAndSettle();
+      expect(coordinator.applyCount, 0);
+      await tester.tap(find.widgetWithText(OutlinedButton, l.prototypeCancel));
+      await tester.pumpAndSettle();
+      await choosing;
+      expect(coordinator.saved.encode(), before);
+      expect(controller.configuration.encode(), before);
+      expect(coordinator.state.value.phase, ConnectionPhase.connected);
+      expect(coordinator.state.value.runtime, same(runtime));
+      expect(controller.pendingChange, isNull);
+      expect(coordinator.applyCount, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   test('running path keeps all frozen names and is absent for Raw or stopped sessions', () async {
     final coordinator = _Coordinator();
@@ -1144,13 +1444,9 @@ Widget _connectionScreen(ConnectController controller) => ShadTheme(
           method: 'Smart Routing',
           onConnection: () => controller.connectionAction(context),
           onAddServers: () {},
-          onExpert: (_) {},
           onServer: () {},
           onMethod: () {},
           onWhy: () {},
-          onRawAdd: () {},
-          onRawSelect: (_) {},
-          onRawActions: (_) {},
         ),
       ),
     ),
@@ -1171,6 +1467,7 @@ ConnectionRuntime _runtime({
   bool expert = false,
   ResolvedProfile? profile,
   ServerSelection? selection,
+  RuntimeSelectionFallback? selectionFallback,
 }) {
   final configuration = ConnectionConfiguration(
     connection: ConnectionSettings(
@@ -1193,6 +1490,7 @@ ConnectionRuntime _runtime({
   );
   return ConnectionRuntime.create(
     configuration: configuration,
+    selectionFallback: selectionFallback,
     compiled: CompiledConnection(
       xrayJson: '{}',
       entries: profile == null

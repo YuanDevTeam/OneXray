@@ -7,7 +7,6 @@ import 'package:image/image.dart' as img;
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
-import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/tools/file.dart';
 import 'package:onexray/core/tools/logger.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -16,6 +15,7 @@ import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/service/settings/language/service.dart';
 import 'package:onexray/service/shared/share/app_link_share_service.dart';
+import 'package:onexray/service/shared/share/standard_outbound_share.dart';
 import 'package:onexray/service/servers/outbound/map.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:zxing2/qrcode.dart';
@@ -88,8 +88,9 @@ class ShareController extends PageCubit<SharePageState> {
     Future<String> Function(Map<String, dynamic>)? originalLinkEncoder,
   }) : _database = database ?? AppDatabase(),
        _qrEncoder = qrEncoder ?? _encodeQr,
-       _originalLinkEncoder =
-           originalLinkEncoder ?? AppHostApi().convertXrayJsonToShareLinks,
+       _standardShare = StandardOutboundShareService(
+         encoder: originalLinkEncoder,
+       ),
        super(const SharePageState()) {
     _initialize();
   }
@@ -97,7 +98,7 @@ class ShareController extends PageCubit<SharePageState> {
   final SharePageParams params;
   final AppDatabase _database;
   final Future<Uint8List?> Function(String) _qrEncoder;
-  final Future<String> Function(Map<String, dynamic>) _originalLinkEncoder;
+  final StandardOutboundShareService _standardShare;
   late final _appLinkShareService = OneXrayAppLinkShareService(
     geoDataLookup: _database.geoDataDao.searchRowByName,
   );
@@ -145,9 +146,7 @@ class ShareController extends PageCubit<SharePageState> {
       return;
     }
     final outbound = readOutboundFromDbData(config);
-    final url = await _originalLinkEncoder({
-      'outbounds': [outbound],
-    });
+    final url = await _standardShare.encode(outbound);
     if (url.trim().isEmpty) {
       _finishLinkError();
       return;

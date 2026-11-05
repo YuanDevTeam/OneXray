@@ -3,12 +3,20 @@ import 'package:onexray/core/tools/platform.dart';
 
 /// Device authorization only; VPN lifecycle remains entirely native.
 class AndroidAutomationService {
-  AndroidAutomationService({AndroidAutomationHostApi? api, bool? supported})
-    : _api = api ?? AndroidAutomationHostApi(),
-      _supported = supported ?? AppPlatform.isAndroid;
+  AndroidAutomationService({
+    AndroidAutomationHostApi? api,
+    bool? supported,
+    AppleWidgetHostApi? appleApi,
+    bool? supportedIOS,
+  }) : _api = api ?? AndroidAutomationHostApi(),
+       _supported = supported ?? AppPlatform.isAndroid,
+       _appleApi = appleApi ?? AppleWidgetHostApi(),
+       _supportedIOS = supportedIOS ?? AppPlatform.isIOS;
 
   final AndroidAutomationHostApi _api;
   final bool _supported;
+  final AppleWidgetHostApi _appleApi;
+  final bool _supportedIOS;
 
   static const packageName = 'net.yuandev.onexray';
   static const receiver = '$packageName.automation.VpnAutomationReceiver';
@@ -25,7 +33,11 @@ class AndroidAutomationService {
   Future<AndroidAutomationSettings> resetToken() => _api.resetToken();
 
   Future<void> setStartBlocked(bool blocked) async {
-    if (_supported) await _api.setStartBlocked(blocked);
+    if (_supported) {
+      await _api.setStartBlocked(blocked);
+    } else if (_supportedIOS) {
+      await _appleApi.setStartBlocked(blocked);
+    }
   }
 
   Future<void> clear() async {

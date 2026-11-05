@@ -77,6 +77,21 @@ abstract class AppleWidgetHostApi {
 
   @asyncCallback
   void setLanguage(String languageCode);
+
+  @asyncCallback
+  String beginPreparation();
+
+  @asyncCallback
+  void finishPreparation(String token);
+
+  @asyncCallback
+  NativeVpnCommandResult startPreparedVpn(String token, String requestJson);
+
+  @asyncCallback
+  int? connectedAtMilliseconds();
+
+  @asyncCallback
+  void setStartBlocked(bool blocked);
 }
 
 class AndroidAutomationSettings {

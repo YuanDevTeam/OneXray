@@ -4,8 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/language/controller.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
-import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
+import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
@@ -39,7 +39,7 @@ class LanguagePage extends StatelessWidget {
               ),
             ),
             bottomNavigationBar: PageActionBar(
-              maxWidth: AppLayout.routingEditorMaxWidth,
+              maxWidth: AppLayout.standardMaxWidth,
               children: [
                 ShadButton.outline(
                   onPressed: () => controller.cancel(context),
@@ -77,115 +77,48 @@ class LanguageChoiceView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     return SettingsPageScroll(
-      desktopMaxWidth: AppLayout.routingMaxWidth,
-      alignment: AlignmentDirectional.topStart,
       padding: EdgeInsets.zero,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          mobile ? 14 : AppSpacing.page,
-          mobile ? 17 : AppSpacing.desktopPageTop,
-          mobile ? 14 : AppSpacing.page,
-          mobile ? 26 : AppSpacing.desktopPageBottom + 26,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        padding: settingsContentPadding(context),
+        child: SettingSection(
+          title: l10n.settingsAppLanguage,
+          padding: EdgeInsets.zero,
           children: [
-            ShadRadioGroup<LanguageCode>(
-              axis: Axis.horizontal,
+            Text(l10n.prototypeLanguage, style: AppTypography.rowValue),
+            const SizedBox(height: 12),
+            ShadSelect<LanguageCode>(
+              key: ValueKey(selected),
               initialValue: selected,
-              onChanged: onSelected,
-              items: [
-                SettingSection(
-                  title: "",
-                  padding: EdgeInsets.zero,
-                  dividerIndent: 0,
-                  children:
-                      const [
-                        LanguageCode.system,
-                        LanguageCode.zh,
-                        LanguageCode.zhHant,
-                        LanguageCode.en,
-                        LanguageCode.ru,
-                        LanguageCode.fa,
-                      ].map((language) {
-                        return ColoredBox(
-                          color: selected == language
-                              ? ColorManager.palette(context).accent
-                              : Colors.transparent,
-                          child: SettingRow(
-                            title: languageNativeLabel(l10n, language),
-                            titleTextDirection: language == LanguageCode.system
-                                ? null
-                                : language == LanguageCode.fa
-                                ? TextDirection.rtl
-                                : TextDirection.ltr,
-                            minHeight: 78,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 13,
-                            ),
-                            titleStyle: AppTypography.settingsChoiceTitle,
-                            subtitleWidget: language == LanguageCode.system
-                                ? null
-                                : Padding(
-                                    padding: const EdgeInsets.only(top: 1),
-                                    child: Text(
-                                      _title(l10n, language),
-                                      style: AppTypography.settingsChoiceDetail
-                                          .copyWith(
-                                            color: ColorManager.secondaryText(
-                                              context,
-                                            ),
-                                          ),
-                                    ),
-                                  ),
-                            leading: SizedBox(
-                              width: 23,
-                              child: Icon(
-                                LucideIcons.languages,
-                                size: 21,
-                                color: ColorManager.palette(context).primary,
-                              ),
-                            ),
-                            decorateLeading: false,
-                            trailing: ShadRadio<LanguageCode>(
-                              value: language,
-                              decoration: selected == language
-                                  ? ShadDecoration(
-                                      border: ShadBorder.all(
-                                        color: ColorManager.palette(context)
-                                            .primary,
-                                        width: 1,
-                                      ),
-                                    )
-                                  : null,
-                              radioPadding: EdgeInsets.zero,
-                            ),
-                            onTap: () => onSelected(language),
-                          ),
-                        );
-                      }).toList(),
-                ),
+              selectedOptionBuilder: (_, language) => Text(
+                languageNativeLabel(l10n, language),
+                textDirection: language == LanguageCode.fa
+                    ? TextDirection.rtl
+                    : language == LanguageCode.system
+                    ? null
+                    : TextDirection.ltr,
+              ),
+              options: [
+                for (final language in LanguageCode.values)
+                  ShadOption(
+                    value: language,
+                    child: Text(
+                      languageNativeLabel(l10n, language),
+                      textDirection: language == LanguageCode.fa
+                          ? TextDirection.rtl
+                          : language == LanguageCode.system
+                          ? null
+                          : TextDirection.ltr,
+                    ),
+                  ),
               ],
+              onChanged: onSelected,
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
-  }
-
-  String _title(AppLocalizations l10n, LanguageCode language) {
-    return switch (language) {
-      LanguageCode.system => l10n.prototypeFollowSystem,
-      LanguageCode.en => l10n.prototypeEnglish,
-      LanguageCode.ru => l10n.prototypeRussian,
-      LanguageCode.fa => l10n.prototypePersian,
-      LanguageCode.zh => l10n.prototypeSimplifiedChinese,
-      LanguageCode.zhHant => l10n.prototypeTraditionalChinese,
-    };
   }
 }
 

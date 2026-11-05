@@ -48,7 +48,7 @@ mixin ServerLabels {
       row.delay == PingDelayConstants.unknown
       ? l.prototypeNotTested
       : !PingDelayConstants.isSuccessful(row.delay)
-      ? l.prototypeTemporarilyUnavailable
+      ? l.serverLatencyFailed
       : row.delay <= 500
       ? l.prototypeFastLatency(row.delay)
       : row.delay <= 1000
@@ -79,9 +79,6 @@ mixin ServerGroups on ServerLabels {
           sourceName(l, row),
         ].any((value) => value.toLowerCase().contains(query));
   }
-
-  List<CoreConfigData> favorites(AppLocalizations l) =>
-      servers.where((row) => row.favorite && matches(l, row)).toList();
 
   List<ServerGroup> groups(AppLocalizations l, {bool filter = true}) {
     final query = filter ? this.query.trim().toLowerCase() : '';

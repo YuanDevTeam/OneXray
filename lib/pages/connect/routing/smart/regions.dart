@@ -218,56 +218,17 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
                                     ),
                                     child: Text(
                                       l.prototypeNoRegionsFound,
-                                      style: AppTypography.routingSelectionInput
-                                          .copyWith(
-                                            color: palette.mutedForeground,
-                                          ),
+                                      style: AppTypography.supporting.copyWith(
+                                        color: palette.mutedForeground,
+                                      ),
                                     ),
                                   ),
                                 )
                               else
                                 SliverList.builder(
-                                  itemCount: mobile
-                                      ? visible.length
-                                      : (visible.length / 2).ceil(),
-                                  itemBuilder: (context, index) {
-                                    if (mobile) {
-                                      return _region(
-                                        context,
-                                        visible[index],
-                                        state,
-                                      );
-                                    }
-                                    final first = index * 2;
-                                    return IntrinsicHeight(
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.stretch,
-                                        children: [
-                                          Expanded(
-                                            child: _region(
-                                              context,
-                                              visible[first],
-                                              state,
-                                            ),
-                                          ),
-                                          VerticalDivider(
-                                            width: 1,
-                                            color: palette.border,
-                                          ),
-                                          Expanded(
-                                            child: first + 1 < visible.length
-                                                ? _region(
-                                                    context,
-                                                    visible[first + 1],
-                                                    state,
-                                                  )
-                                                : const SizedBox.shrink(),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
+                                  itemCount: visible.length,
+                                  itemBuilder: (context, index) =>
+                                      _region(context, visible[index], state),
                                 ),
                               SliverToBoxAdapter(child: _note(context, mobile)),
                             ],
@@ -283,11 +244,10 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.routingEditorMaxWidth,
             children: [
-              if (!mobile)
-                OutlinedButton(
-                  onPressed: () => controller.cancel(context),
-                  child: Text(l.prototypeCancel),
-                ),
+              OutlinedButton(
+                onPressed: () => controller.cancel(context),
+                child: Text(l.prototypeCancel),
+              ),
               FilledButton(
                 onPressed: state.busy || state.failed
                     ? null
@@ -356,7 +316,13 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
               TextButton(
                 onPressed: state.selected.isEmpty ? null : controller.clear,
                 style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 32),
+                  minimumSize: Size(
+                    0,
+                    AppLayout.touchExtent(
+                      32,
+                      platform: Theme.of(context).platform,
+                    ),
+                  ),
                   padding: EdgeInsets.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: AppTypography.routingSelectionCount,

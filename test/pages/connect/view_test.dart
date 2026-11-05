@@ -13,6 +13,10 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:onexray/service/connect/coordinator.dart';
+import 'package:onexray/core/pigeon/model.dart';
+import 'package:onexray/service/connect/compiler.dart';
+import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/service/connect/traffic.dart';
 import 'package:onexray/service/settings/backup/service.dart';
@@ -34,33 +38,32 @@ void main() {
     bool hasServers = true,
     bool expert = false,
     String? runningPath,
+    String? fallbackMessage,
     bool methodEnabled = true,
     VoidCallback? onMethod,
     String method = 'Smart Routing',
     String? methodDetail,
     List<CoreConfigData> raws = const [],
+    int? activeRawId,
     VoidCallback? onAddServers,
-    VoidCallback? onExpert,
+    VoidCallback? onServer,
   }) => ConnectView(
     view: view,
     hasServers: hasServers,
     expert: expert,
     raws: raws,
-    activeRawId: null,
+    activeRawId: activeRawId,
     location: 'Automatic selection',
     runningPath: runningPath,
+    fallbackMessage: fallbackMessage,
     method: method,
     methodDetail: methodDetail,
     methodEnabled: methodEnabled,
     onConnection: () {},
     onAddServers: onAddServers ?? () {},
-    onExpert: (_) => onExpert?.call(),
-    onServer: () {},
+    onServer: onServer ?? () {},
     onMethod: onMethod ?? () {},
     onWhy: () {},
-    onRawAdd: () {},
-    onRawSelect: (_) {},
-    onRawActions: (_) {},
   );
 
   Widget app(
@@ -116,7 +119,14 @@ void main() {
         );
         await tester.tap(title);
         expect(choices, 0);
-        expect(find.text('App routing preferences are kept.'), findsOneWidget);
+        final explanation = find.textContaining(
+          'App routing preferences are kept.',
+        );
+        expect(explanation, findsOneWidget);
+        expect(
+          tester.renderObject<RenderParagraph>(explanation).didExceedMaxLines,
+          isFalse,
+        );
         expect(tester.takeException(), isNull);
       }
     },
@@ -164,7 +174,7 @@ void main() {
         final l = AppLocalizations.of(
           tester.element(find.byType(ConnectView)),
         )!;
-        final title = find.text(l.prototypeTraffic);
+        final title = find.text(l.connectionSessionTitle);
         expect(title, findsOneWidget);
         expect(
           find.ancestor(of: title, matching: find.byType(InkWell)),
@@ -201,77 +211,249 @@ void main() {
     },
   );
 
-  for (final expert in [false, true]) {
-    testWidgets('desktop connection shares one panel, expert=$expert', (
-      tester,
-    ) async {
-      await tester.binding.setSurfaceSize(const Size(1160, 800));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(app(screen(expert: expert)));
-      await tester.pumpAndSettle();
-      final panel = find.byKey(const ValueKey('desktop-connection-panel'));
-      final traffic = find.byKey(const ValueKey('desktop-traffic-panel'));
-      final panelRect = tester.getRect(panel);
-      final trafficRect = tester.getRect(traffic);
-      expect(panelRect.top, AppSpacing.desktopPageTop);
-      expect(trafficRect.top, panelRect.top);
-      expect(trafficRect.left - panelRect.right, 16);
-      expect(panelRect.width / trafficRect.width, closeTo(1.04, .001));
-      expect(panelRect.height, closeTo(trafficRect.height, .001));
-      expect(
-        find.descendant(of: panel, matching: find.text('Disconnected')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: panel, matching: find.text('Expert mode')),
-        findsOneWidget,
-      );
-      final connectButton = find.widgetWithText(FilledButton, 'Connect');
-      expect(
-        tester.getSize(connectButton).width,
-        AppLayout.connectDesktopButtonWidth,
-      );
-      expect(
-        tester.getSize(connectButton).height,
-        AppLayout.connectDesktopButtonMinHeight,
-      );
-      expect(
-        tester.widget<TrafficReadout>(find.byType(TrafficReadout)).desktop,
-        isTrue,
-      );
-      expect(
-        find.text('Why this connection?'),
-        expert ? findsNothing : findsOneWidget,
-      );
-      expect(find.text('Add Raw JSON'), expert ? findsOneWidget : findsNothing);
-      expect(tester.takeException(), isNull);
-    });
+  for (final phase in [
+    ConnectionPhase.disconnected,
+    ConnectionPhase.connected,
+  ]) {
+    testWidgets(
+      'unavailable session metrics do not become zero or stale rates: $phase',
+      (tester) async {
+        await tester.pumpWidget(
+          app(
+            screen(
+              view: ConnectionView(
+                phase: phase,
+                metricsAvailable: false,
+                downloadSpeed: 1024,
+                uploadSpeed: 2048,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final readout = find.byType(TrafficReadout);
+        expect(
+          find.descendant(of: readout, matching: find.text('—')),
+          findsNWidgets(5),
+        );
+        for (final stale in ['1 KB/s', '2 KB/s', '0 B/s', '00:00:00']) {
+          expect(
+            find.descendant(of: readout, matching: find.text(stale)),
+            findsNothing,
+          );
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
-  testWidgets('compact desktop stacks panels while mobile stays unchanged', (
+  for (final phase in ConnectionPhase.values) {
+    testWidgets(
+      'connection preserves its actual phase and primary action: $phase',
+      (tester) async {
+        await tester.pumpWidget(
+          app(screen(view: ConnectionView(phase: phase))),
+        );
+        await tester.pump();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ConnectView)),
+        )!;
+        final title = switch (phase) {
+          ConnectionPhase.disconnected => l.prototypeDisconnected,
+          ConnectionPhase.preparing => l.connectionPreparing,
+          ConnectionPhase.connecting => l.prototypeConnecting,
+          ConnectionPhase.connected => l.prototypeConnected,
+          ConnectionPhase.disconnecting => l.prototypeDisconnecting,
+          ConnectionPhase.failed => l.prototypeConnectionFailed,
+        };
+        final action = switch (phase) {
+          ConnectionPhase.disconnected => l.prototypeConnect,
+          ConnectionPhase.preparing ||
+          ConnectionPhase.connecting => l.prototypeCancel,
+          ConnectionPhase.connected => l.prototypeDisconnect,
+          ConnectionPhase.disconnecting => l.prototypePleaseWait,
+          ConnectionPhase.failed => l.prototypeTryAgain,
+        };
+        expect(find.text(title), findsNWidgets(2));
+        expect(
+          tester
+              .widget<FilledButton>(find.widgetWithText(FilledButton, action))
+              .onPressed,
+          phase == ConnectionPhase.disconnecting ? isNull : isNotNull,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('connection explanation requires actual runtime metadata', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(850, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(app(screen()));
-    await tester.pumpAndSettle();
-    final panel = find.byKey(const ValueKey('desktop-connection-panel'));
-    final traffic = find.byKey(const ValueKey('desktop-traffic-panel'));
-    expect(tester.getRect(traffic).top - tester.getRect(panel).bottom, 16);
-    expect(tester.getSize(traffic).width, tester.getSize(panel).width);
-    await tester.binding.setSurfaceSize(const Size(390, 900));
-    await tester.pumpAndSettle();
-    expect(panel, findsNothing);
-    expect(traffic, findsNothing);
-    expect(
-      tester.widget<TrafficReadout>(find.byType(TrafficReadout)).desktop,
-      isFalse,
+    for (final width in [390.0, 768.0, 1440.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 900));
+      for (final view in [
+        const ConnectionView(),
+        ConnectionView(runtime: _runtime()),
+        const ConnectionView(
+          phase: ConnectionPhase.failed,
+          issue: 'stopFailed',
+        ),
+      ]) {
+        await tester.pumpWidget(app(screen(view: view)));
+        await tester.pumpAndSettle();
+        expect(find.text('Why this connection?'), findsNothing);
+      }
+      await tester.pumpWidget(
+        app(
+          screen(
+            view: ConnectionView(
+              phase: ConnectionPhase.failed,
+              issue: 'stopFailed',
+              runtime: _runtime(),
+            ),
+            runningPath: 'Actual entry',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Why this connection?'), findsOneWidget);
+      expect(find.text('Actual entry'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
+  testWidgets('scope fallback remains visible beside the actual running path', (
+    tester,
+  ) async {
+    const message = 'Source scope → Automatic selection';
+    await tester.pumpWidget(
+      app(
+        screen(
+          view: ConnectionView(
+            phase: ConnectionPhase.connected,
+            runtime: _runtime(),
+          ),
+          runningPath: 'Frozen entry → Frozen final exit',
+          fallbackMessage: message,
+        ),
+      ),
     );
-    expect(
-      tester.getSize(find.widgetWithText(FilledButton, 'Connect')).height,
-      AppLayout.connectButtonMinHeight,
-    );
+    await tester.pump();
+    expect(find.text(message), findsOneWidget);
+    expect(find.text('Frozen entry → Frozen final exit'), findsOneWidget);
+    expect(find.text('Automatic selection'), findsOneWidget);
+    expect(find.text('Connection failed'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  for (final expert in [false, true]) {
+    testWidgets(
+      'connection stacks state, plan, runtime and session; raw=$expert',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1160, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(
+          app(
+            screen(
+              expert: expert,
+              view: ConnectionView(
+                phase: ConnectionPhase.connected,
+                runtime: _runtime(),
+              ),
+              runningPath: 'Frozen entry → Frozen exit',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ConnectView)),
+        )!;
+        final cards =
+            [
+                  l.prototypeConnected,
+                  l.connectionPlan,
+                  l.connectionRuntimeTitle,
+                  l.connectionSessionTitle,
+                ]
+                .map(
+                  (title) => tester.getRect(
+                    find
+                        .ancestor(
+                          of: find.text(title),
+                          matching: find.byType(Card),
+                        )
+                        .first,
+                  ),
+                )
+                .toList();
+        for (var index = 0; index < cards.length; index++) {
+          expect(cards[index].left, closeTo(cards.first.left, .01));
+          expect(cards[index].width, closeTo(cards.first.width, .01));
+          if (index > 0) {
+            expect(cards[index].top, greaterThan(cards[index - 1].bottom));
+          }
+        }
+        expect(
+          find.byKey(const ValueKey('connection-single-column')),
+          findsOneWidget,
+        );
+        expect(find.byType(ShadSwitch), findsNothing);
+        final connectButton = find.widgetWithText(FilledButton, 'Disconnect');
+        expect(
+          tester.getSize(connectButton).width,
+          lessThanOrEqualTo(cards.first.width),
+        );
+        expect(
+          tester.getSize(connectButton).height,
+          greaterThanOrEqualTo(AppLayout.buttonMinHeight),
+        );
+        expect(
+          tester.widget<TrafficReadout>(find.byType(TrafficReadout)).desktop,
+          isFalse,
+        );
+        expect(find.text('Why this connection?'), findsOneWidget);
+        expect(find.text('Add Raw JSON'), findsNothing);
+        expect(find.text('Frozen entry → Frozen exit'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('phone, tablet and desktop use the same single content column', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [390.0, 768.0, 1160.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 900));
+      await tester.pumpWidget(app(screen()));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(tester.element(find.byType(ConnectView)))!;
+      final plan = tester.getRect(
+        find
+            .ancestor(
+              of: find.text(l.connectionPlan),
+              matching: find.byType(Card),
+            )
+            .first,
+      );
+      final session = tester.getRect(
+        find
+            .ancestor(
+              of: find.text(l.connectionSessionTitle),
+              matching: find.byType(Card),
+            )
+            .first,
+      );
+      expect(session.top, greaterThan(plan.bottom));
+      expect(session.left, closeTo(plan.left, .01));
+      expect(session.width, closeTo(plan.width, .01));
+      expect(
+        tester.widget<TrafficReadout>(find.byType(TrafficReadout)).desktop,
+        isFalse,
+      );
+      expect(tester.takeException(), isNull);
+    }
   });
 
   for (final locale in [
@@ -294,7 +476,8 @@ void main() {
       expect(tester.takeException(), isNull);
       final context = tester.element(find.byType(ConnectView));
       final l = AppLocalizations.of(context)!;
-      expect(find.text(l.prototypeCurrentSpeed), findsOneWidget);
+      expect(find.text(l.connectionSessionTitle), findsOneWidget);
+      expect(find.text(l.connectionPlan), findsOneWidget);
       expect(find.text(l.prototypeServers), findsOneWidget);
       expect(
         Directionality.of(context),
@@ -308,8 +491,9 @@ void main() {
         await tester.pumpWidget(
           app(
             screen(
-              view: const ConnectionView(
+              view: ConnectionView(
                 phase: ConnectionPhase.connected,
+                runtime: _runtime(),
                 issue: 'selectionReset',
               ),
               runningPath: path,
@@ -327,21 +511,22 @@ void main() {
         );
         expect(find.text(l.prototypeConnectionFailed), findsNothing);
         expect(find.text(l.prototypeCheckNetwork), findsNothing);
-        expect(find.text(l.prototypeConnected), findsOneWidget);
+        expect(find.text(l.prototypeConnected), findsNWidgets(2));
         expect(tester.takeException(), isNull);
       },
     );
   }
 
-  testWidgets('empty normal state still offers expert configuration', (
+  testWidgets('empty connection opens the shared add-server flow', (
     tester,
   ) async {
     var switched = false;
     await tester.pumpWidget(
-      app(screen(hasServers: false, onExpert: () => switched = true)),
+      app(screen(hasServers: false, onAddServers: () => switched = true)),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Use a complete Raw JSON configuration'));
+    expect(find.text('Use a complete Raw JSON configuration'), findsNothing);
+    await tester.tap(find.widgetWithText(FilledButton, 'Add servers'));
     expect(switched, isTrue);
   });
 
@@ -383,12 +568,27 @@ void main() {
       final card = tester.getRect(emptyCard);
       final bodyTop = tester.getBottomLeft(find.byType(AppBar)).dy;
       expect(card.center.dx, closeTo(size.width / 2, .5));
-      expect(card.top, bodyTop + AppSpacing.desktopPageTop);
+      expect(find.text(l.connectionPlan), findsNothing);
+      expect(card.top, closeTo(bodyTop + AppSpacing.desktopPageTop, .01));
       expect(
         card.width,
         size.width.clamp(0.0, AppLayout.standardMaxWidth) - AppSpacing.page * 2,
       );
-      expect(card.height, AppLayout.emptyStateDesktopMinHeight);
+      expect(
+        card.height,
+        greaterThanOrEqualTo(AppLayout.emptyStateDesktopMinHeight),
+      );
+      final add = find.widgetWithText(FilledButton, l.prototypeAddServers);
+      expect(add.hitTestable(), findsOneWidget);
+      expect(find.text(l.prototypeUseCompleteRawJson), findsNothing);
+      if (BackupService.supported) {
+        expect(
+          find
+              .widgetWithText(OutlinedButton, l.backupRestoreFrom)
+              .hitTestable(),
+          findsOneWidget,
+        );
+      }
       expect(tester.takeException(), isNull);
     }
   });
@@ -399,32 +599,26 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       for (final size in [const Size(760, 240), const Size(390, 600)]) {
         var added = false;
-        var switched = false;
         await tester.binding.setSurfaceSize(size);
         await tester.pumpWidget(
           app(
-            screen(
-              hasServers: false,
-              onAddServers: () => added = true,
-              onExpert: () => switched = true,
-            ),
+            screen(hasServers: false, onAddServers: () => added = true),
             scale: 1.5,
           ),
         );
         await tester.pumpAndSettle();
         for (final action in [
           find.widgetWithText(FilledButton, 'Add servers'),
-          find.widgetWithText(
-            TextButton,
-            'Use a complete Raw JSON configuration',
-          ),
         ]) {
           await tester.ensureVisible(action);
           await tester.pumpAndSettle();
           await tester.tap(action);
         }
         expect(added, isTrue);
-        expect(switched, isTrue);
+        expect(
+          find.text('Use a complete Raw JSON configuration'),
+          findsNothing,
+        );
         expect(tester.takeException(), isNull);
       }
     },
@@ -479,9 +673,9 @@ void main() {
         app(
           screen(
             view: const ConnectionView(
-              issue: 'insufficientHealthyServers',
+              issue: 'insufficientCandidates',
               error: ConnectionResolutionException(
-                ConnectionResolutionFailure.insufficientHealthyServers,
+                ConnectionResolutionFailure.insufficientCandidates,
                 requiredCount: 3,
                 availableCount: 1,
               ),
@@ -497,7 +691,7 @@ void main() {
   );
 
   testWidgets(
-    'all legacy Raw configurations remain visible; add hidden at 3+',
+    'connection plan shows the selected complete configuration and opens its picker',
     (tester) async {
       final raws = List.generate(
         4,
@@ -512,13 +706,28 @@ void main() {
           favorite: false,
         ),
       );
-      await tester.pumpWidget(app(screen(expert: true, raws: raws)));
+      var opened = false;
+      await tester.pumpWidget(
+        app(
+          screen(
+            expert: true,
+            raws: raws,
+            activeRawId: 3,
+            onServer: () => opened = true,
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
       for (final row in raws) {
-        expect(find.text(row.name), findsOneWidget);
+        expect(
+          find.text(row.name),
+          row.id == 3 ? findsOneWidget : findsNothing,
+        );
       }
       expect(find.text('Add Raw JSON'), findsNothing);
       expect(find.text('Why this connection?'), findsNothing);
+      await tester.tap(find.text('Legacy 3'));
+      expect(opened, isTrue);
     },
   );
 
@@ -557,9 +766,13 @@ void main() {
     );
     await tester.binding.setSurfaceSize(const Size(1200, 800));
     await tester.pumpAndSettle();
+    final saveButton = tester.getRect(find.byType(FilledButton));
+    final saveLabel = tester.getRect(find.text('Save'));
+    expect(saveButton.width, greaterThan(saveLabel.width));
+    expect(saveButton.width, lessThan(150));
     expect(
-      tester.getSize(find.byType(FilledButton)).width,
-      greaterThanOrEqualTo(AppLayout.pageActionButtonMinWidth),
+      saveButton.width,
+      lessThan(tester.getSize(find.byType(TextButton)).width),
     );
     expect(
       tester.getSize(find.byType(PageActionBar)).height,
@@ -567,4 +780,30 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+}
+
+ConnectionRuntime _runtime() {
+  final configuration = ConnectionConfiguration();
+  return ConnectionRuntime.create(
+    configuration: configuration,
+    compiled: CompiledConnection(
+      xrayJson: '{}',
+      entries: [
+        ResolvedServer(
+          id: 1,
+          sourceId: 0,
+          outbound: {'protocol': 'freedom', 'tag': 'Actual entry'},
+        ),
+      ],
+      finalExit: null,
+      nodeTags: const {},
+    ),
+    platform: ConnectionPlatform.android,
+    request: StartVpnRequest(
+      configuration.policy.toTun(ConnectionPlatform.android),
+      null,
+      null,
+      '{}',
+    ),
+  );
 }

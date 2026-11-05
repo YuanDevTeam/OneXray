@@ -9,6 +9,8 @@ import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/main/url.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
+import 'package:onexray/pages/advanced/xray/fields.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/advanced/local_api/settings.dart';
 import 'package:onexray/service/settings/language/locale.dart';
@@ -112,6 +114,30 @@ void main() {
     );
     expect(find.text('http://127.0.0.1:18587'), findsOneWidget);
     expect(find.text('Not listening'), findsOneWidget);
+    final enable = find.byType(XrayToggleField);
+    final l = AppLocalizations.of(tester.element(enable))!;
+    expect(
+      tester.widget<XrayToggleField>(enable).description,
+      l.localApiAppRequired,
+    );
+    final title = find.descendant(
+      of: enable,
+      matching: find.text(l.localApiEnable),
+    );
+    expect(
+      tester.getCenter(find.byKey(const ValueKey('local-api-enabled'))).dx,
+      lessThan(tester.getCenter(title).dx),
+    );
+    final authorization = find.byWidgetPredicate(
+      (widget) => widget is SettingSection && widget.title == l.localApiToken,
+    );
+    expect(
+      find.descendant(
+        of: authorization,
+        matching: find.text(l.localApiTokenHint),
+      ),
+      findsOneWidget,
+    );
     expect(tester.widget<OutlinedButton>(find.byKey(_copy)).onPressed, isNull);
     expect(api.saveCalls, 0);
     expect(tester.takeException(), isNull);

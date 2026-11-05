@@ -913,6 +913,11 @@ class BridgeHostApiSetup {
 protocol AppleWidgetHostApi {
   func takeAction(completion: @escaping (Result<String?, Error>) -> Void)
   func setLanguage(languageCode: String, completion: @escaping (Result<Void, Error>) -> Void)
+  func beginPreparation(completion: @escaping (Result<String, Error>) -> Void)
+  func finishPreparation(token: String, completion: @escaping (Result<Void, Error>) -> Void)
+  func startPreparedVpn(token: String, requestJson: String, completion: @escaping (Result<NativeVpnCommandResult, Error>) -> Void)
+  func connectedAtMilliseconds(completion: @escaping (Result<Int64?, Error>) -> Void)
+  func setStartBlocked(blocked: Bool, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -952,6 +957,88 @@ class AppleWidgetHostApiSetup {
       }
     } else {
       setLanguageChannel.setMessageHandler(nil)
+    }
+    let beginPreparationChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleWidgetHostApi.beginPreparation\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      beginPreparationChannel.setMessageHandler { _, reply in
+        api.beginPreparation { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      beginPreparationChannel.setMessageHandler(nil)
+    }
+    let finishPreparationChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleWidgetHostApi.finishPreparation\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      finishPreparationChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let tokenArg = args[0] as! String
+        api.finishPreparation(token: tokenArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      finishPreparationChannel.setMessageHandler(nil)
+    }
+    let startPreparedVpnChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleWidgetHostApi.startPreparedVpn\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startPreparedVpnChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let tokenArg = args[0] as! String
+        let requestJsonArg = args[1] as! String
+        api.startPreparedVpn(token: tokenArg, requestJson: requestJsonArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      startPreparedVpnChannel.setMessageHandler(nil)
+    }
+    let connectedAtMillisecondsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleWidgetHostApi.connectedAtMilliseconds\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      connectedAtMillisecondsChannel.setMessageHandler { _, reply in
+        api.connectedAtMilliseconds { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      connectedAtMillisecondsChannel.setMessageHandler(nil)
+    }
+    let setStartBlockedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.AppleWidgetHostApi.setStartBlocked\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setStartBlockedChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let blockedArg = args[0] as! Bool
+        api.setStartBlocked(blocked: blockedArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setStartBlockedChannel.setMessageHandler(nil)
     }
   }
 }

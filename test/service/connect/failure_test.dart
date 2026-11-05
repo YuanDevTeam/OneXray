@@ -59,7 +59,7 @@ void main() {
         connectionFailureMessage(
           l,
           error: const ConnectionResolutionException(
-            ConnectionResolutionFailure.insufficientHealthyServers,
+            ConnectionResolutionFailure.insufficientCandidates,
             requiredCount: 3,
             availableCount: 2,
           ),

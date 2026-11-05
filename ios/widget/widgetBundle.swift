@@ -12,5 +12,8 @@ import SwiftUI
 struct widgetBundle: WidgetBundle {
     var body: some Widget {
         ConnectionWidget()
+        if #available(iOS 18.0, *) {
+            VpnControl()
+        }
     }
 }

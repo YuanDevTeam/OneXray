@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:onexray/pages/servers/form_page.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/core/errors/json_diagnostic.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -6,9 +7,8 @@ import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/servers/editor/controller.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
-import 'package:onexray/pages/theme/layout.dart';
-import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
+import 'package:onexray/pages/shared/widgets/json_editor_workspace.dart';
 
 class ServerEditorPage extends StatelessWidget {
   final int serverId;
@@ -30,43 +30,49 @@ class ServerEditorPage extends StatelessWidget {
         final controller = context.read<ServerEditorController>();
         final l = AppLocalizations.of(context)!;
         final p = ColorManager.palette(context);
-        final mobile =
-            MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return PopScope(
           canPop: state.canPop,
           onPopInvokedWithResult: (didPop, result) {
             if (!didPop) controller.closePage(context);
           },
-          child: AppDialog(
+          child: ServerFormPage(
             title: l.prototypeEditServer,
-            subtitle: state.name,
             onClose: () => controller.closePage(context),
-            body: Padding(
-              padding: EdgeInsets.fromLTRB(
-                mobile ? 16 : 20,
-                20,
-                mobile ? 16 : 20,
-                0,
-              ),
-              child: Column(
+            expandBody: true,
+            body: JsonEditorWorkspace(
+              header: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (state.name case final name?
+                      when name.trim().isNotEmpty) ...[
+                    Text(
+                      name,
+                      style: AppTypography.rowTitle.copyWith(
+                        color: p.foreground,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Text(
                     l.prototypeXrayOutboundJson,
-                    style: AppTypography.subscriptionField.copyWith(
-                      color: p.mutedStrong,
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: p.foreground,
                     ),
                   ),
-                  const SizedBox(height: 7),
-                  OutboundJsonEditor(
-                    controller: controller.text,
-                    diagnostic:
-                        state.diagnostic ??
-                        (state.error == null
-                            ? null
-                            : JsonDiagnostic(state.error!)),
-                  ),
-                  const SizedBox(height: 7),
+                ],
+              ),
+              editor: OutboundJsonEditor(
+                controller: controller.text,
+                expand: true,
+                diagnostic:
+                    state.diagnostic ??
+                    (state.error == null ? null : JsonDiagnostic(state.error!)),
+              ),
+              footer: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   Text(
                     state.fromSubscription
                         ? l.prototypeSubscriptionOutboundHint
@@ -80,17 +86,10 @@ class ServerEditorPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Semantics(
                         liveRegion: true,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: MediaQuery.sizeOf(context).height / 4,
-                          ),
-                          child: SingleChildScrollView(
-                            child: SelectableText(
-                              state.error!,
-                              style: AppTypography.subscriptionInfo.copyWith(
-                                color: p.destructive,
-                              ),
-                            ),
+                        child: SelectableText(
+                          state.error!,
+                          style: AppTypography.subscriptionInfo.copyWith(
+                            color: p.destructive,
                           ),
                         ),
                       ),

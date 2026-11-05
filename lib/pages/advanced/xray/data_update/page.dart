@@ -13,7 +13,7 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:onexray/pages/advanced/xray/fields.dart';
 
 class AutoUpdatePage extends StatelessWidget {
   const AutoUpdatePage({super.key});
@@ -27,10 +27,12 @@ class AutoUpdatePage extends StatelessWidget {
         final value = state.autoUpdateState;
         final width = MediaQuery.sizeOf(context).width;
         final mobile = width <= AppLayout.mobileBreakpoint;
-        final gutter = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
+        final gutter = mobile
+            ? AppSpacing.mobilePage
+            : AppSpacing.advancedDesktopGutter(width);
         return Scaffold(
           appBar: PageAppBar(
-            title: Text(l.prototypeDataUpdates),
+            title: Text(l.prototypeAutomaticUpdates),
             actions: [
               const AppActivityIndicator(pinging: false),
               PageHelpButton(
@@ -46,7 +48,7 @@ class AutoUpdatePage extends StatelessWidget {
           ),
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.advancedMaxWidth,
-            expandDesktop: true,
+            expandDesktop: false,
             horizontalPadding: mobile ? null : gutter,
             spacing: mobile ? AppSpacing.actionGap : 13,
             children: [
@@ -87,64 +89,75 @@ class AutoUpdatePage extends StatelessWidget {
                     child: Padding(
                       padding: EdgeInsets.fromLTRB(
                         gutter,
-                        mobile ? 12 : 48,
+                        20,
                         gutter,
                         mobile ? 26 : 24,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        spacing: mobile ? 25 : 28,
+                        spacing: 20,
                         children: [
                           SettingSection(
-                            title: l.prototypeSubscriptions,
-                            icon: LucideIcons.refreshCw,
+                            title: l.prototypeUpdateInterval,
                             padding: EdgeInsets.zero,
-                            dividerIndent: 0,
                             children: [
-                              _automaticUpdates(
-                                mobile: mobile,
-                                title: l.prototypeAutomaticUpdates,
+                              XrayToggleField(
+                                title: l.xrayAutomaticSubscriptionUpdates,
                                 value: value.subscriptionEnabled,
                                 onChanged: state.saving
                                     ? null
                                     : controller.updateSubscriptionEnabled,
                               ),
-                              _interval(
-                                l,
-                                value.subscriptionInterval,
-                                value.subscriptionEnabled && !state.saving,
-                                controller.updateSubscriptionInterval,
-                                mobile: mobile,
+                              const SizedBox(height: 16),
+                              XrayLabeledField(
+                                key: const ValueKey(
+                                  'subscription-update-interval-field',
+                                ),
+                                label: l.xraySubscriptionUpdateInterval,
+                                child: SettingSelect<AutoUpdateInterval>(
+                                  key: const ValueKey(
+                                    'subscription-update-interval',
+                                  ),
+                                  value: value.subscriptionInterval,
+                                  entries: _intervals(l),
+                                  onChanged:
+                                      value.subscriptionEnabled && !state.saving
+                                      ? controller.updateSubscriptionInterval
+                                      : null,
+                                ),
                               ),
-                            ],
-                          ),
-                          SettingSection(
-                            title: l.prototypeRoutingData,
-                            icon: LucideIcons.globe2,
-                            padding: EdgeInsets.zero,
-                            dividerIndent: 0,
-                            children: [
-                              _automaticUpdates(
-                                mobile: mobile,
-                                title: l.prototypeAutomaticUpdates,
+                              const SizedBox(height: 24),
+                              XrayToggleField(
+                                title: l.xrayAutomaticGeodataUpdates,
                                 value: value.geoDataEnable,
                                 onChanged: state.saving
                                     ? null
                                     : controller.updateGeoDataEnable,
                               ),
-                              _interval(
-                                l,
-                                value.geoDataInterval,
-                                value.geoDataEnable && !state.saving,
-                                controller.updateGeoDataInterval,
-                                mobile: mobile,
+                              const SizedBox(height: 16),
+                              XrayLabeledField(
+                                key: const ValueKey(
+                                  'geodata-update-interval-field',
+                                ),
+                                label: l.xrayGeodataUpdateInterval,
+                                child: SettingSelect<AutoUpdateInterval>(
+                                  key: const ValueKey(
+                                    'geodata-update-interval',
+                                  ),
+                                  value: value.geoDataInterval,
+                                  entries: _intervals(l),
+                                  onChanged:
+                                      value.geoDataEnable && !state.saving
+                                      ? controller.updateGeoDataInterval
+                                      : null,
+                                ),
                               ),
                             ],
                           ),
                           if (state.failed)
                             Text(
                               appFailureMessage(l, state.failure),
-                              style: AppTypography.settingsDetailNote.copyWith(
+                              style: AppTypography.supporting.copyWith(
                                 color: Theme.of(context).colorScheme.error,
                               ),
                             ),
@@ -158,52 +171,9 @@ class AutoUpdatePage extends StatelessWidget {
     ),
   );
 
-  Widget _automaticUpdates({
-    required bool mobile,
-    required String title,
-    required bool value,
-    required ValueChanged<bool>? onChanged,
-  }) => SettingRow(
-    title: title,
-    titleStyle: AppTypography.settingsRow,
-    minHeight: mobile ? 58 : 64,
-    contentPadding: EdgeInsetsDirectional.symmetric(
-      horizontal: mobile ? 13 : 14,
-      vertical: mobile ? 7 : 9,
-    ),
-    enabled: onChanged != null,
-    onTap: onChanged == null ? null : () => onChanged(!value),
-    trailing: ShadSwitch(
-      value: value,
-      enabled: onChanged != null,
-      onChanged: onChanged,
-    ),
-  );
-
-  Widget _interval(
-    AppLocalizations l,
-    AutoUpdateInterval value,
-    bool enabled,
-    ValueChanged<AutoUpdateInterval?> onChanged, {
-    required bool mobile,
-  }) => SettingRow(
-    title: l.prototypeUpdateInterval,
-    titleStyle: mobile
-        ? AppTypography.settingsRow
-        : AppTypography.settingsSelect,
-    minHeight: 62,
-    contentPadding: const EdgeInsetsDirectional.symmetric(
-      horizontal: 14,
-      vertical: 10,
-    ),
-    trailing: SettingSelect<AutoUpdateInterval>(
-      value: value,
-      entries: {
-        AutoUpdateInterval.oneDay: l.prototypeEveryDay,
-        AutoUpdateInterval.threeDays: l.prototypeEveryThreeDays,
-        AutoUpdateInterval.oneWeek: l.prototypeEveryWeek,
-      },
-      onChanged: enabled ? onChanged : null,
-    ),
-  );
+  Map<AutoUpdateInterval, String> _intervals(AppLocalizations l) => {
+    AutoUpdateInterval.oneDay: l.prototypeEveryDay,
+    AutoUpdateInterval.threeDays: l.prototypeEveryThreeDays,
+    AutoUpdateInterval.oneWeek: l.prototypeEveryWeek,
+  };
 }

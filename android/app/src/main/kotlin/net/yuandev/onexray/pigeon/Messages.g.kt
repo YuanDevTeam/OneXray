@@ -682,6 +682,7 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
   }
 }
 
+
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface BridgeHostApi {
   fun getTunFilesDir(callback: (Result<String>) -> Unit)
@@ -1013,6 +1014,11 @@ interface BridgeHostApi {
 interface AppleWidgetHostApi {
   fun takeAction(callback: (Result<String?>) -> Unit)
   fun setLanguage(languageCode: String, callback: (Result<Unit>) -> Unit)
+  fun beginPreparation(callback: (Result<String>) -> Unit)
+  fun finishPreparation(token: String, callback: (Result<Unit>) -> Unit)
+  fun startPreparedVpn(token: String, requestJson: String, callback: (Result<NativeVpnCommandResult>) -> Unit)
+  fun connectedAtMilliseconds(callback: (Result<Long?>) -> Unit)
+  fun setStartBlocked(blocked: Boolean, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by AppleWidgetHostApi. */
@@ -1048,6 +1054,101 @@ interface AppleWidgetHostApi {
             val args = message as List<Any?>
             val languageCodeArg = args[0] as String
             api.setLanguage(languageCodeArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(MessagesPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.AppleWidgetHostApi.beginPreparation$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.beginPreparation{ result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.AppleWidgetHostApi.finishPreparation$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val tokenArg = args[0] as String
+            api.finishPreparation(tokenArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(MessagesPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.AppleWidgetHostApi.startPreparedVpn$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val tokenArg = args[0] as String
+            val requestJsonArg = args[1] as String
+            api.startPreparedVpn(tokenArg, requestJsonArg) { result: Result<NativeVpnCommandResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.AppleWidgetHostApi.connectedAtMilliseconds$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.connectedAtMilliseconds{ result: Result<Long?> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.AppleWidgetHostApi.setStartBlocked$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val blockedArg = args[0] as Boolean
+            api.setStartBlocked(blockedArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

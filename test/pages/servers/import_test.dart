@@ -16,8 +16,12 @@ import 'package:onexray/pages/servers/import/controller.dart';
 import 'package:onexray/pages/servers/import/page.dart';
 import 'package:onexray/pages/servers/subscription/form_view.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
+import 'package:onexray/pages/shared/widgets/json_editor_workspace.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:onexray/service/shared/db/config_writer.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
@@ -27,12 +31,170 @@ import 'package:onexray/service/servers/outbound/state_db.dart';
 import 'package:onexray/service/connect/raw/validator.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:re_editor/re_editor.dart' show CodeEditor;
 
 void main() {
   setUp(() {
     final bus = AppEventBus();
     addTearDown(bus.close);
   });
+
+  testWidgets(
+    'available import methods share one card and keep their real actions',
+    (tester) async {
+      _mobileViewport(tester);
+      final controller = ServerImportController(
+        loadSubscription: (_) async => null,
+      );
+      addTearDown(controller.close);
+      await tester.pumpWidget(_app(ServersImportPage(controller: controller)));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServersImportPage)),
+      )!;
+      expect(
+        find.widgetWithText(AppBar, l.prototypeAddServersToOneXray),
+        findsOneWidget,
+      );
+      expect(find.text(l.serverImportPageDescription), findsNothing);
+      expect(find.byType(ShadCard), findsOneWidget);
+      final card = find.byType(ShadCard);
+      for (final action in [
+        if (controller.supportsScan) ServerImportAction.scan,
+        ServerImportAction.paste,
+        ServerImportAction.subscription,
+        ServerImportAction.file,
+        ServerImportAction.json,
+        ServerImportAction.raw,
+      ]) {
+        final choice = find.byKey(
+          ValueKey('server-import-choice-${action.name}'),
+        );
+        expect(find.descendant(of: card, matching: choice), findsOneWidget);
+        expect(tester.widget<SettingRow>(choice).onTap, isNotNull);
+        expect(tester.widget<SettingRow>(choice).enabled, isTrue);
+      }
+      expect(
+        find.byType(SettingRow),
+        findsNWidgets(controller.supportsScan ? 6 : 5),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final size in const [
+    Size(390, 844),
+    Size(390, 667),
+    Size(1032, 1376),
+    Size(1160, 720),
+  ]) {
+    testWidgets(
+      'manual JSON fills remaining space and keeps keyboard actions at $size',
+      (tester) async {
+        _mobileViewport(tester);
+        tester.view.physicalSize = size;
+        final controller = ServerImportController(
+          loadSubscription: (_) async => null,
+        );
+        addTearDown(controller.close);
+        const source = '{"tag":"Manual draft","protocol":"freedom"}';
+        controller.jsonText.text = source;
+        await tester.pumpWidget(
+          _app(
+            ServerImportFormPage(
+              controller: controller,
+              action: ServerImportAction.json,
+            ),
+          ),
+        );
+        await tester.pump();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerImportFormPage)),
+        )!;
+        final editor = find.byType(OutboundJsonEditor);
+        final workspace = find.byType(JsonEditorWorkspace);
+        expect(workspace, findsOneWidget);
+        expect(tester.widget<OutboundJsonEditor>(editor).expand, isTrue);
+        expect(
+          find.ancestor(of: editor, matching: find.byType(ShadCard)),
+          findsNothing,
+        );
+        expect(
+          find.ancestor(of: editor, matching: find.byType(Scrollable)),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: workspace,
+            matching: find.text(l.prototypeXrayNodeJson),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text(l.prototypeNodeJsonHint), findsOneWidget);
+        expect(find.text(l.prototypeLocalInputPrivacy), findsOneWidget);
+        final gutter = size.width <= 720 ? 16.0 : 28.0;
+        expect(tester.getRect(editor).left, closeTo(gutter, .01));
+        expect(tester.getRect(editor).right, closeTo(size.width - gutter, .01));
+        final initialHeight = tester.getSize(editor).height;
+        tester.view.physicalSize = Size(size.width, size.height + 160);
+        await tester.pump();
+        expect(
+          tester.getSize(editor).height,
+          greaterThanOrEqualTo(initialHeight + 120 - .01),
+        );
+
+        tester.view.physicalSize = size;
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        addTearDown(tester.view.resetViewInsets);
+        await tester.pump();
+        tester
+            .widget<CodeEditor>(find.byType(CodeEditor))
+            .focusNode!
+            .requestFocus();
+        await tester.pump(const Duration(milliseconds: 200));
+
+        final add = find.widgetWithText(FilledButton, l.prototypeAdd);
+        expect(add.hitTestable(), findsOneWidget);
+        expect(tester.widget<FilledButton>(add).onPressed, isNotNull);
+        expect(
+          tester.getRect(add).bottom,
+          lessThanOrEqualTo(size.height - 300),
+        );
+        final actionRect = tester.getRect(add);
+        final bodyScrollers = find.ancestor(
+          of: editor,
+          matching: find.byType(Scrollable),
+        );
+        if (bodyScrollers.evaluate().isNotEmpty) {
+          final position = tester
+              .state<ScrollableState>(bodyScrollers.first)
+              .position;
+          position.jumpTo(position.maxScrollExtent);
+          await tester.pump();
+        }
+        await tester.ensureVisible(editor);
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(tester.getRect(add), actionRect);
+        expect(add.hitTestable(), findsOneWidget);
+        expect(find.byType(CodeEditor).hitTestable(), findsOneWidget);
+        expect(
+          tester.getSize(editor).height,
+          greaterThanOrEqualTo(AppLayout.jsonEditorMinHeight),
+        );
+        expect(tester.getSize(editor).height, lessThan(initialHeight));
+        expect(
+          tester
+              .getRect(find.byType(CodeEditor))
+              .overlaps(
+                Rect.fromLTRB(0, 0, size.width, tester.getRect(add).top),
+              ),
+          isTrue,
+        );
+        expect(controller.jsonText.text, source);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   test(
     'panels share the default UA and preserve manual input while loading',
@@ -365,7 +527,7 @@ void main() {
       expect(controller.state.openingAction, isNull);
       expect(
         find.descendant(
-          of: find.widgetWithText(OutlinedButton, 'Import file'),
+          of: find.byKey(const ValueKey('server-import-choice-file')),
           matching: find.byType(ButtonProgressIndicator),
         ),
         findsOneWidget,
@@ -385,14 +547,11 @@ void main() {
     expect(urls.length, 3);
     expect(find.textContaining('HTTP 403'), findsNWidgets(3));
     expect(find.byType(ButtonProgressIndicator), findsNothing);
-    expect(
-      tester
-          .widget<OutlinedButton>(
-            find.widgetWithText(OutlinedButton, 'Import file'),
-          )
-          .onPressed,
-      isNotNull,
+    final fileChoice = tester.widget<SettingRow>(
+      find.byKey(const ValueKey('server-import-choice-file')),
     );
+    expect(fileChoice.enabled, isTrue);
+    expect(fileChoice.onTap, isNotNull);
     expect(tester.takeException(), isNull);
   });
 
@@ -710,9 +869,8 @@ void main() {
         Builder(
           builder: (context) => TextButton(
             onPressed: () async {
-              result = await showAppDialog<ServerImportResult>(
-                context,
-                (_) => const ServersImportPage(),
+              result = await Navigator.of(context).push<ServerImportResult>(
+                MaterialPageRoute(builder: (_) => const ServersImportPage()),
               );
               completed = true;
             },
@@ -732,7 +890,7 @@ void main() {
     expect(controller.text.text, isEmpty);
     expect(clipboardReads, 0);
 
-    await tester.tap(find.text('Back'));
+    await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.text('Add servers to OneXray'), findsOneWidget);
     expect(completed, isFalse);
@@ -745,7 +903,8 @@ void main() {
           .controller,
       same(controller),
     );
-    await tester.tap(find.byTooltip('Close dialog'));
+    expect(find.byTooltip('Close dialog'), findsNothing);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
     await tester.pumpAndSettle();
     expect(completed, isTrue);
     expect(result, isNull);
@@ -819,7 +978,15 @@ void main() {
       );
       final controller = ServerImportController(
         service: service,
-        loadSubscription: (_) async => null,
+        loadSubscription: (_) async => SubscriptionData(
+          id: 7,
+          name: 'Provider',
+          url: 'https://provider.example/list',
+          timestamp: DateTime(2026),
+          panel: SubscriptionPanel.remnawave.name,
+          mode: SubscriptionMode.providerManaged.name,
+          hwidEnabled: false,
+        ),
       );
       addTearDown(controller.close);
       controller.text.text =
@@ -854,6 +1021,17 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(ServerImportPreviewPage), findsOneWidget);
       expect(find.text('1 subscriptions imported.'), findsOneWidget);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerImportPreviewPage)),
+      )!;
+      expect(
+        find.text('Provider: ${l.providerConfigurationCount(2)}'),
+        findsOneWidget,
+      );
+      expect(find.text('Provider: ${l.prototypeUsableNodes(2)}'), findsNothing);
+      expect(find.text('Pending confirmation'), findsOneWidget);
+      expect(find.text('Imported links'), findsNothing);
+      expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
       expect(imported, 1);
       expect(writes, 0);
       controller.closePage(
@@ -875,6 +1053,142 @@ void main() {
       expect(result?.subscriptionCount, 1);
       expect(imported, 1);
       expect(writes, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final metadata in ['ordinary', 'missing', 'unavailable']) {
+    testWidgets(
+      'mixed import uses the committed subscription type or neutral feedback ($metadata)',
+      (tester) async {
+        ServerImportResult? result;
+        var writes = 0;
+        final controller = ServerImportController(
+          service: _ConfigurationImportService(
+            subscribe: (_) async => const SubscriptionInsertResult(
+              status: SubscriptionUpdateResult.success,
+              subId: 7,
+              count: 2,
+            ),
+            write: (_) async {
+              writes++;
+              throw StateError('Unconfirmed local content must not be saved');
+            },
+          ),
+          loadSubscription: (_) async {
+            if (metadata == 'unavailable') {
+              throw StateError('Subscription metadata is unavailable');
+            }
+            if (metadata == 'missing') {
+              return null;
+            }
+            return SubscriptionData(
+              id: 7,
+              name: 'Provider',
+              url: 'https://provider.example/list',
+              timestamp: DateTime(2026),
+              panel: SubscriptionPanel.generic.name,
+              mode: SubscriptionMode.appManaged.name,
+              hwidEnabled: false,
+            );
+          },
+        );
+        addTearDown(controller.close);
+        controller.text.text =
+            'https://provider.example/list#Provider\n${_rawLink()}';
+        await tester.pumpWidget(_wizard(controller, (value) => result = value));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Paste route'));
+        await tester.pumpAndSettle();
+        await _tapVisible(
+          tester,
+          find.widgetWithText(FilledButton, 'Import links'),
+        );
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerImportPreviewPage)),
+        )!;
+        expect(
+          find.text(
+            'Provider: ${metadata == "ordinary" ? l.prototypeUsableNodes(2) : l.prototypeSubscriptionSaved}',
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Provider: ${l.providerConfigurationCount(2)}'),
+          findsNothing,
+        );
+        if (metadata != 'ordinary') {
+          expect(
+            find.text('Provider: ${l.prototypeUsableNodes(2)}'),
+            findsNothing,
+          );
+        }
+        await _tapVisible(tester, find.text('Cancel'));
+        await tester.pumpAndSettle();
+        expect(result?.count, 2);
+        expect(result?.subscriptionCount, 1);
+        expect(writes, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets(
+    'multiple subscription imports report sources without calling configurations nodes',
+    (tester) async {
+      ServerImportResult? result;
+      final controller = ServerImportController(
+        service: ServerImportService(
+          subscribe: (link) async => SubscriptionInsertResult(
+            status: SubscriptionUpdateResult.success,
+            subId: link.name == 'Provider' ? 7 : 8,
+            count: 2,
+          ),
+        ),
+        loadSubscription: (id) async => SubscriptionData(
+          id: id,
+          name: id == 7 ? 'Provider' : 'Ordinary',
+          url: 'https://provider.example/$id',
+          timestamp: DateTime(2026),
+          panel: SubscriptionPanel.generic.name,
+          mode:
+              (id == 7
+                      ? SubscriptionMode.providerManaged
+                      : SubscriptionMode.appManaged)
+                  .name,
+          hwidEnabled: false,
+        ),
+      );
+      addTearDown(controller.close);
+      controller.text.text = 'https://provider.example/configurations#Provider\nhttps://provider.example/nodes#Ordinary';
+      await tester.pumpWidget(_wizard(controller, (value) => result = value));
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Paste route'));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerImportFormPage)),
+      )!;
+      await _tapVisible(
+        tester,
+        find.widgetWithText(FilledButton, 'Import links'),
+      );
+      await tester.pumpAndSettle();
+      expect(result?.count, 4);
+      expect(result?.subscriptionCount, 2);
+      expect(find.text(l.prototypeSubscriptionsImported(2)), findsOneWidget);
+      expect(find.text(l.prototypeUsableNodes(4)), findsNothing);
+      expect(
+        controller.state.subscriptionImportModes[7],
+        SubscriptionMode.providerManaged,
+      );
+      expect(
+        controller.state.subscriptionImportModes[8],
+        SubscriptionMode.appManaged,
+      );
+      expect(find.byType(ServerImportFormPage), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );
@@ -1117,6 +1431,15 @@ void main() {
       find.text('Changes apply to future updates, not the running connection.'),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: find.byType(AppBar),
+        matching: find.text(
+          'Changes apply to future updates, not the running connection.',
+        ),
+      ),
+      findsNothing,
+    );
     expect(controller.secretKey.text, 'secret');
     expect(controller.publicKey.text, 'public');
     expect(controller.userAgent.text, 'Example/old');
@@ -1203,9 +1526,14 @@ void main() {
     },
   );
 
-  for (final exit in ['done', 'system', 'barrier']) {
+  for (final (nodeCount, exit) in [
+    (1, 'done'),
+    (1, 'system'),
+    (1, 'barrier'),
+    (0, 'done'),
+  ]) {
     testWidgets(
-      'partial local completion returns committed results without rewriting ($exit)',
+      '${nodeCount == 0 ? "failed" : "partial"} local completion returns committed results without rewriting ($exit)',
       (tester) async {
         _mobileViewport(tester);
         var writes = 0;
@@ -1229,7 +1557,8 @@ void main() {
         addTearDown(controller.close);
         final preview = ServerImportPreview(
           [
-            outboundCompanion({'tag': 'local', 'protocol': 'freedom'}),
+            if (nodeCount > 0)
+              outboundCompanion({'tag': 'local', 'protocol': 'freedom'}),
           ],
           geoData: [
             const OneXrayGeoDataLink(
@@ -1259,9 +1588,28 @@ void main() {
         );
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
+        expect(find.text('Pending confirmation'), findsOneWidget);
+        expect(find.text('Imported links'), findsNothing);
+        expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
         await _tapVisible(tester, find.text('Confirm add'));
         await tester.pumpAndSettle();
-        expect(find.text('Servers added'), findsOneWidget);
+        expect(find.text('Pending confirmation'), findsNothing);
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ServerImportPreviewPage)),
+        )!;
+        expect(find.text(l.importPreviewIncomplete), findsOneWidget);
+        expect(
+          find.text(l.importPreviewResultSummary(nodeCount, 1)),
+          findsOneWidget,
+        );
+        expect(find.text('Imported links'), findsNothing);
+        expect(find.byIcon(LucideIcons.circleCheck), findsNothing);
+        expect(find.byIcon(LucideIcons.triangleAlert), findsOneWidget);
+        expect(
+          find.text('Servers added'),
+          nodeCount > 0 ? findsOneWidget : findsNothing,
+        );
+        expect(find.text(l.resultFailed), findsOneWidget);
         expect(find.text('Data source'), findsOneWidget);
         expect(find.text('Done'), findsOneWidget);
         expect(controller.state.committedResult?.writeFailureCount, 1);
@@ -1276,9 +1624,9 @@ void main() {
         }
         await tester.pumpAndSettle();
         expect(find.byType(ServerImportPreviewPage), findsNothing);
-        expect(result?.count, 1);
+        expect(result?.count, nodeCount);
         expect(result?.writeFailureCount, 1);
-        expect(writes, 1);
+        expect(writes, nodeCount);
         expect(downloads, 1);
         expect(
           Navigator.of(tester.element(find.text('Open'))).canPop(),
@@ -1289,12 +1637,25 @@ void main() {
     );
   }
   testWidgets(
-    'new subscription submits automatic or explicitly selected mode',
+    'new subscription submits mode and reports the saved resource type',
     (tester) async {
-      for (final mode in [null, SubscriptionMode.providerManaged]) {
+      for (final (mode, savedMode) in const [
+        (null, SubscriptionMode.appManaged),
+        (null, SubscriptionMode.providerManaged),
+        (SubscriptionMode.providerManaged, SubscriptionMode.providerManaged),
+        (SubscriptionMode.appManaged, SubscriptionMode.appManaged),
+      ]) {
         SubscriptionInput? submitted;
         final controller = ServerImportController(
-          loadSubscription: (_) async => null,
+          loadSubscription: (_) async => SubscriptionData(
+            id: 8,
+            name: 'Provider',
+            url: 'https://example.test/subscription',
+            timestamp: DateTime(2026),
+            panel: SubscriptionPanel.remnawave.name,
+            mode: savedMode.name,
+            hwidEnabled: false,
+          ),
           insertSubscription: (input, {confirmOrdinary}) async {
             submitted = input;
             return const SubscriptionInsertResult(
@@ -1336,8 +1697,26 @@ void main() {
         expect(submitted!.mode, mode);
         expect(submitted!.userAgent, 'Example/test');
         expect(find.byType(ServerImportFormPage), findsNothing);
+        expect(
+          find.text(
+            savedMode == SubscriptionMode.providerManaged
+                ? l.providerConfigurationCount(3)
+                : l.prototypeUsableNodes(3),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            savedMode == SubscriptionMode.providerManaged
+                ? l.prototypeUsableNodes(3)
+                : l.providerConfigurationCount(3),
+          ),
+          findsNothing,
+        );
         expect(tester.takeException(), isNull);
         await controller.close();
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
       }
     },
   );

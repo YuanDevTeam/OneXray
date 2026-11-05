@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
@@ -12,7 +11,6 @@ import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
-import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 
 void main() {
@@ -85,7 +83,7 @@ void main() {
     expect(controller.groups(l).single.rows, [one, two]);
     controller.search.text = 'Tokyo';
     expect(controller.groups(l).single.visibleRows, [one]);
-    expect(controller.favorites(l), [one]);
+    expect(controller.servers.where((row) => row.favorite), [one]);
     expect(controller.groups(l).single.rows, [one, two]);
     expect(controller.groups(l).single.selection?.id, 4);
     expect(controller.configuration.encode(), before);
@@ -166,7 +164,7 @@ void main() {
       ]);
       expect(groups.every((group) => group.selection == null), isTrue);
       expect(groups[1].rows, isEmpty);
-      expect(controller.canUse(groups.last), isFalse);
+      expect(groups.last.selection, isNull);
       controller.search.text = 'Home';
       expect(controller.groups(l).single.id, 'manual:8');
       controller.servers = [];
@@ -244,111 +242,75 @@ void main() {
       ];
       expect(
         controller.summary(l, controller.groups(l).single),
-        l.prototypeGroupAvailability(4, 5, 0),
+        l.prototypeGroupAvailability(5, 5, 0),
       );
     },
   );
 
-  test('Use N follows normal route and excludes final exit, not the current fixed selection', () async {
-    final one = await server('one');
-    final two = await server('two');
-    final exit = await server('exit');
-    controller.servers = [one, two, exit];
-    controller.configuration = ConnectionConfiguration(
-      connection: ConnectionSettings(
-        expert: true,
-        selection: ServerSelection.server(one.id),
-        smart: SmartRoutingSettings(entryCount: 2, finalExitId: exit.id),
-      ),
-    );
-    final group = controller.groups(l).single;
-    expect(controller.entryCount(const ServerSelection.source(0)), 2);
-    expect(
-      controller.canUseSelection(const ServerSelection.source(0), group.rows),
-      true,
-    ); // Unmeasured candidates are eligible.
-    expect(controller.canChoose(exit), false);
-    controller.servers = [one, exit];
-    expect(
-      controller.canUseSelection(
-        const ServerSelection.source(0),
-        controller.groups(l).single.rows,
-      ),
-      false,
-    );
-    controller.configuration = ConnectionConfiguration(
-      connection: ConnectionSettings(
-        trafficMode: TrafficMode.allVpn,
-        smart: SmartRoutingSettings(entryCount: 3),
-      ),
-    );
-    expect(controller.entryCount(const ServerSelection.source(0)), 1);
-  });
-
-  test('delay alone distinguishes untested, successful, failed and timed-out nodes', () async {
-    final row = await server('one');
-    for (final (delay, label, selectable) in [
-      (PingDelayConstants.unknown, l.prototypeNotTested, true),
-      (0, l.prototypeFastLatency(0), true),
-      (-1, l.prototypeTemporarilyUnavailable, false),
-      (499, l.prototypeFastLatency(499), true),
-      (500, l.prototypeFastLatency(500), true),
-      (501, l.prototypeSlowLatency(501), true),
-      (999, l.prototypeSlowLatency(999), true),
-      (1000, l.prototypeSlowLatency(1000), true),
-      (1001, l.prototypeAvailableLatency(1001), true),
-      (PingDelayConstants.error, l.prototypeTemporarilyUnavailable, false),
-      (PingDelayConstants.timeout, l.prototypeTemporarilyUnavailable, false),
-    ]) {
-      final candidate = row.copyWith(delay: delay);
-      expect(controller.health(l, candidate), label);
-      expect(controller.canChoose(candidate), selectable);
-      controller.servers = [candidate];
-      expect(
-        controller.automaticResult(l),
-        PingDelayConstants.isSuccessful(delay)
-            ? l.prototypeCurrentServerLatency('one', delay)
-            : isNull,
-      );
-    }
-  });
-
-  test('custom count uses empty outbounds; measured failure is not an untested candidate', () async {
-    final one = await server('one');
-    final two = await server('two');
-    await db.routingProfileDao.insertRow(
-      RoutingProfileCompanion.insert(
-        name: 'custom',
-        data: base64Encode(
-          utf8.encode(
-            jsonEncode({
-              'outbounds': [{}, {}],
-              'routing': {'rules': []},
-            }),
-          ),
+  test(
+    'fixed nodes respect the final exit while failed probes remain usable',
+    () async {
+      final one = await server('one');
+      final exit = await server('exit');
+      controller.servers = [one, exit];
+      controller.configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(
+          selection: ServerSelection.server(one.id),
+          smart: SmartRoutingSettings(entryCount: 2, finalExitId: exit.id),
         ),
-      ),
-    );
-    controller.customRoutes = (await db.routingProfileDao.allRows)
-        .map(CustomRoutingService.read)
-        .toList();
+      );
+      expect(controller.canChoose(one), isTrue);
+      expect(
+        controller.canChoose(one.copyWith(delay: PingDelayConstants.error)),
+        isTrue,
+      );
+      expect(controller.canChoose(exit), isFalse);
+      controller.configuration = ConnectionConfiguration(
+        connection: ConnectionSettings(trafficMode: TrafficMode.allVpn),
+      );
+      expect(controller.canChoose(exit), isTrue);
+    },
+  );
+
+  test(
+    'latency reports measurement status without limiting selection',
+    () async {
+      final row = await server('one');
+      for (final (delay, label, selectable) in [
+        (PingDelayConstants.unknown, l.prototypeNotTested, true),
+        (0, l.prototypeFastLatency(0), true),
+        (-1, l.serverLatencyFailed, true),
+        (499, l.prototypeFastLatency(499), true),
+        (500, l.prototypeFastLatency(500), true),
+        (501, l.prototypeSlowLatency(501), true),
+        (999, l.prototypeSlowLatency(999), true),
+        (1000, l.prototypeSlowLatency(1000), true),
+        (1001, l.prototypeAvailableLatency(1001), true),
+        (PingDelayConstants.error, l.serverLatencyFailed, true),
+        (PingDelayConstants.timeout, l.serverLatencyFailed, true),
+      ]) {
+        final candidate = row.copyWith(delay: delay);
+        expect(controller.health(l, candidate), label);
+        expect(controller.canChoose(candidate), selectable);
+      }
+    },
+  );
+
+  test('custom routing keeps manual node eligibility independent of cached latency', () async {
+    final one = await server('one');
+    final two = await server('two');
     controller.configuration = ConnectionConfiguration(
       connection: ConnectionSettings(
         trafficMode: TrafficMode.custom,
-        customId: controller.customRoutes.single.id,
+        customId: 4,
       ),
     );
     controller.servers = [one, two.copyWith(delay: PingDelayConstants.error)];
-    final group = controller.groups(l).single;
-    expect(controller.entryCount(const ServerSelection.source(0)), 2);
-    expect(
-      controller.canUseSelection(const ServerSelection.source(0), group.rows),
-      false,
-    );
+    expect(controller.servers.every(controller.canChoose), isTrue);
     expect(controller.health(l, one), l.prototypeNotTested);
     expect(
       controller.health(l, controller.servers.last),
-      l.prototypeTemporarilyUnavailable,
+      l.serverLatencyFailed,
     );
   });
 }

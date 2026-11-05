@@ -79,6 +79,7 @@ Finder _toggle(String field) => find.descendant(
 
 Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
   await tester.tap(finder);
   await tester.pumpAndSettle();
 }
@@ -223,15 +224,15 @@ void main() {
           ),
         ),
       );
-      expect(find.text('System VPN policy'), findsNothing);
-      expect(find.byType(ShadSwitch), findsNWidgets(5));
+      expect(find.text('System VPN policy'), findsOneWidget);
+      expect(find.byType(ShadSwitch), findsNWidgets(4));
       final warning = find.textContaining(
         'Incorrect settings may block network access.',
       );
       expect(warning, findsOneWidget);
       await _tap(tester, _toggle('captureAllTraffic'));
       expect(warning, findsOneWidget);
-      expect(find.byType(ShadSwitch), findsNWidgets(9));
+      expect(find.byType(ShadSwitch), findsNWidgets(8));
       expect(
         tester.widget<ShadSwitch>(_toggle('allowLocalNetwork')).value,
         isTrue,
@@ -454,7 +455,7 @@ void main() {
       expect(find.text(l.prototypeWifiExactMatchNotice), findsOneWidget);
       expect(
         tester.widget<TextField>(find.byType(TextField).first).style!.fontSize,
-        12,
+        14,
       );
       expect(
         Directionality.of(tester.element(find.byType(AppleWifiView))),

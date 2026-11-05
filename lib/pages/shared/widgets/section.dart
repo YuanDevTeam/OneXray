@@ -28,98 +28,52 @@ class SectionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasTitle = title.isNotEmpty;
     final hasDescription = description != null && description!.isNotEmpty;
     final hasHeader =
-        hasTitle || (hasDescription && !descriptionBelow) || action != null;
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
+        title.isNotEmpty ||
+        (hasDescription && !descriptionBelow) ||
+        action != null;
     return Padding(
       padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (hasHeader)
-            Padding(
-              padding: EdgeInsetsDirectional.only(
-                start:
-                    headerInset ??
-                    (icon == null
-                        ? 0
-                        : mobile
-                        ? 6
-                        : 1),
-                bottom: icon == null
-                    ? 8
-                    : mobile
-                    ? 11
-                    : 13,
-              ),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: icon == null
-                      ? 0
-                      : mobile
-                      ? 20
-                      : 24,
-                ),
-                child: Row(
-                  crossAxisAlignment: icon == null
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.center,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(
-                        icon,
-                        size: mobile ? 18 : 19,
-                        color: ColorManager.palette(context).primary,
-                      ),
-                      SizedBox(width: mobile ? 9 : 10),
-                    ],
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (hasTitle)
-                            Text(
-                              title,
-                              style:
-                                  (icon == null
-                                          ? AppTypography.sectionTitle
-                                          : mobile
-                                          ? AppTypography.settingsSectionTitle
-                                          : AppTypography
-                                                .settingsSectionDesktopTitle)
-                                      .copyWith(
-                                        color: ColorManager.primaryText(
-                                          context,
-                                        ),
-                                      ),
-                            ),
-                          if (hasDescription && !descriptionBelow) ...[
-                            if (hasTitle) const SizedBox(height: 3),
-                            Text(
-                              description!,
-                              style: AppTypography.supporting.copyWith(
-                                color: ColorManager.secondaryText(context),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (action != null) ...[const SizedBox(width: 12), action!],
-                  ],
-                ),
-              ),
-            ),
           ShadCard(
             width: double.infinity,
             padding: EdgeInsets.zero,
             radius: const BorderRadius.all(Radius.circular(AppRadii.card)),
             shadows: const [],
             clipBehavior: Clip.antiAlias,
-            child: Material(type: MaterialType.transparency, child: child),
+            child: Material(
+              type: MaterialType.transparency,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (hasHeader)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
+                      ),
+                      child: Padding(
+                        padding: EdgeInsetsDirectional.only(
+                          start: headerInset ?? 0,
+                        ),
+                        child: _header(context, hasDescription),
+                      ),
+                    ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      18,
+                      hasHeader ? 0 : 18,
+                      18,
+                      18,
+                    ),
+                    child: child,
+                  ),
+                ],
+              ),
+            ),
           ),
           if (hasDescription && descriptionBelow)
             Padding(
@@ -133,6 +87,73 @@ class SectionView extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _header(BuildContext context, bool hasDescription) {
+    final identity = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (icon != null) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: Icon(
+              icon,
+              size: 19,
+              color: ColorManager.palette(context).primaryText,
+            ),
+          ),
+          const SizedBox(width: 10),
+        ],
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (title.isNotEmpty)
+                Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: AppTypography.sectionTitle.copyWith(
+                      color: ColorManager.primaryText(context),
+                    ),
+                  ),
+                ),
+              if (hasDescription && !descriptionBelow) ...[
+                if (title.isNotEmpty) const SizedBox(height: 4),
+                Text(
+                  description!,
+                  style: AppTypography.supporting.copyWith(
+                    color: ColorManager.secondaryText(context),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+    if (action == null) return identity;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScale = MediaQuery.textScalerOf(context).scale(16) / 16;
+        if (constraints.maxWidth < 280 * textScale) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [identity, const SizedBox(height: 12), action!],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: identity),
+            const SizedBox(width: 16),
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth / 2),
+              child: action!,
+            ),
+          ],
+        );
+      },
     );
   }
 }

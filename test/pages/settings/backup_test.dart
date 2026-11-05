@@ -9,12 +9,16 @@ import 'package:onexray/core/backup/storage.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/backup/page.dart';
+import 'package:onexray/pages/settings/page.dart';
+import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/settings/backup/existing_file_dialog.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
 import 'package:onexray/service/settings/backup/assets.dart';
@@ -86,6 +90,181 @@ void main() {
     home: BackupPage(service: service),
   );
 
+  testWidgets(
+    'settings summary follows the existing backup binding without file operations',
+    (tester) async {
+      var opened = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          locale: const Locale('en'),
+          localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: SizedBox(
+              width: 390,
+              child: SettingsBackupSummaryRow(
+                service: service,
+                onTap: () => opened++,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final context = tester.element(find.byType(SettingsBackupSummaryRow));
+      final l = AppLocalizations.of(context)!;
+      expect(find.text(l.backupNotConfigured), findsOneWidget);
+      final name =
+          'iCloud Drive / ${List.filled(12, 'long-folder/').join()}OneXray-backup.json';
+      preferences.settings = BackupSettings(
+        target: BackupTarget('summary-target', name),
+      );
+      await service.load();
+      await tester.pump();
+      final label = find.text(name);
+      expect(label, findsOneWidget);
+      expect(tester.widget<Text>(label).maxLines, 2);
+      expect(tester.widget<Text>(label).overflow, TextOverflow.ellipsis);
+      expect(find.text(l.backupNotConfigured), findsNothing);
+      await tester.tap(find.byType(SettingsBackupSummaryRow));
+      await tester.pump();
+      expect(opened, 1);
+      preferences.settings = const BackupSettings();
+      await service.load();
+      await tester.pump();
+      expect(find.text(l.backupNotConfigured), findsOneWidget);
+      expect(storage.selections, isEmpty);
+      expect(storage.reads, 0);
+      expect(storage.writes, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final (label, width, scale, busy, locale) in [
+    ('使用 iCloud Drive', 640.0, 1.0, false, const Locale('zh')),
+    ('Use iCloud Drive', 640.0, 1.0, false, const Locale('en')),
+    ('Сохранить и переподключить', 130.0, 2.0, false, const Locale('ru')),
+    ('ذخیره و اتصال مجدد', 140.0, 2.0, true, const Locale('fa')),
+  ]) {
+    testWidgets(
+      'backup action measures its rendered label at $width/$scale/$locale',
+      (tester) async {
+        var calls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(Brightness.light, mobile: width < 390),
+            locale: locale,
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: ShadTheme(
+                data: AppTheme.shad(Brightness.light),
+                child: child!,
+              ),
+            ),
+            home: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: width,
+                  child: SettingsActionButton(
+                    label: label,
+                    busy: busy,
+                    enabled: !busy,
+                    variant: busy
+                        ? ShadButtonVariant.outline
+                        : ShadButtonVariant.primary,
+                    onPressed: () => calls++,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final action = find.byType(SettingsActionButton);
+        final bounds = tester.getRect(action);
+        expect(bounds.width, lessThanOrEqualTo(width));
+        final labelFinder = find.text(label);
+        final rich = tester.widget<RichText>(
+          find.descendant(of: labelFinder, matching: find.byType(RichText)),
+        );
+        final labelBounds = tester.getRect(labelFinder);
+        expect(rich.text.style!.fontFamily, AppFontFamily.sans);
+        expect(rich.text.style!.fontSize, 14);
+        expect(labelBounds.left, greaterThanOrEqualTo(bounds.left));
+        expect(labelBounds.right, lessThanOrEqualTo(bounds.right));
+        expect(labelBounds.top, greaterThanOrEqualTo(bounds.top));
+        expect(labelBounds.bottom, lessThanOrEqualTo(bounds.bottom));
+        final painter = TextPainter(
+          text: rich.text,
+          textDirection:
+              rich.textDirection ??
+              Directionality.of(tester.element(labelFinder)),
+          textScaler: rich.textScaler,
+          locale: rich.locale,
+        )..layout(maxWidth: labelBounds.width);
+        if (width == 640) {
+          expect(painter.computeLineMetrics(), hasLength(1));
+          expect(bounds.height, 44);
+        } else {
+          expect(painter.computeLineMetrics().length, greaterThan(1));
+          expect(bounds.height, greaterThan(48));
+        }
+        expect(labelBounds.height, closeTo(painter.height, .01));
+        painter.dispose();
+        await tester.tap(action);
+        await tester.pump();
+        expect(calls, busy ? 0 : 1);
+        expect(tester.takeException(), isNull);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
+
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'sensitive backup notice keeps a readable foreground in $brightness',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.material(brightness),
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            builder: (_, child) => ShadTheme(
+              data: AppTheme.shad(brightness),
+              child: ShadToaster(child: child!),
+            ),
+            home: BackupPage(service: service),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final context = tester.element(find.byType(BackupPage));
+        final l = AppLocalizations.of(context)!;
+        final notice = find.text(l.backupSensitiveWarning);
+        await tester.ensureVisible(notice);
+        await tester.pumpAndSettle();
+        final text = tester.widget<RichText>(
+          find.descendant(of: notice, matching: find.byType(RichText)),
+        );
+        final foreground = text.text.style!.color!;
+        final palette = ColorManager.palette(context);
+        expect(foreground, palette.mutedStrong);
+        final first = foreground.computeLuminance();
+        final second = palette.background.computeLuminance();
+        final contrast = first > second
+            ? (first + .05) / (second + .05)
+            : (second + .05) / (first + .05);
+        expect(contrast, greaterThanOrEqualTo(4.5));
+        expect(tester.takeException(), isNull);
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+    );
+  }
+
   for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
     for (final locale in [
       const Locale('en'),
@@ -109,6 +288,16 @@ void main() {
           final l = AppLocalizations.of(
             tester.element(find.byType(PageActionBar)),
           )!;
+          Future<void> tapVisible(Finder target) async {
+            // Binding changes can reflow long labels and retain a scroll offset.
+            await tester.ensureVisible(target);
+            // Reveal uses a zero-duration jump. Flush its new geometry without
+            // waiting for the busy spinner behind a pending confirmation.
+            await tester.pump();
+            expect(target.hitTestable(), findsOneWidget);
+            await tester.tap(target.hitTestable());
+          }
+
           expect(find.text(l.backupChooseExisting), findsOneWidget);
           expect(find.text(l.backupCreateFile), findsOneWidget);
           for (final (label, request, menu) in [
@@ -127,12 +316,11 @@ void main() {
             );
             storage.bytes = null;
             if (menu) {
-              await tester.tap(find.text(l.backupSwitchToLocal));
+              await tapVisible(find.text(l.backupSwitchToLocal));
               await tester.pumpAndSettle();
             }
-            await tester.ensureVisible(find.text(label));
             final expectedWrites = storage.writes + 1;
-            await tester.tap(find.text(label));
+            await tapVisible(find.text(label));
             await pumpUntil(
               tester,
               () =>
@@ -157,18 +345,18 @@ void main() {
             final actions = find.descendant(
               of: find.byType(SettingSection).first,
               matching: find.byWidgetPredicate(
-                (widget) => widget is ButtonStyleButton,
+                (widget) => widget is ShadButton,
               ),
             );
             expect(actions, findsNWidgets(2));
           }
-          await tester.tap(find.text(l.backupUnbind));
+          await tapVisible(find.text(l.backupUnbind));
           await pumpUntil(
             tester,
             () => find.byType(AppConfirmationDialog).evaluate().isNotEmpty,
           );
           await tester.pump(const Duration(milliseconds: 400));
-          await tester.tap(
+          await tapVisible(
             find.descendant(
               of: find.byType(AppConfirmationDialog),
               matching: find.widgetWithText(FilledButton, l.backupUnbind),
@@ -220,7 +408,7 @@ void main() {
       final l = AppLocalizations.of(
         tester.element(find.byType(PageActionBar)),
       )!;
-      expect(find.text(l.backupTitle), findsOneWidget);
+      expect(find.widgetWithText(AppBar, l.backupTitle), findsOneWidget);
       expect(find.text(l.backupAutomatic), findsOneWidget);
       expect(storage.writes, 0);
       final sections = find.byType(SettingSection);

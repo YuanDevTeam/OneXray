@@ -30,10 +30,16 @@ class PageActionBar extends StatelessWidget {
     final minHeight = mobile
         ? AppLayout.mobilePageActionMinHeight
         : AppLayout.pageActionMinHeight;
+    final buttonMinHeight = AppLayout.touchExtent(
+      mobile ? AppLayout.mobileButtonMinHeight : AppLayout.buttonMinHeight,
+      platform: Theme.of(context).platform,
+    );
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Material(
-        color: Theme.of(context).colorScheme.surface,
+        color: mobile
+            ? Theme.of(context).colorScheme.surface
+            : Theme.of(context).scaffoldBackgroundColor,
         child: DecoratedBox(
           decoration: BoxDecoration(
             border: Border(
@@ -52,8 +58,7 @@ class PageActionBar extends StatelessWidget {
                         horizontalPadding ??
                         (mobile ? AppSpacing.mobilePage : AppSpacing.page),
                     vertical:
-                        verticalPadding ??
-                        (minHeight - AppLayout.pageActionButtonMinHeight) / 2,
+                        verticalPadding ?? (minHeight - buttonMinHeight) / 2,
                   ),
                   child: SizedBox(
                     width: double.infinity,
@@ -77,9 +82,8 @@ class PageActionBar extends StatelessWidget {
                                     if (index > 0) SizedBox(width: spacing),
                                     Expanded(
                                       child: ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                          minHeight: AppLayout
-                                              .pageActionButtonMinHeight,
+                                        constraints: BoxConstraints(
+                                          minHeight: buttonMinHeight,
                                         ),
                                         child: children[index],
                                       ),
@@ -89,23 +93,22 @@ class PageActionBar extends StatelessWidget {
                               ),
                             ),
                           )
-                        : Wrap(
-                            alignment: WrapAlignment.end,
-                            spacing: spacing,
-                            runSpacing: AppSpacing.actionRunGap,
-                            children: [
-                              for (final child in children)
-                                ConstrainedBox(
-                                  constraints: BoxConstraints(
-                                    minWidth: mobile
-                                        ? 0
-                                        : AppLayout.pageActionButtonMinWidth,
-                                    minHeight:
-                                        AppLayout.pageActionButtonMinHeight,
+                        : _wideButtons(
+                            context,
+                            Wrap(
+                              alignment: WrapAlignment.end,
+                              spacing: spacing,
+                              runSpacing: AppSpacing.actionRunGap,
+                              children: [
+                                for (final child in children)
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      minHeight: buttonMinHeight,
+                                    ),
+                                    child: child,
                                   ),
-                                  child: child,
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
                   ),
                 ),
@@ -114,6 +117,24 @@ class PageActionBar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _wideButtons(BuildContext context, Widget child) {
+    final shad = ShadTheme.maybeOf(context);
+    if (shad == null) return child;
+    // Shad paints the outline's two border pixels outside its content height.
+    final sizes = shad.outlineButtonTheme.sizesTheme ?? shad.buttonSizesTheme;
+    final regular = sizes.regular ?? shad.buttonSizesTheme.regular!;
+    return ShadTheme(
+      data: shad.copyWith(
+        outlineButtonTheme: shad.outlineButtonTheme.copyWith(
+          sizesTheme: sizes.copyWith(
+            regular: regular.copyWith(height: regular.height - 2),
+          ),
+        ),
+      ),
+      child: child,
     );
   }
 }

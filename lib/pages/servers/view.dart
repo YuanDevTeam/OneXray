@@ -4,602 +4,629 @@ import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/event_bus/state.dart';
 import 'package:onexray/service/shared/ping/batch.dart';
 import 'package:onexray/service/shared/failure.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/menus.dart';
 import 'package:onexray/pages/servers/sort.dart';
-import 'package:onexray/pages/servers/subscription/user_info.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
+import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/service/connect/settings.dart';
-import 'package:onexray/service/servers/subscription/user_info.dart';
+import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/catalog.dart';
+import 'package:onexray/pages/servers/details.dart';
+import 'package:onexray/pages/servers/sources.dart';
+import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/responsive_content.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:onexray/pages/main/navigation.dart';
 
-class ServerBrowser extends StatelessWidget {
-  final ServersController controller;
-  final ScrollController scroll;
+enum _ServerBrowserTab { nodes, configurations, subscriptions }
+
+class ServerBrowser extends StatefulWidget {
   const ServerBrowser({
     super.key,
     required this.controller,
     required this.scroll,
   });
+  final ServersController controller;
+  final ScrollController scroll;
+  @override
+  State<ServerBrowser> createState() => _ServerBrowserState();
+}
+
+class _ServerBrowserState extends State<ServerBrowser> {
+  ServersController get controller => widget.controller;
+  _ServerBrowserTab tab = _ServerBrowserTab.nodes;
+  int sourceId = -1;
+  bool favoritesOnly = false;
+  bool completeFavoritesOnly = false;
+  int get filterSourceId =>
+      sourceId > 0 && !controller.sources.any((source) => source.id == sourceId)
+      ? -1
+      : sourceId;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final groups = controller.groups(l);
-    final favorites = controller.favorites(l);
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    if (controller.servers.isEmpty && controller.catalog.manualGroups.isEmpty) {
-      if (controller.sources.isNotEmpty) {
-        return PageEmptyState(
-          title: l.subscriptionModeNoCacheTitle,
-          description: l.subscriptionModeNeedsRefresh,
-          primaryLabel: l.prototypeUpdatesAndSources,
-          onPrimary: () => controller.openSources(context),
-          secondaryLabel: l.prototypeAddServer,
-          onSecondary: () => controller.addServers(context),
-          scrollController: scroll,
-        );
-      }
-      return PageEmptyState(
+    final gutter = mobile ? AppSpacing.mobilePage : AppSpacing.page;
+    if (controller.servers.isEmpty &&
+        controller.sources.isEmpty &&
+        controller.rawConfigurations.isEmpty &&
+        controller.catalog.manualGroups.isEmpty) {
+      final empty = PageEmptyState(
         title: l.prototypeNoServersYet,
         description: l.prototypeAddProviderSubscriptionHint,
         primaryLabel: l.prototypeAddServer,
         onPrimary: () => controller.addServers(context),
         secondaryLabel: l.prototypeHowGetServers,
         onSecondary: () => controller.openServerHelp(context),
-        scrollController: scroll,
+        scrollController: widget.scroll,
       );
-    }
-    if (mobile) {
-      return _mobileBrowser(context, groups, favorites);
-    }
-    final active = _activeGroup(groups);
-    final compact =
-        MediaQuery.sizeOf(context).width <= AppLayout.compactDesktopBreakpoint;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.page,
-        AppSpacing.desktopPageTop,
-        AppSpacing.page,
-        AppSpacing.desktopPageBottom,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      if (MediaQuery.sizeOf(context).width > AppLayout.mobileBreakpoint) {
+        return empty;
+      }
+      return Column(
         children: [
-          _search(context),
-          const SizedBox(height: 15),
-          Expanded(
-            child: Flex(
-              direction: compact ? Axis.vertical : Axis.horizontal,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    controller: scroll,
-                    child: _subscriptionList(context, groups, favorites),
-                  ),
-                ),
-                if (active != null) ...[
-                  SizedBox(width: compact ? 0 : 16, height: compact ? 16 : 0),
-                  Expanded(
-                    child: ServerGroupView(
-                      controller: controller,
-                      group: active,
-                      embedded: true,
-                    ),
-                  ),
-                ],
-              ],
+          Expanded(child: empty),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: TextButton.icon(
+              onPressed: () => context.pushScoped(
+                AppPageDestination.serverManualGroups,
+                extra: controller,
+              ),
+              icon: const Icon(LucideIcons.folder, size: 18),
+              label: Text(l.manualGroupsTitle),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  ServerGroup? _activeGroup(List<ServerGroup> groups) {
-    final active = groups
-        .where((group) => group.id == controller.activeGroupId)
-        .firstOrNull;
-    if (active != null) return active;
-    final currentId = controller.currentGroupId;
-    return groups.where((group) => group.id == currentId).firstOrNull ??
-        groups.firstOrNull;
-  }
-
-  Widget _mobileBrowser(
-    BuildContext context,
-    List<ServerGroup> groups,
-    List<CoreConfigData> favorites,
-  ) {
-    return ListView(
-      controller: scroll,
-      padding: const EdgeInsets.fromLTRB(15, 13, 15, 22),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _search(context),
-        const SizedBox(height: 12),
-        _subscriptionList(context, groups, favorites),
+        Padding(
+          padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 0),
+          child: ShadTabs<_ServerBrowserTab>(
+            key: const ValueKey('server-resource-tabs'),
+            value: tab,
+            scrollable: true,
+            tabBarAlignment: Directionality.of(context) == TextDirection.rtl
+                ? Alignment.centerRight
+                : Alignment.centerLeft,
+            onChanged: (value) => setState(() => tab = value),
+            tabs: [
+              ShadTab(
+                value: _ServerBrowserTab.nodes,
+                content: const SizedBox.shrink(),
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
+                  children: [
+                    Text(l.serverNodesTab),
+                    Text(
+                      '${controller.servers.where((row) => !controller.providerRow(row)).length}',
+                      style: AppTypography.supporting,
+                    ),
+                  ],
+                ),
+              ),
+              ShadTab(
+                value: _ServerBrowserTab.configurations,
+                content: const SizedBox.shrink(),
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
+                  children: [
+                    Text(l.serverCompleteConfigurationsTab),
+                    Text(
+                      '${controller.servers.where(controller.providerRow).length + controller.rawConfigurations.length}',
+                      style: AppTypography.supporting,
+                    ),
+                  ],
+                ),
+              ),
+              ShadTab(
+                value: _ServerBrowserTab.subscriptions,
+                content: const SizedBox.shrink(),
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: 6,
+                  children: [
+                    Text(l.prototypeSubscriptions),
+                    Text(
+                      '${controller.sources.length}',
+                      style: AppTypography.supporting,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: tab == _ServerBrowserTab.subscriptions
+              ? SingleChildScrollView(
+                  controller: widget.scroll,
+                  padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 28),
+                  child: _subscriptions(context),
+                )
+              : _resources(
+                  context,
+                  complete: tab == _ServerBrowserTab.configurations,
+                ),
+        ),
       ],
     );
   }
 
   Widget _search(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(AppRadii.card),
-      borderSide: BorderSide(color: palette.border),
-    );
-    final searchHeight = AppLayout.touchExtent(
-      43,
-      platform: Theme.of(context).platform,
-    );
-    return SizedBox(
-      height: searchHeight,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: controller.search,
-              onChanged: controller.searchChanged,
-              textAlignVertical: TextAlignVertical.center,
-              style: AppTypography.serverBody.copyWith(
-                color: palette.foreground,
+    return TextField(
+      key: const ValueKey('server-search'),
+      controller: controller.search,
+      onChanged: controller.searchChanged,
+      style: AppTypography.rowValue,
+      decoration: InputDecoration(
+        hintText: l.prototypeSearchSubscriptionsServers,
+        prefixIcon: const Icon(LucideIcons.search, size: 18),
+        suffixIcon: controller.search.text.isEmpty
+            ? null
+            : IconButton(
+                key: const ValueKey('server-search-clear'),
+                tooltip: l.prototypeClear,
+                onPressed: controller.search.clear,
+                icon: const Icon(LucideIcons.x, size: 18),
               ),
-              decoration: InputDecoration(
-                isDense: true,
-                contentPadding: const EdgeInsetsDirectional.only(end: 13),
-                hintText: l.prototypeSearchSubscriptionsServers,
-                hintStyle: AppTypography.serverBody.copyWith(
-                  color: palette.mutedForeground,
+      ),
+    );
+  }
+
+  bool _matchesSource(CoreConfigData row) =>
+      filterSourceId == -1 || row.subId == filterSourceId;
+  bool _matchesRaw(CoreConfigData row) {
+    final query = controller.query.trim().toLowerCase();
+    return (filterSourceId == -1 || filterSourceId == 0) &&
+        (query.isEmpty ||
+            row.name.toLowerCase().contains(query) ||
+            AppLocalizations.of(context)!.xrayRawPageTitle
+                .toLowerCase()
+                .contains(query));
+  }
+
+  Widget _resources(BuildContext context, {required bool complete}) {
+    final l = AppLocalizations.of(context)!;
+    final mobile =
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
+    final gutter = mobile ? AppSpacing.mobilePage : AppSpacing.page;
+    final gap = mobile ? 12.0 : 16.0;
+    final favoriteFilter = complete ? completeFavoritesOnly : favoritesOnly;
+    final ordinary = controller.servers
+        .where((row) => controller.providerRow(row) == complete)
+        .where(_matchesSource)
+        .where((row) => controller.matches(l, row))
+        .where((row) => !favoriteFilter || row.favorite)
+        .toList();
+    final raw = complete && !favoriteFilter
+        ? controller.rawConfigurations.where(_matchesRaw).toList()
+        : <CoreConfigData>[];
+    final count = ordinary.length + raw.length;
+    final validSource = filterSourceId;
+    final filtered =
+        controller.query.trim().isNotEmpty ||
+        validSource != -1 ||
+        favoriteFilter;
+    final showManualTools =
+        !complete &&
+        controller.query.trim().isEmpty &&
+        !favoritesOnly &&
+        validSource <= 0;
+    final palette = ColorManager.palette(context);
+    return CustomScrollView(
+      controller: widget.scroll,
+      key: PageStorageKey(('server-resources', complete)),
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(gutter, 18, gutter, 10),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _search(context),
+                SizedBox(height: gap),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 140),
+                      child: ShadSelect<int>(
+                        key: ValueKey(('server-source-filter', validSource)),
+                        initialValue: validSource,
+                        selectedOptionBuilder: (_, value) => Text(
+                          value == -1
+                              ? l.serverAllSources
+                              : value == 0
+                              ? l.prototypeManualAdditions
+                              : controller.sources
+                                    .firstWhere((source) => source.id == value)
+                                    .name,
+                        ),
+                        options: [
+                          ShadOption(
+                            value: -1,
+                            child: Text(l.serverAllSources),
+                          ),
+                          ShadOption(
+                            value: 0,
+                            child: Text(l.prototypeManualAdditions),
+                          ),
+                          for (final source in controller.sources)
+                            ShadOption(
+                              value: source.id,
+                              child: Text(source.name),
+                            ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) setState(() => sourceId = value);
+                        },
+                      ),
+                    ),
+                    if (!complete) ...[
+                      ServerSortButton(controller: controller),
+                      if (showManualTools)
+                        ManualServerOrderButton(controller: controller),
+                      const AppActivityIndicator(
+                        key: ValueKey('server-probe-activity'),
+                        downloading: false,
+                      ),
+                      if (!mobile)
+                        OutlinedButton.icon(
+                          onPressed: () => controller.choose(
+                            context,
+                            const ServerSelection.automatic(),
+                          ),
+                          icon: const Icon(LucideIcons.shuffle, size: 17),
+                          label: Text(l.prototypeAutomaticSelection),
+                        ),
+                      if (!mobile)
+                        OutlinedButton.icon(
+                          onPressed: () => controller.choose(
+                            context,
+                            const ServerSelection.source(0),
+                          ),
+                          icon: const Icon(LucideIcons.layers, size: 17),
+                          label: Text(l.prototypeManualAdditions),
+                        ),
+                    ] else ...[
+                      FilledButton.icon(
+                        onPressed: () => controller.addServers(context),
+                        icon: const Icon(LucideIcons.plus, size: 17),
+                        label: Text(l.prototypeAddServer),
+                      ),
+                      PageHelpButton(
+                        title: l.serverCompleteConfigurationsTab,
+                        messages: [l.completeConfigurationDefinition],
+                      ),
+                    ],
+                    IconButton(
+                      key: const ValueKey('server-favorites-filter'),
+                      tooltip: l.prototypeFavorites,
+                      isSelected: favoriteFilter,
+                      onPressed: () => setState(() {
+                        if (complete) {
+                          completeFavoritesOnly = !completeFavoritesOnly;
+                        } else {
+                          favoritesOnly = !favoritesOnly;
+                        }
+                      }),
+                      icon: const Icon(LucideIcons.star, size: 18),
+                    ),
+                  ],
                 ),
-                prefixIconConstraints: BoxConstraints.tightFor(
-                  width: 41,
-                  height: searchHeight,
-                ),
-                prefixIcon: Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 13, end: 10),
-                  child: Icon(
-                    LucideIcons.search,
-                    size: 18,
+                if (showManualTools) ...[
+                  SizedBox(height: gap),
+                  SettingRow(
+                    title: l.manualGroupsTitle,
+                    subtitle: l.manualGroupCount(
+                      controller.catalog.manualGroups.length,
+                    ),
+                    leading: const Icon(LucideIcons.folder, size: 19),
+                    onTap: () => context.pushScoped(
+                      AppPageDestination.serverManualGroups,
+                      extra: controller,
+                    ),
+                  ),
+                ],
+                SizedBox(height: gap),
+                Text(
+                  complete
+                      ? l.providerConfigurationCount(count)
+                      : l.prototypeServerCount(count),
+                  style: AppTypography.supporting.copyWith(
                     color: palette.mutedForeground,
                   ),
-                ),
-                suffixIcon: controller.search.text.isEmpty
-                    ? null
-                    : IconButton(
-                        key: const ValueKey('server-search-clear'),
-                        tooltip: l.prototypeClear,
-                        onPressed: controller.search.clear,
-                        icon: const Icon(LucideIcons.x, size: 18),
-                      ),
-                border: border,
-                enabledBorder: border,
-                focusedBorder: border.copyWith(
-                  borderSide: BorderSide(color: palette.primary),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          ServerSortButton(controller: controller),
-          if (controller.catalog.manualGroups.length > 1)
-            ManualGroupOrderButton(controller: controller),
-        ],
-      ),
-    );
-  }
-
-  Widget _subscriptionList(
-    BuildContext context,
-    List<ServerGroup> groups,
-    List<CoreConfigData> favorites,
-  ) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    final current = controller.currentSelectionSummary(l);
-    final activeGroup = _activeGroup(groups);
-    return Material(
-      color: palette.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadii.card),
-        side: BorderSide(color: palette.border),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _automaticRow(context),
-          if (current != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Color.lerp(palette.card, palette.selectedSurface, .45),
-                border: Border(top: BorderSide(color: palette.border)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    LucideIcons.circleCheck,
-                    size: 20,
-                    color: palette.running,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l.prototypeCurrentSelection,
-                          style: AppTypography.serverSelectionLabel.copyWith(
-                            color: palette.mutedForeground,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          current.title,
-                          style: AppTypography.serverSelectionTitle.copyWith(
-                            color: palette.foreground,
-                          ),
-                        ),
-                        if (current.detail.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            current.detail,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTypography.serverSelectionDetail.copyWith(
-                              color: palette.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (favorites.isNotEmpty) ...[
-            _listHeading(context, l.prototypeFavorites),
-            for (final row in favorites)
-              ServerNodeRow(controller: controller, row: row),
-          ],
-          if (controller.servers.any(ServerCatalog.isManual))
-            _allManualRow(context),
-          if (groups.any((group) => group.manual))
-            _listHeading(context, l.manualGroupsTitle),
-          for (final group in groups.where((group) => group.manual))
-            _groupRow(context, group, active: group.id == activeGroup?.id),
-          if (groups.any((group) => !group.manual))
-            _listHeading(context, l.prototypeBySubscription),
-          for (final group in groups.where((group) => !group.manual))
-            _groupRow(context, group, active: group.id == activeGroup?.id),
-          if (groups.isEmpty && controller.search.text.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
-              child: Column(
-                children: [
-                  Text(
-                    l.prototypeNoMatchingSubscriptions,
-                    textAlign: TextAlign.center,
-                    style: AppTypography.settingsInput.copyWith(
-                      color: palette.mutedForeground,
-                    ),
-                  ),
-                  TextButton(
-                    key: const ValueKey('server-search-reset'),
-                    onPressed: controller.search.clear,
-                    child: Text(l.prototypeClear),
-                  ),
-                ],
-              ),
-            ),
-          if (mobile)
-            InkWell(
-              onTap: () => controller.openSources(context),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 52),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      AppActivityBuilder(
-                        builder: (context, activity) => activity.downloading
-                            ? const ButtonProgressIndicator()
-                            : Icon(
-                                LucideIcons.refreshCw,
-                                size: 17,
-                                color: palette.primary,
-                              ),
-                      ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: Text(
-                          l.prototypeUpdatesAndSources,
-                          style: AppTypography.serverBody.copyWith(
-                            color: palette.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _listHeading(BuildContext context, String title) => Padding(
-    padding: const EdgeInsetsDirectional.fromSTEB(16, 17, 16, 8),
-    child: Text(
-      title.toUpperCase(),
-      style: AppTypography.serverSectionTitle.copyWith(
-        color: ColorManager.palette(context).mutedForeground,
-      ),
-    ),
-  );
-
-  Widget _manualMenu(BuildContext context, ServerGroup group) => IconButton(
-    tooltip:
-        '${AppLocalizations.of(context)!.prototypeMoreActions}: ${group.name}',
-    onPressed: controller.manualGroupBusy(group)
-        ? null
-        : () => controller.openManualGroupMenu(context, group),
-    icon: const Icon(LucideIcons.ellipsis, size: 18),
-  );
-
-  Widget _allManualRow(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    const selection = ServerSelection.source(0);
-    final rows = controller.servers.where(ServerCatalog.isManual);
-    final enabled = controller.canUseSelection(selection, rows);
-    final selected = controller.selected(selection);
-    return ListTile(
-      leading: const Icon(LucideIcons.server),
-      title: Text(l.prototypeManualAdditions),
-      selected: selected,
-      trailing: OutlinedButton.icon(
-        onPressed: controller.busy || !enabled
-            ? null
-            : () => controller.choose(context, selection),
-        icon: Icon(
-          selected ? LucideIcons.circleCheck : LucideIcons.zap,
-          size: 16,
-        ),
-        label: Text(l.prototypeUse),
-      ),
-    );
-  }
-
-  Widget _automaticRow(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final selected = controller.selected(const ServerSelection.automatic());
-    final result = controller.automaticResult(l);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: Material(
-        color: selected
-            ? Color.lerp(palette.card, palette.selectedSurface, .72)
-            : palette.card,
-        child: InkWell(
-          onTap: controller.busy
-              ? null
-              : () => controller.choose(
-                  context,
-                  const ServerSelection.automatic(),
-                ),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 82),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: palette.border)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: palette.selectedSurface,
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: AppActivityBuilder(
-                    builder: (context, activity) =>
-                        activity.pinging ||
-                            activity.downloading ||
-                            controller.selectingGroup(
-                              const ServerSelection.automatic(),
-                            )
-                        ? const Center(child: ButtonProgressIndicator())
-                        : Icon(
-                            LucideIcons.zap,
-                            size: 20,
-                            color: palette.primary,
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l.prototypeAutomaticRecommended,
-                        style: AppTypography.serverTitle.copyWith(
-                          color: palette.foreground,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        l.prototypeChooseBySpeedAvailability,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTypography.serverDetail.copyWith(
-                          color: palette.mutedForeground,
-                        ),
-                      ),
-                      if (mobile && result != null) ...[
-                        const SizedBox(height: 5),
-                        Text(
-                          result,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTypography.serverSelectionHealth.copyWith(
-                            color: palette.running,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                if (!mobile && result != null) ...[
-                  const SizedBox(width: 12),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 150),
-                    child: Text(
-                      result,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.serverSelectionHealth.copyWith(
-                        color: palette.running,
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(width: 12),
-                Icon(
-                  selected
-                      ? LucideIcons.circleCheck
-                      : LucideIcons.chevronRightDir,
-                  size: selected ? 21 : 18,
-                  color: selected ? palette.running : palette.foreground,
                 ),
               ],
             ),
           ),
         ),
-      ),
+        if (count == 0)
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: gutter),
+            sliver: SliverToBoxAdapter(
+              child: SettingSection(
+                title: '',
+                padding: EdgeInsets.zero,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      children: [
+                        Text(
+                          filtered
+                              ? l.serverNoMatchingResources
+                              : complete
+                              ? l.serverNoCompleteConfigurations
+                              : l.prototypeNoServersYet,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        if (filtered)
+                          TextButton(
+                            key: const ValueKey('server-search-reset'),
+                            onPressed: () {
+                              controller.search.clear();
+                              setState(() {
+                                sourceId = -1;
+                                favoritesOnly = false;
+                                completeFavoritesOnly = false;
+                              });
+                            },
+                            child: Text(l.prototypeClear),
+                          )
+                        else
+                          TextButton(
+                            onPressed: () => controller.addServers(context),
+                            child: Text(l.prototypeAddServer),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (count > 0)
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: gutter),
+            sliver: DecoratedSliver(
+              decoration: BoxDecoration(
+                color: palette.card,
+                border: Border.all(color: palette.border),
+                borderRadius: BorderRadius.circular(AppRadii.card),
+              ),
+              sliver: SliverList.builder(
+                itemCount: count + 2,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
+                      ),
+                      child: Text(
+                        complete
+                            ? l.serverCompleteConfigurationsTab
+                            : l.serverNodesTab,
+                        style: AppTypography.sectionTitle,
+                      ),
+                    );
+                  }
+                  if (index == count + 1) return const SizedBox(height: 18);
+                  final resourceIndex = index - 1;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: resourceIndex < ordinary.length
+                        ? ServerNodeRow(
+                            key: ValueKey((
+                              'server',
+                              ordinary[resourceIndex].id,
+                            )),
+                            controller: controller,
+                            row: ordinary[resourceIndex],
+                            showDivider: false,
+                          )
+                        : ServerRawRow(
+                            key: ValueKey((
+                              'raw',
+                              raw[resourceIndex - ordinary.length].id,
+                            )),
+                            controller: controller,
+                            row: raw[resourceIndex - ordinary.length],
+                          ),
+                  );
+                },
+              ),
+            ),
+          ),
+        const SliverToBoxAdapter(child: SizedBox(height: 28)),
+      ],
     );
   }
 
-  Widget _groupRow(
+  Widget _subscriptions(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 18),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _search(context),
+        const SizedBox(height: 18),
+        ServerSourcesView(controller: controller),
+      ],
+    ),
+  );
+}
+
+class ServerManualGroupsPage extends StatelessWidget {
+  const ServerManualGroupsPage({super.key, required this.controller});
+  final ServersController controller;
+  @override
+  Widget build(
     BuildContext context,
-    ServerGroup group, {
-    required bool active,
-  }) {
-    final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final package = group.source == null
-        ? null
-        : SubscriptionUserInfo.fromSubscription(group.source!);
-    return Material(
-      color: active ? palette.muted : palette.card,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: palette.border)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: () => controller.browse(
-                  context,
-                  group,
-                  mobile:
-                      MediaQuery.sizeOf(context).width <=
-                      AppLayout.mobileBreakpoint,
-                ),
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 66),
-                  padding: const EdgeInsetsDirectional.fromSTEB(16, 10, 6, 10),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: palette.surfaceHover,
-                          borderRadius: BorderRadius.circular(9),
-                        ),
-                        child: Icon(
-                          LucideIcons.layers,
-                          size: 17,
-                          color: palette.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              group.name,
-                              style: AppTypography.serverTitle.copyWith(
-                                color: palette.foreground,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              controller.summary(l, group),
-                              style: AppTypography.serverGroupDetail.copyWith(
-                                color: palette.mutedForeground,
-                              ),
-                            ),
-                            if (package != null) ...[
-                              const SizedBox(height: 4),
-                              SubscriptionPackageSummary(info: package),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Icon(
-                        LucideIcons.chevronRightDir,
-                        size: 18,
-                        color: palette.foreground,
-                      ),
-                    ],
-                  ),
-                ),
+  ) => BlocBuilder<ServersController, ServersPageState>(
+    bloc: controller,
+    builder: (context, state) {
+      final l = AppLocalizations.of(context)!;
+      final groups = controller
+          .groups(l, filter: false)
+          .where((group) => group.manual)
+          .toList();
+      return Scaffold(
+        appBar: PageAppBar(title: Text(l.manualGroupsTitle)),
+        body: SafeArea(
+          child: ResponsiveContent(
+            child: ListView(
+              padding: EdgeInsets.fromLTRB(
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                    ? 16
+                    : 28,
+                16,
+                MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                    ? 16
+                    : 28,
+                28,
               ),
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => controller.createManualGroup(context),
+                      icon: const Icon(LucideIcons.folderPlus, size: 17),
+                      label: Text(l.manualGroupNew),
+                    ),
+                    ManualGroupOrderButton(
+                      controller: controller,
+                      showLabel: true,
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => controller.choose(
+                        context,
+                        const ServerSelection.automatic(),
+                      ),
+                      icon: const Icon(LucideIcons.shuffle, size: 17),
+                      label: Text(l.prototypeAutomaticSelection),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => controller.choose(
+                        context,
+                        const ServerSelection.source(0),
+                      ),
+                      icon: const Icon(LucideIcons.layers, size: 17),
+                      label: Text(l.prototypeManualAdditions),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                SettingSection(
+                  title: l.manualGroupsTitle,
+                  description: l.manualGroupsUngroupedFirst,
+                  padding: EdgeInsets.zero,
+                  dividerIndent: 0,
+                  children: [
+                    if (groups.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(l.manualGroupEmpty),
+                      ),
+                    for (final group in groups)
+                      SettingRow(
+                        title: group.name,
+                        subtitle: l.prototypeServerCount(group.rows.length),
+                        leading: const Icon(LucideIcons.folder, size: 19),
+                        trailing: group.manualGroupId == null
+                            ? null
+                            : IconButton(
+                                tooltip:
+                                    '${l.prototypeMoreActions}: ${group.name}',
+                                onPressed: controller.manualGroupBusy(group)
+                                    ? null
+                                    : () => controller.openManualGroupMenu(
+                                        context,
+                                        group,
+                                      ),
+                                icon: const Icon(
+                                  LucideIcons.ellipsis,
+                                  size: 18,
+                                ),
+                              ),
+                        onTap: () => controller.browse(context, group),
+                      ),
+                  ],
+                ),
+              ],
             ),
-            if (group.selection != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: ServerUseButton(
-                  controller: controller,
-                  group: group,
-                  inline: true,
-                ),
-              ),
-            if (group.manualGroupId != null) _manualMenu(context, group),
-            if (group.source != null)
-              SizedBox(
-                width: 42,
-                child: SourceMenu(
-                  controller: controller,
-                  source: group.source!,
-                ),
-              ),
-          ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class ServerRawRow extends StatelessWidget {
+  const ServerRawRow({super.key, required this.controller, required this.row});
+  final ServersController controller;
+  final CoreConfigData row;
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final selected =
+        controller.configuration.connection.expert &&
+        controller.configuration.connection.rawId == row.id;
+    final running =
+        controller.connectionView.phase == ConnectionPhase.connected &&
+        controller.connectionView.runtime?.configuration.connection.expert ==
+            true &&
+        controller.connectionView.runtime?.configuration.connection.rawId ==
+            row.id;
+    final palette = ColorManager.palette(context);
+    return Material(
+      color: selected || running ? palette.selectedSurface : palette.card,
+      borderRadius: BorderRadius.circular(AppRadii.control),
+      clipBehavior: Clip.antiAlias,
+      child: SettingRow(
+        title: row.name,
+        subtitle: l.xrayRawPageTitle,
+        leading: const Icon(LucideIcons.fileJson, size: 19),
+        titleTrailing: selected || running
+            ? Icon(
+                running ? LucideIcons.activity : LucideIcons.circleCheck,
+                size: 16,
+                color: ColorManager.palette(context).primary,
+              )
+            : null,
+        onTap: () => context.pushScoped(
+          AppPageDestination.serverResource,
+          extra: ServerResourceParams(
+            controller: controller,
+            resourceId: row.id,
+            raw: true,
+          ),
         ),
       ),
     );
@@ -610,13 +637,11 @@ class ServerGroupView extends StatelessWidget {
   final ServersController controller;
   final ServerGroup group;
   final bool groupPage;
-  final bool embedded;
   const ServerGroupView({
     super.key,
     required this.controller,
     required this.group,
     this.groupPage = false,
-    this.embedded = false,
   });
 
   @override
@@ -624,15 +649,12 @@ class ServerGroupView extends StatelessWidget {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final card = _card(context, mobile);
-    if (embedded) {
-      return card;
-    }
     return Padding(
       padding: mobile
-          ? const EdgeInsets.fromLTRB(15, 13, 15, 22)
+          ? const EdgeInsets.fromLTRB(16, 16, 16, 28)
           : const EdgeInsets.fromLTRB(
               AppSpacing.page,
-              AppSpacing.desktopPageTop,
+              16,
               AppSpacing.page,
               AppSpacing.desktopPageBottom,
             ),
@@ -643,10 +665,7 @@ class ServerGroupView extends StatelessWidget {
   Widget _card(BuildContext context, bool mobile) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    final package = group.source == null
-        ? null
-        : SubscriptionUserInfo.fromSubscription(group.source!);
-    final headerCount = package == null ? 1 : 2;
+    const headerCount = 1;
     return Material(
       color: palette.card,
       shape: RoundedRectangleBorder(
@@ -658,7 +677,7 @@ class ServerGroupView extends StatelessWidget {
         padding: const EdgeInsets.all(1),
         child: ListView.builder(
           key: PageStorageKey('servers:${group.id}'),
-          primary: !embedded,
+          primary: true,
           padding: EdgeInsets.zero,
           itemCount:
               headerCount +
@@ -666,13 +685,10 @@ class ServerGroupView extends StatelessWidget {
           itemBuilder: (context, index) {
             if (index == 0) {
               return Container(
-                constraints: BoxConstraints(minHeight: mobile ? 0 : 88),
+                constraints: const BoxConstraints(minHeight: 0),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 17,
                   vertical: 15,
-                ),
-                decoration: BoxDecoration(
-                  border: Border(bottom: BorderSide(color: palette.border)),
                 ),
                 child: mobile
                     ? Column(
@@ -702,44 +718,13 @@ class ServerGroupView extends StatelessWidget {
                       ),
               );
             }
-            if (index == 1 && package != null) {
-              return SubscriptionPackageDetails(info: package);
-            }
             if (group.visibleRows.isEmpty) {
               return Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 18,
                   vertical: 28,
                 ),
-                child: group.source != null && group.rows.isEmpty
-                    ? Column(
-                        children: [
-                          Text(
-                            controller.providerGroup(group)
-                                ? l.subscriptionModeProviderManaged
-                                : l.subscriptionModeAppManaged,
-                            textAlign: TextAlign.center,
-                            style: AppTypography.rowTitle,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            l.subscriptionModeNoCacheTitle,
-                            textAlign: TextAlign.center,
-                            style: AppTypography.rowValue.copyWith(
-                              color: palette.mutedForeground,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            l.subscriptionModeNeedsRefresh,
-                            textAlign: TextAlign.center,
-                            style: AppTypography.serverDetail.copyWith(
-                              color: palette.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      )
-                    : group.manual && group.rows.isEmpty
+                child: group.rows.isEmpty
                     ? Column(
                         children: [
                           Text(
@@ -766,12 +751,20 @@ class ServerGroupView extends StatelessWidget {
             }
             final rowIndex = index - headerCount;
             final row = group.visibleRows[rowIndex];
-            return ServerNodeRow(
-              key: ValueKey(row.id),
-              controller: controller,
-              row: row,
-              detail: controller.sourceName(l, row),
-              showDivider: rowIndex != group.visibleRows.length - 1,
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                18,
+                0,
+                18,
+                rowIndex == group.visibleRows.length - 1 ? 18 : 0,
+              ),
+              child: ServerNodeRow(
+                key: ValueKey(row.id),
+                controller: controller,
+                row: row,
+                detail: controller.sourceName(l, row),
+                showDivider: false,
+              ),
             );
           },
         ),
@@ -788,46 +781,19 @@ class ServerGroupView extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!mobile) ...[
-            Text(
-              group.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTypography.serverGroupTitle,
-            ),
-            const SizedBox(height: 4),
-          ],
           Text(
             controller.summary(l, group),
             style: AppTypography.serverGroupSummary.copyWith(
               color: palette.mutedForeground,
             ),
           ),
-          if (controller.providerGroup(group)) ...[
-            const SizedBox(height: 4),
-            Text(
-              l.providerChooseConfigurationHint,
-              style: AppTypography.serverDetail.copyWith(
-                color: palette.mutedForeground,
-              ),
-            ),
-          ],
         ],
       ),
     );
     return Row(
       mainAxisSize: mobile ? MainAxisSize.max : MainAxisSize.min,
       children: [
-        Container(
-          width: 48,
-          height: 48,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: palette.surfaceHover,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Icon(LucideIcons.layers3, size: 20, color: palette.primary),
-        ),
+        Icon(LucideIcons.folder, size: 20, color: palette.mutedForeground),
         const SizedBox(width: 13),
         if (mobile) Expanded(child: label) else Flexible(child: label),
       ],
@@ -837,60 +803,65 @@ class ServerGroupView extends StatelessWidget {
   Widget _actions(BuildContext context, bool mobile) {
     final l = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    final testing = controller.testingGroup(group);
-    final cancelling = controller.cancellingGroup(group);
+    final testing = controller.testingGroup(group.id);
+    final cancelling = controller.cancellingGroup(group.id);
     return Wrap(
       alignment: WrapAlignment.end,
       spacing: 8,
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (!controller.providerGroup(group))
-          OutlinedButton(
-            onPressed: testing
-                ? cancelling
-                      ? null
-                      : () => controller.cancelTest(group.id)
-                : group.rows.isEmpty || group.rows.any(controller.serverBusy)
-                ? null
-                : () => controller.test(context, group.rows, groupId: group.id),
-            style: OutlinedButton.styleFrom(
-              minimumSize: Size(
-                0,
+        OutlinedButton(
+          onPressed: testing
+              ? cancelling
+                    ? null
+                    : () => controller.cancelTest(group.id)
+              : group.rows.isEmpty || group.rows.any(controller.serverBusy)
+              ? null
+              : () => controller.test(context, group.rows, groupId: group.id),
+          style: OutlinedButton.styleFrom(
+            minimumSize: Size(
+              0,
+              AppLayout.touchExtent(
                 mobile
                     ? AppLayout.mobileButtonMinHeight
                     : AppLayout.buttonMinHeight,
+                platform: Theme.of(context).platform,
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              foregroundColor: palette.foreground,
-              backgroundColor: palette.card,
-              side: BorderSide(color: palette.borderStrong),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadii.control),
-              ),
-              textStyle: AppTypography.serverGroupAction,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.standard,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppActivityBuilder(
-                  builder: (context, activity) => activity.pinging
-                      ? const ButtonProgressIndicator()
-                      : const Icon(LucideIcons.refreshCw, size: 16),
-                ),
-                const SizedBox(width: 8),
-                Text(
+            padding: const EdgeInsets.symmetric(horizontal: 15),
+            foregroundColor: palette.foreground,
+            backgroundColor: palette.card,
+            side: BorderSide(color: palette.borderStrong),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            textStyle: AppTypography.serverGroupAction,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.standard,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppActivityBuilder(
+                builder: (context, activity) => activity.pinging
+                    ? const ButtonProgressIndicator()
+                    : const Icon(LucideIcons.refreshCw, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
                   testing
                       ? cancelling
                             ? l.prototypePleaseWait
                             : l.prototypeCancel
                       : l.prototypeTestServers,
+                  textAlign: TextAlign.center,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
         if (group.manual && group.rows.length > 1)
           Tooltip(
             message: controller.query.trim().isNotEmpty
@@ -906,8 +877,6 @@ class ServerGroupView extends StatelessWidget {
               label: Text(l.manualServerOrder),
             ),
           ),
-        if (!controller.providerGroup(group) && group.selection != null)
-          ServerUseButton(controller: controller, group: group),
         if (group.manualGroupId != null)
           IconButton(
             tooltip: '${l.prototypeMoreActions}: ${group.name}',
@@ -920,152 +889,7 @@ class ServerGroupView extends StatelessWidget {
                   ),
             icon: const Icon(LucideIcons.ellipsis, size: 18),
           ),
-        if (group.source != null)
-          SizedBox(
-            width: 36,
-            child: SourceMenu(controller: controller, source: group.source!),
-          ),
       ],
-    );
-  }
-}
-
-class ServerUseButton extends StatelessWidget {
-  final ServersController controller;
-  final ServerGroup group;
-  final bool inline;
-  const ServerUseButton({
-    super.key,
-    required this.controller,
-    required this.group,
-    this.inline = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    if (controller.providerGroup(group)) {
-      final VoidCallback? browse = group.visibleRows.isEmpty
-          ? null
-          : () => controller.browse(
-              context,
-              group,
-              mobile:
-                  MediaQuery.sizeOf(context).width <=
-                  AppLayout.mobileBreakpoint,
-            );
-      if (inline) {
-        return IconButton(
-          tooltip: l.providerChooseConfiguration,
-          onPressed: browse,
-          icon: const Icon(LucideIcons.list, size: 18),
-        );
-      }
-      return OutlinedButton.icon(
-        onPressed: browse,
-        icon: const Icon(LucideIcons.list, size: 16),
-        label: Text(l.providerChooseConfiguration),
-      );
-    }
-    final selection = group.selection;
-    if (selection == null) return const SizedBox.shrink();
-    final count = controller.entryCount(selection);
-    final enabled = controller.canUse(group);
-    final selected = controller.selected(selection);
-    final VoidCallback? choose = controller.busy || !enabled
-        ? null
-        : () => controller.choose(context, selection);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    final palette = ColorManager.palette(context);
-    return Semantics(
-      label: '${l.prototypeUseEntryServers(count)}: ${group.name}',
-      button: true,
-      selected: selected,
-      enabled: choose != null,
-      onTap: choose,
-      excludeSemantics: true,
-      child: Tooltip(
-        message: enabled
-            ? l.prototypeUseEntryServers(count)
-            : l.prototypeNotEnoughServers,
-        child: Opacity(
-          opacity: choose == null ? .52 : 1,
-          child: OutlinedButton(
-            onPressed: choose,
-            style: OutlinedButton.styleFrom(
-              minimumSize: Size(
-                0,
-                mobile
-                    ? AppLayout.mobileButtonMinHeight
-                    : inline
-                    ? 32
-                    : 36,
-              ),
-              padding: EdgeInsets.symmetric(
-                horizontal: !mobile && inline ? 7 : 9,
-              ),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              visualDensity: VisualDensity.standard,
-              foregroundColor: selected ? palette.primary : palette.foreground,
-              backgroundColor: selected
-                  ? palette.selectedSurface
-                  : palette.card,
-              side: BorderSide(
-                color: selected
-                    ? Color.lerp(palette.border, palette.primary, .48)!
-                    : inline
-                    ? palette.border
-                    : palette.borderStrong,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadii.control),
-              ),
-              textStyle: inline
-                  ? AppTypography.serverUseLabel
-                  : AppTypography.serverGroupAction,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (controller.selectingGroup(selection))
-                  const ButtonProgressIndicator()
-                else
-                  Icon(
-                    selected ? LucideIcons.circleCheck : LucideIcons.zap,
-                    size: inline ? 15 : 16,
-                  ),
-                const SizedBox(width: 6),
-                Text(l.prototypeUse),
-                const SizedBox(width: 6),
-                Container(
-                  constraints: const BoxConstraints(minWidth: 20),
-                  height: 20,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadii.pill),
-                    color: selected
-                        ? palette.primarySolid
-                        : palette.surfaceHover,
-                  ),
-                  child: Text(
-                    '$count',
-                    style:
-                        (inline
-                                ? AppTypography.serverUseCount
-                                : AppTypography.serverGroupUseCount)
-                            .copyWith(
-                              color: selected
-                                  ? palette.primaryForeground
-                                  : palette.mutedStrong,
-                            ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1080,7 +904,7 @@ class ServerNodeRow extends StatelessWidget {
     required this.controller,
     required this.row,
     this.detail,
-    this.showDivider = true,
+    this.showDivider = false,
   });
 
   @override
@@ -1143,228 +967,135 @@ class ServerNodeRow extends StatelessWidget {
     required String protocol,
   }) {
     final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
-    final conflict = controller.exitConflict(row);
-    final rowDetail = detail ?? controller.sourceName(l, row);
-    return Container(
-      foregroundDecoration: running
-          ? BoxDecoration(
-              border: BorderDirectional(
-                start: BorderSide(color: palette.primary, width: 3),
-              ),
-            )
-          : null,
-      child: Material(
-        color: running || chosen
-            ? Color.lerp(palette.card, palette.selectedSurface, .72)
-            : palette.card,
-        child: Column(
+    final p = ColorManager.palette(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 300;
+        return Column(
           children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 62),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: 42,
-                      child: Opacity(
-                        opacity: enabled ? 1 : .65,
-                        child: IconButton(
-                          tooltip: row.favorite
-                              ? l.prototypeRemoveFavorite
-                              : l.prototypeAddFavorite,
-                          onPressed: controller.serverBusy(row)
-                              ? null
-                              : () => controller.toggleFavorite(context, row),
-                          isSelected: row.favorite,
-                          style: IconButton.styleFrom(
-                            foregroundColor: palette.restarting,
-                            iconSize: 17,
-                            padding: EdgeInsets.zero,
-                            minimumSize: const Size(42, 42),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: const RoundedRectangleBorder(),
-                          ),
-                          icon: controller.favoritingIds.contains(row.id)
-                              ? const ButtonProgressIndicator()
-                              : const Icon(LucideIcons.star),
-                          selectedIcon:
-                              controller.favoritingIds.contains(row.id)
-                              ? const ButtonProgressIndicator()
-                              : const Icon(LucideIcons.star600),
+            Material(
+              color: chosen || running ? p.selectedSurface : p.card,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.control),
+                side: chosen || running
+                    ? BorderSide(color: p.primary.withValues(alpha: .2))
+                    : BorderSide.none,
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => context.pushScoped(
+                  AppPageDestination.serverResource,
+                  extra: ServerResourceParams(
+                    controller: controller,
+                    resourceId: row.id,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 0, 12),
+                  child: Row(
+                    children: [
+                      Icon(
+                        controller.providerRow(row)
+                            ? LucideIcons.fileJson
+                            : LucideIcons.server,
+                        size: 20,
+                        color: chosen || running
+                            ? p.primaryText
+                            : p.mutedForeground,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              controller.serverName(row),
+                              style: AppTypography.serverNodeTitle.copyWith(
+                                color: chosen || running
+                                    ? p.primaryText
+                                    : p.foreground,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              [
+                                if (protocol.isNotEmpty) protocol,
+                                detail ?? controller.sourceName(l, row),
+                              ].join(' · '),
+                              style: AppTypography.metadata.copyWith(
+                                color: p.mutedForeground,
+                              ),
+                            ),
+                            if (compact && !controller.providerRow(row)) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                controller.health(l, row),
+                                style: AppTypography.metadata.copyWith(
+                                  color: ColorManager.nodeLatency(
+                                    context,
+                                    row.delay,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: Opacity(
-                        opacity: enabled ? 1 : .65,
-                        child: Semantics(
-                          selected: chosen,
-                          child: InkWell(
-                            onTap: controller.busy || conflict
-                                ? null
-                                : enabled
-                                ? () => controller.chooseRow(context, row)
-                                : () =>
-                                      ServerMenu.open(context, controller, row),
-                            child: Padding(
-                              padding: const EdgeInsetsDirectional.fromSTEB(
-                                0,
-                                9,
-                                4,
-                                9,
-                              ),
-                              child: Row(
-                                children: [
-                                  if (controller.selectingGroup(
-                                    ServerSelection.server(row.id),
-                                  ))
-                                    const ButtonProgressIndicator()
-                                  else
-                                    Icon(
-                                      LucideIcons.server,
-                                      size: 19,
-                                      color: palette.foreground,
-                                    ),
-                                  const SizedBox(width: 11),
-                                  Expanded(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          controller.serverName(row),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: AppTypography.serverNodeTitle
-                                              .copyWith(
-                                                color: palette.foreground,
-                                              ),
-                                        ),
-                                        for (final label in [
-                                          row.type,
-                                          if (protocol.isNotEmpty) protocol,
-                                        ]) ...[
-                                          const SizedBox(height: 3),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: palette.surfaceHover,
-                                              border: Border.all(
-                                                color: palette.border,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              label,
-                                              textDirection: TextDirection.ltr,
-                                              style: AppTypography
-                                                  .serverProtocol
-                                                  .copyWith(
-                                                    color: palette.mutedStrong,
-                                                  ),
-                                            ),
-                                          ),
-                                        ],
-                                        if (!controller.providerRow(row)) ...[
-                                          const SizedBox(height: 3),
-                                          Text.rich(
-                                            TextSpan(
-                                              text: '$rowDetail · ',
-                                              children: [
-                                                TextSpan(
-                                                  text: controller.health(
-                                                    l,
-                                                    row,
-                                                  ),
-                                                  style: TextStyle(
-                                                    color:
-                                                        ColorManager.nodeLatency(
-                                                          context,
-                                                          row.delay,
-                                                        ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            style: AppTypography.metadata
-                                                .copyWith(
-                                                  color:
-                                                      palette.mutedForeground,
-                                                ),
-                                          ),
-                                        ],
-                                        if (conflict) ...[
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            l.prototypeFinalExitEntryConflict,
-                                            style: AppTypography.metadata
-                                                .copyWith(
-                                                  color:
-                                                      palette.mutedForeground,
-                                                ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 11),
-                                  if (running)
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          LucideIcons.circleCheck,
-                                          size: 15,
-                                          color: palette.primary,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          l.prototypeConnected,
-                                          style: AppTypography
-                                              .serverConnectedBadge
-                                              .copyWith(color: palette.primary),
-                                        ),
-                                      ],
-                                    )
-                                  else if (chosen)
-                                    Icon(
-                                      LucideIcons.circleCheck,
-                                      size: 20,
-                                      color: palette.running,
-                                    )
-                                  else
-                                    Icon(
-                                      LucideIcons.chevronRightDir,
-                                      size: 17,
-                                      color: palette.foreground,
-                                    ),
-                                ],
+                      if (!compact && !controller.providerRow(row))
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(start: 8),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 88),
+                            child: Text(
+                              controller.health(l, row),
+                              textAlign: TextAlign.end,
+                              style: AppTypography.metadata.copyWith(
+                                color: ColorManager.nodeLatency(
+                                  context,
+                                  row.delay,
+                                ),
                               ),
                             ),
                           ),
                         ),
+                      if (running || chosen)
+                        Padding(
+                          padding: const EdgeInsetsDirectional.only(
+                            start: 8,
+                            end: 4,
+                          ),
+                          child: Icon(
+                            running
+                                ? LucideIcons.activity
+                                : LucideIcons.circleCheck,
+                            size: 17,
+                            color: p.primary,
+                          ),
+                        ),
+                      IconButton(
+                        tooltip: row.favorite
+                            ? l.prototypeRemoveFavorite
+                            : l.prototypeAddFavorite,
+                        onPressed: controller.serverBusy(row)
+                            ? null
+                            : () => controller.toggleFavorite(context, row),
+                        isSelected: row.favorite,
+                        icon: controller.favoritingIds.contains(row.id)
+                            ? const ButtonProgressIndicator()
+                            : const Icon(LucideIcons.star, size: 17),
+                        selectedIcon: const Icon(LucideIcons.star600, size: 17),
                       ),
-                    ),
-                    SizedBox(
-                      width: 42,
-                      child: ServerMenu(controller: controller, row: row),
-                    ),
-                  ],
+                      ServerMenu(controller: controller, row: row),
+                    ],
+                  ),
                 ),
               ),
             ),
-            if (showDivider)
-              Divider(height: 1, thickness: 1, color: palette.border),
+            if (showDivider) Divider(height: 1, color: p.border),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -1404,49 +1135,9 @@ class ServerMenu extends StatelessWidget {
         foregroundColor: ColorManager.palette(context).mutedStrong,
         iconSize: 18,
         padding: EdgeInsets.zero,
-        minimumSize: const Size(42, 42),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: const RoundedRectangleBorder(),
-      ),
-      icon: const Icon(LucideIcons.ellipsis),
-    );
-  }
-}
-
-class SourceMenu extends StatelessWidget {
-  final ServersController controller;
-  final SubscriptionData source;
-  const SourceMenu({super.key, required this.controller, required this.source});
-
-  static Future<void> open(
-    BuildContext context,
-    ServersController controller,
-    SubscriptionData source,
-  ) async {
-    final action = await showSourceActionsMenu(
-      context,
-      name: source.name,
-      count: controller.sourceCount(source.id),
-      provider: controller.providerSource(source),
-    );
-    if (context.mounted && action != null) {
-      await controller.sourceAction(context, source, action);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return IconButton(
-      tooltip: '${l.prototypeMoreActions}: ${source.name}',
-      onPressed: controller.sourceBusy(source.id)
-          ? null
-          : () => open(context, controller, source),
-      style: IconButton.styleFrom(
-        foregroundColor: ColorManager.palette(context).mutedStrong,
-        iconSize: 18,
-        padding: EdgeInsets.zero,
-        minimumSize: const Size(36, 42),
+        minimumSize: Size.square(
+          AppLayout.touchExtent(36, platform: Theme.of(context).platform),
+        ),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         shape: const RoundedRectangleBorder(),
       ),

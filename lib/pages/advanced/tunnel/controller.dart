@@ -12,7 +12,7 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/advanced/tunnel/interface.dart';
 import 'package:onexray/service/shared/failure.dart';
 
-enum TunnelDestination { apple, android, windows, interface }
+enum TunnelDestination { dns, network, apple, android, windows, interface }
 
 typedef OpenTunnelPage = Future<bool?> Function(
   BuildContext context,

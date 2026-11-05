@@ -1,24 +1,29 @@
 import 'package:macos_window_utils/widgets/macos_toolbar_passthrough.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/main/desktop_window.dart';
+import 'package:go_router/go_router.dart';
+import 'package:onexray/pages/main/navigation.dart';
+import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/l10n/localizations/app_localizations.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-/// Keeps the themed AppBar while forwarding clicks on controls that overlap
-/// the native macOS titlebar. Empty titlebar space keeps native window gestures.
+/// Uses the standard themed AppBar and preserves native macOS hit forwarding.
 class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
   const PageAppBar({
     super.key,
     required this.title,
+    this.headingAction,
     this.leading,
     this.actions,
     this.bottom,
   });
 
   final Widget title;
+  final Widget? headingAction;
   final Widget? leading;
   final List<Widget>? actions;
   final PreferredSizeWidget? bottom;
 
-  // Retain AppBar's theme-aware preferred size, including its optional tabs.
   @override
   Size get preferredSize => AppBar(bottom: bottom).preferredSize;
 
@@ -42,16 +47,56 @@ class PageAppBar extends StatelessWidget implements PreferredSizeWidget {
             : const BackButton();
       }
     }
+    final effectiveActions = <Widget>[...?actions];
+    Widget? mobileSettingsAction;
+    final router = GoRouter.maybeOf(context);
+    if (router != null &&
+        route != null &&
+        route.isFirst &&
+        route.isCurrent &&
+        TickerMode.valuesOf(context).enabled &&
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint) {
+      final match = router.routerDelegate.currentConfiguration.lastOrNull;
+      final settings = route.settings;
+      // Imperative routes have no GoRouterState association. Read the active
+      // match without walking ancestors of a nested Navigator.
+      final path = match?.matchedLocation;
+      if (settings is Page<Object?> &&
+          match != null &&
+          settings.key == match.pageKey &&
+          AppPrimaryDestination.values.any(
+            (p) => p != AppPrimaryDestination.settings && p.rootPath == path,
+          )) {
+        mobileSettingsAction = IconButton(
+          key: const ValueKey('mobile-settings-action'),
+          tooltip: AppLocalizations.of(context)!.prototypeSettings,
+          icon: const Icon(LucideIcons.settings2),
+          onPressed: () =>
+              router.push<void>('$path/${AppPageDestination.settings.segment}'),
+        );
+      }
+    }
+    Widget passThrough(Widget child) =>
+        forwardClicks ? _AnimatedToolbarPassthrough(child: child) : child;
+    final pageTitle = title;
+    final toolbarTitle =
+        pageTitle is Text &&
+            pageTitle.data != null &&
+            pageTitle.data!.length > 40
+        ? Tooltip(
+            message: pageTitle.data!,
+            excludeFromSemantics: true,
+            child: pageTitle,
+          )
+        : pageTitle;
     return AppBar(
-      title: title,
-      leading: forwardClicks && effectiveLeading != null
-          ? _AnimatedToolbarPassthrough(child: effectiveLeading)
-          : effectiveLeading,
-      actions: forwardClicks
-          ? actions
-                ?.map((child) => _AnimatedToolbarPassthrough(child: child))
-                .toList()
-          : actions,
+      title: toolbarTitle,
+      leading: effectiveLeading == null ? null : passThrough(effectiveLeading),
+      actions: [
+        for (final action in effectiveActions) passThrough(action),
+        if (headingAction != null) passThrough(headingAction!),
+        if (mobileSettingsAction != null) passThrough(mobileSettingsAction),
+      ],
       bottom: bottom,
     );
   }

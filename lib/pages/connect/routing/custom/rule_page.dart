@@ -56,13 +56,13 @@ class _CustomRoutingRulePageState extends State<CustomRoutingRulePage> {
         body: SafeArea(
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
-              mobile ? 14 : 28,
-              12,
-              mobile ? 14 : 28,
+              mobile ? 16 : 28,
+              16,
+              mobile ? 16 : 28,
               18,
             ),
             child: ResponsiveContent(
-              desktopMaxWidth: 800,
+              desktopMaxWidth: AppLayout.routingMaxWidth,
               child: CustomRoutingRuleForm(controller: controller),
             ),
           ),
@@ -84,7 +84,7 @@ class _CustomRoutingRulePageState extends State<CustomRoutingRulePage> {
   }
 }
 
-/// The same field composition can be hosted beside a wide-screen rule list.
+/// Rule edits live on their own page, independently of the ordered rule list.
 class CustomRoutingRuleForm extends StatelessWidget {
   final CustomRoutingRuleController controller;
   const CustomRoutingRuleForm({super.key, required this.controller});
@@ -121,18 +121,20 @@ class CustomRoutingRuleForm extends StatelessWidget {
                     children: [
                       Text(
                         l.prototypeRuleName,
-                        style: AppTypography.routeIdentityLabel.copyWith(
-                          color: palette.mutedStrong,
+                        style: AppTypography.fieldLabel.copyWith(
+                          color: palette.foreground,
                         ),
                       ),
                       ShadInput(
                         controller: controller.name,
-                        constraints: const BoxConstraints(minHeight: 40),
+                        constraints: BoxConstraints(
+                          minHeight: AppLayout.touchExtent(40),
+                        ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 8,
                         ),
-                        style: AppTypography.routeIdentityLabel,
+                        style: AppTypography.rowValue,
                       ),
                     ],
                   ),
@@ -537,9 +539,9 @@ class CustomRoutingRuleForm extends StatelessWidget {
       focusNode: focus,
       constraints: const BoxConstraints(minHeight: 40),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      style: AppTypography.routingInput,
+      style: AppTypography.rowValue,
       placeholder: Text(hint),
-      placeholderStyle: AppTypography.routingInput.copyWith(
+      placeholderStyle: AppTypography.rowValue.copyWith(
         color: ColorManager.palette(context).mutedForeground,
       ),
       autocorrect: false,

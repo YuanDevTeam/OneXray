@@ -1,4 +1,31 @@
 {
+  "configurationContentTitle": "Configuration content",
+  "connectionPlanCaption": "Used for this connection",
+  "connectionPlanConnectedCaption": "Confirm changes to apply and reconnect",
+  "connectionSessionTitle": "This session",
+  "connectionSessionCaption": "Upload, download, and duration of this connection",
+  "connectionSessionDuration": "Duration",
+  "tunnelIpv6Enabled": "IPv6 enabled",
+  "tunnelIpv6Disabled": "IPv6 disabled",
+  "tunnelSystemCapture": "System capture",
+  "tunnelConnectionParameters": "Connection parameters",
+  "tunnelCurrentPlatform": "Current platform",
+  "subscriptionInformationTitle": "Subscription information",
+  "shareContentTitle": "Share content",
+  "settingsAppLanguage": "App language",
+  "settingsDockIcon": "Dock icon",
+  "settingsHomeScreenIcon": "Home Screen icon",
+  "settingsManualConnection": "Connect manually",
+  "settingsAppearanceAndLanguage": "Appearance & language",
+  "settingsStartupAndSystem": "Startup & system",
+  "pageTunnelDescription": "System capture, tunnel networking and platform policies.",
+  "pageXrayDescription": "Core runtime, diagnostics and connection resources.",
+  "pageRoutingDescription": "Choose traffic handling or manage routing profiles.",
+  "headerSwitchToLight": "Switch to light theme",
+  "headerSwitchToDark": "Switch to dark theme",
+  "navigationTagline": "Your servers, your connection",
+  "navigationWorkspace": "Workspace",
+  "navigationSystemAndCore": "System & core",
   "serverDialingTitle": "Server dialing",
   "serverDialingDomainStrategy": "Domain resolution",
   "serverDialingSystem": "System default",
@@ -215,7 +242,6 @@
   "buttonOK": "OK",
   "buttonCancel": "Cancel",
   "buttonOpenSettings": "Open system settings",
-  "buttonSave": "Save",
   "buttonSaveFailed": "Save failed",
   "settingsDefaultsRestored": "Defaults restored in the editor. Save to apply.",
   "@settingsDefaultsRestored": {
@@ -682,7 +708,7 @@
       }
     }
   },
-  "prototypeChooseBySpeedAvailability": "Choose by speed and availability",
+  "prototypeChooseBySpeedAvailability": "Prefer cached successful delays; unmeasured and failed tests remain eligible.",
   "@prototypeChooseBySpeedAvailability": {
     "description": "Approved prototype copy: Choose by speed and availability"
   },
@@ -789,10 +815,6 @@
   "prototypeOrdinaryConnectionRunning": "The ordinary connection is still running. Select a configuration to switch.",
   "@prototypeOrdinaryConnectionRunning": {
     "description": "Approved prototype copy: The ordinary connection is still running. Select a configuration to switch."
-  },
-  "prototypeNoRawJson": "No Raw JSON configurations yet",
-  "@prototypeNoRawJson": {
-    "description": "Approved prototype copy: No Raw JSON configurations yet"
   },
   "prototypeAddRawJsonHint": "Add a complete Xray configuration, then select it here to connect.",
   "@prototypeAddRawJsonHint": {
@@ -1211,10 +1233,6 @@
   "@prototypeChooseTrafficMethod": {
     "description": "Approved prototype copy: Choose a traffic method"
   },
-  "prototypeTrafficMethodQuestion": "Which traffic should use the VPN?",
-  "@prototypeTrafficMethodQuestion": {
-    "description": "Approved prototype copy: Which traffic should use the VPN?"
-  },
   "prototypeChooseNamedRoute": "Choose one named route",
   "@prototypeChooseNamedRoute": {
     "description": "Approved prototype copy: Choose one named route"
@@ -1291,47 +1309,11 @@
   "@prototypeCustomConnectionReason": {
     "description": "Approved prototype copy: Your custom rules decide which traffic uses the VPN, stays direct, or is blocked. Rules do not store server choices."
   },
-  "prototypeNamedCustomConnectionReason": "{name} decides which traffic uses the VPN, stays direct, or is blocked. Rules do not store server choices.",
-  "@prototypeNamedCustomConnectionReason": {
-    "description": "Approved prototype copy: {name} decides which traffic uses the VPN, stays direct, or is blocked. Rules do not store server choices.",
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
   "prototypeRunningEntriesReason": "This connection selected {entries}. Retesting does not change the current connection.",
   "@prototypeRunningEntriesReason": {
     "description": "Approved prototype copy: This connection selected {entries}. Retesting does not change the current connection.",
     "placeholders": {
       "entries": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeMultipleEntriesReason": "OneXray selected {count} entry servers with the best speed and availability. New connections are distributed between them.",
-  "@prototypeMultipleEntriesReason": {
-    "description": "Approved prototype copy: OneXray selected {count} entry servers with the best speed and availability. New connections are distributed between them.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
-  "prototypeFixedEntryReason": "You selected {server} directly.",
-  "@prototypeFixedEntryReason": {
-    "description": "Approved prototype copy: You selected {server} directly.",
-    "placeholders": {
-      "server": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeAutomaticEntryReason": "{server} had the best recent speed and availability among eligible servers.",
-  "@prototypeAutomaticEntryReason": {
-    "description": "Approved prototype copy: {server} had the best recent speed and availability among eligible servers.",
-    "placeholders": {
-      "server": {
         "type": "String"
       }
     }
@@ -1510,7 +1492,7 @@
   "@prototypeAutomaticEntryServers": {
     "description": "Approved prototype copy: Automatic entry servers"
   },
-  "prototypeAutomaticEntryServersHint": "Use the best available servers and distribute new connections when more than one is selected.",
+  "prototypeAutomaticEntryServersHint": "Cached successful delays rank first; unmeasured and failed tests remain eligible.",
   "@prototypeAutomaticEntryServersHint": {
     "description": "Approved prototype copy: Use the best available servers and distribute new connections when more than one is selected."
   },
@@ -1779,10 +1761,6 @@
   "prototypeAppInformation": "App information, documentation, and support.",
   "@prototypeAppInformation": {
     "description": "Approved prototype copy: App information, documentation, and support."
-  },
-  "prototypeCrossPlatformXrayClient": "A cross-platform Xray client",
-  "@prototypeCrossPlatformXrayClient": {
-    "description": "Approved prototype copy: A cross-platform Xray client"
   },
   "prototypeAppVersion": "App version",
   "@prototypeAppVersion": {
@@ -2649,10 +2627,6 @@
   "@prototypeManageSources": {
     "description": "Approved prototype copy: Manage updates and sources"
   },
-  "prototypeSourceUpdateGuard": "Updates replace the subscription only when at least one usable node is recognized.",
-  "@prototypeSourceUpdateGuard": {
-    "description": "Approved prototype copy: Updates replace the subscription only when at least one usable node is recognized."
-  },
   "prototypeSourceUpdateHint": "Download and import usable nodes directly",
   "@prototypeSourceUpdateHint": {
     "description": "Approved prototype copy: Download and import usable nodes directly"
@@ -2783,9 +2757,9 @@
   "@prototypeClearAllDataQuestion": {
     "description": "Approved prototype copy: Clear all app data?"
   },
-  "prototypeClearAllDataWarning": "This removes saved servers, subscriptions, Age keys, routing configurations, Raw JSON, custom Geodata, and app preferences.",
+  "prototypeClearAllDataWarning": "This deletes all connection resources (servers and groups, subscriptions and Age keys, routing configurations, Raw JSON, and custom Geodata), local runtime records, and caches. It resets connection, startup, update, and backup settings, unlinks the backup location, and revokes API and Android automation access.\n\nThe theme, language, app icon, Dock visibility preference, privacy acceptance, first-run setup state, and system permissions are kept. External backup files will not be deleted.",
   "@prototypeClearAllDataWarning": {
-    "description": "Approved prototype copy: This removes saved servers, subscriptions, Age keys, routing configurations, Raw JSON, custom Geodata, and app preferences."
+    "description": "Full data cleanup confirmation: deleted resources and settings, revoked external access, preserved device preferences and permissions, and external backup files."
   },
   "prototypeConfirmClearData": "Confirm clear data",
   "@prototypeConfirmClearData": {
@@ -2829,9 +2803,6 @@
   },
   "@buttonCancel": {
     "description": "Approved prototype copy: Cancel"
-  },
-  "@buttonSave": {
-    "description": "Approved prototype copy: Save"
   },
   "@sharePageCopyLink": {
     "description": "Approved prototype copy: Copy share link"
@@ -2911,14 +2882,6 @@
   "@prototypeShareServerHint": {
     "description": "Approved prototype copy: Share an importable server link"
   },
-  "prototypeLocalOnly": "Local only",
-  "@prototypeLocalOnly": {
-    "description": "Approved prototype copy: Local only"
-  },
-  "prototypeStoredOnThisDevice": "Stored on this device",
-  "@prototypeStoredOnThisDevice": {
-    "description": "Approved prototype copy: Stored on this device"
-  },
   "prototypeUpdated": "Updated",
   "@prototypeUpdated": {
     "description": "Approved prototype copy: Updated"
@@ -2938,6 +2901,10 @@
   "prototypeLocalServer": "Local server",
   "@prototypeLocalServer": {
     "description": "Approved prototype copy: Local server"
+  },
+  "importPreviewPending": "Pending confirmation",
+  "@importPreviewPending": {
+    "description": "Heading for detected import items that have not been added; the user must confirm before they are saved."
   },
   "prototypeImportedLinks": "Imported links",
   "@prototypeImportedLinks": {
@@ -3064,7 +3031,6 @@
   "providerRoutingNotice": "Uses provider routing. App routing resumes when you switch back to managed nodes.",
   "providerConfigurationCount": "{count, plural, =1 {1 configuration} other {{count} configurations}}",
   "@providerConfigurationCount": {"placeholders": {"count": {"type": "int"}}},
-  "providerChooseConfiguration": "Choose configuration",
   "providerChooseConfigurationHint": "Select a configuration from this subscription to connect.",
   "providerViewConfiguration": "View JSON",
   "providerViewConfigurationHint": "View the original subscription JSON. Copy it to personal Raw to edit.",
@@ -3133,6 +3099,7 @@
   "manualOrderChanged": "The list changed. Reload it before arranging again.",
   "manualOrderReload": "Reload order",
   "manualOrderClearSearch": "Clear search to arrange.",
+  "manualOrderDisplayHint": "Saved positions are shown with Default sorting. Sorting by name or latency is unchanged.",
   "subscriptionAdvancedOff": "HWID and Age are off",
   "subscriptionAdvancedConfigured": "Configured: {options}",
   "@subscriptionAdvancedConfigured": {
@@ -3144,5 +3111,104 @@
   "jsonEditorDiscardChanges": "Discard changes",
   "tunnelDnsIpv4Invalid": "Enter a valid IPv4 address.",
   "tunnelDnsIpv6Invalid": "Enter a valid IPv6 address.",
-  "tunnelDnsServerNameRequired": "Enter the DNS over TLS server name."
+  "tunnelDnsServerNameRequired": "Enter the DNS over TLS server name.",
+  "navigationRouting": "Routing",
+  "serverNodesTab": "Nodes",
+  "serverCompleteConfigurationsTab": "Configurations",
+  "serverNoCompleteConfigurations": "No configurations yet",
+  "completeConfigurationDefinition": "Runs the entire Xray JSON configuration without applying routing preferences for ordinary nodes.\n\nIncludes personal Raw JSON and provider configurations delivered by subscriptions. Personal Raw JSON is editable. Provider configurations are read-only and update with the subscription; copy one to personal Raw JSON to edit it.",
+  "serverAllSources": "All sources",
+  "connectionPlan": "Connection plan",
+  "serverSelectionAutomaticScope": "Automatic scope",
+  "serverSelectionFixedNode": "Fixed node",
+  "connectionCandidates": "{count} candidates",
+  "@connectionCandidates": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRequiredEntries": "{count} entry nodes required",
+  "@connectionRequiredEntries": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "connectionRememberedPlanUnavailable": "The previous plan is unavailable. Select a scope or node.",
+  "clearConnectionResources": "Clear connection resources",
+  "clearConnectionResourcesWarning": "Remove servers, subscriptions, routing configurations and saved connection choices. App preferences, permissions and the backup location are kept.",
+  "routingStoredPreferenceNotice": "Complete configurations use their own routing. This selection applies when you return to ordinary servers.",
+  "connectionRestoreOrdinary": "Use previous ordinary plan",
+  "connectionPreparing": "Preparing connection",
+  "xrayDiagnostics": "Diagnostics",
+  "xrayDiagnosticsHint": "Review connection errors, runtime configuration and logs.",
+  "xrayRefreshStatus": "Refresh status",
+  "xrayNoConnectionError": "There is no current connection error.",
+  "xrayNoRuntimeConfiguration": "No runtime configuration yet. Connect to view the actual startup configuration.",
+  "clearAllAppData": "Clear all app data",
+  "logsUnavailableSystemExtension": "Logs are unavailable in the System Extension edition.",
+  "connectionScopeFallback": "“{origin}” has no readable candidates. Selected “{target}” from all servers. Future connections use Automatic selection.",
+  "@connectionScopeFallback": {
+    "placeholders": {
+      "origin": {
+        "type": "String"
+      },
+      "target": {
+        "type": "String"
+      }
+    }
+  },
+  "serverNoMatchingResources": "No matching resources",
+  "connectionRuntimeTitle": "Active connection",
+  "serverLatencyFailed": "Test failed",
+  "completeConfigurationRoutingTitle": "Configuration routing",
+  "completeConfigurationRoutingNotice": "Uses routing and DNS from the complete configuration. App routing preferences are kept.",
+  "xrayLogPreferences": "Recording preferences",
+  "xrayLogFiles": "Log files",
+  "xrayChecksAndDiagnostics": "Checks and diagnostics",
+  "xrayConnectionResources": "Connection and resources",
+  "xraySharingInterfaces": "Sharing and interfaces",
+  "xrayCurrentConnection": "Current connection",
+  "xrayNotRunning": "Not running",
+  "xrayLogsEnabled": "Recording enabled",
+  "xrayLogsDisabled": "Recording disabled",
+  "pageXrayConfigurationDescription": "Manage configuration used by the core and connections.",
+  "xrayLatencyTitle": "Latency probing",
+  "xrayAutomaticSubscriptionUpdates": "Automatically update subscriptions",
+  "xraySubscriptionUpdateInterval": "Subscription update interval",
+  "xrayAutomaticGeodataUpdates": "Automatically update routing data",
+  "xrayGeodataUpdateInterval": "Routing data update interval",
+  "serverDialingParametersTitle": "Address resolution and connection",
+  "routingAdvancedCreateTitle": "New advanced template",
+  "routingAdvancedEditTitle": "Edit advanced template",
+  "routingAdvancedCardTitle": "Advanced JSON template",
+  "configurationNameLabel": "Name",
+  "routingNormalCreateTitle": "New standard route",
+  "routingNormalEditTitle": "Edit standard route",
+  "routingNormalDescription": "Match rules in order; unmatched traffic uses VPN.",
+  "routingOrderedRulesTitle": "Ordered rules",
+  "routingEmptyRulesHint": "No rules yet. You can configure DNS and proxy connections before saving.",
+  "routingEntryCountLabel": "Entry node count",
+  "routingSelectionModeLabel": "Selection method",
+  "configurationTransferTitle": "Import, export, and share",
+  "configurationNameHint": "1–32 characters",
+  "serverImportPageDescription": "Choose how to add subscriptions, nodes, or configurations.",
+  "serverImportMethods": "Import method",
+  "manualGroupsDescription": "Manage groups and ordering for local nodes.",
+  "manualGroupsUngroupedFirst": "Ungrouped always appears first.",
+  "serverResourceInformation": "Resource information",
+  "serverProtocol": "Protocol",
+  "serverConfigurationJson": "Configuration JSON",
+  "geodataAddDescription": "Add an HTTPS source for GeoIP or GeoSite rules.",
+  "geodataValidatedBeforeAdding": "Adding downloads and validates the resource before saving its source.",
+  "geodataCategoriesAndReferences": "Categories and references",
+  "xrayRecordLogsHint": "Save core runtime logs to help diagnose problems.",
+  "xrayRecordDnsHint": "Logs may include the domains you visit.",
+  "xrayMaskLogIpHint": "Hide IP addresses in logs.",
+  "importPreviewIncomplete": "Import incomplete",
+  "importPreviewResultSummary": "Imported: {completed}. Failed: {failed}.",
+  "@importPreviewResultSummary": {"placeholders": {"completed": {"type": "int"}, "failed": {"type": "int"}}}
 }

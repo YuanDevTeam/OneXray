@@ -77,7 +77,7 @@ class ServerExitPickerView extends StatelessWidget {
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(
                     mobile ? AppSpacing.mobilePage : AppSpacing.page,
-                    mobile ? 12 : AppSpacing.desktopPageTop,
+                    16,
                     mobile ? AppSpacing.mobilePage : AppSpacing.page,
                     mobile ? 18 : AppSpacing.desktopPageBottom,
                   ),
@@ -131,8 +131,9 @@ class ServerExitPickerView extends StatelessWidget {
                               child: Text(
                                 l.prototypeNoMatchingServers,
                                 textAlign: TextAlign.center,
-                                style: AppTypography.routingSelectionInput
-                                    .copyWith(color: palette.mutedForeground),
+                                style: AppTypography.supporting.copyWith(
+                                  color: palette.mutedForeground,
+                                ),
                               ),
                             ),
                           Container(
@@ -173,11 +174,10 @@ class ServerExitPickerView extends StatelessWidget {
           bottomNavigationBar: PageActionBar(
             maxWidth: AppLayout.routingEditorMaxWidth,
             children: [
-              if (!mobile)
-                OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(l.prototypeCancel),
-                ),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(l.prototypeCancel),
+              ),
               FilledButton(
                 onPressed: controller.canFinish
                     ? () => controller.complete(context)
@@ -241,8 +241,6 @@ class _SelectionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = ColorManager.palette(context);
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     return Opacity(
       opacity: onTap == null ? .48 : 1,
       child: Semantics(
@@ -251,17 +249,14 @@ class _SelectionRow extends StatelessWidget {
         enabled: onTap != null,
         child: Material(
           color: selected ? palette.selectedSurface : palette.card,
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
             child: Container(
               constraints: const BoxConstraints(minHeight: 62),
-              padding: EdgeInsets.symmetric(
-                horizontal: mobile ? 12 : 14,
-                vertical: 9,
-              ),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: palette.border)),
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+
               child: Row(
                 children: [
                   Icon(
@@ -281,36 +276,14 @@ class _SelectionRow extends StatelessWidget {
                             color: palette.foreground,
                           ),
                         ),
-                        for (final label in [
-                          ?type,
-                          if (protocol != null && protocol!.isNotEmpty)
-                            protocol!,
-                        ]) ...[
-                          const SizedBox(height: 3),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: palette.surfaceHover,
-                              border: Border.all(color: palette.border),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              label,
-                              textDirection: TextDirection.ltr,
-                              style: AppTypography.serverProtocol.copyWith(
-                                color: palette.mutedStrong,
-                              ),
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 4),
                         Text(
-                          detail,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          [
+                            ?type,
+                            if (protocol != null && protocol!.isNotEmpty)
+                              protocol!,
+                            detail,
+                          ].join(' · '),
                           style: AppTypography.routingSelectionDescription
                               .copyWith(color: palette.mutedForeground),
                         ),

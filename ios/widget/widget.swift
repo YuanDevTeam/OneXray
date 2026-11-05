@@ -4,12 +4,9 @@ import AppIntents
 
 private let connectionURL = URL(string: "onexray://widget/connect")!
 
-private var connectionWidgetFamilies: [WidgetFamily] {
-    if #available(iOS 16.0, *) {
-        return [.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular]
-    }
-    return [.systemSmall, .systemMedium]
-}
+private let connectionWidgetFamilies: [WidgetFamily] = [
+    .systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular,
+]
 
 struct ConnectionWidgetEntry: TimelineEntry {
     let date: Date
@@ -57,25 +54,120 @@ struct ConnectionWidget: Widget {
                 .widgetURL(connectionURL)
         }
         .configurationDisplayName(Text(verbatim: widgetText("Connection", language)))
-        .description(Text(verbatim: widgetText("VPN status and actions that open OneXray.", language)))
+        .description(Text(verbatim: widgetText(
+            AppleWidgetExecutionPolicy.usesBackgroundActions
+                ? "VPN status and background actions using the last prepared configuration."
+                : "VPN status and actions that open OneXray.",
+            language
+        )))
         .supportedFamilies(connectionWidgetFamilies)
+    }
+}
+
+@available(iOS 18.0, *)
+private struct VpnControlValue {
+    let status: AppleWidgetStatus
+    let languageCode: String
+}
+
+@available(iOS 18.0, *)
+private struct VpnControlValueProvider: ControlValueProvider {
+    var previewValue: VpnControlValue {
+        VpnControlValue(status: .unknown, languageCode: AppleWidgetStore.shared?.languageCode() ?? "en")
+    }
+
+    func currentValue() async throws -> VpnControlValue {
+        let store = AppleWidgetStore.shared
+        // Providers stay in the Widget extension. Re-evaluate expiry whenever
+        // the system requests a value; this is not a live NetworkExtension read.
+        return VpnControlValue(
+            status: store?.snapshot()?.displayedStatus(at: Date()) ?? .unknown,
+            languageCode: store?.languageCode() ?? "en"
+        )
+    }
+}
+
+@available(iOS 18.0, *)
+struct VpnControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        let language = AppleWidgetStore.shared?.languageCode() ?? "en"
+        return StaticControlConfiguration(kind: AppleWidgetStore.controlKind, provider: VpnControlValueProvider()) { value in
+            ControlWidgetButton(action: ToggleVpnWidgetIntent()) {
+                Label {
+                    Text("VPN")
+                } icon: {
+                    Image(systemName: controlSymbol(value.status))
+                }
+                .environment(\.locale, Locale(identifier: value.languageCode))
+                .environment(\.layoutDirection, value.languageCode == "fa" ? .rightToLeft : .leftToRight)
+                .controlWidgetStatus(Text(verbatim: widgetText(controlStatusKey(value.status), value.languageCode)))
+                .controlWidgetActionHint(Text(verbatim: widgetText("Start or stop VPN", value.languageCode)))
+                .accessibilityLabel(Text(verbatim: "VPN, \(widgetText(controlStatusKey(value.status), value.languageCode))"))
+            }
+            // A button remains actionable for unknown and expired observations.
+            // The intent decides from current native state, never this snapshot.
+            .tint(value.status == .connected ? Color("WidgetSuccess") : nil)
+        }
+        .displayName(LocalizedStringResource("VPN", table: "Widget", locale: Locale(identifier: language)))
+        .description(controlDescription(language: language))
+    }
+
+    private func controlDescription(language: String) -> LocalizedStringResource {
+        if AppleWidgetExecutionPolicy.usesBackgroundActions {
+            return LocalizedStringResource(
+                "Start or stop VPN in the background using the last prepared configuration.",
+                table: "Widget", locale: Locale(identifier: language)
+            )
+        }
+        return LocalizedStringResource(
+            "Open OneXray to perform this action.", table: "Widget", locale: Locale(identifier: language)
+        )
+    }
+
+    private func controlStatusKey(_ status: AppleWidgetStatus) -> String {
+        switch status {
+        case .unknown: "Status pending"
+        case .disconnected: "Disconnected"
+        case .connecting: "Connecting"
+        case .connected: "Connected"
+        case .disconnecting: "Disconnecting"
+        }
+    }
+
+    private func controlSymbol(_ status: AppleWidgetStatus) -> String {
+        switch status {
+        case .unknown: "questionmark.circle"
+        case .disconnected: "shield"
+        case .connecting, .disconnecting: "arrow.triangle.2.circlepath"
+        case .connected: "checkmark.shield"
+        }
     }
 }
 
 private struct ConnectionWidgetView: View {
     @Environment(\.widgetFamily) private var family
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .headline) private var statusLineHeight: CGFloat = 22
+    @ScaledMetric(relativeTo: .caption) private var brandLineHeight: CGFloat = 14
     let entry: ConnectionWidgetEntry
 
     private let palette = ConnectionWidgetPalette()
     private var largeText: Bool { dynamicTypeSize >= .xxxLarge }
-    private var emphasizeStop: Bool { entry.status == .connected || entry.status == .connecting }
+
+    private var toggleAction: ConnectionWidgetAction {
+        switch entry.status {
+        case .connected, .connecting: .stop
+        case .disconnected: .start
+        case .unknown, .disconnecting: .toggle
+        }
+    }
+
+    private var toggleLabelKey: String {
+        entry.status == .disconnecting ? "Disconnecting" : toggleAction.labelKey
+    }
 
     private var isAccessory: Bool {
-        if #available(iOS 16.0, *) {
-            return family == .accessoryCircular || family == .accessoryRectangular
-        }
-        return false
+        family == .accessoryCircular || family == .accessoryRectangular
     }
 
     var body: some View {
@@ -97,14 +189,14 @@ private struct ConnectionWidgetView: View {
     }
 
     @ViewBuilder private var content: some View {
-        if #available(iOS 16.0, *), family == .accessoryCircular {
+        if family == .accessoryCircular {
             ZStack {
                 AccessoryWidgetBackground()
                 Image(systemName: statusIcon).font(.title2)
             }
             .privacySensitive()
             .accessibilityLabel("OneXray, \(statusText)")
-        } else if #available(iOS 16.0, *), family == .accessoryRectangular {
+        } else if family == .accessoryRectangular {
             VStack(alignment: .leading, spacing: 3) {
                 Text("OneXray").font(.headline)
                 Label(statusText, systemImage: statusIcon).font(.caption).privacySensitive()
@@ -119,22 +211,18 @@ private struct ConnectionWidgetView: View {
 
     private var smallContent: some View {
         GeometryReader { geometry in
-            let compactHeight = geometry.size.height < 124
-            VStack(alignment: .leading, spacing: 0) {
-                if !largeText && !compactHeight { brand }
-                Spacer(minLength: 3)
-                VStack(spacing: 2) {
-                    if !largeText { statusSymbol(size: geometry.size.height >= 136 ? 24 : 20) }
-                    statusLabel(lines: 1)
-                    observation(showPrefix: !largeText)
-                }
-                .frame(maxWidth: .infinity)
+            let showBrand = !largeText && geometry.size.height >= 44 + statusLineHeight + brandLineHeight + 12
+            let reservedHeight = statusLineHeight + 10
+                + (showBrand ? brandLineHeight + 4 : 0)
+            let diameter = min(64, max(44, geometry.size.height - reservedHeight))
+
+            VStack(spacing: 0) {
+                if showBrand { brand }
+                Spacer(minLength: 4)
+                powerControl(diameter: diameter)
                 Spacer(minLength: 6)
-                if #available(iOS 17.0, *) {
-                    actions(compact: true, iconsOnly: compactHeight && dynamicTypeSize >= .xxLarge)
-                } else {
-                    openApp(compact: true)
-                }
+                statusLabel(lines: 1)
+                    .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -142,30 +230,38 @@ private struct ConnectionWidgetView: View {
 
     private var mediumContent: some View {
         GeometryReader { geometry in
-            let actionWidth = largeText ? 64 : geometry.size.width * 0.44
+            let actionWidth: CGFloat = geometry.size.width < 300 ? 88 : 104
+            let diameter = min(72, max(44, geometry.size.height - (largeText ? 0 : 36)))
             HStack(spacing: 16) {
                 Link(destination: connectionURL) {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
                         if !largeText { brand }
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 8) {
-                                if !largeText { statusSymbol(size: geometry.size.width < 310 ? 24 : 32) }
-                                statusLabel(lines: 1)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            observation(showPrefix: !largeText)
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(statusColor)
+                                .frame(width: 6, height: 6)
+                                .privacySensitive()
+                                .accessibilityHidden(true)
+                            statusLabel(font: .title2.weight(.semibold), lines: 2)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
-                    .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint(text("Open app"))
-                Group {
-                    if #available(iOS 17.0, *) {
-                        actions(compact: false)
-                    } else {
-                        openApp(compact: false)
+
+                VStack(spacing: 8) {
+                    powerControl(diameter: diameter)
+                    if !largeText {
+                        Text(text(powerCaptionKey))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(palette.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
+                            .accessibilityHidden(true)
                     }
                 }
                 .frame(width: actionWidth)
@@ -181,94 +277,43 @@ private struct ConnectionWidgetView: View {
             .lineLimit(1)
     }
 
-    private func statusLabel(lines: Int) -> some View {
+    private func statusLabel(font: Font = .headline, lines: Int) -> some View {
         Text(statusText)
-            .font(.headline)
-            .foregroundStyle(palette.foreground)
+            .font(font)
+            .foregroundStyle(entry.status == .connected ? palette.success : palette.foreground)
             .lineLimit(lines)
             .minimumScaleFactor(largeText ? 0.4 : 0.75)
             .privacySensitive()
     }
 
-    private func statusSymbol(size: CGFloat) -> some View {
-        Image(systemName: statusIcon)
-            .font(.system(size: size, weight: .regular))
-            .foregroundStyle(statusColor)
-            .privacySensitive()
+    @ViewBuilder private func powerControl(diameter: CGFloat) -> some View {
+        if #available(iOS 17.0, *) {
+            // Snapshot state only changes presentation. Native execution reads
+            // current status, and disconnecting never queues a new connection.
+            Button(intent: ToggleVpnWidgetIntent()) {
+                powerSymbol(diameter: diameter)
+            }
+            .buttonStyle(ConnectionWidgetPowerButtonStyle(palette: palette, action: toggleAction, diameter: diameter))
+            .accessibilityLabel(text(toggleLabelKey))
+            .accessibilityValue(statusText)
+        } else {
+            Link(destination: connectionURL) { powerSymbol(diameter: diameter) }
+                .buttonStyle(ConnectionWidgetPowerButtonStyle(palette: palette, action: .open, diameter: diameter))
+                .accessibilityLabel(text("Open app"))
+        }
+    }
+
+    private func powerSymbol(diameter: CGFloat) -> some View {
+        Image(systemName: "power")
+            .font(.system(size: diameter * 0.4, weight: .medium))
             .accessibilityHidden(true)
     }
 
-    private func observation(showPrefix: Bool) -> some View {
-        Group {
-            if let snapshot = entry.snapshot {
-                HStack(spacing: 3) {
-                    if showPrefix { Text(text("Observed")).lineLimit(1) }
-                    Text(snapshot.observedAt, style: .time)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .layoutPriority(1)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityHint(showPrefix ? "" : text("Observed"))
-            } else {
-                Text(text("Open app to refresh"))
-                    .lineLimit(1)
-            }
+    private var powerCaptionKey: String {
+        if #available(iOS 17.0, *) {
+            return entry.status == .disconnecting ? "Disconnecting" : toggleAction.compactKey
         }
-        .font(.caption2)
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
-        .foregroundStyle(palette.secondary)
-        .privacySensitive()
-    }
-
-    private func openApp(compact: Bool) -> some View {
-        Link(destination: connectionURL) {
-            actionLabel(.open, compact: compact)
-        }
-        .buttonStyle(ConnectionWidgetButtonStyle(palette: palette, action: .open, prominent: true))
-        .accessibilityLabel(text("Open app"))
-    }
-
-    @available(iOS 17.0, *)
-    @ViewBuilder private func actions(compact: Bool, iconsOnly: Bool = false) -> some View {
-        if compact {
-            HStack(spacing: 8) {
-                startButton(compact: true, iconsOnly: iconsOnly)
-                stopButton(compact: true, iconsOnly: iconsOnly)
-            }
-        } else {
-            VStack(spacing: 8) {
-                startButton(compact: false, iconsOnly: iconsOnly)
-                stopButton(compact: false, iconsOnly: iconsOnly)
-            }
-        }
-    }
-
-    @available(iOS 17.0, *)
-    private func startButton(compact: Bool, iconsOnly: Bool) -> some View {
-        Button(intent: StartVpnWidgetIntent()) { actionLabel(.start, compact: compact, iconsOnly: iconsOnly) }
-            .buttonStyle(ConnectionWidgetButtonStyle(palette: palette, action: .start, prominent: !emphasizeStop))
-            .accessibilityLabel(text("Start VPN"))
-    }
-
-    @available(iOS 17.0, *)
-    private func stopButton(compact: Bool, iconsOnly: Bool) -> some View {
-        Button(intent: StopVpnWidgetIntent()) { actionLabel(.stop, compact: compact, iconsOnly: iconsOnly) }
-            .buttonStyle(ConnectionWidgetButtonStyle(palette: palette, action: .stop, prominent: emphasizeStop))
-            .accessibilityLabel(text("Stop VPN"))
-    }
-
-    private func actionLabel(_ action: ConnectionWidgetAction, compact: Bool, iconsOnly: Bool = false) -> some View {
-        HStack(spacing: compact ? 3 : 4) {
-            Image(systemName: action.symbol)
-                .font(.system(size: largeText || iconsOnly ? 18 : 12, weight: .semibold))
-            if !largeText && !iconsOnly {
-                Text(text(compact ? action.compactKey : action.labelKey))
-                    .lineLimit(compact && action != .open ? 1 : 2)
-                    .minimumScaleFactor(0.92)
-            }
-        }
-        .padding(.horizontal, compact ? 2 : 8)
+        return "Open app"
     }
 
     private var statusText: String {
@@ -303,20 +348,13 @@ private struct ConnectionWidgetView: View {
 }
 
 private enum ConnectionWidgetAction {
-    case start, stop, open
-
-    var symbol: String {
-        switch self {
-        case .start: "play.fill"
-        case .stop: "stop.fill"
-        case .open: "arrow.up.forward"
-        }
-    }
+    case start, stop, toggle, open
 
     var labelKey: String {
         switch self {
         case .start: "Start VPN"
         case .stop: "Stop VPN"
+        case .toggle: "Start or stop VPN"
         case .open: "Open app"
         }
     }
@@ -325,43 +363,45 @@ private enum ConnectionWidgetAction {
         switch self {
         case .start: "Start"
         case .stop: "Stop"
+        case .toggle: "Start or stop VPN"
         case .open: "Open app"
         }
     }
 }
 
-private struct ConnectionWidgetButtonStyle: ButtonStyle {
+private struct ConnectionWidgetPowerButtonStyle: ButtonStyle {
     let palette: ConnectionWidgetPalette
     let action: ConnectionWidgetAction
-    let prominent: Bool
+    let diameter: CGFloat
 
     private var foreground: Color {
-        prominent ? .white : (action == .stop ? palette.destructive : palette.primaryText)
+        switch action {
+        case .stop: palette.destructive
+        case .toggle: palette.secondary
+        case .start, .open: palette.primaryText
+        }
     }
 
-    private var fill: Color {
-        if prominent { return action == .stop ? palette.destructiveSolid : palette.primarySolid }
-        return action == .stop ? .clear : palette.accent
+    private var tint: Color {
+        switch action {
+        case .stop: palette.destructiveSolid
+        case .toggle: palette.secondary
+        case .start, .open: palette.primarySolid
+        }
     }
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.caption.weight(.semibold))
             .foregroundStyle(foreground)
-            .frame(maxWidth: .infinity, minHeight: 44)
+            .frame(width: diameter, height: diameter)
             .background {
-                if #available(iOS 16.0, *) {
-                    RoundedRectangle(cornerRadius: 8).fill(fill).widgetAccentable()
-                } else {
-                    RoundedRectangle(cornerRadius: 8).fill(fill)
-                }
+                Circle().fill(tint.opacity(0.12)).widgetAccentable()
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(prominent ? .clear : palette.border, lineWidth: 1)
+                Circle().strokeBorder(tint.opacity(0.35), lineWidth: 1)
             }
-            .contentShape(RoundedRectangle(cornerRadius: 8))
-            .opacity(configuration.isPressed ? 0.75 : 1)
+            .contentShape(Circle())
+            .opacity(configuration.isPressed ? 0.7 : 1)
     }
 }
 
@@ -381,9 +421,7 @@ private struct ConnectionWidgetPalette {
 }
 
 private func widgetText(_ key: String, _ language: String) -> String {
-    let path = Bundle.main.path(forResource: AppleWidgetLanguage.normalized(language), ofType: "lproj")
-    let bundle = path.flatMap(Bundle.init(path:)) ?? Bundle.main
-    return bundle.localizedString(forKey: key, value: key, table: "Widget")
+    AppleWidgetLocalization.text(key, languageCode: language)
 }
 
 struct ConnectionWidgetPreviews: PreviewProvider {

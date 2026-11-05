@@ -30,14 +30,19 @@ Widget _app(
   Widget child, {
   Locale locale = const Locale('en'),
   bool mobile = true,
+  double textScale = 1,
 }) => MaterialApp(
   theme: AppTheme.material(Brightness.light, mobile: mobile),
   locale: locale,
   localizationsDelegates: AppLocalePolicy.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
-  builder: (context, child) => ShadTheme(
-    data: AppTheme.shad(Brightness.light, mobile: mobile),
-    child: child!,
+  builder: (context, child) => MediaQuery(
+    data: MediaQuery.of(context)
+        .copyWith(textScaler: TextScaler.linear(textScale)),
+    child: ShadTheme(
+      data: AppTheme.shad(Brightness.light, mobile: mobile),
+      child: child!,
+    ),
   ),
   home: child,
 );
@@ -181,60 +186,68 @@ void main() {
     Locale('ru'),
     Locale('fa'),
   ]) {
-    testWidgets(
-      'four-condition form fits phone and preserves input direction ($locale)',
-      (tester) async {
-        _phone(tester);
-        final controller = CustomRoutingRuleController(
-          loadIndex: () async =>
-              const RoutingGeodataIndex(domainFiles: {}, ipFiles: {}),
-        );
-        addTearDown(controller.close);
-        await tester.pumpWidget(
-          _app(
-            Scaffold(
-              body: SingleChildScrollView(
-                padding: const EdgeInsets.all(14),
-                child: CustomRoutingRuleForm(controller: controller),
+    for (final textScale in [1.0, 1.5]) {
+      testWidgets(
+        'four-condition form fits phone and preserves input direction ($locale / $textScale)',
+        (tester) async {
+          _phone(tester);
+          final controller = CustomRoutingRuleController(
+            loadIndex: () async =>
+                const RoutingGeodataIndex(domainFiles: {}, ipFiles: {}),
+          );
+          addTearDown(controller.close);
+          await tester.pumpWidget(
+            _app(
+              Scaffold(
+                body: SingleChildScrollView(
+                  padding: const EdgeInsets.all(14),
+                  child: CustomRoutingRuleForm(controller: controller),
+                ),
               ),
+              locale: locale,
+              textScale: textScale,
             ),
-            locale: locale,
-          ),
-        );
-        await tester.pumpAndSettle();
-        final l = AppLocalizations.of(
-          tester.element(find.byType(CustomRoutingRuleForm)),
-        )!;
-        for (final title in [
-          l.prototypeWebsitesDomains,
-          l.prototypeIpAddressesRanges,
-          l.prototypeTargetPort,
-        ]) {
-          await tester.ensureVisible(find.text(title));
-          await tester.tap(find.text(title));
+          );
           await tester.pumpAndSettle();
-        }
-        for (final value in [
-          controller.domains.single.text,
-          controller.ips.single.text,
-          controller.port,
-        ]) {
-          final editable = find.descendant(
-            of: _input(value),
-            matching: find.byType(EditableText),
-          );
-          expect(
-            Directionality.of(tester.element(editable)),
-            TextDirection.ltr,
-          );
-          expect(tester.widget<EditableText>(editable).style.fontSize, 16);
-        }
-        controller.setAction(RoutingRuleAction.block);
-        await tester.pumpAndSettle();
-        expect(find.text(l.prototypeVpnRuleHint), findsNothing);
-        expect(tester.takeException(), isNull);
-      },
-    );
+          final l = AppLocalizations.of(
+            tester.element(find.byType(CustomRoutingRuleForm)),
+          )!;
+          for (final title in [
+            l.prototypeWebsitesDomains,
+            l.prototypeIpAddressesRanges,
+            l.prototypeTargetPort,
+          ]) {
+            await tester.ensureVisible(find.text(title));
+            await tester.tap(find.text(title));
+            await tester.pumpAndSettle();
+          }
+          for (final value in [
+            controller.domains.single.text,
+            controller.ips.single.text,
+            controller.port,
+          ]) {
+            final editable = find.descendant(
+              of: _input(value),
+              matching: find.byType(EditableText),
+            );
+            expect(
+              Directionality.of(tester.element(editable)),
+              TextDirection.ltr,
+            );
+            final field = tester.widget<EditableText>(editable);
+            expect(field.style.fontSize, 14);
+            final effectiveScaler =
+                field.textScaler ??
+                MediaQuery.textScalerOf(tester.element(editable));
+            expect(effectiveScaler.scale(14), closeTo(14 * textScale, .01));
+          }
+          controller.setAction(RoutingRuleAction.block);
+          await tester.pumpAndSettle();
+          expect(find.text(l.prototypeVpnRuleHint), findsNothing);
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
   }
 
   testWidgets(
@@ -303,7 +316,7 @@ void main() {
   );
 
   testWidgets(
-    'route ordering and inline edits only change the in-memory draft',
+    'route ordering and separate rule edits only change the in-memory draft',
     (tester) async {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       final coordinator = ConnectionCoordinator(database: db);
@@ -379,7 +392,7 @@ void main() {
       controller.setFakeDns(false);
       expect(controller.profileState.fakeDns, false);
       controller.setFakeDns(true);
-      controller.setDirectDnsAddress('1.1.1.1');
+      controller.setDns(controller.state.dns.withDirectAddress('1.1.1.1'));
       expect(controller.profileState.directDnsAddress, '1.1.1.1');
       final storedDns = jsonDecode(controller.previewState!.encode())['dns'];
       expect(storedDns['servers'], [
@@ -405,62 +418,53 @@ void main() {
       controller.deleteRule(0);
       expect(controller.state.rules.map((rule) => rule.ruleTag), ['A', 'C']);
       expect(controller.state.selectedRuleKey, controller.state.ruleKeys.first);
-      controller.setInlineEditing(true);
-      expect(controller.inlineRule!.name.text, 'A');
+      final beforeEdit = controller.state.rules.first.toJson();
+      final result = Completer<RoutingRuleState?>();
+      var opened = false;
+      final editing = controller.editRule(context, (_, rule) {
+        opened = true;
+        expect(rule!.ruleTag, 'A');
+        return result.future;
+      }, 0);
+      expect(opened, isTrue);
+      expect(controller.state.rules.first.toJson(), beforeEdit);
+      result.complete(
+        controller.state.rules.first.copyWith(
+          ruleTag: 'A edited',
+          domain: const ['edited.example'],
+          port: '443',
+          action: RoutingRuleAction.direct,
+        ),
+      );
+      await editing;
+      expect(controller.state.rules.first.ruleTag, 'A edited');
+      expect(controller.state.rules.first.domain, ['edited.example']);
+      expect(controller.state.rules.first.port, '443');
       expect(controller.profileState.directDnsAddress, '1.1.1.1');
-      expect(controller.profileState.fakeDns, true);
-      controller.inlineRule!.name.text = 'A edited';
-      controller.inlineRule!.domains.single.text.text = 'edited.example';
-      controller.inlineRule!.port.text = '65536';
-      // Parent operations must synchronously flush the inline Cubit draft.
-      Future<RoutingRuleState?> unexpectedNavigation(
-        BuildContext _,
-        RoutingRuleState? _,
-      ) async =>
-          throw StateError('Desktop must keep the editor beside the list');
-      await controller.editRule(context, unexpectedNavigation, 1);
-      expect(controller.inlineRule!.name.text, 'C');
-      expect(controller.state.rules.first.port, '65536');
-      expect(controller.previewState!.rules.first.port, '65536');
-      await controller.editRule(context, unexpectedNavigation, 0);
-      expect(controller.inlineRule!.domains.single.text.text, 'edited.example');
-      expect(controller.inlineRule!.port.text, '65536');
-      controller.inlineRule!.port.text = '443';
+      expect(controller.profileState.fakeDns, isTrue);
       controller.reorder(0, 1);
       expect(controller.state.rules.last.ruleTag, 'A edited');
-      expect(controller.state.rules.last.port, '443');
-      controller.inlineRule!.setAction(RoutingRuleAction.direct);
-      await controller.editRule(context, unexpectedNavigation);
+      final beforeCancel = controller.state.rules
+          .map((r) => r.toJson())
+          .toList();
+      await controller.editRule(context, (_, rule) async => null, 1);
       expect(
-        controller.state.rules
-            .singleWhere((rule) => rule.ruleTag == 'A edited')
-            .action,
-        RoutingRuleAction.direct,
+        controller.state.rules.map((r) => r.toJson()).toList(),
+        beforeCancel,
       );
-      expect(controller.inlineRule!.name.text, 'New rule');
-      expect(controller.previewState!.rules.last.domain, isEmpty);
-      controller.inlineRule!.domains.single.text.text = 'new.example';
-      controller.deleteRule(0);
-      expect(controller.previewState!.rules, hasLength(2));
-      expect(controller.state.rules.last.domain, ['new.example']);
-      expect(controller.inlineRule!.name.text, 'New rule');
-      controller.deleteRule(1);
-      expect(controller.inlineRule!.name.text, 'A edited');
-      controller.inlineRule!.port.text = '65536';
-      await tester.pump();
-      expect(controller.profileState.rules.single.port, '65536');
-      controller.inlineRule!.port.text = '443';
-      controller.setInlineEditing(false);
-      expect(controller.inlineRule, isNull);
-      var mobileOpened = false;
       await controller.editRule(context, (_, rule) async {
-        mobileOpened = true;
-        final current = rule!;
-        expect(current.ruleTag, 'A edited');
-        return current.copyWith(ruleTag: 'Mobile edit');
-      }, 0);
-      expect(mobileOpened, isTrue);
-      expect(controller.state.rules.last.ruleTag, 'Mobile edit');
+        expect(rule, isNull);
+        return RoutingRuleState(
+          ruleTag: 'New rule',
+          domain: const ['new.example'],
+        );
+      });
+      expect(controller.state.rules.last.domain, ['new.example']);
+      controller.deleteRule(0);
+      expect(controller.state.rules.map((r) => r.ruleTag), [
+        'A edited',
+        'New rule',
+      ]);
       await tester.pump();
       expect(
         await tester.runAsync(() => db.routingProfileDao.allRows),

@@ -7,7 +7,6 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
-import 'package:onexray/pages/connect/routing/custom/rule_controller.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/configuration_transfer.dart';
 import 'package:onexray/service/connect/routing/custom/editor.dart';
@@ -45,7 +44,6 @@ class CustomRoutingEditorState {
   final bool transferBusy;
   final bool saving;
   final bool deleting;
-  final bool inlineEditing;
   final String? error;
 
   CustomRoutingEditorState({
@@ -66,7 +64,6 @@ class CustomRoutingEditorState {
     this.transferBusy = false,
     this.saving = false,
     this.deleting = false,
-    this.inlineEditing = false,
     this.error,
   }) : dns =
            dns ??
@@ -103,7 +100,6 @@ class CustomRoutingEditorState {
     bool? transferBusy,
     bool? saving,
     bool? deleting,
-    bool? inlineEditing,
     Object? error = _unchangedCustomRoutingValue,
   }) => CustomRoutingEditorState(
     original: identical(original, _unchangedCustomRoutingValue)
@@ -132,7 +128,6 @@ class CustomRoutingEditorState {
     transferBusy: transferBusy ?? this.transferBusy,
     saving: saving ?? this.saving,
     deleting: deleting ?? this.deleting,
-    inlineEditing: inlineEditing ?? this.inlineEditing,
     error: identical(error, _unchangedCustomRoutingValue)
         ? this.error
         : error as String?,
@@ -144,9 +139,6 @@ class CustomRoutingEditorController
   final int? profileId;
   final CustomRoutingEditorService service;
   final name = TextEditingController();
-  CustomRoutingRuleController? inlineRule;
-  Object? _inlineRuleKey;
-  StreamSubscription<CustomRoutingRuleState>? _inlineRuleSubscription;
   late final ConfigurationTransferController transfer;
   late final StreamSubscription<ConfigurationTransferState>
   _transferSubscription;
@@ -229,10 +221,8 @@ class CustomRoutingEditorController
           fragmentOutbound: value.fragmentOutbound,
           processing: false,
           transferBusy: transfer.state.busy,
-          inlineEditing: state.inlineEditing,
         ),
       );
-      _syncInlineRule();
     } catch (_) {
       if (context.mounted) {
         emit(
@@ -304,62 +294,6 @@ class CustomRoutingEditorController
         error: null,
       ),
     );
-    _syncInlineRule();
-  }
-
-  void setInlineEditing(bool value) {
-    if (state.inlineEditing == value) return;
-    _flushInlineRule();
-    emit(state.copyWith(inlineEditing: value));
-    _syncInlineRule();
-  }
-
-  void _flushInlineRule() {
-    final source = inlineRule;
-    final key = _inlineRuleKey;
-    final index = key == null ? -1 : state.ruleKeys.indexOf(key);
-    if (source == null || index < 0) return;
-    final rules = state.rules.toList();
-    rules[index] = source.draftRule;
-    emit(state.copyWith(rules: rules));
-  }
-
-  void _syncInlineRule({bool refresh = false}) {
-    final key = state.inlineEditing ? state.selectedRuleKey : null;
-    if (_inlineRuleKey == key && !refresh) return;
-    final previous = inlineRule;
-    final previousSubscription = _inlineRuleSubscription;
-    _inlineRuleSubscription = null;
-    if (previousSubscription != null) {
-      unawaited(previousSubscription.cancel());
-    }
-    _inlineRuleKey = key;
-    final index = key == null ? -1 : state.ruleKeys.indexOf(key);
-    final next = index < 0
-        ? null
-        : CustomRoutingRuleController(rule: state.rules[index]);
-    inlineRule = next;
-    if (next != null) {
-      _inlineRuleSubscription = next.stream.listen(
-        (_) => _inlineRuleChanged(next),
-      );
-    }
-    // Inputs from the previous rule unmount on the next frame.
-    if (previous != null) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => unawaited(previous.close()),
-      );
-    }
-  }
-
-  void _inlineRuleChanged(CustomRoutingRuleController source) {
-    if (!identical(inlineRule, source)) return;
-    final key = _inlineRuleKey;
-    final index = key == null ? -1 : state.ruleKeys.indexOf(key);
-    if (!isPageActive || state.editingBlocked || index < 0) return;
-    final rules = state.rules.toList();
-    rules[index] = source.draftRule;
-    emit(state.copyWith(rules: rules));
   }
 
   /// Import tools stage their dependencies separately before calling this.
@@ -378,11 +312,6 @@ class CustomRoutingEditorController
   void setEntryCount(int value) {
     if (state.editingBlocked) return;
     emit(state.copyWith(entryCount: value));
-  }
-
-  void setDirectDnsAddress(String value) {
-    if (state.editingBlocked) return;
-    emit(state.copyWith(directDnsAddress: value, error: null));
   }
 
   void setFakeDns(bool value) {
@@ -425,28 +354,6 @@ class CustomRoutingEditorController
     int? index,
   ]) async {
     if (!state.loaded || state.editingBlocked) return;
-    _flushInlineRule();
-    if (state.inlineEditing) {
-      final rules = state.rules.toList();
-      final keys = state.ruleKeys.toList();
-      Object selected;
-      if (index == null) {
-        rules.add(
-          RoutingRuleState(
-            ruleTag: AppLocalizations.of(context)!.prototypeNewRule,
-          ),
-        );
-        keys.add(Object());
-        selected = keys.last;
-      } else {
-        selected = keys[index];
-      }
-      emit(
-        state.copyWith(rules: rules, ruleKeys: keys, selectedRuleKey: selected),
-      );
-      _syncInlineRule();
-      return;
-    }
     final rule = index == null ? null : state.rules[index];
     if (index != null) {
       emit(state.copyWith(selectedRuleKey: state.ruleKeys[index]));
@@ -467,12 +374,10 @@ class CustomRoutingEditorController
     emit(
       state.copyWith(rules: rules, ruleKeys: keys, selectedRuleKey: selected),
     );
-    _syncInlineRule(refresh: true);
   }
 
   void deleteRule(int index) {
     if (!state.loaded || state.editingBlocked) return;
-    _flushInlineRule();
     final rules = state.rules.toList();
     final keys = state.ruleKeys.toList();
     final wasSelected = state.selectedRuleKey == keys[index];
@@ -485,12 +390,10 @@ class CustomRoutingEditorController
     emit(
       state.copyWith(rules: rules, ruleKeys: keys, selectedRuleKey: selected),
     );
-    _syncInlineRule();
   }
 
   void reorder(int from, int to) {
     if (!state.loaded || state.editingBlocked) return;
-    _flushInlineRule();
     final rules = state.rules.toList();
     final keys = state.ruleKeys.toList();
     rules.insert(to, rules.removeAt(from));
@@ -541,7 +444,6 @@ class CustomRoutingEditorController
 
   Future<void> save(BuildContext context) async {
     if (state.busy || state.original == null) return;
-    _flushInlineRule();
     final l10n = AppLocalizations.of(context)!;
     if (nameError(l10n) != null) return;
     emit(state.copyWith(processing: true, saving: true, error: null));
@@ -655,8 +557,6 @@ class CustomRoutingEditorController
   @override
   Future<void> disposePageResources() async {
     await _transferSubscription.cancel();
-    await _inlineRuleSubscription?.cancel();
-    await inlineRule?.close();
     if (!state.saving) await transfer.close();
     name.dispose();
   }

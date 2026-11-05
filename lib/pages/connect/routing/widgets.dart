@@ -5,7 +5,8 @@ import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
-import 'package:shadcn_ui/shadcn_ui.dart' show ShadSwitch;
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 
 class RoutingFakeDnsRow extends StatelessWidget {
   final bool value;
@@ -18,7 +19,7 @@ class RoutingFakeDnsRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.enabled = true,
-    this.divider = true,
+    this.divider = false,
   });
 
   @override
@@ -30,9 +31,9 @@ class RoutingFakeDnsRow extends StatelessWidget {
       help: l.routingFakeDnsHint,
       enabled: enabled,
       divider: divider,
-      trailing: Semantics(
+      leading: Semantics(
         label: l.routingFakeDns,
-        child: ShadSwitch(value: value, enabled: enabled, onChanged: onChanged),
+        child: AppSwitch(value: value, enabled: enabled, onChanged: onChanged),
       ),
     );
   }
@@ -49,7 +50,7 @@ class RoutingFragmentRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.enabled = true,
-    this.divider = true,
+    this.divider = false,
   });
 
   @override
@@ -61,9 +62,9 @@ class RoutingFragmentRow extends StatelessWidget {
       help: l.routingFragmentHint,
       enabled: enabled,
       divider: divider,
-      trailing: Semantics(
+      leading: Semantics(
         label: l.routingFragment,
-        child: ShadSwitch(value: value, enabled: enabled, onChanged: onChanged),
+        child: AppSwitch(value: value, enabled: enabled, onChanged: onChanged),
       ),
     );
   }
@@ -96,12 +97,14 @@ class RoutingCard extends StatelessWidget {
 
 class RoutingCardHeader extends StatelessWidget {
   final String title;
+  final IconData? icon;
   final String? description;
   final List<String> help;
 
   const RoutingCardHeader({
     super.key,
     required this.title,
+    this.icon,
     this.description,
     this.help = const [],
   });
@@ -109,41 +112,68 @@ class RoutingCardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = ColorManager.palette(context);
-    return Container(
+    final titleText = Text(
+      title,
+      style: AppTypography.routingCardTitle.copyWith(color: palette.foreground),
+    );
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsetsDirectional.fromSTEB(18, 10, 18, 10),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: palette.border)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: AppTypography.routingCardTitle.copyWith(
-                      color: palette.foreground,
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(18, 16, 18, 16),
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(end: help.isEmpty ? 0 : 58),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 24),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: icon == null
+                          ? titleText
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 3),
+                                  child: Icon(
+                                    icon,
+                                    size: 19,
+                                    color: palette.primaryText,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(child: titleText),
+                              ],
+                            ),
                     ),
                   ),
-                ),
-                if (help.isNotEmpty)
-                  PageHelpButton(title: title, messages: help),
-              ],
-            ),
-          ),
-          if (description != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              description!,
-              style: AppTypography.routingCardDescription.copyWith(
-                color: palette.mutedForeground,
+                  if (description != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      description!,
+                      style: AppTypography.routingCardDescription.copyWith(
+                        color: palette.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ],
+          ),
+          if (help.isNotEmpty)
+            PositionedDirectional(
+              top: 4,
+              end: 18,
+              child: SizedBox.square(
+                dimension: 48,
+                child: Center(
+                  child: PageHelpButton(title: title, messages: help),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -167,13 +197,18 @@ class RoutingSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     label: label,
-    child: SizedBox(
-      height: 38,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: AppLayout.touchExtent(
+          38,
+          platform: Theme.of(context).platform,
+        ),
+      ),
       child: Center(
         child: TextField(
           controller: controller,
           onChanged: onChanged,
-          style: AppTypography.routingSelectionInput,
+          style: AppTypography.rowValue,
           decoration: InputDecoration(
             hintText: hint,
             isCollapsed: true,
@@ -182,7 +217,7 @@ class RoutingSearchField extends StatelessWidget {
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
             contentPadding: EdgeInsets.zero,
-            hintStyle: AppTypography.routingSelectionInput.copyWith(
+            hintStyle: AppTypography.rowValue.copyWith(
               color: ColorManager.palette(context).mutedForeground,
             ),
           ),
@@ -196,6 +231,7 @@ class RoutingSearchField extends StatelessWidget {
 class RoutingSettingRow extends StatelessWidget {
   final IconData icon;
   final String title;
+  final Widget? leading;
   final String? description;
   final String? help;
   final String? value;
@@ -209,6 +245,7 @@ class RoutingSettingRow extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
+    this.leading,
     this.description,
     this.help,
     this.value,
@@ -216,7 +253,7 @@ class RoutingSettingRow extends StatelessWidget {
     this.below,
     this.onTap,
     this.enabled = true,
-    this.divider = true,
+    this.divider = false,
   });
 
   @override
@@ -259,19 +296,8 @@ class RoutingSettingRow extends StatelessWidget {
       ],
     );
     final content = Container(
-      constraints: BoxConstraints(
-        minHeight: mobile
-            ? (navigation
-                  ? 64
-                  : description == null
-                  ? 56
-                  : 69)
-            : (description == null ? 60 : 74),
-      ),
-      padding: EdgeInsetsDirectional.symmetric(
-        horizontal: mobile ? 13 : 17,
-        vertical: 11,
-      ),
+      constraints: BoxConstraints(minHeight: mobile ? 56 : 48),
+      padding: EdgeInsetsDirectional.symmetric(horizontal: 18, vertical: 10),
       decoration: divider
           ? BoxDecoration(
               border: Border(bottom: BorderSide(color: palette.border)),
@@ -291,7 +317,7 @@ class RoutingSettingRow extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Icon(icon, size: 20, color: foreground),
+                          leading ?? Icon(icon, size: 20, color: foreground),
                           const SizedBox(width: 13),
                           Expanded(child: copy),
                         ],
@@ -323,7 +349,8 @@ class RoutingSettingRow extends StatelessWidget {
           else
             Row(
               children: [
-                Icon(icon, size: mobile ? 20 : 22, color: foreground),
+                leading ??
+                    Icon(icon, size: mobile ? 20 : 22, color: foreground),
                 const SizedBox(width: 13),
                 Expanded(flex: navigation ? 2 : 1, child: copy),
                 if (!mobile && value != null) ...[
@@ -376,7 +403,8 @@ class RoutingSettingRow extends StatelessWidget {
 class RoutingControlFrame extends StatelessWidget {
   final Widget child;
 
-  const RoutingControlFrame({super.key, required this.child});
+  const RoutingControlFrame({super.key, required this.child, this.clip = true});
+  final bool clip;
 
   @override
   Widget build(BuildContext context) => Material(
@@ -385,7 +413,7 @@ class RoutingControlFrame extends StatelessWidget {
       side: BorderSide(color: ColorManager.palette(context).border),
       borderRadius: BorderRadius.circular(AppRadii.control),
     ),
-    clipBehavior: Clip.antiAlias,
+    clipBehavior: clip ? Clip.antiAlias : Clip.none,
     child: Padding(padding: const EdgeInsets.all(1), child: child),
   );
 }
@@ -393,8 +421,14 @@ class RoutingControlFrame extends StatelessWidget {
 class EntryCountPicker extends StatelessWidget {
   final int value;
   final ValueChanged<int>? onChanged;
+  final bool fullWidth;
 
-  const EntryCountPicker({super.key, required this.value, this.onChanged});
+  const EntryCountPicker({
+    super.key,
+    required this.value,
+    this.onChanged,
+    this.fullWidth = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -404,60 +438,115 @@ class EntryCountPicker extends StatelessWidget {
       34,
       platform: Theme.of(context).platform,
     );
-    return RoutingControlFrame(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final count in const [1, 2, 3])
-            Semantics(
-              label: l.prototypeUseEntryServers(count),
-              selected: value == count,
-              button: true,
-              enabled: onChanged != null,
-              child: Tooltip(
-                message: l.prototypeUseEntryServers(count),
-                excludeFromSemantics: true,
-                child: SizedBox(
-                  width: extent,
-                  child: Material(
-                    color: value == count
-                        ? palette.selectedSurface
-                        : palette.muted,
-                    child: InkWell(
-                      onTap: onChanged == null ? null : () => onChanged!(count),
-                      child: Container(
-                        constraints: BoxConstraints(minHeight: extent),
-                        padding: const EdgeInsets.symmetric(vertical: 6),
-                        foregroundDecoration: BoxDecoration(
-                          border: count < 3
-                              ? BorderDirectional(
-                                  end: BorderSide(color: palette.border),
-                                )
-                              : null,
-                        ),
-                        child: Center(
-                          heightFactor: 1,
-                          child: ExcludeSemantics(
-                            child: Text(
-                              '$count',
-                              style: AppTypography.routingCount.copyWith(
-                                color: onChanged == null
-                                    ? Theme.of(context).disabledColor
-                                    : value == count
-                                    ? palette.primaryText
-                                    : palette.mutedStrong,
-                              ),
-                            ),
-                          ),
-                        ),
+
+    Widget segment(int count) => Semantics(
+      label: l.prototypeUseEntryServers(count),
+      selected: value == count,
+      button: true,
+      enabled: onChanged != null,
+      child: Tooltip(
+        message: l.prototypeUseEntryServers(count),
+        excludeFromSemantics: true,
+        child: SizedBox(
+          width: fullWidth ? null : extent,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onChanged == null ? null : () => onChanged!(count),
+              child: Container(
+                constraints: BoxConstraints(minHeight: extent),
+                decoration: BoxDecoration(
+                  color: value == count
+                      ? palette.selectedSurface
+                      : palette.muted,
+                  borderRadius: BorderRadiusDirectional.horizontal(
+                    start: Radius.circular(
+                      count == 1 ? AppRadii.control - 1 : 0,
+                    ),
+                    end: Radius.circular(count == 3 ? AppRadii.control - 1 : 0),
+                  ),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                foregroundDecoration: BoxDecoration(
+                  border: count < 3
+                      ? BorderDirectional(
+                          end: BorderSide(color: palette.border),
+                        )
+                      : null,
+                ),
+                child: Center(
+                  heightFactor: 1,
+                  child: ExcludeSemantics(
+                    child: Text(
+                      '$count',
+                      style: AppTypography.routingCount.copyWith(
+                        color: onChanged == null
+                            ? Theme.of(context).disabledColor
+                            : value == count
+                            ? palette.primaryText
+                            : palette.mutedStrong,
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-        ],
+          ),
+        ),
       ),
+    );
+
+    Widget picker(double segmentWidth) => GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      excludeFromSemantics: true,
+      onTapUp: onChanged == null
+          ? null
+          : (details) {
+              final logicalX = Directionality.of(context) == TextDirection.rtl
+                  ? segmentWidth * 3 + 1 - details.localPosition.dx
+                  : details.localPosition.dx - 1;
+              final index = logicalX ~/ segmentWidth;
+              onChanged!(
+                index < 0
+                    ? 1
+                    : index > 2
+                    ? 3
+                    : index + 1,
+              );
+            },
+      child: RoutingControlFrame(
+        clip: false,
+        child: Row(
+          mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            for (final count in const [1, 2, 3])
+              if (fullWidth)
+                Expanded(child: segment(count))
+              else
+                segment(count),
+          ],
+        ),
+      ),
+    );
+
+    if (!fullWidth) return picker(extent);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minimumWidth = extent * 3 + 2;
+        final availableWidth = constraints.hasBoundedWidth
+            ? constraints.maxWidth
+            : minimumWidth;
+        final width = availableWidth < minimumWidth
+            ? minimumWidth
+            : availableWidth;
+        final child = SizedBox(width: width, child: picker((width - 2) / 3));
+        return availableWidth < minimumWidth
+            ? SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: child,
+              )
+            : child;
+      },
     );
   }
 }
@@ -465,12 +554,59 @@ class EntryCountPicker extends StatelessWidget {
 class RoutingEntryCountRow extends StatelessWidget {
   final int value;
   final ValueChanged<int>? onChanged;
+  final bool fullWidth;
 
-  const RoutingEntryCountRow({super.key, required this.value, this.onChanged});
+  const RoutingEntryCountRow({
+    super.key,
+    required this.value,
+    this.onChanged,
+    this.fullWidth = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    if (fullWidth) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l.routingEntryCountLabel,
+                    style: AppTypography.fieldLabel.copyWith(
+                      color: onChanged == null
+                          ? Theme.of(context).disabledColor
+                          : ColorManager.palette(context).foreground,
+                    ),
+                  ),
+                ),
+                PageHelpButton(
+                  title: l.routingEntryCountLabel,
+                  messages: [l.prototypeAutomaticEntryServersHint],
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SettingSelect<int>(
+              value: value,
+              entries: {
+                for (final count in const [1, 2, 3])
+                  count: l.prototypeUseEntryServers(count),
+              },
+              onChanged: onChanged == null
+                  ? null
+                  : (selected) {
+                      if (selected != null) onChanged!(selected);
+                    },
+            ),
+          ],
+        ),
+      );
+    }
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final picker = Align(

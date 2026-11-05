@@ -100,7 +100,7 @@ struct StartVpnRequest: Codable {
         YGLog("tunnel appGroupId=\(appGroupId())")
         if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) {
             YGLog("tunnel groupURL=\(groupURL)")
-            let requestUrl = groupURL.adaptedAppendPath(path: StartModelFile)
+            let requestUrl = groupURL.appending(path: StartModelFile)
             do {
                 let request = try fromUrl(requestUrl)
                 return request

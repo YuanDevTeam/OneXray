@@ -147,7 +147,7 @@ void main() {
     final catalog = ServerCatalog(servers: [ordinary, provider]);
     expect(catalog.servers, [ordinary]);
     expect(catalog.outboundEligible(ordinary), isTrue);
-    expect(catalog.selectable(ordinary), isFalse);
+    expect(catalog.selectable(ordinary), isTrue);
     expect(catalog.selectable(provider), isFalse);
     final updated = catalog.copyWith(sources: [_source()]);
     expect(updated.servers, [ordinary, provider]);

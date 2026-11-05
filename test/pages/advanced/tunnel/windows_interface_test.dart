@@ -81,7 +81,22 @@ void main() {
       FilledButton save() => tester.widget<FilledButton>(
         find.widgetWithText(FilledButton, l.prototypeSave),
       );
-      expect(find.byType(SettingSection), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SettingSection &&
+              widget.title == l.prototypeSystemVpnPolicy,
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is SettingSection &&
+              widget.title == l.prototypeBypassNetworks,
+        ),
+        findsOneWidget,
+      );
       expect(find.text('0 / 64'), findsOneWidget);
       expect(find.text(l.prototypeNoBypassNetworks), findsOneWidget);
       expect(save().onPressed, isNull);
@@ -96,9 +111,21 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(l.prototypeNoBypassNetworks), findsNothing);
       expect(find.text('0 / 64'), findsOneWidget);
+      final cidrRow = tester.getRect(
+        find.byKey(const ValueKey('windows-cidr-row:0')),
+      );
+      expect(cidrRow.height, greaterThanOrEqualTo(50));
       expect(
-        tester.getSize(find.byKey(const ValueKey('windows-cidr-row:0'))).height,
-        50,
+        cidrRow.contains(tester.getCenter(find.byType(TextField))),
+        isTrue,
+      );
+      expect(
+        cidrRow.contains(
+          tester.getCenter(
+            find.byTooltip(l.prototypeRemoveBypassNetworkNumber(1)),
+          ),
+        ),
+        isTrue,
       );
       final field = tester.widget<TextField>(find.byType(TextField));
       expect(field.textDirection, TextDirection.ltr);

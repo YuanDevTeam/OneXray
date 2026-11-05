@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -181,7 +180,7 @@ class AppConfirmationDialog extends StatelessWidget {
         context: context,
         barrierDismissible: barrierDismissible,
         useSafeArea: false,
-        barrierColor: AppPalette.restoreOverlay,
+        barrierColor: Colors.black.withValues(alpha: .45),
         builder: (_) => this,
       ) ??
       false;
@@ -191,6 +190,10 @@ class AppConfirmationDialog extends StatelessWidget {
     final palette = ColorManager.palette(context);
     final size = MediaQuery.sizeOf(context);
     final mobile = size.width <= AppLayout.mobileBreakpoint;
+    final closeSize = AppLayout.touchExtent(
+      40,
+      platform: Theme.of(context).platform,
+    );
     final buttonStyle = ButtonStyle(
       minimumSize: WidgetStatePropertyAll(
         Size(
@@ -209,236 +212,184 @@ class AppConfirmationDialog extends StatelessWidget {
       textStyle: WidgetStatePropertyAll(AppTypography.control),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.standard,
-      shape: const WidgetStatePropertyAll(
-        RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(AppRadii.control)),
-        ),
-      ),
     );
     final confirm = FilledButton(
       onPressed: () => Navigator.pop(context, true),
-      style: destructive
-          ? buttonStyle.merge(AppTheme.destructiveButton(context))
-          : buttonStyle,
-      child: Text(confirmLabel, textAlign: TextAlign.center),
-    );
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: IgnorePointer(
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: const SizedBox.expand(),
-            ),
-          ),
-        ),
-        SafeArea(
-          child: Dialog(
-            insetPadding: EdgeInsets.symmetric(
-              horizontal: mobile ? 19 : 20,
-              vertical: 24,
-            ),
-            backgroundColor: palette.card,
-            surfaceTintColor: Colors.transparent,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: mobile
-                  ? const BorderRadius.vertical(
-                      top: Radius.circular(AppRadii.mobileDialog),
-                    )
-                  : const BorderRadius.all(Radius.circular(AppRadii.dialog)),
-              side: BorderSide(color: palette.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: AppLayout.dialogWidth,
-                maxHeight: math.min(
-                  AppLayout.dialogMaxHeight,
-                  size.height *
-                      (mobile
-                          ? AppLayout.dialogMobileHeightFactor
-                          : AppLayout.dialogDesktopHeightFactor),
+      style:
+          (destructive
+                  ? buttonStyle.merge(AppTheme.destructiveButton(context))
+                  : buttonStyle)
+              .copyWith(
+                shape: const WidgetStatePropertyAll(
+                  RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(
+                      Radius.circular(AppRadii.cta),
+                    ),
+                  ),
                 ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Text(confirmLabel, textAlign: TextAlign.center),
+    );
+    final cancel = OutlinedButton(
+      onPressed: () => Navigator.pop(context, false),
+      style: buttonStyle.copyWith(
+        side: WidgetStatePropertyAll(BorderSide(color: palette.border)),
+        shape: const WidgetStatePropertyAll(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.all(Radius.circular(AppRadii.control)),
+          ),
+        ),
+      ),
+      child: Text(cancelLabel, textAlign: TextAlign.center),
+    );
+    return SafeArea(
+      child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        backgroundColor: palette.card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            size.width < 640 ? 0 : AppRadii.card,
+          ),
+          side: BorderSide(color: palette.border),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: math.min(520.0, math.max(0.0, size.width - 32)),
+            maxHeight: math.min(
+              AppLayout.dialogMaxHeight,
+              size.height *
+                  (mobile
+                      ? AppLayout.dialogMobileHeightFactor
+                      : AppLayout.dialogDesktopHeightFactor),
+            ),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final pinActions =
+                  constraints.maxHeight >= 380 &&
+                  MediaQuery.textScalerOf(context).scale(14) <= 28;
+              final actions = LayoutBuilder(
+                builder: (context, constraints) {
+                  double naturalWidth(String label) {
+                    final painter = TextPainter(
+                      text: TextSpan(
+                        text: label,
+                        style: AppTypography.control.copyWith(
+                          fontFamily: AppFontFamily.sans,
+                        ),
+                      ),
+                      textDirection: Directionality.of(context),
+                      textScaler: MediaQuery.textScalerOf(context),
+                    )..layout();
+                    final width =
+                        painter.width + AppSpacing.buttonHorizontal * 2;
+                    painter.dispose();
+                    return width;
+                  }
+
+                  final vertical =
+                      size.width < 560 ||
+                      naturalWidth(cancelLabel) +
+                              naturalWidth(confirmLabel) +
+                              10 >
+                          constraints.maxWidth;
+                  if (vertical) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [cancel, const SizedBox(height: 10), confirm],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Flexible(child: cancel),
+                      const SizedBox(width: 10),
+                      Flexible(child: confirm),
+                    ],
+                  );
+                },
+              );
+              return Stack(
                 children: [
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Container(
-                            constraints: BoxConstraints(
-                              minHeight: mobile
-                                  ? AppLayout.dialogMobileHeaderMinHeight
-                                  : AppLayout.dialogHeaderMinHeight,
-                            ),
-                            padding: mobile
-                                ? const EdgeInsets.fromLTRB(16, 17, 16, 14)
-                                : const EdgeInsets.fromLTRB(21, 20, 21, 17),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: palette.border),
-                              ),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    style:
-                                        (mobile
-                                                ? AppTypography.dialogTitle
-                                                : AppTypography
-                                                      .confirmationDesktopTitle)
-                                            .copyWith(
-                                              color: palette.foreground,
-                                            ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                IconButton(
-                                  autofocus: true,
-                                  tooltip: AppLocalizations.of(context)!
-                                      .prototypeCloseDialog,
-                                  onPressed: () =>
-                                      Navigator.pop(context, false),
-                                  style: IconButton.styleFrom(
-                                    foregroundColor: palette.mutedStrong,
-                                    minimumSize: Size.square(
-                                      AppLayout.touchExtent(
-                                        AppLayout.dialogCloseSize,
-                                        platform: Theme.of(context).platform,
-                                      ),
-                                    ),
-                                    maximumSize: Size.square(
-                                      AppLayout.touchExtent(
-                                        AppLayout.dialogCloseSize,
-                                        platform: Theme.of(context).platform,
-                                      ),
-                                    ),
-                                    padding: EdgeInsets.zero,
-                                    tapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                  icon: const Icon(LucideIcons.x, size: 20),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Flexible(
+                          child: SingleChildScrollView(
                             child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              spacing: 15,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                if (subject != null)
+                                Padding(
+                                  padding: EdgeInsetsDirectional.only(
+                                    end: closeSize - 16,
+                                  ),
+                                  child: Semantics(
+                                    header: true,
+                                    child: Text(
+                                      title,
+                                      style: AppTypography.confirmationTitle
+                                          .copyWith(color: palette.foreground),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                if (subject != null) ...[
                                   Text(
                                     subject!,
                                     style: AppTypography.confirmationSubject
                                         .copyWith(color: palette.foreground),
                                   ),
+                                  const SizedBox(height: 8),
+                                ],
                                 Text(
                                   content,
                                   style: AppTypography.confirmationBody
-                                      .copyWith(color: palette.foreground),
+                                      .copyWith(color: palette.mutedForeground),
                                 ),
+                                if (!pinActions) ...[
+                                  const SizedBox(height: 8),
+                                  actions,
+                                ],
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        if (pinActions) const SizedBox(height: 8),
+                        if (pinActions) actions,
+                      ],
                     ),
                   ),
-                  Container(
-                    constraints: const BoxConstraints(minHeight: 70),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: mobile ? 16 : 20,
-                      vertical: mobile ? 12 : 14,
-                    ),
-                    decoration: BoxDecoration(
-                      border: Border(top: BorderSide(color: palette.border)),
-                    ),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final labelStyle = DefaultTextStyle.of(context).style
-                            .merge(AppTypography.control);
-                        double naturalWidth(String label) {
-                          final painter = TextPainter(
-                            text: TextSpan(
-                              text: label,
-                              style: MediaQuery.boldTextOf(context)
-                                  ? labelStyle.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    )
-                                  : labelStyle,
-                            ),
-                            textDirection: Directionality.of(context),
-                            textScaler: MediaQuery.textScalerOf(context),
-                            locale: Localizations.localeOf(context),
-                          )..layout();
-                          final width =
-                              painter.width + AppSpacing.buttonHorizontal * 2;
-                          painter.dispose();
-                          return width;
-                        }
-
-                        final cancelWidth = naturalWidth(cancelLabel);
-                        final confirmWidth = naturalWidth(confirmLabel);
-                        final cancel = OutlinedButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          style: buttonStyle.copyWith(
-                            side: WidgetStatePropertyAll(
-                              BorderSide(color: palette.borderStrong),
-                            ),
-                          ),
-                          child: Text(cancelLabel, textAlign: TextAlign.center),
-                        );
-                        if (cancelWidth + confirmWidth + AppSpacing.actionGap >
-                            constraints.maxWidth) {
-                          return Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              cancel,
-                              const SizedBox(height: AppSpacing.actionGap),
-                              confirm,
-                            ],
-                          );
-                        }
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: math.max(
-                                  constraints.maxWidth * .62,
-                                  cancelWidth,
-                                ),
-                              ),
-                              child: IntrinsicWidth(child: cancel),
-                            ),
-                            const SizedBox(width: AppSpacing.actionGap),
-                            if (mobile && expandConfirm)
-                              Expanded(child: confirm)
-                            else
-                              Flexible(child: confirm),
-                          ],
-                        );
-                      },
+                  PositionedDirectional(
+                    top: 8,
+                    end: 8,
+                    child: IconButton(
+                      autofocus: true,
+                      tooltip: AppLocalizations.of(context)!
+                          .prototypeCloseDialog,
+                      onPressed: () => Navigator.pop(context, false),
+                      style: IconButton.styleFrom(
+                        foregroundColor: palette.mutedForeground,
+                        minimumSize: Size.square(closeSize),
+                        maximumSize: Size.square(closeSize),
+                        padding: EdgeInsets.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(LucideIcons.x, size: 20),
                     ),
                   ),
                 ],
-              ),
-            ),
+              );
+            },
           ),
         ),
-      ],
+      ),
     );
   }
 }

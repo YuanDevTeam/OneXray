@@ -3,6 +3,7 @@ import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/menu_picker.dart';
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/pages/shared/widgets/section.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -25,7 +26,7 @@ class SettingSection extends StatelessWidget {
     this.icon,
     this.action,
     required this.children,
-    this.separated = true,
+    this.separated = false,
     this.padding = const EdgeInsetsDirectional.fromSTEB(16, 11, 16, 11),
     this.descriptionBelow = false,
     this.dividerIndent = 16,
@@ -43,6 +44,7 @@ class SettingSection extends StatelessWidget {
       descriptionBelow: descriptionBelow,
       headerInset: headerInset,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: _buildSettingChildren(
           context,
           children,
@@ -89,10 +91,13 @@ class SettingRow extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final bool enabled;
+
+  /// Toggle rows keep their control's role instead of becoming a button.
+  final bool buttonSemantics;
   final bool showChevron;
   final int titleMaxLines;
   final int valueMaxLines;
-  final double minHeight;
+  final double? minHeight;
   final EdgeInsetsGeometry contentPadding;
   final TextStyle? titleStyle;
   final TextStyle? valueStyle;
@@ -112,31 +117,34 @@ class SettingRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.enabled = true,
+    this.buttonSemantics = true,
     this.showChevron = false,
     this.titleMaxLines = 2,
     this.valueMaxLines = 1,
-    this.minHeight = 62,
-    this.contentPadding = const EdgeInsetsDirectional.symmetric(
-      horizontal: 13,
-      vertical: 10,
-    ),
+    this.minHeight,
+    this.contentPadding = const EdgeInsets.all(12),
     this.titleStyle,
     this.valueStyle,
     this.subtitleStyle,
     this.titleTrailing,
-    this.decorateLeading = true,
+    this.decorateLeading = false,
     this.valueTextDirection,
     this.titleTextDirection,
   });
 
   @override
   Widget build(BuildContext context) {
+    final rowHeight =
+        minHeight ??
+        (MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+            ? 56
+            : 48);
     final content = ConstrainedBox(
       constraints: BoxConstraints(
         minHeight: onTap == null
-            ? minHeight
+            ? rowHeight
             : AppLayout.touchExtent(
-                minHeight,
+                rowHeight,
                 platform: Theme.of(context).platform,
               ),
       ),
@@ -161,34 +169,47 @@ class SettingRow extends StatelessWidget {
                 )
               else
                 IconTheme.merge(data: _iconTheme(context), child: leading!),
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
             ],
             Expanded(flex: value == null ? 1 : 5, child: _title(context)),
             if (value != null) ...[
-              const SizedBox(width: 11),
+              const SizedBox(width: 12),
               Expanded(flex: 4, child: _value(context)),
             ],
             if (trailing != null) ...[
-              const SizedBox(width: 7),
-              IconTheme.merge(data: _iconTheme(context), child: trailing!),
-            ] else if (showChevron) ...[
-              const SizedBox(width: 7),
+              const SizedBox(width: 12),
               IconTheme.merge(
                 data: _iconTheme(context),
-                child: const Icon(LucideIcons.chevronRightDir),
+                child: onTap != null && buttonSemantics
+                    ? Semantics(container: true, child: trailing!)
+                    : trailing!,
+              ),
+            ] else if (showChevron) ...[
+              const SizedBox(width: 12),
+              IconTheme.merge(
+                data: _iconTheme(context),
+                child: const Icon(LucideIcons.chevronRightDir, size: 18),
               ),
             ],
           ],
         ),
       ),
     );
-    if (onTap == null || !enabled) {
-      return content;
-    }
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(onTap: onTap, child: content),
-    );
+    // InkWell supplies the tap action, but not a button role. Keep descendant
+    // controls as separate semantic nodes; do not merge or exclude them.
+    final row = onTap == null || !enabled
+        ? content
+        : Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+              child: content,
+            ),
+          );
+    return onTap != null && buttonSemantics
+        ? Semantics(container: true, button: true, enabled: enabled, child: row)
+        : row;
   }
 
   Widget _title(BuildContext context) {
@@ -230,7 +251,7 @@ class SettingRow extends StatelessWidget {
             ],
           ),
         if (subtitle != null) ...[
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             subtitle!,
             maxLines: 2,
@@ -254,7 +275,7 @@ class SettingRow extends StatelessWidget {
           ? TextAlign.right
           : TextAlign.left,
       textDirection: valueTextDirection,
-      style: AppTypography.code
+      style: AppTypography.rowValue
           .copyWith(color: ColorManager.secondaryText(context))
           .merge(valueStyle),
     );
@@ -288,8 +309,9 @@ class SwitchSettingRow extends StatelessWidget {
       subtitle: subtitle,
       leading: leading,
       enabled: onChanged != null,
+      buttonSemantics: false,
       onTap: onChanged == null ? null : () => onChanged!(!value),
-      trailing: ShadSwitch(
+      trailing: AppSwitch(
         value: value,
         enabled: onChanged != null,
         onChanged: onChanged,
@@ -324,7 +346,7 @@ class SettingSelect<T extends Object> extends StatelessWidget {
     onSelected: (value) => onChanged?.call(value),
     triggerBuilder: (open) => InkWell(
       onTap: onChanged == null ? null : open,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadii.control),
       child: Container(
         constraints: BoxConstraints(
           minHeight: AppLayout.touchExtent(
@@ -340,7 +362,7 @@ class SettingSelect<T extends Object> extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           border: Border.all(color: ColorManager.border(context)),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadii.control),
           color: ColorManager.surface(context),
         ),
         child: Row(

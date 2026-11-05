@@ -49,13 +49,30 @@ class ServerSortButton extends StatelessWidget {
 }
 
 class ManualGroupOrderButton extends StatelessWidget {
-  const ManualGroupOrderButton({super.key, required this.controller});
+  const ManualGroupOrderButton({
+    super.key,
+    required this.controller,
+    this.showLabel = false,
+  });
   final ServersController controller;
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final searching = controller.query.trim().isNotEmpty;
+    final enabled = !searching && controller.catalog.manualGroups.length >= 2;
+    if (showLabel) {
+      return Tooltip(
+        message: searching ? l.manualOrderClearSearch : l.manualGroupOrder,
+        child: OutlinedButton.icon(
+          key: const ValueKey('manual-group-order'),
+          onPressed: enabled ? () => controller.openGroupOrder(context) : null,
+          icon: const Icon(LucideIcons.listOrdered, size: 17),
+          label: Text(l.manualGroupOrder),
+        ),
+      );
+    }
     return IconButton(
       key: const ValueKey('manual-group-order'),
       tooltip: searching ? l.manualOrderClearSearch : l.manualGroupOrder,
@@ -63,6 +80,39 @@ class ManualGroupOrderButton extends StatelessWidget {
           ? null
           : () => controller.openGroupOrder(context),
       icon: const Icon(LucideIcons.listOrdered, size: 20),
+    );
+  }
+}
+
+class ManualServerOrderButton extends StatelessWidget {
+  const ManualServerOrderButton({super.key, required this.controller});
+
+  final ServersController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final searching = controller.query.trim().isNotEmpty;
+    final enabled =
+        !searching &&
+        controller
+            .groups(l, filter: false)
+            .any(
+              (group) =>
+                  group.manual &&
+                  group.rows.length >= 2 &&
+                  !controller.manualGroupBusy(group),
+            );
+    return Tooltip(
+      message: searching ? l.manualOrderClearSearch : l.manualOrderDisplayHint,
+      child: OutlinedButton.icon(
+        key: const ValueKey('manual-server-order'),
+        onPressed: enabled
+            ? () => controller.openManualServerOrder(context)
+            : null,
+        icon: const Icon(LucideIcons.listOrdered, size: 17),
+        label: Text(l.manualServerOrder),
+      ),
     );
   }
 }

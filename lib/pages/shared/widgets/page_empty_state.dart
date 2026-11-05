@@ -15,13 +15,15 @@ class PageEmptyState extends StatelessWidget {
     required this.description,
     required this.primaryLabel,
     required this.onPrimary,
-    required this.secondaryLabel,
-    required this.onSecondary,
+    this.secondaryLabel,
+    this.onSecondary,
     this.scrollController,
   });
 
-  final String title, description, primaryLabel, secondaryLabel;
-  final VoidCallback onPrimary, onSecondary;
+  final String title, description, primaryLabel;
+  final String? secondaryLabel;
+  final VoidCallback onPrimary;
+  final VoidCallback? onSecondary;
   final ScrollController? scrollController;
 
   @override
@@ -43,7 +45,7 @@ class PageEmptyState extends StatelessWidget {
         padding: padding,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: mobile
+            minHeight: mobile && constraints.hasBoundedHeight
                 ? (constraints.maxHeight - padding.vertical).clamp(
                     0.0,
                     double.infinity,
@@ -106,11 +108,13 @@ class PageEmptyState extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 4),
-                  TextButton(
-                    onPressed: onSecondary,
-                    child: Text(secondaryLabel, textAlign: TextAlign.center),
-                  ),
+                  if (secondaryLabel != null && onSecondary != null) ...[
+                    const SizedBox(height: 4),
+                    TextButton(
+                      onPressed: onSecondary,
+                      child: Text(secondaryLabel!, textAlign: TextAlign.center),
+                    ),
+                  ],
                 ],
               ),
             ),

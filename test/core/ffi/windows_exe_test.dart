@@ -142,6 +142,8 @@ void main() {
       );
       await old.parent.create(recursive: true);
       await old.writeAsString('{}');
+      final access = File(p.join(directory.path, 'run', 'access.log'));
+      await access.writeAsString('previous connection');
       var requestRead = false;
       final api = create(
         readRequest: () async {
@@ -154,6 +156,7 @@ void main() {
       expect(result.message, contains('Stop failed'));
       expect(requestRead, isFalse);
       expect(await old.exists(), isTrue);
+      expect(await access.readAsString(), 'previous connection');
       expect(process.arguments, isNull);
       expect((await api.readVpnStatus()).status, VpnStatus.connected);
       expect(events, isNot(contains(VpnStatus.disconnected)));
@@ -162,10 +165,37 @@ void main() {
 
   test('EXE replaces all existing named Cores before starting', () async {
     process.pids.addAll({10, 20});
+    final access = File(p.join(directory.path, 'run', 'access.log'));
+    final error = File(p.join(directory.path, 'run', 'error.log'));
+    await access.parent.create(recursive: true);
+    await access.writeAsString('old access');
+    await error.writeAsString('old error');
+    process.onStart = () async {
+      expect(process.pids, isEmpty);
+      expect(await access.exists(), isFalse);
+      expect(await error.exists(), isFalse);
+      await error.writeAsString('current connection');
+    };
     final api = create();
     expect((await api.startVpn()).status, VpnStatus.connected);
     expect(process.pids, {42});
+    expect(await error.readAsString(), 'current connection');
   });
+
+  test(
+    'an invalid managed log blocks EXE launch and preserves both inputs',
+    () async {
+      final access = File(p.join(directory.path, 'run', 'access.log'));
+      await access.parent.create(recursive: true);
+      await access.writeAsString('old access');
+      await Directory(p.join(access.parent.path, 'error.log')).create();
+      final result = await create().startVpn();
+      expect(result.state, NativeVpnCommandState.failed);
+      expect(result.message, contains('Invalid runtime log file'));
+      expect(process.arguments, isNull);
+      expect(await access.readAsString(), 'old access');
+    },
+  );
 
   test(
     'EXE starts with current CLI arguments and replaces old inputs',
@@ -479,6 +509,7 @@ class _Process extends WindowsCoreProcess {
   Future<Set<int>>? nextQuery;
   bool failStart = false;
   bool failStop = false;
+  Future<void> Function()? onStart;
   int? stopBeforeFailure;
   int stops = 0;
   List<String>? arguments;
@@ -526,6 +557,7 @@ class _Process extends WindowsCoreProcess {
 
   @override
   Future<int> start(String executable, List<String> arguments) async {
+    await onStart?.call();
     if (failStart) throw StateError('UAC cancelled');
     this.arguments = arguments;
     running = true;

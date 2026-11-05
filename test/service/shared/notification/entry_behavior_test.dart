@@ -85,7 +85,7 @@ void main() {
       var shown = 0;
       final tray = TrayService.forTesting(
         connect: () async => throw const ConnectionResolutionException(
-          ConnectionResolutionFailure.insufficientHealthyServers,
+          ConnectionResolutionFailure.insufficientCandidates,
           requiredCount: 3,
           availableCount: 1,
         ),
@@ -179,7 +179,7 @@ final class _FailingCoordinator extends ConnectionCoordinator {
 
   @override
   Future<void> connect() async => throw const ConnectionResolutionException(
-    ConnectionResolutionFailure.insufficientHealthyServers,
+    ConnectionResolutionFailure.insufficientCandidates,
     requiredCount: 3,
     availableCount: 1,
   );

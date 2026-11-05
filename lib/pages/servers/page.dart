@@ -2,17 +2,14 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/service/shared/failure.dart';
-import 'package:onexray/service/connect/settings.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
-import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/view.dart';
 import 'package:onexray/pages/servers/sort.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
-import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 
@@ -49,55 +46,24 @@ class _ServersPageState extends State<ServersPage> {
     child: BlocBuilder<ServersController, ServersPageState>(
       builder: (context, state) {
         final l = AppLocalizations.of(context)!;
-        final mobileRoot =
+        final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-        final empty =
-            state.ready &&
-            !state.failed &&
-            state.servers.isEmpty &&
-            state.catalog.manualGroups.isEmpty;
         final page = Scaffold(
           appBar: PageAppBar(
             title: Text(l.prototypeServers),
             actions: [
-              if (mobileRoot)
+              if (!mobile)
                 IconButton(
-                  tooltip: l.prototypeUpdatesAndSources,
-                  onPressed: () => controller.openSources(context),
-                  icon: AppActivityBuilder(
-                    builder: (context, activity) => activity.downloading
-                        ? const ButtonProgressIndicator()
-                        : const Icon(LucideIcons.refreshCw),
-                  ),
+                  tooltip: l.manualGroupNew,
+                  onPressed: () => controller.createManualGroup(context),
+                  icon: const Icon(LucideIcons.folderPlus, size: 20),
                 ),
               IconButton(
-                tooltip: l.manualGroupNew,
-                onPressed: () => controller.createManualGroup(context),
-                icon: const Icon(LucideIcons.folderPlus),
+                key: const ValueKey('servers-add'),
+                tooltip: l.prototypeAddServer,
+                onPressed: () => controller.addServers(context),
+                icon: const Icon(LucideIcons.plus, size: 20),
               ),
-              if (!mobileRoot && !empty) ...[
-                OutlinedButton.icon(
-                  onPressed: () => controller.openSources(context),
-                  icon: AppActivityBuilder(
-                    builder: (context, activity) => activity.downloading
-                        ? const ButtonProgressIndicator()
-                        : const Icon(LucideIcons.refreshCw),
-                  ),
-                  label: Text(l.prototypeUpdatesAndSources),
-                ),
-                const SizedBox(width: 10),
-                FilledButton.icon(
-                  onPressed: () => controller.addServers(context),
-                  icon: const Icon(LucideIcons.plus),
-                  label: Text(l.prototypeAddServer),
-                ),
-              ] else if (mobileRoot)
-                IconButton(
-                  color: ColorManager.palette(context).primary,
-                  tooltip: l.prototypeAddServers,
-                  onPressed: () => controller.addServers(context),
-                  icon: const Icon(LucideIcons.plus),
-                ),
             ],
           ),
           body: SafeArea(
@@ -131,29 +97,10 @@ class ServerGroupPage extends StatelessWidget {
       child: BlocBuilder<ServersController, ServersPageState>(
         builder: (context, _) {
           final l = AppLocalizations.of(context)!;
-          var group = controller
+          final group = controller
               .groups(l, filter: false)
-              .where((row) => row.id == params.groupId)
+              .where((row) => row.manual && row.id == params.groupId)
               .firstOrNull;
-          if (group == null) {
-            final source = controller.sources
-                .where(
-                  (source) =>
-                      params.groupId == 'subscription:${source.id}' &&
-                      controller.sourceCount(source.id) == 0,
-                )
-                .firstOrNull;
-            if (source != null) {
-              group = ServerGroup(
-                id: params.groupId,
-                name: source.name,
-                source: source,
-                selection: ServerSelection.source(source.id),
-                rows: const [],
-                visibleRows: const [],
-              );
-            }
-          }
           return Scaffold(
             appBar: PageAppBar(
               title: Text(
@@ -162,6 +109,12 @@ class ServerGroupPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
               actions: [
+                if (controller.query.trim().isNotEmpty)
+                  IconButton(
+                    tooltip: l.prototypeClear,
+                    onPressed: controller.search.clear,
+                    icon: const Icon(LucideIcons.x, size: 18),
+                  ),
                 ServerSortButton(controller: controller),
                 const AppActivityIndicator(pinging: false),
               ],

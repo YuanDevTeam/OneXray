@@ -100,10 +100,7 @@ void main() {
     final settings = ConnectionSettings(
       smart: SmartRoutingSettings(entryCount: 2),
     );
-    final resolver = ConnectionResolver(
-      rows: db.coreConfigDao.watchOutbounds,
-      probe: ping.pingConfigIds,
-    );
+    final resolver = ConnectionResolver(rows: db.coreConfigDao.watchOutbounds);
     final beforeRetest = await resolver.resolve(settings);
     expect(beforeRetest.map((node) => node.name), ['Fast', 'Middle']);
 

@@ -18,7 +18,7 @@ final class AppHostApi: @preconcurrency BridgeHostApi {
     
     func getTunFilesDir(completion: @escaping (Result<String, any Error>) -> Void) {
         if let groupUrl = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) {
-            let path = groupUrl.adaptedPath()
+            let path = groupUrl.path(percentEncoded: false)
             completion(.success(path))
         } else {
             completion(.success(""))

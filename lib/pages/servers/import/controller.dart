@@ -9,9 +9,9 @@ import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
+import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/servers/import/page.dart';
 import 'package:onexray/pages/servers/subscription/format_confirmation.dart';
-import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/service/servers/subscription/failure.dart';
@@ -21,7 +21,7 @@ import 'package:onexray/service/servers/subscription/validator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:re_editor/re_editor.dart';
 
-enum ServerImportAction { scan, paste, subscription, file, json }
+enum ServerImportAction { scan, paste, subscription, file, json, raw }
 
 enum SubscriptionFormField { name, url, userAgent }
 
@@ -49,6 +49,7 @@ class ServerImportPageState {
     Set<SubscriptionFormField> touchedSubscriptionFields = const {},
     this.jsonDiagnostic,
     List<ServerSubscriptionImport> subscriptionImports = const [],
+    Map<int, SubscriptionMode> subscriptionImportModes = const {},
     this.committedResult,
     this.ageExpanded = false,
     this.hasAgeKeys = false,
@@ -57,6 +58,7 @@ class ServerImportPageState {
     this.panel = SubscriptionPanel.generic,
     this.mode,
   }) : subscriptionImports = List.unmodifiable(subscriptionImports),
+       subscriptionImportModes = Map.unmodifiable(subscriptionImportModes),
        touchedSubscriptionFields = Set.unmodifiable(touchedSubscriptionFields);
 
   final String inputText;
@@ -78,6 +80,7 @@ class ServerImportPageState {
   final Set<SubscriptionFormField> touchedSubscriptionFields;
   final JsonDiagnostic? jsonDiagnostic;
   final List<ServerSubscriptionImport> subscriptionImports;
+  final Map<int, SubscriptionMode> subscriptionImportModes;
   final ServerImportResult? committedResult;
   final bool ageExpanded;
   final bool hasAgeKeys;
@@ -96,6 +99,17 @@ class ServerImportPageState {
   int get importedSubscriptionNodes => subscriptionImports
       .where((item) => item.result.success)
       .fold(0, (total, item) => total + item.result.count);
+
+  String subscriptionImportSummary(
+    AppLocalizations l10n,
+    ServerSubscriptionImport item,
+  ) => switch (subscriptionImportModes[item.result.subId]) {
+    SubscriptionMode.providerManaged => l10n.providerConfigurationCount(
+      item.result.count,
+    ),
+    SubscriptionMode.appManaged => l10n.prototypeUsableNodes(item.result.count),
+    null => l10n.prototypeSubscriptionSaved,
+  };
 
   ServerImportPageState copyWith({
     String? inputText,
@@ -117,6 +131,7 @@ class ServerImportPageState {
     Set<SubscriptionFormField>? touchedSubscriptionFields,
     Object? jsonDiagnostic = _unset,
     List<ServerSubscriptionImport>? subscriptionImports,
+    Map<int, SubscriptionMode>? subscriptionImportModes,
     Object? committedResult = _unset,
     bool? ageExpanded,
     bool? hasAgeKeys,
@@ -155,6 +170,8 @@ class ServerImportPageState {
         ? this.jsonDiagnostic
         : jsonDiagnostic as JsonDiagnostic?,
     subscriptionImports: subscriptionImports ?? this.subscriptionImports,
+    subscriptionImportModes:
+        subscriptionImportModes ?? this.subscriptionImportModes,
     committedResult: identical(committedResult, _unset)
         ? this.committedResult
         : committedResult as ServerImportResult?,
@@ -290,6 +307,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
 
   bool canSubmit(ServerImportAction action) {
     if (state.busy || state.generatingAgeKey || state.loadFailed) return false;
+    if (action == ServerImportAction.raw) return false;
     if (action == ServerImportAction.subscription) {
       return _subscriptionValidation == null;
     }
@@ -436,7 +454,12 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       state.copyWith(error: null, committedResult: null, activeAction: action),
     );
     ServerImportResult? result;
-    if (action == ServerImportAction.file ||
+    if (action == ServerImportAction.raw) {
+      final id = await context.pushScoped<int>(AppPageDestination.rawEditor);
+      if (id != null) {
+        result = const ServerImportResult(count: 0, rawCount: 1);
+      }
+    } else if (action == ServerImportAction.file ||
         action == ServerImportAction.scan) {
       String? input;
       emit(state.copyWith(busy: true, openingAction: action));
@@ -478,7 +501,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       if (action == ServerImportAction.json && jsonText.text.isEmpty) {
         jsonText.text = '{\n  "outbounds": []\n}';
       }
-      result = await showAppDialog<ServerImportResult>(
+      result = await _pushServerImportStep<ServerImportResult>(
         context,
         (dialogContext) => ServerImportFormPage(
           controller: this,
@@ -561,7 +584,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         emit(state.copyWith(busy: false, openingAction: null));
       }
       if (!isPageActive || !context.mounted || _closingFlow) return null;
-      return showAppDialog<ServerImportResult>(
+      return _pushServerImportStep<ServerImportResult>(
         context,
         (dialogContext) => ServerImportFormPage(
           controller: this,
@@ -584,9 +607,29 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         pending,
         confirmOrdinary: (name) => _confirmOrdinary(context, name),
       );
+      final modes = Map<int, SubscriptionMode>.of(
+        state.subscriptionImportModes,
+      );
       for (var index = 0; index < results.length; index++) {
         if (results[index].result.success) {
           _completedSubscriptions[pending[index].url] = results[index];
+          final id = results[index].result.subId;
+          modes.remove(id);
+          if (id > 0) {
+            try {
+              final saved = await _loadSubscription(id);
+              final mode = saved == null
+                  ? null
+                  : SubscriptionMode.fromString(saved.mode);
+              if (mode != null) {
+                modes[id] = mode;
+              }
+            } catch (_) {
+              // The write already succeeded. Unavailable display metadata
+              // uses a neutral success message rather than guessing its type.
+            }
+            if (!isPageActive || !context.mounted) return null;
+          }
         }
       }
       emit(
@@ -595,6 +638,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
             ..._completedSubscriptions.values,
             ...results.where((item) => !item.result.success),
           ],
+          subscriptionImportModes: modes,
         ),
       );
     } finally {
@@ -630,7 +674,16 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       if (context.mounted) {
         ContextAlert.showToast(
           context,
-          AppLocalizations.of(context)!.prototypeUsableNodes(result.count),
+          state.importedSubscriptionCount == 1
+              ? state.subscriptionImportSummary(
+                  AppLocalizations.of(context)!,
+                  state.subscriptionImports.firstWhere(
+                    (item) => item.result.success,
+                  ),
+                )
+              : AppLocalizations.of(context)!.prototypeSubscriptionsImported(
+                  state.importedSubscriptionCount,
+                ),
         );
       }
     }
@@ -794,7 +847,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     final ready = preview;
     _previewOpen = true;
     try {
-      return await showAppDialog<ServerImportResult>(
+      return await _pushServerImportStep<ServerImportResult>(
         context,
         (dialogContext) => ServerImportPreviewPage(
           controller: this,
@@ -978,7 +1031,22 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         }
         return;
       }
-      ContextAlert.showToast(context, l10n.prototypeUsableNodes(result.count));
+      var message = l10n.prototypeSubscriptionSaved;
+      try {
+        // Automatic detection and conversion can change the requested mode.
+        // Describe the committed resource type rather than the selected panel.
+        final saved = await _loadSubscription(result.subId);
+        if (saved?.mode == SubscriptionMode.providerManaged.name) {
+          message = l10n.providerConfigurationCount(result.count);
+        } else if (saved?.mode == SubscriptionMode.appManaged.name) {
+          message = l10n.prototypeUsableNodes(result.count);
+        }
+      } catch (_) {
+        // The import already committed. Missing display metadata must not turn
+        // a successful write into an "add failed" result.
+      }
+      if (!isPageActive || !context.mounted) return;
+      ContextAlert.showToast(context, message);
       Navigator.of(context).pop(
         ServerImportResult(count: result.count, subscriptionId: result.subId),
       );
@@ -1154,3 +1222,8 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     }
   }
 }
+
+Future<T?> _pushServerImportStep<T>(
+  BuildContext context,
+  WidgetBuilder builder,
+) => Navigator.of(context).push<T>(MaterialPageRoute<T>(builder: builder));

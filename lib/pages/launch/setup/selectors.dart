@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
+import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -92,222 +94,167 @@ class _SetupSelector extends StatelessWidget {
         final mobile =
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return Scaffold(
-          appBar: mobile
-              ? null
-              : PageAppBar(
-                  leading: IconButton(
-                    tooltip: l10n.prototypeBack,
-                    onPressed: () => controller.cancel(context),
-                    icon: const Icon(LucideIcons.arrowLeftDir),
-                  ),
-                  title: Text(title),
-                ),
+          appBar: PageAppBar(
+            leading: IconButton(
+              tooltip: l10n.prototypeBack,
+              onPressed: () => controller.cancel(context),
+              icon: const Icon(LucideIcons.arrowLeftDir),
+            ),
+            title: Text(title),
+          ),
           body: SafeArea(
+            top: false,
             bottom: false,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: AppLayout.setupContentMaxWidth,
-                ),
-                child: CustomScrollView(
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
-                  slivers: [
-                    SliverPadding(
-                      padding: EdgeInsets.fromLTRB(
-                        mobile ? 24 : 0,
-                        mobile ? 56 : 24,
-                        mobile ? 24 : 0,
-                        28,
-                      ),
-                      sliver: SliverMainAxisGroup(
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                if (mobile) ...[
-                                  Row(
-                                    children: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            controller.cancel(context),
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                          ),
-                                          minimumSize: const Size(0, 38),
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
-                                          textStyle: AppTypography.control,
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            const Icon(
-                                              LucideIcons.arrowLeftDir,
-                                              size: 18,
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Text(l10n.prototypeBack),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          title,
-                                          style: AppTypography.setupChildTitle,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    description,
-                                    style: AppTypography.setupSelectorDetail
-                                        .copyWith(
-                                          color: palette.mutedForeground,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 22),
-                                ],
-                                if (state.choices.isEmpty)
-                                  Text(
-                                    l10n.prototypeTemporarilyUnavailable,
-                                    style: AppTypography.setupSelectorDetail
-                                        .copyWith(
-                                          color: palette.mutedForeground,
-                                        ),
-                                  ),
-                              ],
+            child: ResponsiveContent(
+              child: CustomScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                slivers: [
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      mobile ? AppSpacing.mobilePage : AppSpacing.page,
+                      16,
+                      mobile ? AppSpacing.mobilePage : AppSpacing.page,
+                      24,
+                    ),
+                    sliver: SliverMainAxisGroup(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Text(
+                              description,
+                              style: AppTypography.rowValue.copyWith(
+                                color: palette.mutedForeground,
+                              ),
                             ),
                           ),
+                        ),
+                        if (state.choices.isEmpty)
+                          SliverToBoxAdapter(
+                            child: Text(
+                              l10n.prototypeTemporarilyUnavailable,
+                              style: AppTypography.supporting.copyWith(
+                                color: palette.mutedForeground,
+                              ),
+                            ),
+                          )
+                        else
                           SliverList.builder(
                             itemCount: state.choices.length,
-                            itemBuilder: (context, index) {
-                              final choice = state.choices[index];
-                              final selected = state.selected == choice.id;
-                              final radius = BorderRadius.vertical(
-                                top: index == 0
-                                    ? const Radius.circular(AppRadii.card)
-                                    : Radius.zero,
-                                bottom: index == state.choices.length - 1
-                                    ? const Radius.circular(AppRadii.card)
-                                    : Radius.zero,
-                              );
-                              return Semantics(
-                                selected: selected,
-                                inMutuallyExclusiveGroup: true,
-                                child: Material(
-                                  color: selected
-                                      ? palette.selectedSurface
-                                      : palette.card,
-                                  borderRadius: radius,
-                                  clipBehavior: Clip.antiAlias,
-                                  child: InkWell(
-                                    onTap: () =>
-                                        controller.select(context, choice.id),
-                                    child: Container(
-                                      constraints: const BoxConstraints(
-                                        minHeight: 68,
-                                      ),
-                                      padding: const EdgeInsets.all(14),
-                                      decoration: BoxDecoration(
-                                        borderRadius: radius,
-                                        border: Border(
-                                          left: BorderSide(
-                                            color: palette.border,
-                                          ),
-                                          right: BorderSide(
-                                            color: palette.border,
-                                          ),
-                                          bottom: BorderSide(
-                                            color: palette.border,
-                                          ),
-                                          top: index == 0
-                                              ? BorderSide(
-                                                  color: palette.border,
-                                                )
-                                              : BorderSide.none,
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          ShadRadioGroup<String>(
-                                            initialValue: state.selected,
-                                            onChanged: (value) {
-                                              if (value != null &&
-                                                  value != state.selected) {
-                                                controller.select(
-                                                  context,
-                                                  value,
-                                                );
-                                              }
-                                            },
-                                            items: [
-                                              ShadRadio<String>(
-                                                value: choice.id,
-                                                size: 16,
-                                                circleSize: 10,
-                                                radioPadding: EdgeInsets.zero,
-                                                decoration: ShadDecoration(
-                                                  border: ShadBorder.all(
-                                                    color: selected
-                                                        ? palette.primary
-                                                        : palette.borderStrong,
-                                                    width: 1,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 14),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.stretch,
-                                              children: [
-                                                Text(
-                                                  choice.label,
-                                                  style: AppTypography
-                                                      .setupSelectorTitle,
-                                                ),
-                                                if (choice
-                                                    .description
-                                                    .isNotEmpty) ...[
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    choice.description,
-                                                    style: AppTypography
-                                                        .setupSelectorDetail
-                                                        .copyWith(
-                                                          color: palette
-                                                              .mutedForeground,
-                                                        ),
-                                                  ),
-                                                ],
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                            itemBuilder: (context, index) =>
+                                _choice(context, index, state, controller),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
+          ),
+          bottomNavigationBar: PageActionBar(
+            children: [
+              OutlinedButton(
+                onPressed: () => controller.cancel(context),
+                child: Text(l10n.prototypeBack),
+              ),
+            ],
           ),
         );
       },
     ),
   );
+
+  Widget _choice(
+    BuildContext context,
+    int index,
+    _ChoiceState state,
+    _ChoiceController controller,
+  ) {
+    final palette = ColorManager.palette(context);
+    final choice = state.choices[index];
+    final isSelected = state.selected == choice.id;
+    final radius = BorderRadius.vertical(
+      top: index == 0 ? const Radius.circular(AppRadii.card) : Radius.zero,
+      bottom: index == state.choices.length - 1
+          ? const Radius.circular(AppRadii.card)
+          : Radius.zero,
+    );
+    return Semantics(
+      selected: isSelected,
+      inMutuallyExclusiveGroup: true,
+      child: Material(
+        color: isSelected ? palette.selectedSurface : palette.card,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => controller.select(context, choice.id),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 68),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border(
+                left: BorderSide(color: palette.border),
+                right: BorderSide(color: palette.border),
+                bottom: BorderSide(color: palette.border),
+                top: index == 0
+                    ? BorderSide(color: palette.border)
+                    : BorderSide.none,
+              ),
+            ),
+            child: Row(
+              children: [
+                ShadRadioGroup<String>(
+                  initialValue: state.selected,
+                  onChanged: (value) {
+                    if (value != null && value != state.selected) {
+                      controller.select(context, value);
+                    }
+                  },
+                  items: [
+                    ShadRadio<String>(
+                      value: choice.id,
+                      size: 16,
+                      circleSize: 10,
+                      radioPadding: EdgeInsets.zero,
+                      decoration: ShadDecoration(
+                        border: ShadBorder.all(
+                          color: isSelected
+                              ? palette.primary
+                              : palette.borderStrong,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        choice.label,
+                        style: AppTypography.setupSelectorTitle,
+                      ),
+                      if (choice.description.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          choice.description,
+                          style: AppTypography.setupSelectorDetail.copyWith(
+                            color: palette.mutedForeground,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -76,148 +76,62 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                             child: Padding(
                               padding: EdgeInsets.fromLTRB(
                                 gutter,
-                                mobile ? 12 : 54,
+                                20,
                                 gutter,
-                                12,
+                                20,
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Align(
-                                    alignment: AlignmentDirectional.centerStart,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 9,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: palette.surfaceHover,
-                                        borderRadius: BorderRadius.circular(
-                                          AppRadii.pill,
-                                        ),
-                                      ),
-                                      child: Text(
-                                        l.prototypeReadOnly,
-                                        style: AppTypography.geodataReadonly
-                                            .copyWith(
-                                              color: palette.mutedStrong,
-                                            ),
+                                  SettingSection(
+                                    title: l.serverResourceInformation,
+                                    action: Text(
+                                      l.prototypeReadOnly,
+                                      style: AppTypography.badge.copyWith(
+                                        color: palette.mutedForeground,
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  SettingSection(
-                                    title: l.prototypeDataSource,
                                     icon: LucideIcons.globe2,
                                     padding: EdgeInsets.zero,
                                     dividerIndent: 0,
                                     children: [
-                                      Padding(
-                                        padding: const EdgeInsets.all(14),
-                                        child: Row(
-                                          spacing: 12,
-                                          children: [
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.stretch,
-                                                children: [
-                                                  Text(
-                                                    l.prototypeSourceUrl,
-                                                    style: AppTypography
-                                                        .geodataSourceLabel
-                                                        .copyWith(
-                                                          color: palette
-                                                              .mutedForeground,
-                                                        ),
-                                                  ),
-                                                  const SizedBox(height: 6),
-                                                  SelectableText(
-                                                    file.row.url,
-                                                    textDirection:
-                                                        TextDirection.ltr,
-                                                    style: AppTypography
-                                                        .geodataSourceUrl,
-                                                  ),
-                                                ],
+                                      SettingRow(
+                                        title: l.prototypeSourceUrl,
+                                        subtitleWidget: SelectableText(
+                                          file.row.url,
+                                          textDirection: TextDirection.ltr,
+                                          style: AppTypography.supporting
+                                              .copyWith(
+                                                color: palette.mutedForeground,
                                               ),
-                                            ),
-                                            _copyButton(
-                                              context,
-                                              tooltip: l.prototypeCopySourceUrl,
-                                              onPressed: () => controller.copy(
-                                                context,
-                                                file.row.url,
-                                                l.prototypeSourceUrlCopied,
-                                              ),
-                                            ),
-                                          ],
+                                        ),
+                                        trailing: _copyButton(
+                                          context,
+                                          tooltip: l.prototypeCopySourceUrl,
+                                          onPressed: () => controller.copy(
+                                            context,
+                                            file.row.url,
+                                            l.prototypeSourceUrlCopied,
+                                          ),
                                         ),
                                       ),
                                       SettingRow(
                                         title: l.prototypeDataType,
-                                        titleStyle: AppTypography.geodataBody,
-                                        minHeight: mobile ? 43 : 56,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: mobile ? 13 : 14,
-                                        ),
                                         trailing: Text(
                                           file.row.type == 'ip'
                                               ? 'GeoIP'
                                               : 'GeoSite',
-                                          style: AppTypography.settingsRow,
+                                          style: AppTypography.rowTitle,
                                         ),
                                       ),
                                       SettingRow(
                                         title: l.prototypeCategories,
-                                        titleStyle: AppTypography.geodataBody,
-                                        minHeight: mobile ? 43 : 56,
-                                        contentPadding: EdgeInsets.symmetric(
-                                          horizontal: mobile ? 13 : 14,
-                                        ),
                                         trailing: Text(
                                           '${file.index.categoryCount}',
-                                          style: AppTypography.settingsRow,
+                                          style: AppTypography.rowTitle,
                                         ),
                                       ),
                                     ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Semantics(
-                                    label: l.prototypeSearchCategories,
-                                    child: ShadInput(
-                                      onChanged: controller.searchChanged,
-                                      constraints: const BoxConstraints(
-                                        minHeight: 43,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
-                                      ),
-                                      gap: 10,
-                                      style: AppTypography.geodataBody,
-                                      placeholderStyle: AppTypography
-                                          .geodataBody
-                                          .copyWith(
-                                            color: palette.mutedForeground,
-                                          ),
-                                      placeholder: Text(
-                                        l.prototypeSearchCategories,
-                                      ),
-                                      leading: Icon(
-                                        LucideIcons.search,
-                                        size: 18,
-                                        color: palette.mutedForeground,
-                                      ),
-                                      decoration: ShadDecoration(
-                                        border: ShadBorder.all(
-                                          color: palette.border,
-                                          radius: BorderRadius.circular(
-                                            AppRadii.card,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
                                   ),
                                 ],
                               ),
@@ -232,50 +146,108 @@ class _GeoDataFilePageState extends State<GeoDataFilePage> {
                             ),
                             sliver: DecoratedSliver(
                               decoration: BoxDecoration(
+                                color: palette.card,
                                 border: Border.all(color: palette.border),
                                 borderRadius: BorderRadius.circular(
                                   AppRadii.card,
                                 ),
                               ),
                               sliver: SliverPadding(
-                                padding: const EdgeInsets.all(1),
-                                sliver: codes.isEmpty
-                                    ? SliverToBoxAdapter(
-                                        child: Container(
-                                          constraints: BoxConstraints(
-                                            minHeight: mobile ? 0 : 72,
+                                padding: const EdgeInsets.all(18),
+                                sliver: SliverMainAxisGroup(
+                                  slivers: [
+                                    SliverToBoxAdapter(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Semantics(
+                                            header: true,
+                                            child: Text(
+                                              l.geodataCategoriesAndReferences,
+                                              style: AppTypography.sectionTitle
+                                                  .copyWith(
+                                                    color: palette.foreground,
+                                                  ),
+                                            ),
                                           ),
-                                          alignment: mobile
-                                              ? AlignmentDirectional.centerStart
-                                              : Alignment.center,
-                                          padding: const EdgeInsets.all(18),
-                                          child: Text(
-                                            l.prototypeNoMatchingCategories,
-                                            textAlign: mobile
-                                                ? TextAlign.start
-                                                : TextAlign.center,
-                                            style:
-                                                (mobile
-                                                        ? AppTypography
-                                                              .geodataEmpty
-                                                        : AppTypography
-                                                              .geodataTableBody)
-                                                    .copyWith(
-                                                      color: palette
-                                                          .mutedForeground,
-                                                    ),
+                                          const SizedBox(height: 16),
+                                          Semantics(
+                                            label: l.prototypeSearchCategories,
+                                            child: ShadInput(
+                                              onChanged:
+                                                  controller.searchChanged,
+                                              gap: 10,
+                                              style: AppTypography.geodataBody,
+                                              placeholderStyle: AppTypography
+                                                  .geodataBody
+                                                  .copyWith(
+                                                    color:
+                                                        palette.mutedForeground,
+                                                  ),
+                                              placeholder: Text(
+                                                l.prototypeSearchCategories,
+                                              ),
+                                              leading: Icon(
+                                                LucideIcons.search,
+                                                size: 18,
+                                                color: palette.mutedForeground,
+                                              ),
+                                              decoration: ShadDecoration(
+                                                border: ShadBorder.all(
+                                                  color: palette.border,
+                                                  radius: BorderRadius.circular(
+                                                    AppRadii.control,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                      )
-                                    : GeoDataCategorySliver(
-                                        file: file,
-                                        codes: codes,
-                                        onCopy: (reference) => controller.copy(
-                                          context,
-                                          reference,
-                                          l.prototypeRuleReferenceCopied,
-                                        ),
+                                          const SizedBox(height: 12),
+                                        ],
                                       ),
+                                    ),
+                                    codes.isEmpty
+                                        ? SliverToBoxAdapter(
+                                            child: Container(
+                                              constraints: BoxConstraints(
+                                                minHeight: mobile ? 0 : 72,
+                                              ),
+                                              alignment: mobile
+                                                  ? AlignmentDirectional
+                                                        .centerStart
+                                                  : Alignment.center,
+                                              padding: const EdgeInsets.all(18),
+                                              child: Text(
+                                                l.prototypeNoMatchingCategories,
+                                                textAlign: mobile
+                                                    ? TextAlign.start
+                                                    : TextAlign.center,
+                                                style:
+                                                    (mobile
+                                                            ? AppTypography
+                                                                  .geodataEmpty
+                                                            : AppTypography
+                                                                  .geodataTableBody)
+                                                        .copyWith(
+                                                          color: palette
+                                                              .mutedForeground,
+                                                        ),
+                                              ),
+                                            ),
+                                          )
+                                        : GeoDataCategorySliver(
+                                            file: file,
+                                            codes: codes,
+                                            onCopy: (reference) =>
+                                                controller.copy(
+                                                  context,
+                                                  reference,
+                                                  l.prototypeRuleReferenceCopied,
+                                                ),
+                                          ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -316,14 +288,9 @@ class GeoDataCategorySliver extends StatelessWidget {
     final palette = ColorManager.palette(context);
     return Container(
       constraints: const BoxConstraints(minHeight: 66),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        border: index == codes.length - 1
-            ? null
-            : Border(bottom: BorderSide(color: palette.border)),
-      ),
+      padding: const EdgeInsets.all(12),
       child: Row(
-        spacing: 10,
+        spacing: 12,
         children: [
           Expanded(
             child: Column(
@@ -337,7 +304,7 @@ class GeoDataCategorySliver extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.geodataCategory,
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
                   reference,
                   textDirection: TextDirection.ltr,

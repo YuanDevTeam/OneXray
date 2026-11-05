@@ -5,6 +5,7 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 
 const _open = Key('open-confirmation');
@@ -136,10 +137,12 @@ void main() {
         );
         final cancel = find.byType(OutlinedButton);
         final confirm = find.byType(FilledButton);
+        await tester.ensureVisible(cancel);
+        await tester.pumpAndSettle();
         final cancelBounds = tester.getRect(cancel);
         final confirmBounds = tester.getRect(confirm);
         final surface = tester.getRect(_surface);
-        expect(cancelBounds.width, closeTo(surface.width - 32, .5));
+        expect(cancelBounds.width, closeTo(surface.width - 48, .5));
         expect(confirmBounds.width, closeTo(cancelBounds.width, .5));
         expect(confirmBounds.left, closeTo(cancelBounds.left, .5));
         expect(
@@ -157,17 +160,26 @@ void main() {
           );
           final paragraph = tester.renderObject<RenderParagraph>(richText);
           expect(paragraph.didExceedMaxLines, isFalse);
-          for (final box in paragraph.getBoxesForSelection(
-            TextSelection(
-              baseOffset: 0,
-              extentOffset: paragraph.text.toPlainText().length,
-            ),
-          )) {
-            expect(box.left, greaterThanOrEqualTo(-.5));
-            expect(box.right, lessThanOrEqualTo(paragraph.size.width + .5));
-            expect(box.bottom, lessThanOrEqualTo(paragraph.size.height + .5));
+          // SkParagraph includes hanging spaces in a full-range selection box.
+          // Check every visible word instead of treating that whitespace as ink.
+          for (final word in RegExp(
+            r'\S+',
+          ).allMatches(paragraph.text.toPlainText())) {
+            for (final box in paragraph.getBoxesForSelection(
+              TextSelection(baseOffset: word.start, extentOffset: word.end),
+            )) {
+              expect(box.left, greaterThanOrEqualTo(-.5));
+              expect(box.right, lessThanOrEqualTo(paragraph.size.width + .5));
+              expect(box.bottom, lessThanOrEqualTo(paragraph.size.height + .5));
+            }
           }
-          expect(tester.getRect(button).bottom, lessThanOrEqualTo(667));
+          await tester.ensureVisible(button);
+          await tester.pumpAndSettle();
+          expect(tester.getRect(button).top, greaterThanOrEqualTo(surface.top));
+          expect(
+            tester.getRect(button).bottom,
+            lessThanOrEqualTo(surface.bottom),
+          );
         }
         final body = find.byType(SingleChildScrollView);
         final scroll = tester.state<ScrollableState>(
@@ -177,13 +189,15 @@ void main() {
         await tester.drag(body, const Offset(0, -180));
         await tester.pumpAndSettle();
         expect(scroll.position.pixels, greaterThan(0));
-        expect(tester.getRect(cancel), cancelBounds);
-        expect(tester.getRect(confirm), confirmBounds);
+        await tester.ensureVisible(cancel);
+        await tester.pumpAndSettle();
         await tester.tap(cancel);
         await tester.pumpAndSettle();
         expect(result, isFalse);
         expect(find.byType(AppConfirmationDialog), findsNothing);
         await tester.tap(find.byKey(_open));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byType(FilledButton));
         await tester.pumpAndSettle();
         await tester.tap(find.byType(FilledButton));
         await tester.pumpAndSettle();
@@ -209,23 +223,37 @@ void main() {
       final surface = tester.getRect(_surface);
       final cancel = tester.getRect(find.byType(OutlinedButton));
       final confirm = tester.getRect(find.byType(FilledButton));
-      expect(surface.width, closeTo(mobile ? width - 38 : 540, 0.01));
+      expect(surface.width, closeTo(mobile ? width - 32 : 520, 0.01));
       expect(surface.center.dx, closeTo(width / 2, 0.01));
-      expect(confirm.right, closeTo(surface.right - (mobile ? 16 : 20), 1));
-      expect(confirm.left - cancel.right, closeTo(10, 0.01));
-      expect(cancel.height, AppLayout.touchExtent(mobile ? 42 : 40));
-      expect(confirm.height, AppLayout.touchExtent(mobile ? 42 : 40));
+      expect(confirm.right, closeTo(surface.right - 24, 1));
+      if (width < 560) {
+        expect(cancel.width, closeTo(surface.width - 48, .01));
+        expect(confirm.width, closeTo(cancel.width, .01));
+        expect(confirm.top - cancel.bottom, closeTo(10, .01));
+      } else {
+        expect(confirm.left - cancel.right, closeTo(10, .01));
+      }
+      expect(
+        cancel.height,
+        greaterThanOrEqualTo(AppLayout.touchExtent(mobile ? 48 : 42)),
+      );
+      expect(
+        confirm.height,
+        greaterThanOrEqualTo(AppLayout.touchExtent(mobile ? 48 : 42)),
+      );
       final label = tester.getRect(
         find.descendant(
           of: find.byType(FilledButton),
           matching: find.byType(Text),
         ),
       );
-      expect(
-        confirm.width,
-        closeTo(label.width + AppSpacing.buttonHorizontal * 2, 0.01),
-      );
-      expect(cancel.left, greaterThan(surface.left + (mobile ? 16 : 20)));
+      if (width >= 560) {
+        expect(
+          confirm.width,
+          closeTo(label.width + AppSpacing.buttonHorizontal * 2, 0.01),
+        );
+        expect(cancel.left, greaterThan(surface.left + 24));
+      }
       expect(tester.takeException(), isNull);
     });
   }
@@ -257,6 +285,33 @@ void main() {
         find.byType(AppConfirmationDialog),
       );
       final surface = tester.getRect(_surface);
+      final palette = ColorManager.palette(
+        tester.element(find.byType(AppConfirmationDialog)),
+      );
+      final title = tester.widget<Text>(
+        find
+            .descendant(
+              of: find.byType(AppConfirmationDialog),
+              matching: find.text(dialog.title),
+            )
+            .first,
+      );
+      expect(title.style!.fontSize, 20);
+      expect(title.style!.fontWeight, FontWeight.w600);
+      expect(
+        tester.widget<Text>(find.text(dialog.content)).style!.color,
+        palette.mutedForeground,
+      );
+      final shape =
+          tester.widget<Dialog>(find.byType(Dialog)).shape!
+              as RoundedRectangleBorder;
+      expect(shape.borderRadius, BorderRadius.circular(width < 640 ? 0 : 18));
+      final confirmWidget = tester.widget<FilledButton>(
+        find.byType(FilledButton),
+      );
+      final confirmShape =
+          confirmWidget.style!.shape!.resolve({})! as RoundedRectangleBorder;
+      expect(confirmShape.borderRadius, BorderRadius.circular(24));
       expect(
         Directionality.of(tester.element(find.byType(AppConfirmationDialog))),
         locale.languageCode == 'fa' ? TextDirection.rtl : TextDirection.ltr,

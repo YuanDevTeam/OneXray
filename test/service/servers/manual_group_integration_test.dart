@@ -75,12 +75,7 @@ void main() {
       throw StateError('Catalog closed before the committed order appeared');
     }
 
-    final resolver = ConnectionResolver(
-      rows: db.coreConfigDao.watchOutbounds,
-      probe: (_) async => fail(
-        'All candidates are measured; organization must not request probes',
-      ),
-    );
+    final resolver = ConnectionResolver(rows: db.coreConfigDao.watchOutbounds);
     Future<void> unchangedSelections({int fastest = -1}) async {
       final manual = await resolver.resolve(
         ConnectionSettings(selection: const ServerSelection.source(0)),

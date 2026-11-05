@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onexray/core/constants/preferences.dart';
+import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/advanced/xray/log/controller.dart';
@@ -18,6 +20,7 @@ import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/ping/state.dart';
 import 'package:onexray/service/advanced/xray/data_update/state.dart';
+import 'package:onexray/service/connect/coordinator.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 // ignore: depend_on_referenced_packages
 import 'package:shared_preferences_platform_interface/in_memory_shared_preferences_async.dart';
@@ -261,6 +264,66 @@ void main() {
     expect(tester.takeException(), null);
   });
 
+  for (final size in const [
+    Size(390, 844),
+    Size(1032, 1376),
+    Size(1160, 720),
+  ]) {
+    testWidgets(
+      'Xray preference choices fill their single form card at $size',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = size;
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        for (final (page, choices) in <(Widget, List<String>)>[
+          (const PingPage(), ['ping-url', 'ping-timeout']),
+          (
+            const AutoUpdatePage(),
+            ['subscription-update-interval', 'geodata-update-interval'],
+          ),
+        ]) {
+          await tester.pumpWidget(app(page));
+          await tester.pumpAndSettle();
+          expect(find.byType(ShadCard), findsOneWidget);
+          final l = AppLocalizations.of(
+            tester.element(find.byType(PageActionBar)),
+          )!;
+          expect(
+            find.widgetWithText(
+              AppBar,
+              page is PingPage
+                  ? l.xrayLatencyTitle
+                  : l.prototypeAutomaticUpdates,
+            ),
+            findsOneWidget,
+          );
+          expect(find.text(l.pageXrayConfigurationDescription), findsNothing);
+          for (final choice in choices) {
+            final field = find.byKey(ValueKey('$choice-field'));
+            final control = find.byKey(
+              ValueKey(choice == 'ping-url' ? 'ping-url-preset' : choice),
+            );
+            expect(field, findsOneWidget);
+            expect(control, findsOneWidget);
+            final fieldRect = tester.getRect(field);
+            final controlRect = tester.getRect(control);
+            expect(controlRect.left, closeTo(fieldRect.left, .5));
+            expect(controlRect.right, closeTo(fieldRect.right, .5));
+            expect(controlRect.top, greaterThan(fieldRect.top));
+            expect(
+              find.ancestor(of: control, matching: find.byType(ShadCard)),
+              findsOneWidget,
+            );
+          }
+          expect(tester.takeException(), isNull);
+        }
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      },
+    );
+  }
+
   testWidgets('ping settings restore a custom URL', (tester) async {
     final pingState = PingState()
       ..url = PingUrl.custom
@@ -283,9 +346,18 @@ void main() {
     addTearDown(() => tempDir.delete(recursive: true));
     final logFile = File('${tempDir.path}/access.log');
     await logFile.writeAsString('first line\nsecond line\n');
+    final database = AppDatabase.forTesting(NativeDatabase.memory());
+    addTearDown(database.close);
+    final coordinator = ConnectionCoordinator(
+      database: database,
+      statusEvents: const Stream.empty(),
+      disposeStatus: () {},
+    );
+    addTearDown(coordinator.dispose);
 
     final controller = LogFileViewerController(
       LogFileViewerParams(title: 'access log', path: logFile.path),
+      coordinator: coordinator,
     );
     addTearDown(controller.close);
     await controller.stream

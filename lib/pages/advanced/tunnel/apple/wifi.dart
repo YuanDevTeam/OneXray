@@ -46,17 +46,12 @@ class AppleWifiView extends StatelessWidget {
           final width = MediaQuery.sizeOf(context).width;
           final mobile = width <= AppLayout.mobileBreakpoint;
           final gutter = mobile
-              ? 14.0
+              ? AppSpacing.mobilePage
               : AppSpacing.advancedDesktopGutter(width);
           final palette = ColorManager.palette(context);
-          final gap = mobile ? 18.0 : 24.0;
+          const gap = 20.0;
           return Padding(
-            padding: EdgeInsets.fromLTRB(
-              gutter,
-              mobile ? 17 : 48,
-              gutter,
-              mobile ? 18 : 24,
-            ),
+            padding: EdgeInsets.fromLTRB(gutter, 20, gutter, mobile ? 18 : 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

@@ -81,6 +81,16 @@ void main() {
       )!;
       expect(find.text(l.serverDialingSystem), findsOneWidget);
       expect(find.byType(SettingSelect<ServerDomainStrategy>), findsOneWidget);
+      final fieldRect = tester.getRect(
+        find.byKey(const ValueKey('server-dialing-domain-field')),
+      );
+      final selectRect = tester.getRect(
+        find.byKey(const ValueKey('server-dialing-strategy')),
+      );
+      expect(selectRect.left, closeTo(fieldRect.left, .5));
+      expect(selectRect.right, closeTo(fieldRect.right, .5));
+      expect(find.widgetWithText(AppBar, l.serverDialingTitle), findsOneWidget);
+      expect(find.text(l.pageXrayConfigurationDescription), findsNothing);
       expect(find.byType(ShadSwitch), findsOneWidget);
       expect(
         tester.getSemantics(find.byType(ShadSwitch)).label,
@@ -143,7 +153,11 @@ void main() {
     }
     await tester.tap(find.text('IPv4 first').last);
     await tester.pumpAndSettle();
-    final inactive = tester.widget<ShadSwitch>(toggle);
+    final control = find.descendant(
+      of: toggle,
+      matching: find.byType(ShadSwitch),
+    );
+    final inactive = tester.widget<ShadSwitch>(control);
     expect(inactive.enabled, isFalse);
     expect(inactive.value, isTrue);
     expect(controller.dialing.domainStrategy, ServerDomainStrategy.ipv4First);
@@ -151,8 +165,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('System default').last);
     await tester.pumpAndSettle();
-    expect(tester.widget<ShadSwitch>(toggle).enabled, isTrue);
-    expect(tester.widget<ShadSwitch>(toggle).value, isTrue);
+    expect(tester.widget<ShadSwitch>(control).enabled, isTrue);
+    expect(tester.widget<ShadSwitch>(control).value, isTrue);
     expect(service.saves, 0);
     expect(tester.takeException(), isNull);
     await tester.runAsync(controller.close);
@@ -263,7 +277,6 @@ void main() {
           onGeodata: (_) {},
           onUpdates: (_) {},
           onSpeedTest: (_) {},
-          onLog: (_, _) {},
           onConfig: (_, _) {},
           onServerDialing: (context) {
             opened = true;
@@ -286,7 +299,14 @@ void main() {
     expect(opened, isTrue);
     expect(find.byType(ServerDialingPage), findsOneWidget);
     final toggle = find.byKey(const ValueKey('server-dialing-happy-eyeballs'));
-    expect(tester.widget<ShadSwitch>(toggle).enabled, isTrue);
+    expect(
+      tester
+          .widget<ShadSwitch>(
+            find.descendant(of: toggle, matching: find.byType(ShadSwitch)),
+          )
+          .enabled,
+      isTrue,
+    );
     await tester.tap(toggle);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save'));

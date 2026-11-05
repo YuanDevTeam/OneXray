@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
 import 'package:onexray/core/pigeon/model.dart';
@@ -128,21 +129,27 @@ class SubscriptionFormView extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _fields(context),
-      const SizedBox(height: 12),
-      _editableField(
-        context,
-        label: AppLocalizations.of(context)!.subscriptionUserAgentTitle,
-        controller: userAgentController,
-        hintText: AppLocalizations.of(context)!.subscriptionUserAgentHint,
-        textDirection: TextDirection.ltr,
-        errorText: userAgentErrorText,
-        focusNode: userAgentFocusNode,
-        onChanged: onUserAgentChanged,
+      SettingSection(
+        title: AppLocalizations.of(context)!.subscriptionInformationTitle,
+        padding: EdgeInsets.zero,
+        children: [
+          _fields(context),
+          const SizedBox(height: 12),
+          _editableField(
+            context,
+            label: AppLocalizations.of(context)!.subscriptionUserAgentTitle,
+            controller: userAgentController,
+            hintText: AppLocalizations.of(context)!.subscriptionUserAgentHint,
+            textDirection: TextDirection.ltr,
+            errorText: userAgentErrorText,
+            focusNode: userAgentFocusNode,
+            onChanged: onUserAgentChanged,
+          ),
+        ],
       ),
-      const SizedBox(height: 14),
+      const SizedBox(height: 16),
       _configurationCard(context),
-      const SizedBox(height: 14),
+      const SizedBox(height: 16),
       _SubscriptionAdvanced(
         configured: hwidEnabled || hasAgeKeys,
         hasError: ageKeyPairErrorText != null,
@@ -244,7 +251,9 @@ class SubscriptionFormView extends StatelessWidget {
                     Expanded(
                       child: Text(
                         title,
-                        style: AppTypography.subscriptionAgeTitle,
+                        style: AppTypography.fieldLabel.copyWith(
+                          color: ColorManager.palette(context).foreground,
+                        ),
                       ),
                     ),
                     if (help != null)
@@ -265,7 +274,9 @@ class SubscriptionFormView extends StatelessWidget {
                 ? null
                 : PageHelpButton(title: title, messages: [help]),
             titleMaxLines: 3,
-            titleStyle: AppTypography.subscriptionAgeTitle,
+            titleStyle: AppTypography.fieldLabel.copyWith(
+              color: ColorManager.palette(context).foreground,
+            ),
             contentPadding: const EdgeInsets.all(13),
             trailing: trailing,
           ),
@@ -289,10 +300,11 @@ class SubscriptionFormView extends StatelessWidget {
           messages: [hwidDescription],
         ),
         enabled: onHwidChanged != null,
+        buttonSemantics: false,
         onTap: onHwidChanged == null
             ? null
             : () => onHwidChanged!(!hwidEnabled),
-        trailing: ShadSwitch(
+        trailing: AppSwitch(
           value: hwidEnabled,
           enabled: onHwidChanged != null,
           onChanged: onHwidChanged,
@@ -325,20 +337,10 @@ class SubscriptionFormView extends StatelessWidget {
         onChanged: onUrlChanged,
       ),
     ];
-    if (MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint) {
-      return Column(
-        spacing: 12,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: fields,
-      );
-    }
-    return Row(
-      spacing: 12,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(flex: 3, child: fields[0]),
-        Expanded(flex: 5, child: fields[1]),
-      ],
+    return Column(
+      spacing: 14,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: fields,
     );
   }
 
@@ -626,8 +628,8 @@ class SubscriptionFormView extends StatelessWidget {
               ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            style: AppTypography.subscriptionField,
-            placeholderStyle: AppTypography.subscriptionField.copyWith(
+            style: AppTypography.rowValue,
+            placeholderStyle: AppTypography.rowValue.copyWith(
               color: palette.mutedForeground,
             ),
             textDirection: textDirection,
@@ -639,12 +641,12 @@ class SubscriptionFormView extends StatelessWidget {
             decoration: ShadDecoration(
               hasError: errorText != null,
               border: ShadBorder.all(
-                color: palette.border,
-                radius: BorderRadius.circular(AppRadii.card),
+                color: palette.input,
+                radius: BorderRadius.circular(AppRadii.control),
               ),
               errorBorder: ShadBorder.all(
                 color: palette.destructive,
-                radius: BorderRadius.circular(AppRadii.card),
+                radius: BorderRadius.circular(AppRadii.control),
               ),
             ),
           ),
@@ -707,8 +709,8 @@ class SubscriptionFormView extends StatelessWidget {
   Widget _fieldLabel(BuildContext context, String text) {
     final label = Text(
       text,
-      style: AppTypography.subscriptionField.copyWith(
-        color: ColorManager.palette(context).mutedStrong,
+      style: AppTypography.fieldLabel.copyWith(
+        color: ColorManager.palette(context).foreground,
       ),
     );
     // macOS's native text input bridge does not expose the merged field label.

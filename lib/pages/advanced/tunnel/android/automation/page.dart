@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
@@ -11,7 +12,6 @@ import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/advanced/tunnel/android/automation/service.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 
 class AndroidAutomationPage extends StatelessWidget {
   const AndroidAutomationPage({super.key, this.createController});
@@ -38,10 +38,16 @@ class AndroidAutomationPage extends StatelessWidget {
             child: state.loading
                 ? const Center(child: CircularProgressIndicator())
                 : SettingsPageScroll(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.mobilePage,
-                      16,
-                      AppSpacing.mobilePage,
+                    padding: EdgeInsets.fromLTRB(
+                      MediaQuery.sizeOf(context).width <=
+                              AppLayout.mobileBreakpoint
+                          ? AppSpacing.mobilePage
+                          : AppSpacing.page,
+                      20,
+                      MediaQuery.sizeOf(context).width <=
+                              AppLayout.mobileBreakpoint
+                          ? AppSpacing.mobilePage
+                          : AppSpacing.page,
                       24,
                     ),
                     child: Column(
@@ -59,7 +65,7 @@ class AndroidAutomationPage extends StatelessWidget {
                                 titleMaxLines: 5,
                                 trailing: ButtonProgress(
                                   busy: state.writing == 'enable',
-                                  child: ShadSwitch(
+                                  child: AppSwitch(
                                     key: const ValueKey('automation-enable'),
                                     value: state.saved!.enabled,
                                     enabled: state.writing == null,
@@ -74,7 +80,7 @@ class AndroidAutomationPage extends StatelessWidget {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 24),
+                          const SizedBox(height: 20),
                           if (state.saved!.enabled) ...[
                             SettingSection(
                               title: l.localApiToken,
@@ -85,7 +91,7 @@ class AndroidAutomationPage extends StatelessWidget {
                               separated: false,
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.all(14),
+                                  padding: EdgeInsets.zero,
                                   child: Align(
                                     alignment: AlignmentDirectional.centerStart,
                                     child: Wrap(
@@ -132,7 +138,7 @@ class AndroidAutomationPage extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 20),
                           ],
                         ],
                         SettingSection(
@@ -142,7 +148,7 @@ class AndroidAutomationPage extends StatelessWidget {
                           separated: false,
                           children: [
                             Padding(
-                              padding: const EdgeInsets.all(14),
+                              padding: EdgeInsets.zero,
                               child: SizedBox(
                                 width: double.infinity,
                                 child: SelectableText(
@@ -154,7 +160,7 @@ class AndroidAutomationPage extends StatelessWidget {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                              padding: const EdgeInsets.only(top: 12),
                               child: Align(
                                 alignment: AlignmentDirectional.centerStart,
                                 child: OutlinedButton(
@@ -181,7 +187,7 @@ class AndroidAutomationPage extends StatelessWidget {
                         const SizedBox(height: 24),
                         Text(
                           l.automationConfigurationHint,
-                          style: AppTypography.settingsDetailNote,
+                          style: AppTypography.supporting,
                         ),
                         Align(
                           alignment: AlignmentDirectional.centerStart,
@@ -199,7 +205,7 @@ class AndroidAutomationPage extends StatelessWidget {
                           Text(
                             state.error!,
                             key: const ValueKey('automation-error'),
-                            style: AppTypography.settingsDetailNote.copyWith(
+                            style: AppTypography.supporting.copyWith(
                               color: ColorManager.palette(context).destructive,
                             ),
                           ),

@@ -107,16 +107,15 @@ class WindowsExeFfiApi extends WindowsFfiApi {
       // Create as the App user before Windows starts an elevated Core.
       final errorFile = desktopCoreErrorFile(config);
       await errorFile.writeAsString('', flush: true);
-      launchAttempted = true;
-      final pid = await _process.start(
-        _corePath,
-        desktopCoreRunArguments(
-          dns: request.tun?.tunDnsIPv4 ?? '',
-          interfaceName: request.tun?.autoOutboundsInterface ?? '',
-          configPath: config,
-          errorFile: errorFile.path,
-        ),
+      final arguments = desktopCoreRunArguments(
+        dns: request.tun?.tunDnsIPv4 ?? '',
+        interfaceName: request.tun?.autoOutboundsInterface ?? '',
+        configPath: config,
+        errorFile: errorFile.path,
       );
+      await clearRuntimeLogs();
+      launchAttempted = true;
+      final pid = await _process.start(_corePath, arguments);
       await Future<void>.delayed(const Duration(seconds: 1));
       if (!(await _monitor.readPids()).contains(pid)) {
         throw StateError(

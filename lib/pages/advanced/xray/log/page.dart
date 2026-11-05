@@ -132,7 +132,10 @@ class _LogFileViewerViewState extends State<LogFileViewerView> {
                           (mobile
                                   ? AppTypography.runtimeCodeMobile
                                   : AppTypography.runtimeCodeDesktop)
-                              .copyWith(color: palette.mutedStrong),
+                              .copyWith(
+                                color: palette.foreground,
+                                fontFamily: AppFontFamily.mono,
+                              ),
                     );
                   },
                 ),

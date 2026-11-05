@@ -10,8 +10,7 @@ import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/controller.dart';
-import 'package:onexray/pages/servers/page.dart';
-import 'package:onexray/pages/servers/view.dart';
+import 'package:onexray/pages/servers/details.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
@@ -106,8 +105,11 @@ void main() {
           data: AppTheme.shad(Brightness.light),
           child: ShadToaster(child: child!),
         ),
-        home: ServerGroupPage(
-          params: ServerGroupParams(controller, 'subscription:$sourceId'),
+        home: ServerSourcePage(
+          params: ServerSourceParams(
+            controller: controller,
+            sourceId: sourceId,
+          ),
         ),
       ),
     );
@@ -149,7 +151,7 @@ void main() {
       await clearActiveCache(tester);
       await tester.pumpAndSettle();
       final l = AppLocalizations.of(
-        tester.element(find.byType(ServerGroupPage)),
+        tester.element(find.byType(ServerSourcePage)),
       )!;
       expect(controller.groups(l), isEmpty);
       expect(
@@ -161,21 +163,20 @@ void main() {
       );
       expect(find.text('Complete profile'), findsNothing);
       expect(find.text(l.subscriptionModeAppManaged), findsOneWidget);
-      expect(find.text(l.subscriptionModeNoCacheTitle), findsOneWidget);
+      expect(find.text('https://example.test/provider'), findsOneWidget);
       expect(find.text(l.subscriptionModeNeedsRefresh), findsOneWidget);
-      expect(find.byType(SourceMenu), findsOneWidget);
+      expect(
+        find.widgetWithText(FilledButton, l.prototypeCheckForUpdates),
+        findsOneWidget,
+      );
       for (final (action, label) in [
         (SourceAction.update, l.prototypeCheckForUpdates),
         (SourceAction.edit, l.prototypeEditSubscription),
       ]) {
-        await tester.runAsync(() => tester.tap(find.byType(SourceMenu)));
-        await tester.pumpAndSettle();
-        expect(find.text(l.prototypeCheckForUpdates), findsOneWidget);
-        expect(find.text(l.prototypeEditSubscription), findsOneWidget);
-        await tester.runAsync(() async {
-          await tester.tap(find.text(label));
-          await Future<void>.delayed(Duration.zero);
-        });
+        final button = action == SourceAction.update
+            ? find.widgetWithText(FilledButton, label)
+            : find.widgetWithText(OutlinedButton, label);
+        await tester.runAsync(() => tester.tap(button));
         await tester.pumpAndSettle();
         expect(controller.actions.last, (
           id: sourceId,
@@ -200,7 +201,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byType(SourceMenu), findsOneWidget);
+      expect(find.text('https://example.test/provider'), findsOneWidget);
       await tester.runAsync(() async {
         await db.subscriptionDao.deleteRow(sourceId);
         if (controller.sources.isNotEmpty || controller.servers.isNotEmpty) {
@@ -214,13 +215,16 @@ void main() {
       });
       await tester.pumpAndSettle();
       final l = AppLocalizations.of(
-        tester.element(find.byType(ServerGroupPage)),
+        tester.element(find.byType(ServerSourcePage)),
       )!;
       expect(find.text('Provider source'), findsNothing);
-      expect(find.text(l.prototypeServers), findsOneWidget);
+      expect(find.text(l.prototypeSubscriptions), findsOneWidget);
       expect(find.text(l.prototypeNoServersYet), findsOneWidget);
       expect(find.text(l.subscriptionModeNoCacheTitle), findsNothing);
-      expect(find.byType(SourceMenu), findsNothing);
+      expect(
+        find.widgetWithText(FilledButton, l.prototypeCheckForUpdates),
+        findsNothing,
+      );
       expect(controller.actions, isEmpty);
       expect(tester.takeException(), isNull);
     },

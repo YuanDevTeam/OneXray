@@ -54,6 +54,7 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   GoRouter? _router;
   IncomingAppLink? _activeAppLink;
   bool _appLinkDrainScheduled = false;
+  bool _settingsNavigationScheduled = false;
 
   StatefulNavigationShell get navigationShell => widget.navigationShell;
 
@@ -79,7 +80,7 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   }
 
   Future<void> _drainAppLink() async {
-    if (_activeAppLink != null || !_canOpenSettings()) return;
+    if (_activeAppLink != null || !_canOpenAppLink()) return;
     final event = _shareService.claimNextAppLink();
     if (event == null) return;
     _activeAppLink = event;
@@ -145,6 +146,23 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     super.dispose();
   }
 
+  bool _canOpenAppLink() {
+    if (!_canOpenSettings()) return false;
+    final location = GoRouter.of(context)
+        .routerDelegate
+        .currentConfiguration
+        .last
+        .matchedLocation;
+    // These workflows used to be routed dialogs. Their full-page presentation
+    // permits Settings branch changes, but an incoming import must still wait
+    // rather than push another form over the active manual draft.
+    return !{
+      AppPageDestination.serversImport,
+      AppPageDestination.serverEditor,
+      AppPageDestination.subscriptionEdit,
+    }.any((page) => location.endsWith('/${page.segment}'));
+  }
+
   bool _canOpenSettings() {
     if (!mounted || !_menusAttached) return false;
     final location = GoRouter.of(context)
@@ -168,11 +186,20 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
   }
 
   void _openSettings() {
-    if (!_canOpenSettings()) return;
-    navigationShell.goBranch(
-      AppPrimaryDestination.settings.index,
-      initialLocation: false,
-    );
+    if (_settingsNavigationScheduled || !_canOpenSettings()) return;
+    _settingsNavigationScheduled = true;
+    // go_router saves a branch's latest match list when its Shell widget is
+    // updated. Switching before a pending push builds would save the old stack
+    // and discard that page. Let it commit, then recheck popup admission.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _settingsNavigationScheduled = false;
+      if (!_canOpenSettings()) return;
+      navigationShell.goBranch(
+        AppPrimaryDestination.settings.index,
+        initialLocation: false,
+      );
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
   }
 
   void _retry() {
@@ -230,7 +257,7 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
                   appUpdateInfo,
                 );
               }
-              return _bottomNavigationScaffold(context, appUpdateInfo != null);
+              return _bottomNavigationScaffold(context);
             },
           ),
         );
@@ -238,10 +265,8 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     );
   }
 
-  Widget _bottomNavigationScaffold(
-    BuildContext context,
-    bool appUpdateAvailable,
-  ) {
+  Widget _bottomNavigationScaffold(BuildContext context) {
+    final palette = ColorManager.palette(context);
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar:
@@ -255,33 +280,96 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
                   .values[navigationShell.currentIndex]
                   .rootPath
           ? null
-          : DecoratedBox(
-              key: const ValueKey('primary-mobile-navigation'),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: ColorManager.palette(context).border),
+          : navigationShell.currentIndex == AppPrimaryDestination.settings.index
+          ? null
+          : SafeArea(
+              top: false,
+              child: Container(
+                key: const ValueKey('primary-mobile-navigation'),
+                margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: palette.card,
+                  borderRadius: BorderRadius.circular(22),
                 ),
-              ),
-              child: NavigationBar(
-                selectedIndex: navigationShell.currentIndex,
-                onDestinationSelected: (index) => context.goPrimary(
-                  navigationShell,
-                  AppPrimaryDestination.values[index],
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final primary in AppPrimaryDestination.values.where(
+                        (p) => p != AppPrimaryDestination.settings,
+                      ))
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            child: _mobileDestination(context, primary),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-                destinations: [
-                  for (final primary in AppPrimaryDestination.values)
-                    NavigationDestination(
-                      key: ValueKey('primary-navigation-${primary.name}'),
-                      icon: _navigationIcon(
-                        context,
-                        primary,
-                        appUpdateAvailable,
-                      ),
-                      label: _label(context, primary),
-                    ),
-                ],
               ),
             ),
+    );
+  }
+
+  Widget _mobileDestination(
+    BuildContext context,
+    AppPrimaryDestination primary,
+  ) {
+    final palette = ColorManager.palette(context);
+    final selected = primary.index == navigationShell.currentIndex;
+    final color = selected
+        ? palette.primaryForeground
+        : palette.mutedForeground;
+    return Semantics(
+      key: ValueKey('primary-navigation-${primary.name}'),
+      label: _label(context, primary),
+      selected: selected,
+      button: true,
+      child: Material(
+        color: selected ? palette.primarySolid : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        child: InkWell(
+          onTap: () => context.goPrimary(navigationShell, primary),
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          hoverColor: selected ? palette.primarySolid : palette.secondary,
+          child: ExcludeSemantics(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: AppLayout.touchExtent(
+                  56,
+                  platform: Theme.of(context).platform,
+                ),
+                minWidth: AppLayout.touchExtent(
+                  0,
+                  platform: Theme.of(context).platform,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(_icon(primary), size: 19, color: color),
+                    const SizedBox(height: 5),
+                    Text(
+                      _label(context, primary),
+                      textAlign: TextAlign.center,
+                      style:
+                          (selected
+                                  ? AppTypography.selectedMobileNavigationLabel
+                                  : AppTypography.mobileNavigationLabel)
+                              .copyWith(color: color),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -297,7 +385,7 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     final palette = ColorManager.palette(context);
     final nativeSidebar = DesktopWindowFrame.hasNativeSidebar(context);
     return Scaffold(
-      backgroundColor: nativeSidebar ? Colors.transparent : null,
+      backgroundColor: palette.sidebar,
       // Keep landscape cutouts outside the sidebar's usable content width.
       body: SafeArea(
         top: false,
@@ -307,41 +395,35 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
             Container(
               key: const ValueKey('primary-desktop-navigation'),
               width: sidebarWidth,
-              decoration: BoxDecoration(
-                color: nativeSidebar ? Colors.transparent : palette.sidebar,
-                border: BorderDirectional(
-                  end: BorderSide(color: palette.sidebarBorder),
-                ),
-              ),
+              color: palette.sidebar,
               child: SafeArea(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sidebarHorizontal,
-                    vertical: nativeSidebar
-                        ? AppSpacing.macOSSidebarVertical
-                        : AppSpacing.sidebarVertical,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.sidebarHorizontal,
+                    AppSpacing.sidebarVertical,
+                    AppSpacing.sidebarHorizontal,
+                    AppSpacing.sidebarBottom,
                   ),
-                  child: _sidebarContent(
-                    context,
-                    compact: compact,
-                    nativeSidebar: nativeSidebar,
-                    appUpdateInfo: appUpdateInfo,
-                  ),
+                  child: _sidebarContent(context, appUpdateInfo: appUpdateInfo),
                 ),
               ),
             ),
             Expanded(
-              child:
-                  nativeSidebar &&
-                      Directionality.of(context) == TextDirection.ltr
-                  ? MediaQuery.removePadding(
-                      context: context,
-                      removeTop: true,
-                      child: navigationShell,
-                    )
-                  // In RTL the content, not the sidebar, is below the native
-                  // controls on the physical left. Keep its local top inset.
-                  : navigationShell,
+              child: ColoredBox(
+                key: const ValueKey('primary-content'),
+                color: palette.background,
+                child:
+                    nativeSidebar &&
+                        Directionality.of(context) == TextDirection.ltr
+                    ? MediaQuery.removePadding(
+                        context: context,
+                        removeTop: true,
+                        child: navigationShell,
+                      )
+                    // In RTL the content, not the sidebar, is below the native
+                    // controls on the physical left. Keep its local top inset.
+                    : navigationShell,
+              ),
             ),
           ],
         ),
@@ -351,11 +433,10 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
 
   Widget _sidebarContent(
     BuildContext context, {
-    required bool compact,
-    required bool nativeSidebar,
     required AppUpdateInfo? appUpdateInfo,
   }) {
     final palette = ColorManager.palette(context);
+    final localizations = AppLocalizations.of(context)!;
     return LayoutBuilder(
       builder: (context, constraints) => SingleChildScrollView(
         primary: false,
@@ -370,48 +451,93 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding: EdgeInsetsDirectional.fromSTEB(
-                      compact
-                          ? AppSpacing.sidebarCompactBrandStart
-                          : AppSpacing.sidebarBrandStart,
-                      AppSpacing.sidebarBrandTop,
-                      compact
-                          ? AppSpacing.sidebarCompactBrandStart
-                          : AppSpacing.sidebarBrandStart,
-                      nativeSidebar
-                          ? AppSpacing.macOSSidebarBrandBottom
-                          : AppSpacing.sidebarBrandBottom,
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      AppSpacing.sidebarBrandStart,
+                      0,
+                      0,
+                      AppSpacing.sidebarBrandBottom,
                     ),
-                    child: Text(
-                      'OneXray',
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.desktopBrand.copyWith(
-                        color: palette.brand,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Image.asset(
+                              'assets/logo.png',
+                              width: 32,
+                              height: 32,
+                              excludeFromSemantics: true,
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                'OneXray',
+                                maxLines: 1,
+                                softWrap: false,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.desktopBrand.copyWith(
+                                  color: palette.foreground,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 9),
+                        Text(
+                          localizations.navigationTagline,
+                          style: AppTypography.sidebarTagline.copyWith(
+                            color: palette.mutedForeground,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  for (final primary in AppPrimaryDestination.values) ...[
-                    if (primary.index > 0)
-                      const SizedBox(height: AppSpacing.sidebarRowGap),
+                  _sidebarLabel(context, localizations.navigationWorkspace),
+                  for (final primary in const [
+                    AppPrimaryDestination.connect,
+                    AppPrimaryDestination.servers,
+                    AppPrimaryDestination.routing,
+                  ])
                     _desktopDestination(context, primary),
-                  ],
+                  const SizedBox(height: 22),
+                  _sidebarLabel(context, localizations.navigationSystemAndCore),
+                  for (final primary in const [
+                    AppPrimaryDestination.tunnel,
+                    AppPrimaryDestination.xray,
+                  ])
+                    _desktopDestination(context, primary),
                 ],
               ),
-              if (appUpdateInfo != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sidebarRowGap),
-                  child: _DesktopUpdateReminder(
-                    onTap: () => _showDesktopUpdate(context, appUpdateInfo),
-                  ),
-                ),
+              Column(
+                children: [
+                  _desktopDestination(context, AppPrimaryDestination.settings),
+                  if (appUpdateInfo != null)
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        top: AppSpacing.sidebarRowGap,
+                      ),
+                      child: _DesktopUpdateReminder(
+                        onTap: () => _showDesktopUpdate(context, appUpdateInfo),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
         ),
       ),
     );
   }
+
+  Widget _sidebarLabel(BuildContext context, String label) => Padding(
+    padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 0, 8),
+    child: Text(
+      label,
+      style: AppTypography.sidebarGroupLabel.copyWith(
+        color: ColorManager.palette(context).mutedForeground,
+      ),
+    ),
+  );
 
   Widget _desktopDestination(
     BuildContext context,
@@ -420,48 +546,50 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     final palette = ColorManager.palette(context);
     final selected = primary.index == navigationShell.currentIndex;
     final label = _label(context, primary);
-    final color = selected ? palette.primary : palette.mutedStrong;
-    return Semantics(
-      key: ValueKey('primary-navigation-${primary.name}'),
-      label: label,
-      selected: selected,
-      button: true,
-      child: Material(
-        color: selected ? palette.selectedSurface : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          side: BorderSide(
-            color: selected
-                ? Color.lerp(palette.border, palette.primary, .2)!
-                : Colors.transparent,
-          ),
-        ),
-        child: InkWell(
-          onTap: () => context.goPrimary(navigationShell, primary),
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          hoverColor: palette.surfaceHover,
-          child: ExcludeSemantics(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                minHeight: AppSpacing.sidebarRowHeight,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Icon(_icon(primary), size: 22, color: color),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Text(
-                        label,
-                        style:
-                            (selected
-                                    ? AppTypography.selectedNavigationLabel
-                                    : AppTypography.navigationLabel)
-                                .copyWith(color: color),
+    final color = selected ? palette.primary : palette.foreground;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sidebarRowGap),
+      child: Semantics(
+        key: ValueKey('primary-navigation-${primary.name}'),
+        label: label,
+        selected: selected,
+        button: true,
+        child: Material(
+          color: selected ? palette.card : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadii.control),
+          child: InkWell(
+            onTap: () => context.goPrimary(navigationShell, primary),
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            hoverColor: palette.surfaceHover,
+            child: ExcludeSemantics(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: AppLayout.touchExtent(
+                    AppSpacing.sidebarRowHeight,
+                    platform: Theme.of(context).platform,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(_icon(primary), size: 18, color: color),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style:
+                              (selected
+                                      ? AppTypography.selectedNavigationLabel
+                                      : AppTypography.navigationLabel)
+                                  .copyWith(color: color),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -475,24 +603,14 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     context.pushAppUpdateDialog(updateInfo);
   }
 
-  Widget _navigationIcon(
-    BuildContext context,
-    AppPrimaryDestination primary,
-    bool appUpdateAvailable,
-  ) {
-    final icon = Icon(_icon(primary));
-    if (primary != AppPrimaryDestination.settings || !appUpdateAvailable) {
-      return icon;
-    }
-    return _UpdateBadge(child: icon);
-  }
-
   IconData _icon(AppPrimaryDestination primary) {
     return switch (primary) {
-      AppPrimaryDestination.connect => LucideIcons.link,
-      AppPrimaryDestination.servers => LucideIcons.layers3,
-      AppPrimaryDestination.advanced => LucideIcons.terminal,
-      AppPrimaryDestination.settings => LucideIcons.settings,
+      AppPrimaryDestination.connect => LucideIcons.power,
+      AppPrimaryDestination.servers => LucideIcons.server,
+      AppPrimaryDestination.routing => LucideIcons.route,
+      AppPrimaryDestination.tunnel => LucideIcons.shieldCheck,
+      AppPrimaryDestination.xray => LucideIcons.activity,
+      AppPrimaryDestination.settings => LucideIcons.settings2,
     };
   }
 
@@ -501,7 +619,9 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
     return switch (primary) {
       AppPrimaryDestination.connect => localizations.prototypeConnect,
       AppPrimaryDestination.servers => localizations.prototypeServers,
-      AppPrimaryDestination.advanced => localizations.prototypeAdvanced,
+      AppPrimaryDestination.routing => localizations.navigationRouting,
+      AppPrimaryDestination.tunnel => localizations.prototypeVpnTunnel,
+      AppPrimaryDestination.xray => 'Xray',
       AppPrimaryDestination.settings => localizations.prototypeSettings,
     };
   }
@@ -524,30 +644,37 @@ class _DesktopUpdateReminder extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadii.card),
-          child: SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: AppSpacing.controlHorizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: AppLayout.touchExtent(
+                44,
+                platform: Theme.of(context).platform,
               ),
-              child: Row(
-                children: [
-                  const _UpdateBadge(
-                    child: Icon(LucideIcons.download, size: 19),
-                  ),
-                  const SizedBox(width: AppSpacing.actionGap),
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.desktopUpdateLabel.copyWith(
-                        color: palette.sidebarAccentForeground,
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: Padding(
+                padding: const EdgeInsetsDirectional.symmetric(
+                  horizontal: AppSpacing.controlHorizontal,
+                ),
+                child: Row(
+                  children: [
+                    const _UpdateBadge(
+                      child: Icon(LucideIcons.download, size: 19),
+                    ),
+                    const SizedBox(width: AppSpacing.actionGap),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.desktopUpdateLabel.copyWith(
+                          color: palette.sidebarAccentForeground,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

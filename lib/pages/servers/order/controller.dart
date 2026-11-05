@@ -12,8 +12,10 @@ class ManualOrderParams {
     required this.items,
     required this.save,
     required this.reload,
+    this.description,
   });
   final String title;
+  final String? description;
   final List<ManualOrderItem> items;
   final Future<void> Function(List<int> expectedIds, List<int> orderedIds) save;
   final Future<List<ManualOrderItem>> Function() reload;

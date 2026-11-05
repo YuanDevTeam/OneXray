@@ -1,3 +1,4 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
@@ -10,7 +11,6 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 
 class PolicyDetailScaffold extends StatelessWidget {
   final String title;
@@ -103,7 +103,7 @@ class PolicyActions extends StatelessWidget {
           ),
         PageActionBar(
           maxWidth: AppLayout.advancedMaxWidth,
-          expandDesktop: true,
+          expandDesktop: false,
           horizontalPadding: mobile
               ? (root ? 15 : null)
               : AppSpacing.advancedDesktopGutter(width),
@@ -164,15 +164,10 @@ class PolicyToggle extends StatelessWidget {
       title: title,
       subtitle: subtitle,
       titleMaxLines: 4,
-      minHeight: mobile ? 52 : 56,
-      titleStyle: mobile
-          ? AppTypography.settingsFieldTitle
-          : AppTypography.settingsRow,
-      contentPadding: EdgeInsets.symmetric(
-        horizontal: mobile ? 13 : 14,
-        vertical: 10,
-      ),
-      trailing: ShadSwitch(
+      minHeight: mobile ? 56 : 48,
+      titleStyle: AppTypography.rowTitle,
+      contentPadding: const EdgeInsets.all(12),
+      trailing: AppSwitch(
         value:
             (section == null
                     ? controller.value
@@ -210,36 +205,26 @@ class PolicyValueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    final padding = EdgeInsets.symmetric(
-      horizontal: mobile ? 13 : 14,
-      vertical: mobile ? 9 : 10,
-    );
-    final labelStyle =
-        (mobile
-                ? AppTypography.settingsValueLabel
-                : AppTypography.desktopSettingsValueLabel)
-            .merge(titleStyle);
-    final textStyle =
-        (mobile
-                ? AppTypography.settingsValue
-                : AppTypography.desktopSettingsValue)
-            .copyWith(color: ColorManager.primaryText(context))
-            .merge(valueStyle);
+    const padding = EdgeInsets.all(12);
+    final labelStyle = AppTypography.rowTitle.merge(titleStyle);
+    final textStyle = AppTypography.rowValue
+        .copyWith(color: ColorManager.primaryText(context))
+        .merge(valueStyle);
     final renderedTitleStyle = AppTypography.rowTitle
         .copyWith(color: ColorManager.primaryText(context))
         .merge(labelStyle);
-    final renderedValueStyle = AppTypography.code
+    final renderedValueStyle = AppTypography.rowValue
         .copyWith(color: ColorManager.secondaryText(context))
         .merge(textStyle);
-    final height = minHeight ?? (mobile ? 46.0 : 50.0);
+    final height = minHeight ?? (mobile ? 56.0 : 48.0);
     return SelectionArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
           final available =
               constraints.maxWidth -
               padding.horizontal -
-              (leading == null ? 0 : 31) -
-              11;
+              (leading == null ? 0 : 32) -
+              12;
           final stacked =
               _policyTextWidth(context, title, renderedTitleStyle) >
                   available * 5 / 9 ||
@@ -278,7 +263,7 @@ class PolicyValueRow extends StatelessWidget {
                       ),
                       child: leading!,
                     ),
-                    const SizedBox(width: 11),
+                    const SizedBox(width: 12),
                   ],
                   Expanded(
                     child: Column(

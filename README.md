@@ -56,7 +56,7 @@
 
 Choose the official store for your device:
 
-- **iPhone / iPad:** [App Store](https://apps.apple.com/us/app/onexray/id6745748773) — iOS / iPadOS 15+.
+- **iPhone / iPad:** [App Store](https://apps.apple.com/us/app/onexray/id6745748773) — iOS / iPadOS 16+.
 - **macOS:** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773) — macOS 13+, Apple silicon or Intel.
 - **Android phones / tablets:** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray) — Android 10+, arm64-v8a or x86_64.
 - **Windows:** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D) — Windows 10 20H2+ (x64) or Windows 11 (ARM64).
@@ -106,7 +106,13 @@ Code, translations and documentation contributions are welcome. Start with the [
 
 OneXray is licensed under the [GNU General Public License v3.0](./LICENSE), with the [OneXray VPN Provider Exception](./LICENSE-EXCEPTION).
 
-VPN service providers may build and distribute customized, closed-source clients for their own VPN services without complying with the repository's GPL requirements for the code covered by the exception. Other uses remain subject to the GPL or another applicable permission.
+VPN service providers may build and distribute dedicated, customized closed-source clients that connect exclusively to their own VPN services without complying with the repository's GPL requirements for the code covered by the exception.
+
+To qualify, the client must not include general-purpose custom-configuration or subscription features, including the ability to import or use arbitrary third-party VPN or proxy configurations or subscription URLs. Configurations and subscriptions supplied by the provider solely for access to its own VPN service are permitted. Branding the client for the provider, distributing it only to the provider's subscribers, or making the provider's service the default is not sufficient if the client can also connect to third-party services.
+
+Each closed-source client distributed under this exception must clearly acknowledge that it is based on the OneXray project and include a link to [OneXray](https://github.com/YuanDevTeam/OneXray) in a reasonably accessible part of its user interface, such as an About, Credits or Open-source Notices screen.
+
+These conditions apply to eligibility for the exception. Other uses remain subject to the GPL or another applicable permission.
 
 Yuan Dev Team guarantees that it will not introduce direct third-party dependencies that require a qualifying customized client as a whole to be GPL-licensed or to disclose its source code under the GPL. Third-party licenses and their component-specific obligations still apply; the exception only covers rights Yuan Dev Team owns or is authorized to license.
 

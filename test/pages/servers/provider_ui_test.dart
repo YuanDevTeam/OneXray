@@ -16,6 +16,7 @@ import 'package:onexray/pages/advanced/xray/config/controller.dart';
 import 'package:onexray/pages/advanced/xray/config/page.dart';
 import 'package:onexray/pages/advanced/xray/config/params.dart';
 import 'package:onexray/pages/servers/controller.dart';
+import 'package:onexray/pages/servers/details.dart';
 import 'package:onexray/pages/servers/editor/page.dart';
 import 'package:onexray/pages/servers/page.dart';
 import 'package:onexray/pages/servers/view.dart';
@@ -193,6 +194,12 @@ void main() {
                   ServerGroupPage(params: state.extra! as ServerGroupParams),
             ),
             GoRoute(
+              path: 'server-resource',
+              builder: (_, state) => ServerResourcePage(
+                params: state.extra! as ServerResourceParams,
+              ),
+            ),
+            GoRoute(
               path: 'config-file-viewer',
               builder: (_, state) => ConfigFileViewerPage(
                 params: state.extra! as ConfigFileViewerParams,
@@ -227,7 +234,9 @@ void main() {
       final l = AppLocalizations.of(
         tester.element(find.byType(ServerBrowser)),
       )!;
-      await tester.tap(find.byTooltip(l.providerChooseConfiguration));
+      final tab = find.text(l.serverCompleteConfigurationsTab).first;
+      await tester.ensureVisible(tab);
+      await tester.tap(tab);
       await tester.pumpAndSettle();
     }
   }
@@ -243,19 +252,23 @@ void main() {
     (tester) async {
       final before = (await configuration(tester)).encode();
       await open(tester);
-      final context = tester.element(find.byType(ServerGroupView));
+      final context = tester.element(find.byType(ServerBrowser));
       final l = AppLocalizations.of(context)!;
       expect((await configuration(tester)).encode(), before);
-      expect(find.text('Remnawave'), findsNWidgets(2));
+      expect(find.byType(ServerNodeRow), findsNWidgets(2));
       expect(find.text(l.prototypeTestServers), findsNothing);
       expect(find.text(l.prototypeNotTested), findsNothing);
       expect(find.text(l.prototypeTemporarilyUnavailable), findsNothing);
-      expect(find.byType(ServerUseButton), findsNothing);
+      expect(find.text(l.prototypeUseEntryServers(1)), findsNothing);
       await controller.test(context, profiles);
       expect(AppEventBus.instance.state.pinging, isFalse);
       expect(controller.state.serverTests, isEmpty);
+      await tester.tap(find.text('Profile B'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ServerResourcePage), findsOneWidget);
+      expect((await configuration(tester)).encode(), before);
       await tester.runAsync(() async {
-        await tester.tap(find.text('Profile B'));
+        await tester.tap(find.widgetWithText(FilledButton, l.prototypeUse));
         await controller.selectionComplete.future.timeout(
           const Duration(seconds: 5),
         );
@@ -274,7 +287,7 @@ void main() {
     (tester) async {
       await open(tester);
       final l = AppLocalizations.of(
-        tester.element(find.byType(ServerGroupView)),
+        tester.element(find.byType(ServerBrowser)),
       )!;
       await tester.runAsync(() => tester.tap(find.byType(ServerMenu).first));
       await tester.pumpAndSettle();
@@ -316,7 +329,7 @@ void main() {
       final before = (await configuration(tester)).encode();
       await open(tester);
       final l = AppLocalizations.of(
-        tester.element(find.byType(ServerGroupView)),
+        tester.element(find.byType(ServerBrowser)),
       )!;
       await tester.tap(find.byType(ServerMenu).first);
       await tester.pumpAndSettle();
@@ -385,9 +398,7 @@ void main() {
     tester,
   ) async {
     await open(tester);
-    final l = AppLocalizations.of(
-      tester.element(find.byType(ServerGroupView)),
-    )!;
+    final l = AppLocalizations.of(tester.element(find.byType(ServerBrowser)))!;
     await tester.tap(find.byType(ServerMenu).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text(l.prototypeShare));

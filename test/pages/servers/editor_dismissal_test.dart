@@ -9,14 +9,16 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/servers/editor/controller.dart';
 import 'package:onexray/pages/servers/editor/page.dart';
-import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
+import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
+import 'package:onexray/pages/shared/widgets/json_editor_workspace.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/server.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:re_editor/re_editor.dart';
-import 'package:shadcn_ui/shadcn_ui.dart' show ShadTheme, ShadToaster;
+import 'package:shadcn_ui/shadcn_ui.dart' show ShadCard, ShadTheme, ShadToaster;
 
 const _initial = '{"tag":"Original","protocol":"freedom"}';
 const _edited =
@@ -55,10 +57,11 @@ void main() {
   });
 
   Future<({BuildContext context, Completer<int?> result})> openEditor(
-    WidgetTester tester,
-  ) async {
+    WidgetTester tester, {
+    Size size = const Size(1200, 1000),
+  }) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(1200, 1000);
+    tester.view.physicalSize = size;
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetPhysicalSize);
     final result = Completer<int?>();
@@ -77,13 +80,10 @@ void main() {
             builder: (context) => TextButton(
               onPressed: () async {
                 final savedId = await Navigator.of(context).push<int>(
-                  DialogRoute<int>(
-                    context: context,
-                    builder: (_) => AppDialogFrame(
-                      child: ServerEditorPage(
-                        serverId: 7,
-                        createController: () => controller,
-                      ),
+                  MaterialPageRoute<int>(
+                    builder: (_) => ServerEditorPage(
+                      serverId: 7,
+                      createController: () => controller,
                     ),
                   ),
                 );
@@ -113,13 +113,13 @@ void main() {
     )!;
     switch (exit) {
       case _Exit.close:
-        await tester.tap(find.byTooltip(l.prototypeCloseDialog));
+        await tester.tap(find.byType(BackButton));
       case _Exit.cancel:
         await tester.tap(
           find.widgetWithText(ConnectDialogButton, l.prototypeCancel),
         );
       case _Exit.barrier:
-        await tester.tapAt(const Offset(10, 10));
+        await tester.tapAt(const Offset(1185, 120));
       case _Exit.back:
         await tester.binding.handlePopRoute();
       case _Exit.escape:
@@ -130,6 +130,109 @@ void main() {
     } else {
       await tester.pump(const Duration(milliseconds: 300));
     }
+  }
+
+  for (final size in const [
+    Size(390, 844),
+    Size(390, 667),
+    Size(1032, 1376),
+    Size(1160, 720),
+  ]) {
+    testWidgets(
+      'node JSON fills remaining space and keeps keyboard actions at $size',
+      (tester) async {
+        final session = await openEditor(tester, size: size);
+        final l = AppLocalizations.of(session.context)!;
+        final editor = find.byType(OutboundJsonEditor);
+        final workspace = find.byType(JsonEditorWorkspace);
+        expect(workspace, findsOneWidget);
+        expect(tester.widget<OutboundJsonEditor>(editor).expand, isTrue);
+        expect(
+          find.ancestor(of: editor, matching: find.byType(ShadCard)),
+          findsNothing,
+        );
+        expect(
+          find.ancestor(of: editor, matching: find.byType(Scrollable)),
+          findsNothing,
+        );
+        expect(
+          find.descendant(of: workspace, matching: find.text(_original.name)),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(AppBar),
+            matching: find.text(_original.name),
+          ),
+          findsNothing,
+        );
+        expect(
+          find.descendant(
+            of: workspace,
+            matching: find.text(l.prototypeXrayOutboundJson),
+          ),
+          findsOneWidget,
+        );
+        final gutter = size.width <= 720 ? 16.0 : 28.0;
+        expect(tester.getRect(editor).left, closeTo(gutter, .01));
+        expect(tester.getRect(editor).right, closeTo(size.width - gutter, .01));
+        final initialHeight = tester.getSize(editor).height;
+        tester.view.physicalSize = Size(size.width, size.height + 160);
+        await tester.pump();
+        expect(tester.getSize(editor).height, greaterThan(initialHeight + 120));
+
+        tester.view.physicalSize = size;
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        addTearDown(tester.view.resetViewInsets);
+        await tester.pump();
+        tester
+            .widget<CodeEditor>(find.byType(CodeEditor))
+            .focusNode!
+            .requestFocus();
+        await tester.pump(const Duration(milliseconds: 200));
+
+        final save = find.widgetWithText(FilledButton, l.prototypeSave);
+        expect(save.hitTestable(), findsOneWidget);
+        expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+        expect(
+          tester.getRect(save).bottom,
+          lessThanOrEqualTo(size.height - 300),
+        );
+        final actionRect = tester.getRect(save);
+        final bodyScrollers = find.ancestor(
+          of: editor,
+          matching: find.byType(Scrollable),
+        );
+        if (bodyScrollers.evaluate().isNotEmpty) {
+          final position = tester
+              .state<ScrollableState>(bodyScrollers.first)
+              .position;
+          position.jumpTo(position.maxScrollExtent);
+          await tester.pump();
+        }
+        await tester.ensureVisible(editor);
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(tester.getRect(save), actionRect);
+        expect(save.hitTestable(), findsOneWidget);
+        expect(find.byType(CodeEditor).hitTestable(), findsOneWidget);
+        expect(
+          tester.getSize(editor).height,
+          greaterThanOrEqualTo(AppLayout.jsonEditorMinHeight),
+        );
+        expect(tester.getSize(editor).height, lessThan(initialHeight));
+        expect(
+          tester
+              .getRect(find.byType(CodeEditor))
+              .overlaps(
+                Rect.fromLTRB(0, 0, size.width, tester.getRect(save).top),
+              ),
+          isTrue,
+        );
+        expect(controller.text.text, _initial);
+        expect(controller.state.dirty, isFalse);
+        expect(tester.takeException(), isNull);
+      },
+    );
   }
 
   for (final restored in [false, true]) {
@@ -182,6 +285,14 @@ void main() {
       final l = AppLocalizations.of(session.context)!;
 
       await requestExit(tester, exit);
+      if (exit == _Exit.barrier) {
+        // A full page has no dismissible barrier. Outside its bounded content
+        // remains inert; explicit Cancel still uses the same dirty guard.
+        expect(find.byType(AppConfirmationDialog), findsNothing);
+        expect(session.result.isCompleted, isFalse);
+        expect(controller.text.text, _edited);
+        await requestExit(tester, _Exit.cancel);
+      }
       expect(find.byType(AppConfirmationDialog), findsOneWidget);
       expect(session.result.isCompleted, isFalse);
       await tester.tap(find.text(l.jsonEditorKeepEditing));
@@ -193,6 +304,7 @@ void main() {
       expect(controller.state.dirty, isTrue);
 
       await requestExit(tester, exit);
+      if (exit == _Exit.barrier) await requestExit(tester, _Exit.cancel);
       await tester.tap(find.text(l.jsonEditorDiscardChanges));
       await tester.pumpAndSettle();
       expect(find.byType(ServerEditorPage), findsNothing);

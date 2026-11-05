@@ -11,6 +11,7 @@ import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/advanced/xray/geodata/view.dart';
 import 'package:onexray/pages/advanced/xray/geodata/controller.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/advanced/xray/geodata/model.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
@@ -124,6 +125,7 @@ void main() {
 
   for (final (locale, width) in const [
     (Locale('en'), 1160.0),
+    (Locale('en'), 1032.0),
     (Locale('zh'), 390.0),
     (Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'), 390.0),
     (Locale('ru'), 1160.0),
@@ -226,6 +228,14 @@ void main() {
           (custom, '3.0 MiB'),
         ]) {
           final group = find.byKey(ValueKey(file.row.id));
+          final resource = find.descendant(
+            of: group,
+            matching: find.byWidgetPredicate(
+              (widget) => widget is SettingRow && widget.title == file.fileName,
+            ),
+          );
+          expect(resource, findsOneWidget);
+          expect(tester.widget<SettingRow>(resource).onTap, isNotNull);
           for (final text in [
             file.fileName,
             file.sourceHost,
@@ -235,7 +245,7 @@ void main() {
                 .format(file.row.timestamp.toLocal()),
           ]) {
             expect(
-              find.descendant(of: group, matching: find.text(text)),
+              find.descendant(of: resource, matching: find.text(text)),
               findsOneWidget,
             );
           }
@@ -250,24 +260,12 @@ void main() {
             ),
             file.builtIn ? findsNothing : findsOneWidget,
           );
-          if (width > 720) {
-            expect(
-              find.descendant(
-                of: group,
-                matching: find.text(l.prototypeAction),
-              ),
-              file.builtIn ? findsNothing : findsOneWidget,
-            );
-            expect(
-              find.descendant(
-                of: group,
-                matching: find.text(l.prototypeFileName),
-              ),
-              findsOneWidget,
-            );
-          }
           await tester.tap(find.text(file.fileName));
         }
+        expect(
+          tester.getRect(find.text(custom.fileName)).top,
+          greaterThan(tester.getRect(find.text(builtIn.fileName)).bottom),
+        );
         await tester.tap(find.text(l.prototypeUpdate));
         await tester.tap(find.byTooltip(l.prototypeDeleteCustomDataset));
         expect(actions, [

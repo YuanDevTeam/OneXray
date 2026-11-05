@@ -5,7 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
-import 'package:onexray/pages/advanced/tunnel/page.dart';
+import 'package:onexray/pages/advanced/tunnel/details.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
@@ -42,10 +42,29 @@ Future<AppLocalizations> _mount(
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
   await tester.pumpWidget(
-    _app(VpnTunnelPane(createController: () => controller)),
+    _app(
+      Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            key: const Key('open-dns'),
+            onPressed: () => Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) => TunnelDnsPage(
+                  draft: controller.draft!.copy(),
+                  createController: () => controller,
+                ),
+              ),
+            ),
+            child: const Text('Open DNS'),
+          ),
+        ),
+      ),
+    ),
   );
   await tester.pumpAndSettle();
-  return AppLocalizations.of(tester.element(find.byType(VpnTunnelPane)))!;
+  await tester.tap(find.byKey(const Key('open-dns')));
+  await tester.pumpAndSettle();
+  return AppLocalizations.of(tester.element(find.byType(TunnelDnsPage)))!;
 }
 
 void main() {
@@ -242,13 +261,68 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('cancel discards an edited DNS draft without saving', (
+    tester,
+  ) async {
+    final original = service.configuration.policy.dnsIpv4Address;
+    final l = await _mount(tester, controller);
+    await tester.enterText(_field('ipv4'), '1.1.1.1');
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(OutlinedButton, l.prototypeCancel));
+    await tester.pumpAndSettle();
+    expect(find.byType(TunnelDnsPage), findsNothing);
+    expect(service.configuration.policy.dnsIpv4Address, original);
+    expect(service.saves, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('DNS save keeps the draft when reconnect is declined', (
+    tester,
+  ) async {
+    service.requestConfirmation = true;
+    coordinator.state.value = const ConnectionView(
+      phase: ConnectionPhase.connected,
+    );
+    final l = await _mount(tester, controller);
+    final original = service.configuration.policy.dnsIpv4Address;
+    await tester.enterText(_field('ipv4'), '1.1.1.1');
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(FilledButton, l.prototypeSaveAndReconnect),
+    );
+    // The form remains busy while confirmation is open; its spinner never settles.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byType(ShadDialog), findsOneWidget);
+    await tester.tap(find.widgetWithText(ShadButton, l.buttonCancel));
+    await tester.pumpAndSettle();
+    expect(find.byType(TunnelDnsPage), findsOneWidget);
+    expect(controller.value['dnsIpv4Address'], '1.1.1.1');
+    expect(service.configuration.policy.dnsIpv4Address, original);
+    expect(service.saves, 0);
+    await tester.tap(
+      find.widgetWithText(FilledButton, l.prototypeSaveAndReconnect),
+    );
+    // The form remains busy while confirmation is open; its spinner never settles.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(
+      find.widgetWithText(ShadButton, l.prototypeSaveAndReconnect),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(TunnelDnsPage), findsNothing);
+    expect(service.configuration.policy.dnsIpv4Address, '1.1.1.1');
+    expect(service.saves, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('closing the page cancels a pending DNS focus reveal', (
     tester,
   ) async {
     controller.update('dnsIpv4Address', 'invalid-v4');
     await _mount(tester, controller);
     await controller.save(
-      tester.element(find.byType(VpnTunnelPane)),
+      tester.element(find.byType(TunnelDnsPage)),
       pop: false,
     );
     await tester.pumpWidget(const SizedBox());
@@ -265,6 +339,7 @@ class _DnsService extends PolicyEditorService {
   ConnectionConfiguration configuration = ConnectionConfiguration();
   Object? failure;
   int saves = 0;
+  bool requestConfirmation = false;
 
   @override
   Future<PolicyEditorDraft> load() async => PolicyEditorDraft(configuration);
@@ -276,6 +351,7 @@ class _DnsService extends PolicyEditorService {
   }) async {
     final prepared = prepare(draft);
     if (failure case final error?) throw error;
+    if (requestConfirmation && !await confirm(false)) return false;
     configuration = ConnectionConfiguration(
       connection: draft.original.connection,
       policy: prepared.policy,

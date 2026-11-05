@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +8,70 @@ import 'package:onexray/service/shared/menu/short_cut/service.dart';
 
 void main() {
   final binding = TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('cold native effects suppress auto-connect before cancellation and navigation', () async {
+    final events = StreamController<void>.broadcast(sync: true);
+    addTearDown(events.close);
+    final effects = <String>[];
+    final pending = <String>[
+      jsonEncode({
+        'version': 1,
+        'suppressAutoConnect': true,
+        'openConnect': true,
+        'invalidatedPreparations': ['old-token'],
+      }),
+    ];
+    final service = AppleWidgetService.forTesting(
+      events: events.stream,
+      takeAction: () async => pending.isEmpty ? null : pending.removeAt(0),
+      setLanguage: (_) async {},
+      receive: (action) async => effects.add(action),
+      suppressAutoConnect: () => effects.add('suppress'),
+      invalidatePreparations: (tokens) =>
+          effects.add('cancel:${tokens.single}'),
+    );
+    addTearDown(service.dispose);
+    await service.initialize();
+    expect(effects, ['suppress', 'cancel:old-token', 'openConnect']);
+    events.add(null);
+    await pumpEventQueue();
+    expect(effects, ['suppress', 'cancel:old-token', 'openConnect']);
+  });
+
+  test(
+    'a handled native Stop cancels tokens without sending another stop action',
+    () async {
+      final events = StreamController<void>.broadcast(sync: true);
+      addTearDown(events.close);
+      final actions = <String>[];
+      final invalidated = <String>[];
+      final pending = <String>[];
+      var suppressed = 0;
+      final service = AppleWidgetService.forTesting(
+        events: events.stream,
+        takeAction: () async => pending.isEmpty ? null : pending.removeAt(0),
+        setLanguage: (_) async {},
+        receive: (action) async => actions.add(action),
+        suppressAutoConnect: () => suppressed++,
+        invalidatePreparations: invalidated.addAll,
+      );
+      addTearDown(service.dispose);
+      await service.initialize();
+      pending.add(
+        jsonEncode({
+          'version': 1,
+          'suppressAutoConnect': true,
+          'openConnect': false,
+          'invalidatedPreparations': ['first'],
+        }),
+      );
+      events.add(null);
+      await pumpEventQueue();
+      expect(invalidated, ['first']);
+      expect(suppressed, 1);
+      expect(actions, isEmpty);
+    },
+  );
 
   test(
     'cold intent is consumed once and suppresses launch auto-connect',

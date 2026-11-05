@@ -5,9 +5,9 @@ import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/advanced/xray/dialing/controller.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
+import 'package:onexray/pages/advanced/xray/fields.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/connect/dialing.dart';
-import 'package:shadcn_ui/shadcn_ui.dart';
 
 class ServerDialingPage extends StatelessWidget {
   const ServerDialingPage({super.key, this.createController});
@@ -27,7 +27,9 @@ class ServerDialingPage extends StatelessWidget {
         final l = AppLocalizations.of(context)!;
         final width = MediaQuery.sizeOf(context).width;
         final mobile = width <= AppLayout.mobileBreakpoint;
-        final gutter = mobile ? 14.0 : AppSpacing.advancedDesktopGutter(width);
+        final gutter = mobile
+            ? AppSpacing.mobilePage
+            : AppSpacing.advancedDesktopGutter(width);
         return PolicyDetailScaffold(
           title: l.serverDialingTitle,
           controller: controller,
@@ -53,64 +55,47 @@ class ServerDialingPage extends StatelessWidget {
                         ),
                 )
               : Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    gutter,
-                    mobile ? 14 : 48,
-                    gutter,
-                    24,
-                  ),
-                  child: Column(
+                  padding: EdgeInsets.fromLTRB(gutter, 20, gutter, 24),
+                  child: SettingSection(
+                    title: l.serverDialingParametersTitle,
+                    padding: EdgeInsets.zero,
                     children: [
-                      SettingRow(
-                        title: l.serverDialingDomainStrategy,
-                        trailing: SizedBox(
-                          width: mobile ? 165 : 210,
-                          child: SettingSelect<ServerDomainStrategy>(
-                            key: const ValueKey('server-dialing-strategy'),
-                            value: controller.dialing.domainStrategy,
-                            entries: {
-                              ServerDomainStrategy.system:
-                                  l.serverDialingSystem,
-                              ServerDomainStrategy.useIp: l.serverDialingUseIp,
-                              ServerDomainStrategy.ipv4: 'IPv4',
-                              ServerDomainStrategy.ipv6: 'IPv6',
-                              ServerDomainStrategy.ipv4First:
-                                  l.serverDialingIpv4First,
-                              ServerDomainStrategy.ipv6First:
-                                  l.serverDialingIpv6First,
-                            },
-                            onChanged: controller.blocked
-                                ? null
-                                : controller.setDomainStrategy,
-                          ),
+                      XrayLabeledField(
+                        key: const ValueKey('server-dialing-domain-field'),
+                        label: l.serverDialingDomainStrategy,
+                        child: SettingSelect<ServerDomainStrategy>(
+                          key: const ValueKey('server-dialing-strategy'),
+                          value: controller.dialing.domainStrategy,
+                          entries: {
+                            ServerDomainStrategy.system: l.serverDialingSystem,
+                            ServerDomainStrategy.useIp: l.serverDialingUseIp,
+                            ServerDomainStrategy.ipv4: 'IPv4',
+                            ServerDomainStrategy.ipv6: 'IPv6',
+                            ServerDomainStrategy.ipv4First:
+                                l.serverDialingIpv4First,
+                            ServerDomainStrategy.ipv6First:
+                                l.serverDialingIpv6First,
+                          },
+                          onChanged: controller.blocked
+                              ? null
+                              : controller.setDomainStrategy,
                         ),
                       ),
-                      const Divider(height: 1),
-                      SettingRow(
+                      const SizedBox(height: 16),
+                      XrayToggleField(
+                        switchKey: const ValueKey(
+                          'server-dialing-happy-eyeballs',
+                        ),
                         title: 'Happy Eyeballs',
-                        titleMaxLines: 3,
-                        subtitle: controller.happyEyeballsAvailable
+                        description: controller.happyEyeballsAvailable
                             ? null
                             : l.serverDialingHappyEyeballsUnavailable,
-                        enabled:
-                            !controller.blocked &&
-                            controller.happyEyeballsAvailable,
-                        trailing: Semantics(
-                          label: 'Happy Eyeballs',
-                          enabled:
-                              !controller.blocked &&
-                              controller.happyEyeballsAvailable,
-                          child: ShadSwitch(
-                            key: const ValueKey(
-                              'server-dialing-happy-eyeballs',
-                            ),
-                            value: controller.dialing.happyEyeballs,
-                            enabled:
-                                !controller.blocked &&
-                                controller.happyEyeballsAvailable,
-                            onChanged: controller.setHappyEyeballs,
-                          ),
-                        ),
+                        value: controller.dialing.happyEyeballs,
+                        onChanged:
+                            controller.blocked ||
+                                !controller.happyEyeballsAvailable
+                            ? null
+                            : controller.setHappyEyeballs,
                       ),
                     ],
                   ),

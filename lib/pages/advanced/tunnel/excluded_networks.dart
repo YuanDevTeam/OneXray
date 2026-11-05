@@ -126,7 +126,7 @@ class _ExcludedNetworksState extends State<ExcludedNetworks> {
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
                             disabledBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(vertical: 12),
                           ),
                           onChanged: (_) => _publish(),
                         ),

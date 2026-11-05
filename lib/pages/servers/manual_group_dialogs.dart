@@ -2,7 +2,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
+import 'package:onexray/pages/servers/catalog.dart';
 import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 
 /// Distinguishes a chosen virtual group from dismissing the dialog.
@@ -12,6 +14,41 @@ class ManualGroupTarget {
 }
 
 enum ManualGroupAction { rename, dissolve, delete }
+
+class ManualServerOrderScopeDialog extends StatelessWidget {
+  const ManualServerOrderScopeDialog({
+    super.key,
+    required this.groups,
+    required this.busyGroupIds,
+  });
+
+  final List<ServerGroup> groups;
+  final Set<String> busyGroupIds;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    return AppDialog(
+      title: l.manualServerOrder,
+      subtitle: l.manualOrderDisplayHint,
+      body: Column(
+        children: [
+          for (final group in groups)
+            SettingRow(
+              key: ValueKey('manual-order-scope-${group.id}'),
+              title: group.name,
+              subtitle: l.prototypeServerCount(group.rows.length),
+              leading: const Icon(LucideIcons.folder, size: 20),
+              enabled:
+                  group.rows.length >= 2 && !busyGroupIds.contains(group.id),
+              showChevron: true,
+              onTap: () => Navigator.of(context).pop(group.id),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 class ManualGroupNameDialog extends StatefulWidget {
   const ManualGroupNameDialog({super.key, this.initialName});

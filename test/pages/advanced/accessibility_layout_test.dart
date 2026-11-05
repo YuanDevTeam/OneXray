@@ -1,15 +1,21 @@
 import 'package:drift/native.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
-import 'package:onexray/pages/advanced/page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:onexray/pages/main/adaptive_shell.dart';
+import 'package:onexray/pages/main/navigation.dart';
+import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/page.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
+import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/service/advanced/policy_editor.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
@@ -76,68 +82,116 @@ void _expectCompleteText(WidgetTester tester, Finder finder) {
 }
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() async {
+    // Font geometry matters here: Ahem makes long Cyrillic labels one glyph
+    // per line. Use the same bundled font family as the production shell.
+    final font = FontLoader(AppFontFamily.sans)
+      ..addFont(rootBundle.load('packages/shadcn_ui/fonts/Geist[wght].ttf'));
+    await font.load();
+  });
+
   for (final locale in [const Locale('zh'), const Locale('ru')]) {
     for (final scale in [1.0, 3.2]) {
       testWidgets(
-        'fixed Advanced tabs fit $locale at $scale on a small phone',
+        'tunnel and Xray primary navigation stays reachable in $locale at $scale',
         (tester) async {
           _size(tester, const Size(375, 667));
-          await tester.pumpWidget(
-            _app(
-              const AdvancedPageView(
-                tunnel: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      Text('tunnel-body-start'),
-                      SizedBox(height: 1000),
-                      Text('tunnel-body-end'),
-                    ],
+          final bus = AppEventBus();
+          final router = GoRouter(
+            initialLocation: AppPrimaryDestination.tunnel.rootPath,
+            routes: [
+              StatefulShellRoute.indexedStack(
+                builder: (_, _, shell) => AdaptiveMainShell(
+                  navigationShell: shell,
+                  hasActiveModal: (_) => false,
+                  initializeServices: (_) async {},
+                ),
+                branches: [
+                  for (final primary in AppPrimaryDestination.values)
+                    StatefulShellBranch(
+                      routes: [
+                        GoRoute(
+                          path: primary.rootPath,
+                          builder: (_, _) => SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                Text('${primary.name}-body-start'),
+                                const SizedBox(height: 1000),
+                                Text('${primary.name}-body-end'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ],
+          );
+          try {
+            await tester.pumpWidget(
+              BlocProvider.value(
+                value: bus,
+                child: MaterialApp.router(
+                  routerConfig: router,
+                  theme: AppTheme.material(Brightness.light, mobile: true),
+                  locale: locale,
+                  localizationsDelegates:
+                      AppLocalePolicy.localizationsDelegates,
+                  supportedLocales: AppLocalizations.supportedLocales,
+                  builder: (context, child) => MediaQuery(
+                    data: MediaQuery.of(context)
+                        .copyWith(textScaler: TextScaler.linear(scale)),
+                    child: ShadTheme(
+                      data: AppTheme.shad(Brightness.light, mobile: true),
+                      child: child!,
+                    ),
                   ),
                 ),
-                xray: Text('xray-body'),
               ),
-              locale: locale,
-              scale: scale,
-            ),
-          );
-          await tester.pumpAndSettle();
-          final l = AppLocalizations.of(
-            tester.element(find.byType(AdvancedPageView)),
-          )!;
-          final tabs = find.byType(TabBar);
-          final tabBounds = tester.getRect(tabs);
-          for (final label in [
-            l.prototypeVpnTunnel,
-            l.prototypeXrayRuntimeDiagnostics,
-          ]) {
-            _expectCompleteText(tester, find.text(label));
-            final labelBounds = tester.getRect(find.text(label));
-            expect(labelBounds.top, greaterThanOrEqualTo(tabBounds.top));
-            expect(labelBounds.bottom, lessThanOrEqualTo(tabBounds.bottom));
+            );
+            await tester.pumpAndSettle();
+            final l = AppLocalizations.of(
+              tester.element(find.byType(AdaptiveMainShell)),
+            )!;
+            expect(find.byType(TabBar), findsNothing);
+            final navigation = find.byKey(
+              const ValueKey('primary-mobile-navigation'),
+            );
+            final navigationBounds = tester.getRect(navigation);
+            for (final (destination, label) in [
+              (AppPrimaryDestination.tunnel, l.prototypeVpnTunnel),
+              (AppPrimaryDestination.xray, 'Xray'),
+            ]) {
+              final item = find.byKey(
+                ValueKey('primary-navigation-${destination.name}'),
+              );
+              expect(tester.widget<Semantics>(item).properties.label, label);
+              expect(navigationBounds.contains(tester.getCenter(item)), isTrue);
+              await tester.tap(item);
+              await tester.pumpAndSettle();
+              expect(
+                find.text('${destination.name}-body-start'),
+                findsOneWidget,
+              );
+              expect(
+                tester.widget<Semantics>(item).properties.selected,
+                isTrue,
+              );
+              await tester.drag(
+                find.byType(SingleChildScrollView).first,
+                const Offset(0, -180),
+              );
+              await tester.pumpAndSettle();
+              expect(tester.getRect(navigation), navigationBounds);
+            }
+            expect(tester.takeException(), isNull);
+          } finally {
+            await tester.pumpWidget(const SizedBox());
+            router.dispose();
+            await bus.close();
           }
-          expect(
-            tester.getTopLeft(find.text('tunnel-body-start')).dy,
-            greaterThanOrEqualTo(tabBounds.bottom),
-          );
-          await tester.drag(
-            find
-                .ancestor(
-                  of: find.text('tunnel-body-start'),
-                  matching: find.byType(SingleChildScrollView),
-                )
-                .first,
-            const Offset(0, -180),
-          );
-          await tester.pumpAndSettle();
-          expect(tester.getRect(tabs), tabBounds);
-          await tester.ensureVisible(
-            find.text(l.prototypeXrayRuntimeDiagnostics),
-          );
-          await tester.tap(find.text(l.prototypeXrayRuntimeDiagnostics));
-          await tester.pumpAndSettle();
-          expect(find.text('xray-body'), findsOneWidget);
-          expect(tester.takeException(), isNull);
-          await tester.pumpWidget(const SizedBox());
         },
       );
     }

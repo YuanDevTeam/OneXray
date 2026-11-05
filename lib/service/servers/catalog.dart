@@ -177,12 +177,7 @@ class ServerCatalog {
       _active(row) &&
       display(row).readable;
 
-  bool selectable(CoreConfigData row) =>
-      _active(row) &&
-      display(row).readable &&
-      (row.type == CoreConfigType.Remnawave.name ||
-          row.delay == PingDelayConstants.unknown ||
-          PingDelayConstants.isSuccessful(row.delay));
+  bool selectable(CoreConfigData row) => _active(row) && display(row).readable;
 
   static Stream<ServerCatalog> watch(AppDatabase db, {AppEventBus? eventBus}) =>
       Stream.multi((sink) {

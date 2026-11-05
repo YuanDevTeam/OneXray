@@ -1,8 +1,7 @@
 "Connection" = "Подключение";
 "VPN status and actions that open OneXray." = "Статус VPN и действия с открытием OneXray.";
+"Open OneXray to perform this action." = "Откройте OneXray для выполнения этого действия.";
 "Open app" = "Открыть приложение";
-"Open app to refresh" = "Откройте для обновления";
-"Observed" = "Обновлено";
 "Start VPN" = "Старт VPN";
 "Stop VPN" = "Стоп VPN";
 "Disconnected" = "Не подключено";
@@ -12,3 +11,16 @@
 "Unknown" = "Неизвестно";
 "Start" = "Старт";
 "Stop" = "Стоп";
+"VPN" = "VPN";
+"VPN status and background actions using the last prepared configuration." = "Состояние VPN и фоновые действия с последней подготовленной конфигурацией.";
+"Start or stop VPN in the background using the last prepared configuration." = "Фоновый запуск или остановка VPN с последней подготовленной конфигурацией.";
+"Start or stop VPN" = "Запустить или остановить VPN";
+"Status pending" = "Состояние требует проверки";
+"Open OneXray to finish setup." = "Откройте OneXray для завершения настройки.";
+"This VPN action must run in OneXray." = "Это действие VPN должно выполняться в OneXray.";
+"OneXray cannot open from this system control right now." = "Сейчас невозможно открыть OneXray из этого системного элемента управления.";
+"VPN action failed." = "Не удалось выполнить действие VPN.";
+"The VPN start was cancelled." = "Запуск VPN отменён.";
+"VPN start is temporarily unavailable while app data is being updated." = "Запуск VPN временно недоступен, пока обновляются данные приложения.";
+"The VPN is still stopping." = "VPN всё ещё отключается.";
+"Unable to confirm the current VPN status." = "Не удалось определить текущее состояние VPN.";

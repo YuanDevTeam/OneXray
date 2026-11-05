@@ -1,3 +1,5 @@
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
+
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
@@ -72,7 +74,7 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
                     desktopMaxWidth: AppLayout.routingMaxWidth,
                     padding: EdgeInsetsDirectional.fromSTEB(
                       mobile ? AppSpacing.mobilePage : AppSpacing.page,
-                      mobile ? 12 : AppSpacing.desktopPageTop,
+                      16,
                       mobile ? AppSpacing.mobilePage : AppSpacing.page,
                       mobile ? 18 : AppSpacing.desktopPageBottom,
                     ),
@@ -102,11 +104,10 @@ class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
                 ),
               PageActionBar(
                 children: [
-                  if (!mobile)
-                    OutlinedButton(
-                      onPressed: () => controller.cancel(context),
-                      child: Text(l.prototypeCancel),
-                    ),
+                  OutlinedButton(
+                    onPressed: () => controller.cancel(context),
+                    child: Text(l.prototypeCancel),
+                  ),
                   FilledButton(
                     onPressed: state.busy || state.original == null
                         ? null
@@ -142,44 +143,16 @@ class SmartRoutingEditorContent extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final direct = _directSettings(context);
-      final proxy = _proxySettings(context);
-      final dns = _dnsSettings(context);
-      final sniffing = _sniffingSettings(context);
-      final preview = _preview(context, state);
-      // Account for the sidebar and page gutters before choosing two columns.
-      if (constraints.maxWidth < AppLayout.mobileBreakpoint) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 16,
-          children: [direct, proxy, dns, sniffing, preview],
-        );
-      }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 16,
-        children: [
-          Expanded(
-            child: Column(
-              key: const ValueKey('smart-routing-primary'),
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 16,
-              children: [direct, dns],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              key: const ValueKey('smart-routing-secondary'),
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 16,
-              children: [proxy, sniffing, preview],
-            ),
-          ),
-        ],
-      );
-    },
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    spacing: 20,
+    children: [
+      _directSettings(context),
+      _proxySettings(context),
+      _dnsSettings(context),
+      _sniffingSettings(context),
+      _preview(context, state),
+    ],
   );
 
   Widget _directSettings(BuildContext context) {
@@ -191,6 +164,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
         children: [
           RoutingCardHeader(
             title: l.smartRoutingDirectAndBlock,
+            icon: LucideIcons.route,
             help: [
               l.prototypeDirectPrivateAddressesHint,
               l.prototypeDirectAppleServicesHint,
@@ -211,6 +185,8 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directPrivate',
             smart.directPrivate,
             state,
+            description: l.prototypeDirectPrivateAddressesHint,
+            divider: false,
           ),
           _switch(
             l.prototypeDirectAppleServices,
@@ -218,6 +194,8 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directApple',
             smart.directApple,
             state,
+            description: l.prototypeDirectAppleServicesHint,
+            divider: false,
           ),
           _switch(
             l.directWindowsServices,
@@ -225,6 +203,8 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directWindows',
             smart.directWindows,
             state,
+            description: l.directWindowsServicesHint,
+            divider: false,
           ),
           _switch(
             l.prototypeBlockAdDomains,
@@ -232,6 +212,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'blockAds',
             smart.blockAds,
             state,
+            description: l.prototypeBlockAdDomainsHint,
             divider: false,
           ),
         ],
@@ -246,9 +227,13 @@ class SmartRoutingEditorContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          RoutingCardHeader(title: l.smartRoutingProxyConnection),
+          RoutingCardHeader(
+            title: l.smartRoutingProxyConnection,
+            icon: LucideIcons.gitBranch,
+          ),
           RoutingEntryCountRow(
             value: smart.entryCount,
+            fullWidth: true,
             onChanged: state.busy
                 ? null
                 : (count) => controller.update('entryCount', count),
@@ -257,6 +242,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
             value: smart.selection,
             enabled: !state.busy,
             entryCount: controller.effectiveEntryCount,
+            fullWidth: true,
             onChanged: (value) =>
                 controller.update('selection', value.toJson()),
           ),
@@ -316,18 +302,20 @@ class SmartRoutingEditorContent extends StatelessWidget {
     bool value,
     SmartRoutingEditorState state, {
     Widget? below,
+    String? description,
     String? help,
     bool divider = true,
   }) => RoutingSettingRow(
     icon: icon,
     title: title,
+    description: description,
     help: help,
     divider: divider,
     enabled: state.original != null && !state.busy,
     below: below,
-    trailing: Semantics(
+    leading: Semantics(
       label: title,
-      child: ShadSwitch(
+      child: AppSwitch(
         value: value,
         enabled: state.original != null && !state.busy,
         onChanged: (value) => controller.update(key, value),

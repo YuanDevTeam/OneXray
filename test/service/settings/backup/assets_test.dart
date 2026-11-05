@@ -281,6 +281,7 @@ void main() {
       connection: ConnectionSettings(
         expert: true,
         rawId: 1,
+        rememberedOrdinarySelection: const ServerSelection.source(0),
         smart: SmartRoutingSettings(
           finalExitId: 2,
           fragment: true,
@@ -316,6 +317,10 @@ void main() {
       configurationJson: jsonEncode(legacySettings),
     );
     final document = await assets.capture();
+    expect(
+      jsonEncode(document.toJson()),
+      isNot(contains('rememberedOrdinarySelection')),
+    );
     validateBackupAssets(document);
     expect(document.version, 1);
     expect(document.coreConfigs.length, 5);
@@ -394,6 +399,7 @@ void main() {
           as Map<String, dynamic>,
     );
     expect(connection.connection.expert, false);
+    expect(connection.connection.rememberedOrdinarySelection, isNull);
     expect(connection.connection.smart.finalExitId, null);
     expect(connection.connection.smart.fragment, true);
     expect(

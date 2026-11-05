@@ -1,8 +1,7 @@
 "Connection" = "Connection";
 "VPN status and actions that open OneXray." = "VPN status and actions that open OneXray.";
+"Open OneXray to perform this action." = "Open OneXray to perform this action.";
 "Open app" = "Open app";
-"Open app to refresh" = "Open app to refresh";
-"Observed" = "Observed";
 "Start VPN" = "Start VPN";
 "Stop VPN" = "Stop VPN";
 "Disconnected" = "Disconnected";
@@ -12,3 +11,16 @@
 "Unknown" = "Unknown";
 "Start" = "Start";
 "Stop" = "Stop";
+"VPN" = "VPN";
+"VPN status and background actions using the last prepared configuration." = "VPN status and background actions using the last prepared configuration.";
+"Start or stop VPN in the background using the last prepared configuration." = "Start or stop VPN in the background using the last prepared configuration.";
+"Start or stop VPN" = "Start or stop VPN";
+"Status pending" = "Status pending";
+"Open OneXray to finish setup." = "Open OneXray to finish setup.";
+"This VPN action must run in OneXray." = "This VPN action must run in OneXray.";
+"OneXray cannot open from this system control right now." = "OneXray cannot open from this system control right now.";
+"VPN action failed." = "VPN action failed.";
+"The VPN start was cancelled." = "The VPN start was cancelled.";
+"VPN start is temporarily unavailable while app data is being updated." = "VPN start is temporarily unavailable while app data is being updated.";
+"The VPN is still stopping." = "The VPN is still stopping.";
+"Unable to confirm the current VPN status." = "Unable to confirm the current VPN status.";

@@ -215,6 +215,7 @@ void main() {
     final id = await db.coreConfigDao.insertAssetRow(
       outboundCompanion(outbound),
     );
+    final stored = (await db.coreConfigDao.searchRow(id))!;
     final converted = <Map<String, dynamic>>[];
     controller = ShareController(
       SharePageParams(ShareType.config, id),
@@ -233,7 +234,12 @@ void main() {
     );
     expect(converted, [
       {
-        'outbounds': [outbound],
+        'outbounds': [
+          {
+            ...outbound,
+            'settings': {'address': 'proxy.example.test', 'port': 1080},
+          },
+        ],
       },
     ]);
     controller.selectFormat(ShareLinkFormat.onexray);
@@ -250,5 +256,54 @@ void main() {
       'socks://proxy.example.test:1080#Ordinary',
     );
     expect(controller.state.linkError, isEmpty);
+    expect((await db.coreConfigDao.searchRow(id))!, stored);
+  });
+
+  test('invalid standard SOCKS output stays unavailable while the original App Link remains usable', () async {
+    final outbound = {
+      'tag': 'Legacy SOCKS',
+      'protocol': 'socks',
+      'settings': {
+        'servers': [
+          {'address': '127.0.0.1', 'port': 18080},
+        ],
+      },
+    };
+    final id = await db.coreConfigDao.insertAssetRow(
+      outboundCompanion(outbound),
+    );
+    final stored = (await db.coreConfigDao.searchRow(id))!;
+    final qrLinks = <String>[];
+    controller = ShareController(
+      SharePageParams(ShareType.config, id),
+      database: db,
+      originalLinkEncoder: (_) async => 'socks://Og==@<nil>:0#Legacy',
+      qrEncoder: (text) async {
+        qrLinks.add(text);
+        return Uint8List.fromList([1]);
+      },
+    );
+    await controller.stream
+        .firstWhere((state) => !state.loading)
+        .timeout(const Duration(seconds: 5));
+    expect(controller.state.originalLink, isEmpty);
+    expect(controller.state.selectedLink, isEmpty);
+    expect(controller.state.linkError, isNotEmpty);
+    controller.toggleQr();
+    expect(qrLinks, isEmpty);
+    controller.selectFormat(ShareLinkFormat.onexray);
+    final link =
+        OneXrayAppLinkParser.parse(Uri.parse(controller.state.selectedLink))!
+            as OneXrayConfigLink;
+    expect(jsonDecode(link.xrayJson), {
+      'outbounds': [outbound],
+    });
+    if (controller.state.qrCode == null) {
+      await controller.stream
+          .firstWhere((state) => state.qrCode != null)
+          .timeout(const Duration(seconds: 5));
+    }
+    expect(qrLinks, [controller.state.appLink]);
+    expect((await db.coreConfigDao.searchRow(id))!, stored);
   });
 }

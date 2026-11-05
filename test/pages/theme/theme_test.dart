@@ -1,6 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -26,31 +25,33 @@ void main() {
       expect(material.iconTheme.color, palette.foreground);
       expect(material.colorScheme.error, palette.destructive);
       expect(material.colorScheme.outline, palette.border);
-      expect(material.appBarTheme.backgroundColor, palette.header);
-      expect(material.appBarTheme.foregroundColor, palette.foreground);
+      expect(material.appBarTheme.backgroundColor, palette.background);
+      expect(material.appBarTheme.foregroundColor, isNull);
       expect(material.appBarTheme.toolbarHeight, isNull);
-      expect(material.appBarTheme.centerTitle, isFalse);
-      expect(material.appBarTheme.titleTextStyle, isNull);
-      expect(material.appBarTheme.titleSpacing, AppSpacing.page);
+      expect(material.appBarTheme.centerTitle, isNull);
+      expect(material.appBarTheme.titleTextStyle?.fontSize, 22);
+      expect(material.appBarTheme.titleTextStyle?.fontWeight, FontWeight.w400);
       expect(
-        material.appBarTheme.actionsPadding,
-        const EdgeInsetsDirectional.only(end: AppSpacing.page),
+        material.appBarTheme.titleTextStyle?.fontFamily,
+        AppFontFamily.sans,
       );
-      expect(material.appBarTheme.iconTheme?.color, palette.mutedStrong);
-      expect(material.appBarTheme.iconTheme?.size, isNull);
+      expect(
+        material.appBarTheme.titleTextStyle?.fontFamilyFallback,
+        AppFontFamily.sansFallback,
+      );
+      expect(material.appBarTheme.titleTextStyle?.color, palette.foreground);
+      expect(material.appBarTheme.titleSpacing, isNull);
+      expect(material.appBarTheme.actionsPadding, isNull);
+      expect(material.appBarTheme.elevation, 0);
+      expect(material.appBarTheme.scrolledUnderElevation, 0);
+      expect(material.appBarTheme.surfaceTintColor, Colors.transparent);
+      expect(material.appBarTheme.iconTheme, isNull);
       expect(material.appBarTheme.actionsIconTheme, isNull);
-      expect(
-        material.appBarTheme.systemOverlayStyle?.statusBarColor,
-        palette.header,
-      );
-      expect(
-        material.appBarTheme.systemOverlayStyle?.statusBarIconBrightness,
-        Brightness.dark,
-      );
+      expect(material.appBarTheme.systemOverlayStyle, isNull);
       expect(material.navigationRailTheme.backgroundColor, palette.sidebar);
       expect(material.navigationBarTheme.height, isNull);
-      expect(material.tabBarTheme.labelStyle?.fontSize, isNull);
-      expect(material.tabBarTheme.unselectedLabelStyle?.fontSize, isNull);
+      expect(material.tabBarTheme.labelStyle?.fontSize, 14);
+      expect(material.tabBarTheme.unselectedLabelStyle?.fontSize, 14);
 
       expect(shad.background, palette.background);
       expect(shad.foreground, palette.foreground);
@@ -82,19 +83,24 @@ void main() {
         material.navigationBarTheme.backgroundColor,
         palette.card.withValues(alpha: 0.96),
       );
-      expect(
-        material.appBarTheme.systemOverlayStyle?.statusBarIconBrightness,
-        Brightness.light,
-      );
+      expect(material.appBarTheme.backgroundColor, palette.background);
+      expect(material.appBarTheme.surfaceTintColor, Colors.transparent);
+      expect(material.appBarTheme.elevation, 0);
+      expect(material.appBarTheme.scrolledUnderElevation, 0);
+      expect(material.appBarTheme.systemOverlayStyle, isNull);
+      expect(material.appBarTheme.titleTextStyle?.color, palette.foreground);
 
       expect(shad.background, palette.background);
       expect(shad.card, palette.card);
       expect(shad.popover, palette.popover);
-      expect(shad.border, const Color(0xFF2B3543));
-      expect(shad.input, const Color(0xFF2B3543));
-      expect(palette.primary, const Color(0xFF69A5FF));
-      expect(palette.primarySolid, const Color(0xFF1F6AF9));
-      expect(palette.foreground, const Color(0xFFF2F5F8));
+      expect(shad.border, palette.border);
+      expect(shad.input, palette.input);
+      expect(material.colorScheme.outline, shad.border);
+      expect(palette.border, const Color(0xFF35363E));
+      expect(palette.input, const Color(0xFF50525B));
+      expect(palette.primary, const Color(0xFF91B3FF));
+      expect(palette.primarySolid, const Color(0xFF3268EF));
+      expect(palette.foreground, const Color(0xFFF2F3F5));
     });
 
     test(
@@ -104,23 +110,25 @@ void main() {
         final shad = AppTheme.shad(Brightness.light);
 
         expect(material.textTheme.bodyMedium?.fontFamily, AppFontFamily.sans);
-        expect(material.textTheme.bodyMedium?.fontSize, 13);
-        expect(material.textTheme.bodySmall?.fontSize, 12);
-        expect(material.textTheme.labelSmall?.fontSize, 12);
+        expect(material.textTheme.bodyMedium?.fontSize, 14);
+        expect(material.textTheme.bodySmall?.fontSize, 13);
+        expect(material.textTheme.labelSmall?.fontSize, 13);
+        expect(material.textTheme.titleLarge?.fontSize, 16);
         expect(shad.textTheme.family, AppFontFamily.sans);
-        expect(shad.textTheme.p.fontSize, 13);
-        expect(shad.textTheme.small.fontSize, 13);
-        expect(shad.textTheme.muted.fontSize, 12);
-        expect(AppTypography.pageTitle.fontSize, 31);
-        expect(AppTypography.panelTitle.fontSize, 19);
-        expect(AppTypography.supporting.fontSize, 12);
-        expect(AppTypography.navigationLabel.fontSize, 16);
-        expect(AppTypography.badge.fontSize, 12);
+        expect(shad.textTheme.p.fontSize, 14);
+        expect(shad.textTheme.small.fontSize, 14);
+        expect(shad.textTheme.muted.fontSize, 13);
+        expect(AppTypography.pageTitle.fontSize, 26);
+        expect(AppTypography.pageTitle.fontWeight, FontWeight.w600);
+        expect(AppTypography.panelTitle.fontSize, 16);
+        expect(AppTypography.supporting.fontSize, 13);
+        expect(AppTypography.navigationLabel.fontSize, 14);
+        expect(AppTypography.badge.fontSize, 13);
         expect(AppTypography.code.fontSize, 12);
-        expect(AppTypography.metric.fontSize, 20);
+        expect(AppTypography.metric.fontSize, 22);
         for (final (style, size, weight) in [
-          (AppTypography.connectStatusTitle, 17, FontWeight.w700),
-          (AppTypography.connectButton, 16, FontWeight.w700),
+          (AppTypography.connectStatusTitle, 26, FontWeight.w600),
+          (AppTypography.connectButton, 14, FontWeight.w600),
           (AppTypography.connectCaption, 12, FontWeight.w600),
           (AppTypography.connectChoiceLabel, 12, FontWeight.w500),
           (AppTypography.connectChoiceTitle, 14, FontWeight.w600),
@@ -130,26 +138,21 @@ void main() {
           (AppTypography.connectTrafficValue, 15, FontWeight.w600),
           (AppTypography.connectRawTitle, 12, FontWeight.w700),
           (AppTypography.connectRawCount, 12, FontWeight.w600),
-          (AppTypography.dialogTitle, 18, FontWeight.w700),
+          (AppTypography.dialogTitle, 16, FontWeight.w600),
+          (AppTypography.confirmationTitle, 20, FontWeight.w600),
           (AppTypography.dialogSubtitle, 13, FontWeight.w400),
         ]) {
           expect(style.fontSize, size);
           expect(style.fontWeight, weight);
-          expect(style.height, isNull);
+          expect(style.height, 1.45);
           expect(style.fontVariations, isNull);
           expect(style.letterSpacing, isNull);
           expect(style.fontFeatures, isNull);
           expect(style.fontFamily, isNull);
           expect(style.fontFamilyFallback, AppFontFamily.sansFallback);
         }
-        expect(AppFontFamily.windowsSansFallback, [
-          'Microsoft YaHei UI',
-          'Microsoft YaHei',
-        ]);
-        expect(
-          AppFontFamily.sansFallback,
-          AppPlatform.isWindows ? AppFontFamily.windowsSansFallback : null,
-        );
+        expect(AppFontFamily.sans, 'packages/shadcn_ui/Geist');
+        expect(AppFontFamily.mono, 'packages/shadcn_ui/GeistMono');
         expect(
           material.textTheme.bodyMedium?.fontFamilyFallback,
           AppFontFamily.sansFallback,
@@ -174,7 +177,7 @@ void main() {
           expect(filled.foregroundColor!.resolve({}), Colors.white);
           expect(
             material.textButtonTheme.style!.foregroundColor!.resolve({}),
-            palette.primary,
+            palette.primaryText,
           );
           expect(shad.primaryButtonTheme.backgroundColor, palette.primarySolid);
           expect(
@@ -201,9 +204,9 @@ void main() {
             material.switchTheme.trackColor!.resolve({}),
           );
           expect(shad.switchTheme.thumbColor, Colors.white);
-          expect(shad.switchTheme.width, 42);
-          expect(shad.switchTheme.height, 24);
-          expect(shad.switchTheme.margin, 2);
+          expect(shad.switchTheme.width, 44);
+          expect(shad.switchTheme.height, 26);
+          expect(shad.switchTheme.margin, 3);
           expect(material.dialogTheme.barrierColor, palette.overlay);
           expect(
             material.navigationRailTheme.indicatorColor,
@@ -220,22 +223,23 @@ void main() {
       },
     );
 
-    test('mobile theme uses native navigation sizes and shared gutters', () {
+    test('mobile theme keeps standard AppBar and native navigation sizing', () {
       final material = AppTheme.material(Brightness.light, mobile: true);
       final shad = AppTheme.shad(Brightness.light, mobile: true);
-      expect(material.appBarTheme.titleTextStyle, isNull);
-      expect(material.appBarTheme.centerTitle, isFalse);
+      expect(material.appBarTheme.titleTextStyle?.fontSize, 22);
+      expect(material.appBarTheme.titleTextStyle?.fontWeight, FontWeight.w400);
+      expect(
+        material.appBarTheme.titleTextStyle?.fontFamily,
+        AppFontFamily.sans,
+      );
+      expect(material.appBarTheme.centerTitle, isNull);
       expect(material.appBarTheme.toolbarHeight, isNull);
-      expect(
-        material.appBarTheme.titleSpacing,
-        AppSpacing.mobileHeaderHorizontal,
-      );
-      expect(
-        material.appBarTheme.actionsPadding,
-        const EdgeInsetsDirectional.only(
-          end: AppSpacing.mobileHeaderHorizontal,
-        ),
-      );
+      expect(material.appBarTheme.titleSpacing, isNull);
+      expect(material.appBarTheme.actionsPadding, isNull);
+      expect(material.appBarTheme.backgroundColor, isNull);
+      expect(material.appBarTheme.surfaceTintColor, isNull);
+      expect(material.appBarTheme.elevation, isNull);
+      expect(material.appBarTheme.scrolledUnderElevation, isNull);
       final navigation = material.navigationBarTheme;
       expect(navigation.height, isNull);
       expect(navigation.indicatorColor, Colors.transparent);
@@ -336,8 +340,8 @@ void main() {
         primary.overlayColor!.resolve({WidgetState.pressed}),
         Colors.transparent,
       );
-      expect(primary.textStyle!.resolve({})!.fontSize, 16);
-      expect(tester.getSize(find.byType(FilledButton)).height, 45);
+      expect(primary.textStyle!.resolve({})!.fontSize, 14);
+      expect(tester.getSize(find.byType(FilledButton)).height, 48);
       expect(tester.takeException(), isNull);
     }
   });
@@ -394,7 +398,7 @@ void main() {
             tester.widget<Material>(outline).shape! as RoundedRectangleBorder;
         final filledShape =
             tester.widget<Material>(filled).shape! as RoundedRectangleBorder;
-        expect(outlineShape.borderRadius, filledShape.borderRadius);
+        expect(filledShape.borderRadius, BorderRadius.circular(AppRadii.cta));
         expect(
           outlineShape.borderRadius,
           BorderRadius.circular(AppRadii.control),

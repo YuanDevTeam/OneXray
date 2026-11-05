@@ -124,14 +124,35 @@ Widget/Tile 的缺输入打开 App 回退不用于广播。
 异常退出遗留标记在下次 `ServiceManager` 存储/协调器就绪后解除，不依赖 Setup、不自动连接，
 也不把此标记扩展成 VPN 状态缓存或普通保存/测速锁。
 
-## iOS Widget 前台动作与链接
+## iOS Widget 动作与链接
 
-iOS/iPadOS 17 起 Widget 的启动/停止使用不公开发现的前台 App Intent；App 内存接收动作，
-经原生桥交给既有快捷入口和连接协调器。冷启动与回前台均读取待处理动作，Shell 未就绪时保留最后一个动作，
-并抑制本次偏好自动连接；消费后清除，同类在途动作合并。较晚到达的停止会取消待执行启动，
-iOS 原生先排空配置准备写入再停止，不等待已提交启动的连接状态确认。
-输入仅限启动/停止，不接受配置参数、节点选择或通用 invoke，也不形成跨进程持久命令队列。
-它使用当前 App 选择，不复用 Android Widget/Tile 或 Apple 按需连接的 saved-start 路径。
+主屏幕 Widget 自 iOS/iPadOS 17 使用单个 `Button(intent: ToggleVpnWidgetIntent())`；控制中心自 18 提供单个 VPN 按钮，
+kind 为 `net.yuandev.onexray.vpn`，使用 `ControlWidgetButton` 和同一无参数切换动作，不采用 `SetValueIntent`。
+主屏未连接时显示启动，已连接或连接中显示停止；未知/过期时主屏显示未知、控制中心显示待确认，并保持可操作。iOS 16 与锁屏 accessory 仍只导航。
+这些 Intent 不公开为 Siri/App Shortcuts，`openAppWhenRun=false`；主屏幕自 17、控制中心自 18 起默认后台启停。
+Runner-only 的 `ForegroundContinuableIntent` conformance 提供主 App 进程执行路径；该协议自 16.4 可用，
+26 弃用但未移除，Widget 扩展不编译此 conformance。26 起声明 `supportedModes=[.background,.foreground(.dynamic)]`，
+27 起再用 `allowedExecutionTargets=.main` 明确限定主 App 执行。17–25 缺输入或需要授权时使用旧前台继续方法，
+26 起使用 `continueInForeground`；只有系统接受继续后才导航。API 版本决定兼容路径，设备未测范围单独记录，
+不以 27 或真机覆盖情况作为后台能力的额外门槛。
+
+原生动作每次查所属系统 VPN 配置和实际状态，并结合本进程待启动/停止状态决定操作：已连接或连接中停止，
+已断开时启动，断开中不追加启动。展示快照即使未知或过期也不决定启停目标，不对快照直接取反。
+并发 Toggle 查询不能使较后的停止意图被较早的查询或启动吞掉。启动复用最近生成的完整 `run/start.json` 与 App Group 资源，
+并恢复保存请求中的系统 profile 路由/按需策略；不读取 DB 重新选节点，不重复配置验证、端口或依赖扫描。
+只检查保存输入可读取及启动必需字段，实际 Core/资源错误由既有启动链返回；停止不依赖启动文件。
+缺 profile、输入或需要授权时只请求前台处理，前台继续获系统接受后才导航连接页，不再排队启动当前 App 选择。
+
+正常 App 连接在 Dart 准备前向 Runner 登记 preparation token，原生 `startPreparedVpn` 在同一 MainActor 临界段
+检查并消费 token、原子写入请求、准入启动；iOS 不再由 Dart 先写启动文件。Stop 淘汰旧 token，
+过期提交使用 `apple-preparation-cancelled` 类型化错误返回；Dart 不重复停止已由原生处理的连接，也不影响之后的新启动。
+清理/恢复复用现有维护入口建立原生持久 START 阻断，失败不进入数据替换；正常启动就绪后解除异常遗留标记。
+
+原生到 Dart 的 `takeAction` 返回消费一次的 JSON envelope：`version:1`、`suppressAutoConnect:bool`、
+`openConnect:bool`、`invalidatedPreparations:[String]`。它只累积启动抑制、导航和旧准备失效信息，
+不重送 start/stop，不形成持久命令队列。Dart 先抑制本次偏好自动连接，再仅取消匹配当前 token 的旧任务，
+最后处理导航；冷启动和回前台均读取，迟到旧 token 不取消新任务。系统 `connectedDate` 只校准内存运行时间，
+不改写保存输入或缓存。
 
 Widget 唯一公开 URL 为 `onexray://widget/connect`，只打开连接页，不启停 VPN。
 带查询、fragment、端口、用户信息或其他路径的地址不进入 Widget 动作入口；启停不通过 URL 参数开放。

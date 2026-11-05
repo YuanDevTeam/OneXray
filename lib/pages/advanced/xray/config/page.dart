@@ -67,7 +67,8 @@ class ConfigFileViewerView extends StatelessWidget {
                               ? AppTypography.runtimeCodeMobile
                               : AppTypography.runtimeCodeDesktop)
                           .copyWith(
-                            color: ColorManager.palette(context).mutedStrong,
+                            color: ColorManager.palette(context).foreground,
+                            fontFamily: AppFontFamily.mono,
                           ),
                 ),
               ),

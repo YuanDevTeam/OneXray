@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
-import 'package:onexray/pages/theme/color.dart';
+import 'package:onexray/pages/theme/font.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
@@ -32,22 +33,27 @@ class ContextAlert {
         backgroundColor: _dialogBackground(ctx),
         closeIcon: const SizedBox.shrink(),
         constraints: _dialogConstraints(ctx),
-        padding: const EdgeInsets.all(20),
-        gap: 20,
-        removeBorderRadiusWhenTiny: false,
+        padding: const EdgeInsets.all(24),
+        gap: 8,
+        removeBorderRadiusWhenTiny: true,
         titleTextAlign: TextAlign.start,
         descriptionTextAlign: TextAlign.start,
         scrollable: false,
         useSafeArea: false,
         actionsAxis: Axis.vertical,
         actions: [
-          ShadButton.outline(
-            child: Text(AppLocalizations.of(ctx)!.buttonCancel),
-            onPressed: () => Navigator.of(ctx).pop(false),
+          _dialogAction(
+            ctx,
+            AppLocalizations.of(ctx)!.buttonCancel,
+            () => Navigator.of(ctx).pop(false),
+            outline: true,
+            expanded: true,
           ),
-          ShadButton(
-            child: Text(AppLocalizations.of(ctx)!.buttonOpenSettings),
-            onPressed: () => Navigator.of(ctx).pop(true),
+          _dialogAction(
+            ctx,
+            AppLocalizations.of(ctx)!.buttonOpenSettings,
+            () => Navigator.of(ctx).pop(true),
+            expanded: true,
           ),
         ],
       ),
@@ -74,33 +80,100 @@ class ContextAlert {
     String? content,
     String? confirmLabel,
   }) async {
+    final l = AppLocalizations.of(context)!;
+    final confirmText = confirmLabel ?? l.buttonOK;
     final confirmed = await _showDialog<bool>(
       context: context,
-      variant: ShadDialogVariant.alert,
-      builder: (ctx) => ShadDialog.alert(
-        title: _dialogTitle(ctx, icon: LucideIcons.triangleAlert, title: title),
-        description: content == null ? null : _dialogDescription(ctx, content),
-        backgroundColor: _dialogBackground(ctx),
-        closeIcon: const SizedBox.shrink(),
-        constraints: _dialogConstraints(ctx),
-        padding: const EdgeInsets.all(20),
-        gap: 20,
-        removeBorderRadiusWhenTiny: false,
-        titleTextAlign: TextAlign.start,
-        descriptionTextAlign: TextAlign.start,
-        scrollable: false,
-        useSafeArea: false,
-        actionsAxis: Axis.vertical,
-        actions: [
-          ShadButton.outline(
-            child: Text(AppLocalizations.of(ctx)!.buttonCancel),
-            onPressed: () => Navigator.of(ctx).pop(false),
-          ),
-          ShadButton(
-            child: Text(confirmLabel ?? AppLocalizations.of(ctx)!.buttonOK),
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
+      barrierColor: Colors.black.withValues(alpha: .45),
+      builder: (ctx) => LayoutBuilder(
+        builder: (ctx, viewport) {
+          final viewportWidth = math.min(
+            MediaQuery.sizeOf(ctx).width,
+            viewport.maxWidth,
+          );
+          final width = math.min(520.0, math.max(0.0, viewportWidth - 32));
+          final vertical =
+              viewportWidth < 560 ||
+              _actionWidth(ctx, l.buttonCancel, outline: true) +
+                      _actionWidth(ctx, confirmText) +
+                      10 >
+                  width - 48;
+          return ShadDialog(
+            title: Semantics(
+              header: true,
+              child: Padding(
+                padding: EdgeInsetsDirectional.only(
+                  end:
+                      AppLayout.touchExtent(
+                        40,
+                        platform: Theme.of(ctx).platform,
+                      ) -
+                      16,
+                ),
+                child: Text(title, style: AppTypography.confirmationTitle),
+              ),
+            ),
+            description: content == null
+                ? null
+                : SelectionArea(
+                    child: Text(
+                      content,
+                      style: AppTypography.confirmationBody.copyWith(
+                        color: ShadTheme.of(ctx).colorScheme.mutedForeground,
+                      ),
+                    ),
+                  ),
+            backgroundColor: ShadTheme.of(ctx).colorScheme.card,
+            radius: BorderRadius.circular(
+              MediaQuery.sizeOf(ctx).width < 640 ? 0 : AppRadii.card,
+            ),
+            border: Border.all(color: ShadTheme.of(ctx).colorScheme.border),
+            constraints: BoxConstraints(
+              maxWidth: width,
+              maxHeight: MediaQuery.sizeOf(ctx).height * .9,
+            ),
+            padding: const EdgeInsets.all(24),
+            gap: 8,
+            actionsGap: 10,
+            removeBorderRadiusWhenTiny: true,
+            expandActionsWhenTiny: false,
+            titleTextAlign: TextAlign.start,
+            descriptionTextAlign: TextAlign.start,
+            scrollable: true,
+            actionsAxis: vertical ? Axis.vertical : Axis.horizontal,
+            closeIcon: IconButton(
+              autofocus: true,
+              tooltip: l.prototypeCloseDialog,
+              onPressed: () => Navigator.of(ctx).pop(false),
+              style: IconButton.styleFrom(
+                minimumSize: Size.square(
+                  AppLayout.touchExtent(40, platform: Theme.of(ctx).platform),
+                ),
+                maximumSize: Size.square(
+                  AppLayout.touchExtent(40, platform: Theme.of(ctx).platform),
+                ),
+                padding: EdgeInsets.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(LucideIcons.x, size: 20),
+            ),
+            actions: [
+              _dialogAction(
+                ctx,
+                l.buttonCancel,
+                () => Navigator.of(ctx).pop(false),
+                outline: true,
+                expanded: vertical,
+              ),
+              _dialogAction(
+                ctx,
+                confirmText,
+                () => Navigator.of(ctx).pop(true),
+                expanded: vertical,
+              ),
+            ],
+          );
+        },
       ),
     );
     return confirmed ?? false;
@@ -143,12 +216,13 @@ class ContextAlert {
     required BuildContext context,
     required WidgetBuilder builder,
     ShadDialogVariant variant = ShadDialogVariant.primary,
+    Color? barrierColor,
   }) {
     return showShadDialog<T>(
       context: context,
       builder: builder,
       variant: variant,
-      barrierColor: ColorManager.palette(context).overlay,
+      barrierColor: barrierColor ?? Colors.black.withValues(alpha: .8),
       barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
       opaque: false,
     );
@@ -173,7 +247,15 @@ class ContextAlert {
         maxHeight: MediaQuery.sizeOf(context).height * 0.48,
       ),
       child: SingleChildScrollView(
-        child: SelectionArea(child: Text(content, textAlign: TextAlign.start)),
+        child: SelectionArea(
+          child: Text(
+            content,
+            textAlign: TextAlign.start,
+            style: AppTypography.dialogSubtitle.copyWith(
+              color: ShadTheme.of(context).colorScheme.mutedForeground,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -187,19 +269,69 @@ class ContextAlert {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 36,
-          height: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: colors.accent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 20, color: colors.primary),
-        ),
+        Icon(icon, size: 20, color: colors.primary),
         const SizedBox(width: 12),
-        Expanded(child: Text(title, textAlign: TextAlign.start)),
+        Expanded(
+          child: Semantics(
+            header: true,
+            child: Text(
+              title,
+              textAlign: TextAlign.start,
+              style: AppTypography.dialogTitle,
+            ),
+          ),
+        ),
       ],
     );
   }
+
+  static double _actionWidth(
+    BuildContext context,
+    String label, {
+    bool outline = false,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: AppTypography.control.copyWith(fontFamily: AppFontFamily.sans),
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+    final width = painter.width.ceilToDouble() + 32 + (outline ? 2 : 0);
+    painter.dispose();
+    return width;
+  }
+
+  static Widget _dialogAction(
+    BuildContext context,
+    String label,
+    VoidCallback onPressed, {
+    bool outline = false,
+    bool expanded = false,
+  }) => ConstrainedBox(
+    constraints: BoxConstraints(
+      minHeight: AppLayout.touchExtent(
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+            ? 48
+            : 42,
+        platform: Theme.of(context).platform,
+      ),
+    ),
+    child: ShadButton.raw(
+      variant: outline ? ShadButtonVariant.outline : ShadButtonVariant.primary,
+      width: expanded
+          ? double.infinity
+          : _actionWidth(context, label, outline: outline) - (outline ? 2 : 0),
+      height: 0,
+      expands: true,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      onPressed: onPressed,
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: AppTypography.control,
+      ),
+    ),
+  );
 }

@@ -9,6 +9,7 @@ import 'package:onexray/pages/advanced/xray/config/params.dart';
 import 'package:onexray/pages/advanced/xray/log/params.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
+import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/advanced/policy_editor.dart';
@@ -220,25 +221,12 @@ class XrayRuntimeController extends PageCubit<XrayRuntimePageState> {
         coordinator: coordinator,
         base: base!,
         log: log,
-        confirmReconnect: () async =>
-            await showDialog<bool>(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: Text(l.prototypeSaveAndReconnect),
-                content: Text(l.prototypeReconnectNotice),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: Text(l.prototypeCancel),
-                  ),
-                  FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: Text(l.prototypeSaveAndReconnect),
-                  ),
-                ],
-              ),
-            ) ==
-            true,
+        confirmReconnect: () => AppConfirmationDialog(
+          title: l.prototypeSaveAndReconnect,
+          content: l.prototypeReconnectNotice,
+          cancelLabel: l.prototypeCancel,
+          confirmLabel: l.prototypeSaveAndReconnect,
+        ).show(context),
       );
       if (saved && isPageActive) {
         await load(showLoading: false);

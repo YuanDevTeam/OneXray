@@ -22,16 +22,6 @@ Future<ServerAction?> showServerActionsMenu(
   ),
 );
 
-Future<SourceAction?> showSourceActionsMenu(
-  BuildContext context, {
-  required String name,
-  required int count,
-  bool provider = false,
-}) => showAppDialog<SourceAction>(
-  context,
-  (_) => SourceActionsMenu(name: name, count: count, provider: provider),
-);
-
 /// Selects an action only; the caller keeps the controller's existing workflow.
 class ServerActionsMenu extends StatelessWidget {
   const ServerActionsMenu({
@@ -91,66 +81,6 @@ class ServerActionsMenu extends StatelessWidget {
           _menuRow(
             context,
             ServerAction.delete,
-            LucideIcons.trash2,
-            l.prototypeDelete,
-            destructive: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class SourceActionsMenu extends StatelessWidget {
-  const SourceActionsMenu({
-    super.key,
-    required this.name,
-    required this.count,
-    this.provider = false,
-  });
-
-  final String name;
-  final int count;
-  final bool provider;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    return AppDialog(
-      title: name,
-      subtitle: provider
-          ? l.providerConfigurationCount(count)
-          : l.prototypeServerCount(count),
-      body: Column(
-        children: [
-          _menuRow(
-            context,
-            SourceAction.update,
-            LucideIcons.refreshCw,
-            l.prototypeCheckForUpdates,
-          ),
-          if (!provider)
-            _menuRow(
-              context,
-              SourceAction.test,
-              LucideIcons.refreshCw,
-              l.prototypeTestServers,
-            ),
-          _menuRow(
-            context,
-            SourceAction.edit,
-            LucideIcons.pencil,
-            l.prototypeEditSubscription,
-          ),
-          _menuRow(
-            context,
-            SourceAction.share,
-            LucideIcons.share2,
-            l.prototypeShareSubscription,
-          ),
-          _menuRow(
-            context,
-            SourceAction.delete,
             LucideIcons.trash2,
             l.prototypeDelete,
             destructive: true,

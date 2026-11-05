@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:onexray/core/errors/failure.dart';
 
 import 'package:onexray/core/ffi/windows/model.dart';
@@ -14,6 +15,7 @@ import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/pigeon/model_writer.dart';
+import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
@@ -49,6 +51,10 @@ class ConnectionHostException extends AppFailure {
     : super(FailureCategory.runtime, reason);
 }
 
+final class NativePreparationCancelled extends ConnectionHostException {
+  const NativePreparationCancelled() : super('cancelled');
+}
+
 /// Native status owns VPN state. Xray metrics supplies current-session counters.
 class ConnectionRuntimeHost {
   final AppHostApi _host = AppHostApi();
@@ -59,6 +65,10 @@ class ConnectionRuntimeHost {
   _startVpn;
   final Future<void> Function(ConnectionRuntime runtime)? _writeStartFile;
   final Future<NativeVpnCommandResult> Function()? _stopVpn;
+  final AppleWidgetHostApi _appleWidgetApi;
+  final Future<NativeVpnCommandResult> Function(String, String)?
+  _startPreparedVpn;
+  final Future<int?> Function()? _connectedAtMilliseconds;
 
   ConnectionRuntimeHost({
     String? runDirectory,
@@ -68,12 +78,50 @@ class ConnectionRuntimeHost {
     startVpn,
     Future<void> Function(ConnectionRuntime runtime)? writeStartFile,
     Future<NativeVpnCommandResult> Function()? stopVpn,
+    AppleWidgetHostApi? appleWidgetApi,
+    Future<NativeVpnCommandResult> Function(String, String)? startPreparedVpn,
+    Future<int?> Function()? connectedAtMilliseconds,
   }) : _runDirectory = runDirectory,
        _readStatus = readStatus,
        _startVpn = startVpn,
        _writeStartFile = writeStartFile,
        _stopVpn = stopVpn,
+       _appleWidgetApi = appleWidgetApi ?? AppleWidgetHostApi(),
+       _startPreparedVpn = startPreparedVpn,
+       _connectedAtMilliseconds = connectedAtMilliseconds,
        _metrics = readMetrics;
+
+  Future<String?> beginPreparation() async {
+    if (!AppPlatform.isIOS) return null;
+    try {
+      return await _appleWidgetApi.beginPreparation();
+    } on PlatformException catch (error) {
+      if (error.code == 'apple-preparation-cancelled') {
+        throw const NativePreparationCancelled();
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> finishPreparation(String token) =>
+      _appleWidgetApi.finishPreparation(token);
+
+  Future<NativeVpnCommandResult> _submitPrepared(
+    String token,
+    String requestJson,
+  ) async {
+    try {
+      return await (_startPreparedVpn ?? _appleWidgetApi.startPreparedVpn)(
+        token,
+        requestJson,
+      );
+    } on PlatformException catch (error) {
+      if (error.code == 'apple-preparation-cancelled') {
+        throw const NativePreparationCancelled();
+      }
+      rethrow;
+    }
+  }
 
   String get _directory => _runDirectory ?? VpnConstants.runDir;
 
@@ -215,6 +263,20 @@ class ConnectionRuntimeHost {
     final platform = observedStatus == null
         ? await _status()
         : (status: observedStatus, permission: null, message: null);
+    if (platform.status == VpnStatus.connected &&
+        runtime?.platform == ConnectionPlatform.ios) {
+      final readConnectedAt =
+          _connectedAtMilliseconds ??
+          (_readStatus == null && _startVpn == null
+              ? _appleWidgetApi.connectedAtMilliseconds
+              : null);
+      final milliseconds = await readConnectedAt?.call();
+      if (milliseconds != null && milliseconds > 0) {
+        runtime = runtime!.withStartedAt(
+          DateTime.fromMillisecondsSinceEpoch(milliseconds),
+        );
+      }
+    }
     return HostConnection(
       platform.status,
       runtime: platform.status == VpnStatus.disconnected ? null : runtime,
@@ -257,6 +319,7 @@ class ConnectionRuntimeHost {
   Future<HostConnection> start(
     ConnectionRuntime runtime, {
     Future<void>? cancelled,
+    String? preparationToken,
   }) async {
     var wasCancelled = false;
     unawaited(
@@ -264,11 +327,15 @@ class ConnectionRuntimeHost {
         wasCancelled = true;
       }),
     );
-    final writeStartFile = _writeStartFile;
-    if (writeStartFile != null) {
-      await writeStartFile(runtime);
-    } else if (_startVpn == null) {
-      await runtime.request.writeToStartFile();
+    final preparedIos =
+        runtime.platform == ConnectionPlatform.ios && _startVpn == null;
+    if (!preparedIos) {
+      final writeStartFile = _writeStartFile;
+      if (writeStartFile != null) {
+        await writeStartFile(runtime);
+      } else if (_startVpn == null) {
+        await runtime.request.writeToStartFile();
+      }
     }
     if (cancelled != null) {
       // Observe an already completed cancellation before submitting any native
@@ -278,7 +345,18 @@ class ConnectionRuntimeHost {
     }
     // Only iOS has native admission and preparation draining for concurrent
     // Stop. Other platforms retain their serialized native-command contract.
-    final submitted = _start(runtime);
+    final Future<NativeVpnCommandResult> submitted;
+    if (preparedIos) {
+      if (preparationToken == null) {
+        throw const ConnectionHostException('preparationUnavailable');
+      }
+      submitted = _submitPrepared(
+        preparationToken,
+        jsonEncode(runtime.request.toJson()),
+      );
+    } else {
+      submitted = _start(runtime);
+    }
     final result =
         await (cancelled == null || runtime.platform != ConnectionPlatform.ios
             ? submitted

@@ -9,15 +9,17 @@ import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/servers/import/controller.dart';
 import 'package:onexray/pages/servers/subscription/form_view.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
-import 'package:onexray/pages/shared/widgets/adaptive_dialog.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/outbound_json_editor.dart';
+import 'package:onexray/pages/shared/widgets/json_editor_workspace.dart';
 import 'package:onexray/service/servers/import.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
+import 'package:onexray/pages/servers/form_page.dart';
 
 export 'controller.dart' show ServerImportAction;
 
@@ -64,62 +66,63 @@ class _ServersImportPageState extends State<ServersImportPage> {
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return PopScope(
           canPop: state.canClose,
-          child: AppDialog(
+          child: ServerFormPage(
             title: l10n.prototypeAddServersToOneXray,
             onClose: () => controller.closeFlow(context),
             body: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: EdgeInsets.all(mobile ? 14 : 20),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final width = mobile
-                          ? constraints.maxWidth
-                          : (constraints.maxWidth - 10) / 2;
-                      return Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          if (controller.supportsScan)
-                            _choice(
-                              context,
-                              width,
-                              ServerImportAction.scan,
-                              LucideIcons.qrCode,
-                              l10n.prototypeScanQrCode,
-                            ),
-                          _choice(
-                            context,
-                            width,
-                            ServerImportAction.paste,
-                            LucideIcons.clipboard,
-                            l10n.prototypePasteLink,
-                          ),
-                          _choice(
-                            context,
-                            width,
-                            ServerImportAction.subscription,
-                            LucideIcons.link,
-                            l10n.prototypeAddSubscription,
-                          ),
-                          _choice(
-                            context,
-                            width,
-                            ServerImportAction.file,
-                            LucideIcons.fileInput,
-                            l10n.prototypeImportFile,
-                          ),
-                          _choice(
-                            context,
-                            width,
-                            ServerImportAction.json,
-                            LucideIcons.fileJson,
-                            l10n.prototypeAddManually,
-                          ),
-                        ],
-                      );
-                    },
+                  padding: EdgeInsets.fromLTRB(
+                    mobile ? 16 : 28,
+                    16,
+                    mobile ? 16 : 28,
+                    0,
+                  ),
+                  child: SettingSection(
+                    title: l10n.serverImportMethods,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      if (controller.supportsScan)
+                        _choice(
+                          context,
+                          ServerImportAction.scan,
+                          LucideIcons.qrCode,
+                          l10n.prototypeScanQrCode,
+                        ),
+                      _choice(
+                        context,
+                        ServerImportAction.paste,
+                        LucideIcons.clipboard,
+                        l10n.prototypePasteLink,
+                      ),
+                      _choice(
+                        context,
+                        ServerImportAction.subscription,
+                        LucideIcons.link,
+                        l10n.prototypeAddSubscription,
+                      ),
+                      _choice(
+                        context,
+                        ServerImportAction.file,
+                        LucideIcons.fileInput,
+                        l10n.prototypeImportFile,
+                      ),
+                      _choice(
+                        context,
+                        ServerImportAction.json,
+                        LucideIcons.fileJson,
+                        l10n.prototypeAddManually,
+                        subtitle: l10n.prototypeXrayNodeJson,
+                      ),
+                      _choice(
+                        context,
+                        ServerImportAction.raw,
+                        LucideIcons.fileJson,
+                        l10n.prototypeAddRawJson,
+                        subtitle: l10n.prototypeCompleteXrayConfiguration,
+                      ),
+                    ],
                   ),
                 ),
                 _ImportFeedback(state: state),
@@ -133,66 +136,26 @@ class _ServersImportPageState extends State<ServersImportPage> {
 
   Widget _choice(
     BuildContext context,
-    double width,
     ServerImportAction action,
     IconData icon,
-    String title,
-  ) {
-    final palette = ColorManager.palette(context);
-    return SizedBox(
-      width: width,
-      child: OutlinedButton(
-        onPressed: controller.state.busy
-            ? null
-            : () => controller.open(context, action),
-        style:
-            OutlinedButton.styleFrom(
-              minimumSize: const Size(0, 74),
-              padding: const EdgeInsets.all(12),
-              textStyle: AppTypography.importMethod,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadii.card),
-              ),
-            ).copyWith(
-              foregroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.disabled)
-                    ? palette.mutedForeground
-                    : states.contains(WidgetState.hovered)
-                    ? palette.primary
-                    : palette.foreground,
-              ),
-              backgroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.hovered)
-                    ? palette.selectedSurface
-                    : palette.card,
-              ),
-              side: WidgetStateProperty.resolveWith(
-                (states) => BorderSide(
-                  color: states.contains(WidgetState.hovered)
-                      ? palette.primary
-                      : palette.border,
-                ),
-              ),
-            ),
-        child: Row(
-          children: [
-            AppActivityBuilder(
-              builder: (context, activity) =>
-                  controller.state.openingAction == action ||
-                      (controller.state.activeAction == action &&
-                          (activity.downloading || controller.state.busy))
-                  ? const ButtonProgressIndicator(size: 22)
-                  : Icon(icon, size: 22),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Text(title)),
-            const SizedBox(width: 10),
-            const Icon(LucideIcons.arrowRightDir, size: 18),
-          ],
-        ),
-      ),
-    );
-  }
+    String title, {
+    String? subtitle,
+  }) => SettingRow(
+    key: ValueKey('server-import-choice-${action.name}'),
+    title: title,
+    subtitle: subtitle,
+    enabled: !controller.state.busy,
+    showChevron: true,
+    onTap: () => controller.open(context, action),
+    leading: AppActivityBuilder(
+      builder: (context, activity) =>
+          controller.state.openingAction == action ||
+              (controller.state.activeAction == action &&
+                  (activity.downloading || controller.state.busy))
+          ? const ButtonProgressIndicator(size: 20)
+          : Icon(icon, size: 20),
+    ),
+  );
 }
 
 class ServerImportFormPage extends StatelessWidget {
@@ -220,7 +183,7 @@ class ServerImportFormPage extends StatelessWidget {
             MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
         return PopScope(
           canPop: state.canClose,
-          child: AppDialog(
+          child: ServerFormPage(
             title: subscription
                 ? controller.editingSubscription
                       ? l10n.prototypeEditSubscription
@@ -228,35 +191,48 @@ class ServerImportFormPage extends StatelessWidget {
                 : manual
                 ? l10n.prototypeAddManually
                 : l10n.prototypePasteLink,
-            subtitle: controller.editingSubscription
-                ? l10n.prototypeChangesApplyToFutureUpdates
-                : null,
             onBack: onBack,
             onClose: onClose ?? () => controller.closeFlow(context),
-            body: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (subscription)
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      mobile ? 16 : 20,
-                      20,
-                      mobile ? 16 : 20,
-                      0,
-                    ),
-                    child: _subscription(context),
-                  )
-                else if (manual)
-                  _manual(context, mobile: mobile)
-                else
-                  _paste(context),
-                _ImportFeedback(state: state, showError: !manual),
-                ConnectCallout(
-                  icon: LucideIcons.lockKeyhole,
-                  text: l10n.prototypeLocalInputPrivacy,
-                ),
-              ],
-            ),
+            expandBody: manual,
+            body: manual
+                ? _manual(context)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (subscription)
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            mobile ? 16 : 28,
+                            16,
+                            mobile ? 16 : 28,
+                            0,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (controller.editingSubscription) ...[
+                                Text(
+                                  l10n.prototypeChangesApplyToFutureUpdates,
+                                  style: AppTypography.supporting.copyWith(
+                                    color: ColorManager.palette(context)
+                                        .mutedForeground,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                              ],
+                              _subscription(context),
+                            ],
+                          ),
+                        )
+                      else
+                        _paste(context),
+                      _ImportFeedback(state: state, showError: !manual),
+                      ConnectCallout(
+                        icon: LucideIcons.lockKeyhole,
+                        text: l10n.prototypeLocalInputPrivacy,
+                      ),
+                    ],
+                  ),
             actions: [
               ConnectDialogButton(
                 label: l10n.prototypeCancel,
@@ -294,81 +270,94 @@ class ServerImportFormPage extends StatelessWidget {
   Widget _paste(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
+    final gutter =
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+        ? 16.0
+        : 28.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      child: Column(
-        spacing: 8,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: EdgeInsets.fromLTRB(gutter, 16, gutter, 0),
+      child: SettingSection(
+        title: l10n.prototypeImportLinks,
+        padding: EdgeInsets.zero,
         children: [
-          Text(
-            l10n.prototypeImportLinks,
-            style: AppTypography.importField.copyWith(
-              color: palette.mutedStrong,
-            ),
-          ),
-          SizedBox(
-            height: 120,
-            child: Directionality(
-              textDirection: TextDirection.ltr,
-              child: ShadInput(
-                controller: controller.text,
-                placeholder: const Text(
-                  'vless://, vmess://, trojan://, ss://, https://, onexray://',
+          Column(
+            spacing: 8,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.prototypePasteLink,
+                style: AppTypography.fieldLabel.copyWith(
+                  color: palette.foreground,
                 ),
-                expands: true,
-                editableTextSize: const Size(double.infinity, 98),
-                maxLines: null,
-                minLines: null,
-                autocorrect: false,
-                enableSuggestions: false,
-                keyboardType: TextInputType.multiline,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                style: AppTypography.importField,
               ),
-            ),
-          ),
-          Text(
-            l10n.prototypeImportLinksHint,
-            style: AppTypography.importHint.copyWith(
-              color: palette.mutedForeground,
-            ),
+              SizedBox(
+                height: 120,
+                child: Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: ShadInput(
+                    controller: controller.text,
+                    placeholder: const Text(
+                      'vless://, vmess://, trojan://, ss://, https://, onexray://',
+                    ),
+                    expands: true,
+                    editableTextSize: const Size(double.infinity, 98),
+                    maxLines: null,
+                    minLines: null,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    keyboardType: TextInputType.multiline,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    style: AppTypography.rowValue,
+                  ),
+                ),
+              ),
+              Text(
+                l10n.prototypeImportLinksHint,
+                style: AppTypography.importHint.copyWith(
+                  color: palette.mutedForeground,
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _manual(BuildContext context, {required bool mobile}) {
+  Widget _manual(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
-    return Padding(
-      padding: EdgeInsets.fromLTRB(mobile ? 16 : 20, 20, mobile ? 16 : 20, 0),
-      child: Column(
-        spacing: 7,
+    return JsonEditorWorkspace(
+      header: Text(
+        l10n.prototypeXrayNodeJson,
+        style: AppTypography.fieldLabel.copyWith(color: palette.foreground),
+      ),
+      editor: OutboundJsonEditor(
+        controller: controller.jsonText,
+        expand: true,
+        diagnostic:
+            controller.state.jsonDiagnostic ??
+            (controller.state.error == null
+                ? null
+                : JsonDiagnostic(controller.state.error!)),
+      ),
+      footer: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            l10n.prototypeXrayNodeJson,
-            style: AppTypography.subscriptionField.copyWith(
-              color: palette.mutedStrong,
-            ),
-          ),
-          OutboundJsonEditor(
-            controller: controller.jsonText,
-            diagnostic:
-                controller.state.jsonDiagnostic ??
-                (controller.state.error == null
-                    ? null
-                    : JsonDiagnostic(controller.state.error!)),
-          ),
           Text(
             l10n.prototypeNodeJsonHint,
             style: AppTypography.importJsonHint.copyWith(
               color: palette.mutedForeground,
             ),
+          ),
+          _ImportFeedback(state: controller.state, showError: false),
+          ConnectCallout(
+            icon: LucideIcons.lockKeyhole,
+            text: l10n.prototypeLocalInputPrivacy,
           ),
         ],
       ),
@@ -479,6 +468,14 @@ class ServerImportPreviewPage extends StatelessWidget {
         final l10n = AppLocalizations.of(context)!;
         final palette = ColorManager.palette(context);
         final committed = state.committedResult;
+        final incomplete = committed != null && committed.writeFailureCount > 0;
+        final completedCount = committed == null
+            ? 0
+            : committed.count +
+                  committed.rawCount +
+                  committed.customCount +
+                  committed.geoDataCount +
+                  preview.assets.length;
         final itemCount =
             preview.rows.length +
             preview.raw.length +
@@ -492,7 +489,7 @@ class ServerImportPreviewPage extends StatelessWidget {
               controller.closeFlow(context);
             }
           },
-          child: AppDialog(
+          child: ServerFormPage(
             title: l10n.prototypeImportPreview,
             onBack: committed == null ? onBack : null,
             onClose: onClose ?? () => controller.closeFlow(context),
@@ -503,16 +500,31 @@ class ServerImportPreviewPage extends StatelessWidget {
                   margin: const EdgeInsets.all(20),
                   padding: const EdgeInsets.all(17),
                   decoration: BoxDecoration(
-                    color: palette.runningSurface,
+                    color: committed == null
+                        ? palette.card
+                        : incomplete
+                        ? palette.destructiveSurface
+                        : palette.runningSurface,
+                    border: committed == null
+                        ? Border.all(color: palette.border)
+                        : null,
                     borderRadius: BorderRadius.circular(AppRadii.card),
                   ),
                   child: Row(
                     spacing: 13,
                     children: [
                       Icon(
-                        LucideIcons.circleCheck,
+                        committed == null
+                            ? LucideIcons.list
+                            : incomplete
+                            ? LucideIcons.triangleAlert
+                            : LucideIcons.circleCheck,
                         size: 26,
-                        color: palette.running,
+                        color: committed == null
+                            ? palette.mutedStrong
+                            : incomplete
+                            ? palette.destructive
+                            : palette.running,
                       ),
                       Expanded(
                         child: Column(
@@ -520,16 +532,25 @@ class ServerImportPreviewPage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              l10n.prototypeImportedLinks,
+                              committed == null
+                                  ? l10n.importPreviewPending
+                                  : incomplete
+                                  ? l10n.importPreviewIncomplete
+                                  : l10n.prototypeImportedLinks,
                               style: AppTypography.importSummary,
                             ),
                             Text(
-                              l10n.prototypeItemCount(itemCount),
+                              committed == null
+                                  ? l10n.prototypeItemCount(itemCount)
+                                  : l10n.importPreviewResultSummary(
+                                      completedCount,
+                                      committed.writeFailureCount,
+                                    ),
                               style: AppTypography.importSummaryMeta.copyWith(
                                 color: palette.mutedForeground,
                               ),
                             ),
-                            if (committed != null && preview.count > 0)
+                            if (committed != null && committed.count > 0)
                               Text(
                                 l10n.prototypeServersAdded,
                                 style: AppTypography.importSummaryMeta.copyWith(
@@ -579,7 +600,7 @@ class ServerImportPreviewPage extends StatelessWidget {
                             description: committed == null
                                 ? l10n.prototypeDataSource
                                 : committed.failedGeoData.contains(source)
-                                ? l10n.prototypeCannotReadContent
+                                ? l10n.resultFailed
                                 : l10n.prototypeGeodataAdded,
                             failed:
                                 committed?.failedGeoData.contains(source) ??
@@ -609,7 +630,10 @@ class ServerImportPreviewPage extends StatelessWidget {
                         Expanded(
                           child: _stat(
                             context,
-                            l10n.prototypeUsableNodes(preview.count),
+                            l10n.prototypeUsableNodes(
+                              committed?.count ?? preview.count,
+                            ),
+                            committed: committed != null,
                           ),
                         ),
                       ],
@@ -649,17 +673,19 @@ class ServerImportPreviewPage extends StatelessWidget {
     ),
   );
 
-  Widget _stat(BuildContext context, String text) {
+  Widget _stat(BuildContext context, String text, {required bool committed}) {
     final palette = ColorManager.palette(context);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: palette.runningSurface,
+        color: committed ? palette.runningSurface : palette.surfaceHover,
         borderRadius: BorderRadius.circular(AppRadii.control),
       ),
       child: Text(
         text,
-        style: AppTypography.importStat.copyWith(color: palette.running),
+        style: AppTypography.importStat.copyWith(
+          color: committed ? palette.running : palette.mutedStrong,
+        ),
       ),
     );
   }
@@ -774,7 +800,7 @@ class _ImportFeedback extends StatelessWidget {
           for (final item in state.subscriptionImports)
             Text(
               item.result.success
-                  ? '${item.name}: ${l10n.prototypeUsableNodes(item.result.count)}'
+                  ? '${item.name}: ${state.subscriptionImportSummary(l10n, item)}'
                   : '${item.name}: ${ServerImportController.subscriptionError(l10n, item.result.status, error: item.result.error)}',
               style: AppTypography.importHint.copyWith(
                 color: item.result.success

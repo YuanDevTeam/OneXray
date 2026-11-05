@@ -81,6 +81,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text(l.lanProxySecurityHint), findsOneWidget);
       expect(find.text(l.lanProxyNextStartNotice), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.text(l.lanProxyNextStartNotice),
+        ),
+        findsNothing,
+      );
       expect(find.text(l.prototypeSave), findsOneWidget);
       expect(find.text(l.prototypeSaveAndReconnect), findsNothing);
       expect(find.text('0.0.0.0'), findsOneWidget);
@@ -195,7 +202,6 @@ void main() {
               onGeodata: (_) {},
               onUpdates: (_) {},
               onSpeedTest: (_) {},
-              onLog: (_, _) {},
               onConfig: (_, _) {},
               onLanProxy: (_) async {},
             ),

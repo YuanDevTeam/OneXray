@@ -13,6 +13,7 @@ xcrun swiftc \
   -Xlinker -rpath -Xlinker "$platform/Developer/usr/lib" \
   swift/iOS/AppleWidgetState.swift swift/iOS/AppleWidgetActionInbox.swift \
   swift/iOS/AppleVpnStartAdmission.swift \
+  swift/iOS/AppleWidgetVpnActions.swift \
   test/native/AppleWidgetTests.swift \
   -o "$evidence/apple-widget-tests"
 "$evidence/apple-widget-tests"

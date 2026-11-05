@@ -29,6 +29,7 @@ class SettingsPageState {
   final bool saving;
   final bool checkingUpdate;
   final bool clearingData;
+  final String cleanupScope;
   final bool addingWidget;
   final Object? failure;
   const SettingsPageState({
@@ -40,6 +41,7 @@ class SettingsPageState {
     this.saving = false,
     this.checkingUpdate = false,
     this.clearingData = false,
+    this.cleanupScope = '',
     this.addingWidget = false,
     this.failure,
   });
@@ -53,6 +55,7 @@ class SettingsPageState {
     bool? saving,
     bool? checkingUpdate,
     bool? clearingData,
+    String? cleanupScope,
     bool? addingWidget,
     Object? failure,
     bool clearFailure = false,
@@ -65,6 +68,7 @@ class SettingsPageState {
     saving: saving ?? this.saving,
     checkingUpdate: checkingUpdate ?? this.checkingUpdate,
     clearingData: clearingData ?? this.clearingData,
+    cleanupScope: cleanupScope ?? this.cleanupScope,
     addingWidget: addingWidget ?? this.addingWidget,
     failure: clearFailure ? null : failure ?? this.failure,
   );
@@ -72,6 +76,7 @@ class SettingsPageState {
 
 enum SettingsLink {
   documentation,
+  releaseNotes,
   review,
   community,
   feedback,
@@ -146,7 +151,9 @@ class SettingsController extends PageCubit<SettingsPageState> {
     AppPageDestination destination,
   ) async {
     await context.pushScoped(destination);
-    if (isPageActive && destination == AppPageDestination.appIcon) {
+    if (isPageActive &&
+        (destination == AppPageDestination.appIcon ||
+            destination == AppPageDestination.desktopSettings)) {
       await _readPreferences();
     }
   }
@@ -207,14 +214,27 @@ class SettingsController extends PageCubit<SettingsPageState> {
     }
   }
 
-  Future<void> clearData(BuildContext context) async {
+  Future<void> clearData(
+    BuildContext context, {
+    bool resourcesOnly = false,
+  }) async {
     if (state.clearingData) return;
     final l10n = AppLocalizations.of(context)!;
-    emit(state.copyWith(clearingData: true, clearFailure: true));
+    emit(
+      state.copyWith(
+        clearingData: true,
+        cleanupScope: resourcesOnly ? 'resources' : 'all',
+        clearFailure: true,
+      ),
+    );
     try {
       if (!await AppConfirmationDialog(
-            title: l10n.prototypeClearAllDataQuestion,
-            content: l10n.prototypeClearAllDataWarning,
+            title: resourcesOnly
+                ? l10n.clearConnectionResources
+                : l10n.prototypeClearAllDataQuestion,
+            content: resourcesOnly
+                ? l10n.clearConnectionResourcesWarning
+                : l10n.prototypeClearAllDataWarning,
             cancelLabel: l10n.prototypeCancel,
             confirmLabel: l10n.prototypeConfirmClearData,
             destructive: true,
@@ -223,16 +243,23 @@ class SettingsController extends PageCubit<SettingsPageState> {
           !context.mounted) {
         return;
       }
-      if (await AppDataCleanupService().clearFromSettings()) {
-        AppStartupService().suppressConnectOnAppLaunch();
-        emit(state.copyWith(connectOnLaunch: false));
+      if (await (resourcesOnly
+          ? AppDataCleanupService().clearConnectionResources()
+          : AppDataCleanupService().clearFromSettings())) {
+        if (context.mounted) {
+          ContextAlert.showToast(context, l10n.prototypeDone);
+        }
+        if (!resourcesOnly) {
+          AppStartupService().suppressConnectOnAppLaunch();
+          emit(state.copyWith(connectOnLaunch: false));
+        }
       } else if (context.mounted) {
         _showUnavailable(context);
       }
     } catch (error) {
       if (context.mounted) _showUnavailable(context, error);
     } finally {
-      emit(state.copyWith(clearingData: false));
+      emit(state.copyWith(clearingData: false, cleanupScope: ''));
     }
   }
 
@@ -249,6 +276,9 @@ class SettingsController extends PageCubit<SettingsPageState> {
     emit(state.copyWith(clearFailure: true));
     final uri = switch (link) {
       SettingsLink.documentation => DocURLHelper.docUri(),
+      SettingsLink.releaseNotes => Uri.parse(
+        'https://github.com/YuanDevTeam/OneXray/releases',
+      ),
       SettingsLink.review => null,
       SettingsLink.community => Uri.parse('https://t.me/YuanDevTeam'),
       SettingsLink.feedback => Uri.parse(
