@@ -219,7 +219,9 @@ build jobs together.
   The workflow pipes `komac update --dry-run` output through `awk` to save separate
   YAML files by manifest type and locale; dry-run returns before handling `--output`.
   [winget_manifest.py](winget_manifest.py) retains identity, release URL and user
-  installation policy checks. Komac supplies the schema-required `InstallerSha256`;
+  installation policy checks. Manifests must share a numeric schema version and
+  pass Microsoft's JSON schema for that declared version; the helper does not
+  rewrite the generator's `ManifestVersion`. Komac supplies the schema-required `InstallerSha256`;
   no extra comparison with GitHub asset digests is performed. Before submission,
   `komac sync-fork` updates the organization fork using the same PAT and
   `KOMAC_FORK_OWNER` as the final submit. Fork synchronization changes GitHub;

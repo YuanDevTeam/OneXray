@@ -6,7 +6,6 @@ from winget_manifest import (
     INSTALL_DIRECTORY,
     INSTALLER_NAMES,
     PACKAGE_ID,
-    SCHEMA_VERSION,
     fix_installer,
     validate_manifests,
 )
@@ -29,7 +28,7 @@ class WingetManifestTest(unittest.TestCase):
         base = {
             "PackageIdentifier": PACKAGE_ID,
             "PackageVersion": "26.9.3",
-            "ManifestVersion": SCHEMA_VERSION,
+            "ManifestVersion": "1.12.0",
         }
         self.generated = base | {
             "ManifestType": "installer",
@@ -152,6 +151,23 @@ class WingetManifestTest(unittest.TestCase):
         for field in ("draft", "prerelease"):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 validate_manifests(self.manifests, self.release | {field: True})
+
+    def test_accepts_a_consistent_generator_schema_version(self):
+        for version in ("1.10.0", "1.12.0", "1.28.0"):
+            with self.subTest(version=version):
+                manifests = deepcopy(self.manifests)
+                for manifest in manifests:
+                    manifest["ManifestVersion"] = version
+                validate_manifests(manifests, self.release)
+
+    def test_rejects_unsafe_or_missing_schema_versions(self):
+        for version in (None, "", "v1.12.0", "../1.12.0", "1.12.0?raw=1", 1.12):
+            with self.subTest(version=version):
+                manifests = deepcopy(self.manifests)
+                for manifest in manifests:
+                    manifest["ManifestVersion"] = version
+                with self.assertRaises(ValueError):
+                    validate_manifests(manifests, self.release)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@
 
 import argparse
 import json
+import re
 from collections import Counter
 from copy import deepcopy
 from pathlib import Path
@@ -19,7 +20,6 @@ INSTALLER_NAMES = {
     "x64": "OneXray-windows-amd64.exe",
     "arm64": "OneXray-windows-arm64.exe",
 }
-SCHEMA_VERSION = "1.12.0"
 
 
 def fix_installer(manifest):
@@ -56,8 +56,13 @@ def validate_manifests(manifests, release):
     for item in manifests:
         if item.get("PackageIdentifier") != PACKAGE_ID or item.get("PackageVersion") != version:
             raise ValueError("Manifest package/version does not match the release")
-        if item.get("ManifestVersion") != SCHEMA_VERSION:
-            raise ValueError(f"Expected manifest schema {SCHEMA_VERSION}")
+        schema_version = item.get("ManifestVersion")
+        if not isinstance(schema_version, str) or not re.fullmatch(
+            r"[0-9]+\.[0-9]+\.[0-9]+", schema_version
+        ):
+            raise ValueError("Expected a numeric manifest schema version")
+        if schema_version != manifests[0].get("ManifestVersion"):
+            raise ValueError("All manifests must use the same schema version")
     by_type = {item["ManifestType"]: item for item in manifests}
     if by_type["version"]["DefaultLocale"] != by_type["defaultLocale"]["PackageLocale"]:
         raise ValueError("DefaultLocale does not match the default locale manifest")
@@ -129,6 +134,7 @@ def validate_directory(directory, release):
     validate_manifests(manifests, release)
     for path, manifest in zip(paths, manifests):
         kind = manifest["ManifestType"]
+        schema_version = manifest["ManifestVersion"]
         suffix = {
             "installer": ".installer",
             "version": "",
@@ -139,7 +145,7 @@ def validate_directory(directory, release):
             raise ValueError(f"Unexpected manifest filename: {path.name}")
         url = (
             "https://raw.githubusercontent.com/microsoft/winget-cli/master/schemas/JSON/manifests/"
-            f"v{SCHEMA_VERSION}/manifest.{kind}.{SCHEMA_VERSION}.json"
+            f"v{schema_version}/manifest.{kind}.{schema_version}.json"
         )
         with urlopen(url, timeout=30) as response:
             schema = json.load(response)
