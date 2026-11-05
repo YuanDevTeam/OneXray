@@ -161,7 +161,7 @@ void main() {
         } else {
           await Directory(error).create();
         }
-      await expectLater(api.clearLogs(), throwsA(isA<FileSystemException>()));
+        await expectLater(api.clearLogs(), throwsA(isA<FileSystemException>()));
         expect(await access.readAsString(), 'old access');
         if (link) {
           expect(
