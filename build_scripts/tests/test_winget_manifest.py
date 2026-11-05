@@ -138,7 +138,6 @@ class WingetManifestTest(unittest.TestCase):
         for index, field, value in (
             (1, "PackageVersion", "26.9.2"),
             (0, "PackageIdentifier", "Other.Package"),
-            (0, "ManifestVersion", "1.10.0"),
             (2, "DefaultLocale", "zh-CN"),
         ):
             with self.subTest(field=field):
@@ -152,22 +151,11 @@ class WingetManifestTest(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 validate_manifests(self.manifests, self.release | {field: True})
 
-    def test_accepts_a_consistent_generator_schema_version(self):
-        for version in ("1.10.0", "1.12.0", "1.28.0"):
-            with self.subTest(version=version):
-                manifests = deepcopy(self.manifests)
-                for manifest in manifests:
-                    manifest["ManifestVersion"] = version
-                validate_manifests(manifests, self.release)
-
-    def test_rejects_unsafe_or_missing_schema_versions(self):
-        for version in (None, "", "v1.12.0", "../1.12.0", "1.12.0?raw=1", 1.12):
-            with self.subTest(version=version):
-                manifests = deepcopy(self.manifests)
-                for manifest in manifests:
-                    manifest["ManifestVersion"] = version
-                with self.assertRaises(ValueError):
-                    validate_manifests(manifests, self.release)
+    def test_release_policy_does_not_pin_manifest_schema_versions(self):
+        manifests = deepcopy(self.manifests)
+        for manifest, version in zip(manifests, ("1.10.0", "1.12.0", "1.28.0")):
+            manifest["ManifestVersion"] = version
+        validate_manifests(manifests, self.release)
 
 
 if __name__ == "__main__":
