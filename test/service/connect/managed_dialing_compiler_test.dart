@@ -871,8 +871,8 @@ void _expectBootstrap(
       .where((server) => server['tag'] == 'app-dns-bootstrap')
       .toList();
   expect(bootstrap.map((server) => server['address']), [
-    '8.8.8.8',
-    if (ipv6) '2001:4860:4860::8888',
+    'tcp://8.8.8.8',
+    if (ipv6) 'tcp://[2001:4860:4860::8888]',
   ]);
   expect(servers.take(bootstrap.length), bootstrap);
   for (final (index, server) in bootstrap.indexed) {

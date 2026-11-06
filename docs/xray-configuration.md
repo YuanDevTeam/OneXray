@@ -56,8 +56,8 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 ### DNS
 
 智能和常规自定义分别保存代理/直连主 resolver 地址及同出口有序备用列表。
-旧设置缺新增字段时两组主地址均为 `8.8.8.8`，全局缓存开启，
-相同出口备用默认关闭。智能直连 DNS 关闭保留已填值，运行不派生直连 DNS 匹配。
+App 托管的缺省代理和直连 resolver 均为 `tcp://8.8.8.8`，全部使用 VPN 同样采用该缺省代理 resolver。
+全局缓存默认开启，相同出口备用默认关闭。智能直连 DNS 关闭保留已填值，运行不派生直连 DNS 匹配。
 使用固定 `app-dns-proxy` / `app-dns-direct` tag 区分出口，DNS 规则来自同一份有序路由规则。
 只投影无 IP/端口/网络/协议/系统/入站等附加条件的 proxy/direct 域名规则，因为查询不掌握后续连接条件。
 代理例外先于宽泛直连分类；代理策略块末尾的真实 resolver 使用 `finalQuery`，不回退到直连 DNS。
@@ -75,12 +75,18 @@ Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；�
 按需生成的服务器域名引导 DNS 独立直连，见 [服务器拨号](#服务器拨号)。
 智能与常规自定义各自保存“其它 DNS 查询”策略，缺省为代理，包括旧设置和旧普通分享。
 A/AAAA 始终劫持到内置 DNS；其它记录可选代理、显式直连或返回 NOERROR 空答案。
+App 生成的 `dnsOut` 使用 `settings.rewriteNetwork: tcp`，转发查询转换为 TCP DNS，
+响应按客户端原来的 UDP/TCP 格式返回；仅改写传输网络，保留原目标地址、端口与所选出口。
+返回空答案的策略不因此建立上游连接；该转换也不会使 HTTP 代理支持通用 UDP 或 QUIC。
 代理保留原查询目标，经 `app-dns-forward` loopback 和前置同名入站规则进入已有 `proxy` balancer，
 不改用代理 resolver 地址，也不受智能直连 DNS 开关影响；局域网 resolver 需用户自行选择可达的出口。
 该辅助出站不进入节点映射或观察范围，不监听端口；普通代理选路失败不隐式回退 direct。
 普通模式的查询地址族仍由 App IPv6 设置管理，不额外生成根级 hosts/queryStrategy。
 高级模板和 Raw 不应用这些普通 DNS 设置；模板 DNS 保持其原有管理边界。
 Raw 与提供方完整配置缺少 Core DNS 服务器时，使用[完整配置的 VPN 适配](#完整配置的-vpn-适配)中的隧道 DNS 缺省策略。
+显式保存的 resolver 地址保持原值；调整缺省值不扫描或改写数据库、分享配置、订阅原文或已有启动请求，
+也不清空、失效或重新生成保存的启动缓存。Widget/控制中心仍原样复用上次保存的请求，
+后续由 App 正常连接时才按当次设置重新编译。
 
 ### 服务器拨号
 
@@ -107,7 +113,8 @@ Core 在发送 UDP 前使用 WireGuard 自身的 socket 策略本地解析 peer�
 其 UDP 连接不应用仅适用于 TCP 的 HE 竞速，共享 Fragment 的 TCP 连接仍可使用 HE。
 
 显式拨号需要解析域名时，App 从实际物理端点收集去重后的精确域名，前置专用 bootstrap resolver，
-复用隧道 DNS 的 IPv4 地址和启用时的 IPv6 地址，并用独立 tag 的前置规则固定直连。
+以隧道 DNS 的 IPv4 地址和启用时的 IPv6 地址生成 TCP resolver，并用独立 tag 的前置规则固定直连。
+TCP URL 的 IPv6 host 使用方括号；系统隧道 DNS 字段继续保存 IP 字面量，不写入 `tcp://`，原生 DoT 设置独立生效。
 这些精确匹配不成为通用备用，最后一个引导 resolver 截止普通代理/FakeDNS 回退，
 避免连接代理前又经该代理解析其地址。匹配按域名而非请求调用者区分，App 查询恰好相同域名时也使用引导 DNS；
 这会优先于该域名原有的业务 DNS 规则。仅 IP 字面端点不增加引导 resolver 或规则。
@@ -220,14 +227,21 @@ Observatory、direct/block、DNS 和资产路径，再由 libXray 构造验证�
 ## 高级自定义路由
 
 高级模板保留 Map，类型存于 `RoutingProfile.advanced`，不嵌入 JSON；共享名称、数量和保存流程。
-outbounds 以 1–3 个连续空槽开始，后续只开放 freedom/blackhole/dns 辅助出站。
+outbounds 以 1–3 个连续空槽开始，后续只开放 freedom/blackhole/dns/loopback 辅助出站。
 运行以真实节点替换槽并置顶，随后用户辅助出站，最后 App direct/block；固定节点选择替换整个槽区。
 App 添加 proxy balancer、完整 selector 与运行观测范围。模板有限开放 strategy.type 的
 roundRobin/leastPing，以及 observatory 的探测 URL/interval/concurrency；selector/fallback/subjectSelector
 仍由 App 生成，不能定义任意额外 balancer。轮询 direct 回退，最低延迟回退首条完整代理链。
 模板不能定义 direct/block/proxy 或引用内部 app-entry/app-exit tag，dialerProxy 不支持 balancer。
+loopback 的 `settings.inboundTag` 必须与自身 tag 同名，以该标签重新进入路由；
+它不监听端口、不创建真实入站，转发规则可用同名 `inboundTag` 选择 `proxy` balancer。
 
 模板完整管理 DNS、routing.domainStrategy、rules 顺序与 ruleTag，不隐式补 DNS server、53/853 规则。
+新建模板的默认 Core DNS 为 `tcp://8.8.8.8`，`dnsOut` 劫持 A/AAAA，
+其它记录以 `rewriteNetwork: tcp` 保留原目标转发。`dnsOut` 的 `dialerProxy` 指向 `dns-forward` loopback，
+最前的同名入站标签规则再交给 `proxy` balancer，沿用单节点或多接入节点的代理选路。
+这里 DNS 规则的 `action: direct` 表示转发原查询，出口仍经上述代理链，不是网络直连。
+已保存模板原文不改写，其显式 DNS、drop/return 或其它查询策略保持原值。
 轮询不追加兜底；最低延迟只在用户规则之后为托管 tunIn 和启用的 app-lan-proxy 增加代理兜底。
 额外高级入站由模板显式使用 balancerTag:proxy，不自动纳入兜底。
 App 管理日志、metrics、统计、policy、env、运行 balancer/observatory 范围、出口网卡和 DNS 查询策略。
@@ -251,12 +265,13 @@ App 管理日志、metrics、统计、policy、env、运行 balancer/observatory
 判断接受数字或字符串 53，不推断 network、domain/IP 条件、端口范围、规则优先级或目标协议是否覆盖全部 DNS。
 缺少声明时复用第一个 DNS 出站，或新增一个，再前置限定 `tunIn + TCP/UDP 53` 的规则。
 已有 DNS 出站的设置与目标不改写；新建 DNS 出站劫持 A/AAAA，其它查询类型直连转发，
-通过专属 `app-vpn-dns-direct` freedom 出站拨号，不依赖用户代理链。
+使用 `rewriteNetwork: tcp`，通过专属 `app-vpn-dns-direct` freedom 出站拨号，不依赖用户代理链。
 Raw 新建 DNS 出站使用 `app-vpn-dns`，提供方沿用 `app-remna-dns`；复用无 tag 的 DNS 出站时补上对应 tag。
 这些补充不增加通用代理、DoT 或 TUN catch-all 规则。
 
 运行编译时，`dns` 缺失或为 `null`，以及 `dns.servers` 缺失、为 `null` 或空列表时，
 使用本次隧道 IPv4 DNS 和启用 IPv6 时的隧道 IPv6 DNS 补齐服务器，保留同一对象的 hosts、缓存及其它字段。
+补齐的 Core resolver 使用对应 IP 的 TCP URL，系统隧道 DNS 字段仍为 IP 字面量。
 新增服务器使用 `app-vpn-default-dns` tag，并用限定该 tag 的前置规则直连 `app-vpn-dns-direct`，
 避免连接域名代理前又通过该代理解析地址。仅 App 新增的缺省 DNS 采用此出口；
 已有非空列表完整保留，包括显式 `localhost`、DoH 和 FakeDNS，查询地址族仍由 App 平台策略管理。

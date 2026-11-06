@@ -22,6 +22,7 @@ XrayOutbound createDnsOutbound({
   tag: tag,
   protocol: 'dns',
   settings: {
+    'rewriteNetwork': 'tcp',
     'rules': [
       const XrayOutboundDnsRule(action: 'hijack', qType: '1,28'),
       XrayOutboundDnsRule(action: returnNonAddress ? 'return' : 'direct'),

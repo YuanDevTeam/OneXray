@@ -107,9 +107,12 @@ void main() {
   );
 
   test(
-    'Smart keeps legacy defaults and reconnects only for effective DNS changes',
+    'Smart uses current defaults and reconnects only for effective DNS changes',
     () {
-      expect(SmartRoutingSettings.fromJson({}).directDnsAddress, '8.8.8.8');
+      expect(
+        SmartRoutingSettings.fromJson({}).directDnsAddress,
+        'tcp://8.8.8.8',
+      );
       for (final enabled in [false, true]) {
         final before = SmartRoutingSettings(
           directDns: enabled,

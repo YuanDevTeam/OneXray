@@ -127,7 +127,7 @@ void main() {
     expect(config['outbounds'].first, source['outbounds']!.single);
     expect(config['dns']['hosts'], isNull);
     expect(config['dns']['queryStrategy'], 'UseIPv4');
-    expect(config['dns']['servers'].single['address'], '8.8.8.8');
+    expect(config['dns']['servers'].single['address'], 'tcp://8.8.8.8');
     expect(config['routing']['rules'], everyElement(contains('inboundTag')));
   });
 

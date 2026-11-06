@@ -142,7 +142,7 @@ abstract final class ManagedServerDialing {
     return [
       for (final (index, address) in addresses.indexed)
         XrayDnsServer(
-          address: address,
+          address: Uri(scheme: 'tcp', host: address).toString(),
           tag: dnsTag,
           domains: List.of(rules),
           skipFallback: true,

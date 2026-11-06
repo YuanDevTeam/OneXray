@@ -701,6 +701,8 @@ class JsonEditing {
             .tags('inbounds')
             .where((tag) => !managed || _publicTag(tag) || tag == 'tunIn'),
         ...shape.dnsTags().where((tag) => !managed || _publicTag(tag)),
+        if (kind != JsonEditorKind.customRouting)
+          ...shape.loopbackTags().where((tag) => !managed || _publicTag(tag)),
       ];
     }
     if (field == 'protocol') {
@@ -730,7 +732,7 @@ class JsonEditing {
           _matches(parent, ['outbounds', '*'])) {
         if (kind == JsonEditorKind.customRouting) return const [];
         return kind == JsonEditorKind.advancedRouting
-            ? const ['freedom', 'blackhole', 'dns']
+            ? const ['freedom', 'blackhole', 'dns', 'loopback']
             : const [
                 'vless',
                 'vmess',
@@ -1306,6 +1308,14 @@ class _Shape {
                 ? ['routing', 'balancers', '*', 'tag']
                 : [namespace, '*', 'tag'],
           ) &&
+          entry.value.isNotEmpty)
+        entry.value,
+  ];
+
+  List<String> loopbackTags() => [
+    for (final entry in strings)
+      if (_matches(entry.path, ['outbounds', '*', 'settings', 'inboundTag']) &&
+          value([...entry.path.sublist(0, 2), 'protocol']) == 'loopback' &&
           entry.value.isNotEmpty)
         entry.value,
   ];
