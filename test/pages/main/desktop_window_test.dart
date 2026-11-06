@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/main/desktop_window.dart';
@@ -8,19 +7,6 @@ import 'package:window_manager/window_manager.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-
-  setUp(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-          const MethodChannel('window_manager'),
-          (call) async => call.method == 'isMaximized' ? false : null,
-        );
-  });
-
-  tearDown(() {
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(const MethodChannel('window_manager'), null);
-  });
 
   for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
     testWidgets('$platform keeps mobile layout unchanged', (tester) async {

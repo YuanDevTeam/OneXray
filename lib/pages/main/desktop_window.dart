@@ -22,8 +22,7 @@ class DesktopWindowFrame extends StatefulWidget {
   State<DesktopWindowFrame> createState() => _DesktopWindowFrameState();
 }
 
-class _DesktopWindowFrameState extends State<DesktopWindowFrame>
-    with WindowListener {
+class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
   double? _titlebarHeight;
   bool _listening = false;
 
@@ -34,34 +33,24 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame>
       unawaited(WindowService().updateAppearance(Theme.of(context).brightness));
       if (!_listening && WindowService().hasSidebarMaterial) {
         _titlebarHeight = WindowService().titlebarHeight;
-        windowManager.addListener(this);
+        WindowService().titlebarChanges.addListener(_refreshTitlebar);
         _listening = true;
       }
     }
   }
 
-  Future<void> _refreshTitlebar() async {
-    final height = await WindowService().refreshTitlebarHeight();
+  void _refreshTitlebar() {
+    final height = WindowService().titlebarHeight;
     if (mounted && height != _titlebarHeight) {
       setState(() => _titlebarHeight = height);
     }
   }
 
   @override
-  void onWindowResize() => unawaited(_refreshTitlebar());
-
-  @override
-  void onWindowResized() => unawaited(_refreshTitlebar());
-
-  @override
-  void onWindowEnterFullScreen() => unawaited(_refreshTitlebar());
-
-  @override
-  void onWindowLeaveFullScreen() => unawaited(_refreshTitlebar());
-
-  @override
   void dispose() {
-    if (_listening) windowManager.removeListener(this);
+    if (_listening) {
+      WindowService().titlebarChanges.removeListener(_refreshTitlebar);
+    }
     super.dispose();
   }
 
@@ -101,7 +90,10 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame>
               : kWindowCaptionHeight,
           width: double.infinity,
           child: macOS
-              ? DragToMoveArea(child: ColoredBox(color: palette.header))
+              ? DragToMoveArea(
+                  window: WindowService().nativeWindow,
+                  child: ColoredBox(color: palette.header),
+                )
               : Directionality(
                   // OS caption buttons stay on the right in RTL languages.
                   textDirection: TextDirection.ltr,
@@ -109,6 +101,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame>
                   // ignore: deprecated_member_use
                   child: MaterialUiCompatibilityBridge(
                     child: WindowCaption(
+                      window: WindowService().nativeWindow,
                       backgroundColor: palette.header,
                       brightness: theme.brightness,
                       title: Text(
