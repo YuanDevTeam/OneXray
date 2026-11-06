@@ -10,6 +10,7 @@ from collections import Counter
 from copy import deepcopy
 from pathlib import Path
 from typing import ClassVar
+from urllib.parse import quote
 from urllib.request import urlopen
 
 PACKAGE_ID = "YuanDevLLC.OneXray"
@@ -19,7 +20,6 @@ INSTALLER_NAMES = {
     "x64": "OneXray-windows-amd64.exe",
     "arm64": "OneXray-windows-arm64.exe",
 }
-SCHEMA_VERSION = "1.12.0"
 
 
 def fix_installer(manifest):
@@ -56,8 +56,6 @@ def validate_manifests(manifests, release):
     for item in manifests:
         if item.get("PackageIdentifier") != PACKAGE_ID or item.get("PackageVersion") != version:
             raise ValueError("Manifest package/version does not match the release")
-        if item.get("ManifestVersion") != SCHEMA_VERSION:
-            raise ValueError(f"Expected manifest schema {SCHEMA_VERSION}")
     by_type = {item["ManifestType"]: item for item in manifests}
     if by_type["version"]["DefaultLocale"] != by_type["defaultLocale"]["PackageLocale"]:
         raise ValueError("DefaultLocale does not match the default locale manifest")
@@ -129,6 +127,7 @@ def validate_directory(directory, release):
     validate_manifests(manifests, release)
     for path, manifest in zip(paths, manifests):
         kind = manifest["ManifestType"]
+        schema_version = quote(manifest["ManifestVersion"], safe="")
         suffix = {
             "installer": ".installer",
             "version": "",
@@ -139,7 +138,7 @@ def validate_directory(directory, release):
             raise ValueError(f"Unexpected manifest filename: {path.name}")
         url = (
             "https://raw.githubusercontent.com/microsoft/winget-cli/master/schemas/JSON/manifests/"
-            f"v{SCHEMA_VERSION}/manifest.{kind}.{SCHEMA_VERSION}.json"
+            f"v{schema_version}/manifest.{kind}.{schema_version}.json"
         )
         with urlopen(url, timeout=30) as response:
             schema = json.load(response)

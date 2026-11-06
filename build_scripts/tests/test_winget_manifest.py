@@ -6,7 +6,6 @@ from winget_manifest import (
     INSTALL_DIRECTORY,
     INSTALLER_NAMES,
     PACKAGE_ID,
-    SCHEMA_VERSION,
     fix_installer,
     validate_manifests,
 )
@@ -29,7 +28,7 @@ class WingetManifestTest(unittest.TestCase):
         base = {
             "PackageIdentifier": PACKAGE_ID,
             "PackageVersion": "26.9.3",
-            "ManifestVersion": SCHEMA_VERSION,
+            "ManifestVersion": "1.12.0",
         }
         self.generated = base | {
             "ManifestType": "installer",
@@ -139,7 +138,6 @@ class WingetManifestTest(unittest.TestCase):
         for index, field, value in (
             (1, "PackageVersion", "26.9.2"),
             (0, "PackageIdentifier", "Other.Package"),
-            (0, "ManifestVersion", "1.10.0"),
             (2, "DefaultLocale", "zh-CN"),
         ):
             with self.subTest(field=field):
@@ -152,6 +150,12 @@ class WingetManifestTest(unittest.TestCase):
         for field in ("draft", "prerelease"):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 validate_manifests(self.manifests, self.release | {field: True})
+
+    def test_release_policy_does_not_pin_manifest_schema_versions(self):
+        manifests = deepcopy(self.manifests)
+        for manifest, version in zip(manifests, ("1.10.0", "1.12.0", "1.28.0")):
+            manifest["ManifestVersion"] = version
+        validate_manifests(manifests, self.release)
 
 
 if __name__ == "__main__":
