@@ -18,6 +18,15 @@ describe shipped behavior; Git history holds retired plans and progress logs.
 - Edit source models, ARB, Pigeon and FFI definitions, then regenerate outputs.
   Generated Dart, Kotlin, Swift, Drift, FFI and localization files are not sources.
 
+## Commit messages
+
+- Write one English line of at most 72 characters: `<type>(<scope>): <summary>`.
+  Scope is optional; the complete message stays on one line.
+- Use `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `ci` or `chore`.
+- Name the concrete change with an imperative verb, for example
+  `fix(vpn): retry failed connections`.
+- Keep each commit focused on one logical change.
+
 ## Read for the task
 
 - Startup, permissions, navigation, UI or desktop windows: [App behavior](docs/app.md).
