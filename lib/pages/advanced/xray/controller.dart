@@ -186,6 +186,21 @@ class XrayRuntimeController extends PageCubit<XrayRuntimePageState> {
     }
   }
 
+  Future<void> refreshPingSettings() async {
+    try {
+      final preferences = PingState();
+      await preferences.readFromPreferences();
+      emit(
+        state.copyWith(
+          pingTimeout: preferences.timeout,
+          pingUrl: preferences.url,
+        ),
+      );
+    } catch (error) {
+      emit(state.copyWith(failed: true, failure: error));
+    }
+  }
+
   void setLog(String key, Object value) {
     if (busy || state.systemExtension) return;
     emit(state.copyWith(log: {...log, key: value}));
