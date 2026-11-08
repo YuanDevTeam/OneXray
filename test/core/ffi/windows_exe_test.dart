@@ -197,45 +197,41 @@ void main() {
     },
   );
 
-  test(
-    'EXE starts with current CLI arguments and replaces old inputs',
-    () async {
-      final old = File(
-        p.join(directory.path, 'run', 'core-inputs', 'old.json'),
-      );
-      await old.parent.create(recursive: true);
-      await old.writeAsString('{}');
-      final api = create();
-      final starting = api.startVpn();
-      await process.launched.future;
-      expect((await api.readVpnStatus()).status, VpnStatus.connecting);
-      expect((await starting).status, VpnStatus.connected);
-      expect(await old.exists(), false);
-      expect(process.arguments!.take(5), [
-        'run',
-        '-dns',
-        '8.8.8.8:53',
-        '-interface',
-        'Ethernet 2',
-      ]);
-      expect(process.arguments![5], '-config');
-      expect(
-        await File(process.arguments![6]).readAsString(),
-        '{"inbounds":[]}',
-      );
-      expect(process.arguments![7], '-error-file');
-      expect(process.arguments!.last, '${process.arguments![6]}.error');
-      expect(await File(process.arguments!.last).readAsString(), isEmpty);
-      expect(
-        await File(p.join(directory.path, 'run', 'core-process.json')).exists(),
-        isFalse,
-      );
-      // A second App instance discovers and stops the same named process.
-      final reopened = create();
-      expect((await reopened.readVpnStatus()).status, VpnStatus.connected);
-      expect((await reopened.stopVpn()).status, VpnStatus.disconnected);
-    },
-  );
+  test('EXE starts with SetDNS disabled and replaces old inputs', () async {
+    final old = File(p.join(directory.path, 'run', 'core-inputs', 'old.json'));
+    await old.parent.create(recursive: true);
+    await old.writeAsString('{}');
+    final api = create();
+    final starting = api.startVpn();
+    await process.launched.future;
+    expect((await api.readVpnStatus()).status, VpnStatus.connecting);
+    expect((await starting).status, VpnStatus.connected);
+    expect(await old.exists(), false);
+    final arguments = process.arguments!;
+    final config = arguments[arguments.indexOf('-config') + 1];
+    expect(arguments, [
+      'run',
+      '-set-dns=false',
+      '-dns',
+      '8.8.8.8:53',
+      '-interface',
+      'Ethernet 2',
+      '-config',
+      config,
+      '-error-file',
+      '$config.error',
+    ]);
+    expect(await File(config).readAsString(), '{"inbounds":[]}');
+    expect(await File(arguments.last).readAsString(), isEmpty);
+    expect(
+      await File(p.join(directory.path, 'run', 'core-process.json')).exists(),
+      isFalse,
+    );
+    // A second App instance discovers and stops the same named process.
+    final reopened = create();
+    expect((await reopened.readVpnStatus()).status, VpnStatus.connected);
+    expect((await reopened.stopVpn()).status, VpnStatus.disconnected);
+  });
 
   test(
     'UAC cancellation fails without leaving a running/connecting state',

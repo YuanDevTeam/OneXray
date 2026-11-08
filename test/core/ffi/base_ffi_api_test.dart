@@ -13,6 +13,7 @@ void main() {
   test('builds protected desktop Core arguments', () {
     expect(
       desktopCoreRunArguments(
+        setDns: true,
         dns: '8.8.8.8',
         interfaceName: 'Ethernet',
         configPath: r'C:\run\xray.json',
@@ -20,6 +21,7 @@ void main() {
       ),
       <String>[
         'run',
+        '-set-dns=true',
         '-dns',
         '8.8.8.8:53',
         '-interface',

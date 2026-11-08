@@ -17,6 +17,7 @@ List<String> desktopCoreRunArguments({
   required String interfaceName,
   required String configPath,
   String? errorFile,
+  bool? setDns,
 }) {
   if (dns.isEmpty || interfaceName.isEmpty || configPath.isEmpty) {
     throw const FormatException(
@@ -25,6 +26,7 @@ List<String> desktopCoreRunArguments({
   }
   return <String>[
     'run',
+    if (setDns != null) '-set-dns=$setDns',
     '-dns',
     '$dns:53',
     '-interface',

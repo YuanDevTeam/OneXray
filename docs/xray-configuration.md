@@ -399,6 +399,9 @@ TUN 地址只读，隧道 IPv4/IPv6 DNS 与 Apple DoT 域名可编辑，独立�
 有效设置变化按已连接确认重连；停用的域名/IPv6 设置保留，不因其变化重连。
 Windows/Linux 给 Xray 明确绑定已选网卡，Vole 不新增绑定要求，Raw 不能覆盖。
 Windows EXE 使用 Xray 原生 TUN/Wintun，MSIX 使用私有 SOCKS 和 Vole UWP 系统隧道。
+两种 Windows 模式均使用 libXray 桌面 Core：MSIX 传入 `-set-dns=true`，
+用隧道 DNS 和所选物理网卡设置进程 resolver；EXE 传入 `-set-dns=false`，由 Xray 原生 TUN 管理 resolver。
+该开关不修改系统网卡 DNS。
 
 EXE 默认 `autoSystemWfpBlockLeak: ["dns"]`，Raw/提供方显式列表保留，`[]` 可关闭该项；不启用 `misconfigtun`。
 Core v26.10.31 起，`dns` 包含 UDP/TCP 53、Windows DNS Client、TCP/UDP 853（DoT/DoQ）；
