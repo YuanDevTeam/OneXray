@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onexray/core/constants/preferences.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/advanced/xray/controller.dart';
@@ -176,6 +178,21 @@ void main() {
               ..customUrl = 'https://example.com/old'
               ..timeout = 5)
             .saveToPreferences();
+        const systemExtensionChannel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.onexray.BridgeHostApi.useSystemExtension',
+          BridgeHostApi.pigeonChannelCodec,
+        );
+        final messenger = tester.binding.defaultBinaryMessenger;
+        messenger.setMockDecodedMessageHandler(
+          systemExtensionChannel,
+          (_) async => [false],
+        );
+        addTearDown(
+          () => messenger.setMockDecodedMessageHandler(
+            systemExtensionChannel,
+            null,
+          ),
+        );
         final db = AppDatabase.forTesting(NativeDatabase.memory());
         final coordinator = ConnectionCoordinator(
           database: db,
