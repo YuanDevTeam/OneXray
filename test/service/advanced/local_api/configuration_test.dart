@@ -523,7 +523,7 @@ void main() {
         expect(compiled['env']['xray.location.asset'], VpnConstants.datDir);
         expect(compiled.containsKey('geodata'), false);
         if (kind == 'advanced-routing') {
-          expect(compiled['dns']['servers'].single['address'], '8.8.8.8');
+          expect(compiled['dns']['servers'].single['address'], 'tcp://8.8.8.8');
         }
       }
     },
