@@ -35,7 +35,7 @@ class XrayRuntimePage extends StatelessWidget {
   });
   final void Function(BuildContext) onGeodata;
   final void Function(BuildContext) onUpdates;
-  final void Function(BuildContext) onSpeedTest;
+  final Future<void> Function(BuildContext) onSpeedTest;
   final void Function(BuildContext, ConfigFileViewerParams) onConfig;
   final void Function(BuildContext)? onDiagnostics;
   final Future<bool?> Function(BuildContext)? onLogSettings;
@@ -180,7 +180,12 @@ class XrayRuntimePage extends StatelessWidget {
                                       : _chevron(context),
                                 ),
                                 enabled: true,
-                                onTap: () => onSpeedTest(context),
+                                onTap: () async {
+                                  await onSpeedTest(context);
+                                  if (controller.isPageActive) {
+                                    await controller.refreshPingSettings();
+                                  }
+                                },
                               ),
                               if (onServerDialing != null)
                                 _pushRow(

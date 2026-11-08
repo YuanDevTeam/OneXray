@@ -276,7 +276,7 @@ void main() {
           createController: () => runtime,
           onGeodata: (_) {},
           onUpdates: (_) {},
-          onSpeedTest: (_) {},
+          onSpeedTest: (_) async {},
           onConfig: (_, _) {},
           onServerDialing: (context) {
             opened = true;

@@ -745,7 +745,7 @@ void main() {
                   {'ipPool': '198.19.0.0/16', 'poolSize': 32768},
                   {'ipPool': '2001:2::/48', 'poolSize': 32768},
                 ]);
-                expect(servers.last['address'], '8.8.8.8');
+                expect(servers.last['address'], 'tcp://8.8.8.8');
                 final direct = servers.firstWhere(
                   (server) => server['tag'] == 'app-dns-direct',
                 );
@@ -902,7 +902,7 @@ void main() {
       );
       final servers = compiled.config['dns']['servers'] as List;
       expect(servers.last['tag'], 'app-dns-proxy');
-      expect(servers.last['address'], '8.8.8.8');
+      expect(servers.last['address'], 'tcp://8.8.8.8');
       expect(servers.last['queryStrategy'], 'UseIPv4');
       expect(
         servers.length,
@@ -934,7 +934,7 @@ void main() {
               options: options(),
             ).config['dns']['servers']
             as List;
-    expect(disabled.last['address'], '8.8.8.8');
+    expect(disabled.last['address'], 'tcp://8.8.8.8');
     expect(disabled.last['domains'], isNull);
   });
 
@@ -1502,7 +1502,10 @@ void main() {
       'ruleTag': 'app-custom-0',
     });
     final servers = plan.config['dns']['servers'] as List;
-    expect(servers.map((server) => server['address']), ['8.8.8.8', '8.8.8.8']);
+    expect(servers.map((server) => server['address']), [
+      'tcp://8.8.8.8',
+      'tcp://8.8.8.8',
+    ]);
     expect(servers.first['domains'], ['domain:direct-only.test']);
     expect(servers.first['skipFallback'], true);
     expect(template.encode(), original);
@@ -2036,7 +2039,7 @@ void main() {
         });
         expect(config['dns']['servers'], [
           {
-            'address': '8.8.8.8',
+            'address': 'tcp://8.8.8.8',
             'tag': ConnectionCompiler.dnsProxy,
             'queryStrategy': ipv6 ? 'UseIP' : 'UseIPv4',
           },

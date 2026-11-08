@@ -25,6 +25,26 @@ List<String> labels(String marked, JsonEditorKind kind) =>
     completions(marked, kind).map((value) => value.label).toList();
 
 void main() {
+  test('advanced loopback completions include its virtual inbound tag', () {
+    expect(
+      labels(
+        '{"outbounds":[{}, {"protocol":"lo|"}]}',
+        JsonEditorKind.advancedRouting,
+      ),
+      ['loopback'],
+    );
+    const source =
+        '{"outbounds":[{}, {"tag":"dns-forward","protocol":"loopback","settings":{"inboundTag":"dns-forward"}}],"routing":{"rules":[{"inboundTag":["dns-|"]}]}}';
+    expect(labels(source, JsonEditorKind.advancedRouting), ['dns-forward']);
+    expect(
+      labels(
+        '{"outbounds":[{}, {"protocol":"lo|"}]}',
+        JsonEditorKind.customRouting,
+      ),
+      isEmpty,
+    );
+  });
+
   test('ordinary DNS helper completions match the editable record policy', () {
     String source(String rules) =>
         '{"outbounds":[{}, {"tag":"dnsOut","protocol":"dns","settings":{"rules":[$rules]}}]}';

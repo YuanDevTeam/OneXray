@@ -685,14 +685,14 @@ void main() {
       );
       expect(servers.map((server) => server.toJson()), [
         {
-          'address': '192.0.2.53',
+          'address': 'tcp://192.0.2.53',
           'tag': 'app-dns-bootstrap',
           'domains': ['full:entry.example', 'full:download.example'],
           'skipFallback': true,
           'queryStrategy': 'UseIP',
         },
         {
-          'address': '2001:db8::53',
+          'address': 'tcp://[2001:db8::53]',
           'tag': 'app-dns-bootstrap',
           'domains': ['full:entry.example', 'full:download.example'],
           'skipFallback': true,
@@ -714,7 +714,7 @@ void main() {
         ipv6: false,
       );
       expect(servers.single.toJson(), {
-        'address': '192.0.2.53',
+        'address': 'tcp://192.0.2.53',
         'tag': 'app-dns-bootstrap',
         'domains': ['full:entry.example'],
         'skipFallback': true,

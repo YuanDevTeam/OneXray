@@ -165,6 +165,18 @@ void main() {
             expect(process['executableRelativePath'], 'OneXrayCore.exe');
             arguments = (process['arguments'] as List).cast<String>();
             final config = arguments![arguments!.indexOf('-config') + 1];
+            expect(arguments, [
+              'run',
+              '-set-dns=true',
+              '-dns',
+              '8.8.8.8:53',
+              '-interface',
+              'Ethernet 2',
+              '-config',
+              config,
+              '-error-file',
+              '$config.error',
+            ]);
             errorFile = File('$config.error');
             // The GUI creates the file before dispatching the managed process.
             expect(await errorFile!.readAsString(), isEmpty);

@@ -1,16 +1,20 @@
 import 'dart:io';
 
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:onexray/core/constants/preferences.dart';
 import 'package:onexray/core/db/database/database.dart';
+import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
+import 'package:onexray/pages/advanced/xray/controller.dart';
 import 'package:onexray/pages/advanced/xray/log/controller.dart';
 import 'package:onexray/pages/advanced/xray/log/params.dart';
+import 'package:onexray/pages/advanced/xray/page.dart';
 import 'package:onexray/pages/advanced/xray/ping/page.dart';
 import 'package:onexray/pages/advanced/xray/ping/controller.dart';
 import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
@@ -164,68 +168,159 @@ void main() {
   });
 
   for (final save in [false, true]) {
-    testWidgets('ping URL ${save ? 'saves' : 'cancels'} its draft', (
-      tester,
-    ) async {
-      await (PingState()
-            ..url = PingUrl.custom
-            ..customUrl = 'https://example.com/old'
-            ..timeout = 7)
-          .saveToPreferences();
-      final router = GoRouter(
-        routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, _) => Scaffold(
-              body: TextButton(
-                onPressed: () => context.push('/ping'),
-                child: const Text('Open ping settings'),
+    testWidgets(
+      'ping settings ${save ? 'save and refresh' : 'cancel and retain'} the Xray summary',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1160, 900));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await (PingState()
+              ..url = PingUrl.google
+              ..customUrl = 'https://example.com/old'
+              ..timeout = 5)
+            .saveToPreferences();
+        const systemExtensionChannel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.onexray.BridgeHostApi.useSystemExtension',
+          BridgeHostApi.pigeonChannelCodec,
+        );
+        final messenger = tester.binding.defaultBinaryMessenger;
+        messenger.setMockDecodedMessageHandler(
+          systemExtensionChannel,
+          (_) async => [false],
+        );
+        addTearDown(
+          () => messenger.setMockDecodedMessageHandler(
+            systemExtensionChannel,
+            null,
+          ),
+        );
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        final coordinator = ConnectionCoordinator(
+          database: db,
+          readRuntime: () async => null,
+        );
+        late XrayRuntimeController root;
+        await tester.runAsync(() async {
+          root = XrayRuntimeController(coordinator: coordinator);
+          await root.stream.firstWhere((state) => !state.loading);
+        });
+        addTearDown(
+          () => tester.runAsync(() async {
+            await root.close();
+            coordinator.dispose();
+            await db.close();
+          }),
+        );
+        expect(root.failed, isFalse);
+        final router = GoRouter(
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, _) => XrayRuntimePage(
+                createController: () => root,
+                onGeodata: (_) {},
+                onUpdates: (_) {},
+                onSpeedTest: (context) => context.push<void>('/ping'),
+                onConfig: (_, _) {},
               ),
             ),
+            GoRoute(path: '/ping', builder: (_, _) => const PingPage()),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          MaterialApp.router(
+            theme: AppTheme.light,
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            routerConfig: router,
+            builder: (_, child) => ShadTheme(
+              data: AppTheme.shad(Brightness.light),
+              child: ShadToaster(child: child!),
+            ),
           ),
-          GoRoute(path: '/ping', builder: (_, _) => const PingPage()),
-        ],
-      );
-      addTearDown(router.dispose);
-      await tester.pumpWidget(
-        MaterialApp.router(
-          theme: AppTheme.light,
-          locale: const Locale('en'),
-          localizationsDelegates: AppLocalePolicy.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-          builder: (_, child) => ShadTheme(
-            data: AppTheme.shad(Brightness.light),
-            child: ShadToaster(child: child!),
-          ),
-        ),
-      );
-      await tester.tap(find.text('Open ping settings'));
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byType(TextField));
-      await tester.enterText(find.byType(TextField), 'https://example.com/new');
-      await tester.pumpAndSettle();
-      final storedDraft = PingState();
-      await storedDraft.readFromPreferences();
-      expect(storedDraft.customUrl, 'https://example.com/old');
+        );
+        await tester.pumpAndSettle();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(XrayRuntimePage)),
+        )!;
+        final originalSummary = '${l.prototypeSeconds(5)} · Google';
+        final savedSummary =
+            '${l.prototypeSeconds(3)} · ${l.prototypeCustomUrl}';
+        expect(find.text(originalSummary), findsOneWidget);
+        await tester.ensureVisible(find.text(l.prototypeSpeedTest));
+        await tester.tap(find.text(l.prototypeSpeedTest));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('ping-url-preset')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l.prototypeCustom).last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('ping-timeout')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l.prototypeSeconds(3)).last);
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byType(TextField));
+        await tester.enterText(
+          find.byType(TextField),
+          'https://example.com/new',
+        );
+        await tester.pumpAndSettle();
+        final storedDraft = PingState();
+        await storedDraft.readFromPreferences();
+        expect(storedDraft.customUrl, 'https://example.com/old');
+        expect(storedDraft.url, PingUrl.google);
+        expect(storedDraft.timeout, 5);
 
-      await tester.tap(find.text(save ? 'Save' : 'Cancel'));
-      await tester.pumpAndSettle();
-      expect(find.byType(PingPage), findsNothing);
-      final restored = PingState();
-      await restored.readFromPreferences();
-      expect(restored.customUrl, 'https://example.com/${save ? 'new' : 'old'}');
-      expect(restored.url, PingUrl.custom);
-      expect(restored.timeout, 7);
+        await tester.tap(find.text(save ? l.prototypeSave : l.prototypeCancel));
+        await tester.pumpAndSettle();
+        expect(find.byType(PingPage), findsNothing);
+        final restored = PingState();
+        await restored.readFromPreferences();
+        expect(
+          restored.customUrl,
+          'https://example.com/${save ? 'new' : 'old'}',
+        );
+        expect(restored.url, save ? PingUrl.custom : PingUrl.google);
+        expect(restored.timeout, save ? 3 : 5);
+        expect(
+          find.text(save ? savedSummary : originalSummary),
+          findsOneWidget,
+        );
 
-      await tester.tap(find.text('Open ping settings'));
-      await tester.pumpAndSettle();
-      expect(
-        tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        restored.customUrl,
-      );
-      expect(tester.takeException(), isNull);
-    });
+        await tester.tap(find.text(l.prototypeSpeedTest));
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<SettingSelect<String>>(
+                find.byKey(const ValueKey('ping-url-preset')),
+              )
+              .value,
+          restored.url.name,
+        );
+        expect(
+          tester
+              .widget<SettingSelect<double>>(
+                find.byKey(const ValueKey('ping-timeout')),
+              )
+              .value,
+          restored.timeout,
+        );
+        if (!save) {
+          await tester.tap(find.byKey(const ValueKey('ping-url-preset')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text(l.prototypeCustom).last);
+          await tester.pumpAndSettle();
+        }
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          restored.customUrl,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.runAsync(root.close);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      },
+    );
   }
 
   for (final locale in AppLocalizations.supportedLocales) {

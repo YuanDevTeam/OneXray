@@ -174,6 +174,7 @@ class WindowsMsixFfiApi extends WindowsFfiApi {
           WindowsManagedProcess(
             executableRelativePath: _coreRelativePath,
             arguments: desktopCoreRunArguments(
+              setDns: true,
               dns: networkSettings.dnsIpv4Address,
               interfaceName: request.tun?.autoOutboundsInterface ?? '',
               configPath: coreConfig,

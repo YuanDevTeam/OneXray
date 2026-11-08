@@ -20,11 +20,20 @@ final class AdvancedRoutingProfile implements RoutingConfiguration {
       "tag": "dnsOut",
       "protocol": "dns",
       "settings": {
+        "rewriteNetwork": "tcp",
         "rules": [
           {"action": "hijack", "qType": "1,28"},
-          {"action": "drop"}
+          {"action": "direct"}
         ]
+      },
+      "streamSettings": {
+        "sockopt": {"dialerProxy": "dns-forward"}
       }
+    },
+    {
+      "tag": "dns-forward",
+      "protocol": "loopback",
+      "settings": {"inboundTag": "dns-forward"}
     }
   ],
   "inbounds": [
@@ -38,11 +47,12 @@ final class AdvancedRoutingProfile implements RoutingConfiguration {
     }
   ],
   "dns": {
-    "servers": [{"tag": "dns-proxy", "address": "8.8.8.8"}]
+    "servers": [{"tag": "dns-proxy", "address": "tcp://8.8.8.8"}]
   },
   "routing": {
     "domainStrategy": "IPIfNonMatch",
     "rules": [
+      {"ruleTag": "Forward DNS", "inboundTag": ["dns-forward"], "balancerTag": "proxy"},
       {"ruleTag": "Proxy DNS", "inboundTag": ["dns-proxy"], "balancerTag": "proxy"},
       {"ruleTag": "Tunnel DNS", "inboundTag": ["tunIn"], "port": 53, "outboundTag": "dnsOut"},
       {"ruleTag": "DNS over TLS", "inboundTag": ["tunIn"], "port": 853, "balancerTag": "proxy"}
@@ -208,11 +218,23 @@ final class AdvancedRoutingDocument {
         'freedom',
         'blackhole',
         'dns',
+        'loopback',
       }.contains(outbound['protocol'])) {
         throw JsonDiagnostic(
-          '${_pathLabel(path)} supports only freedom, blackhole and dns',
+          '${_pathLabel(path)} supports only freedom, blackhole, dns and loopback',
           path: [...path, 'protocol'],
         );
+      }
+      if (outbound['protocol'] == 'loopback') {
+        final settingsPath = [...path, 'settings'];
+        final settings = _object(outbound['settings'], settingsPath);
+        _keys(settings, {'inboundTag'}, settingsPath);
+        if (settings['inboundTag'] != outbound['tag']) {
+          throw JsonDiagnostic(
+            'Loopback inboundTag must match its outbound tag',
+            path: [...settingsPath, 'inboundTag'],
+          );
+        }
       }
       final stream = outbound['streamSettings'];
       if (stream != null) {

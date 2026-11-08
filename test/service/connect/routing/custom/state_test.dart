@@ -403,7 +403,7 @@ void main() {
       RoutingProfileDocument.parse(jsonEncode(_document()))
           .state
           .directDnsAddress,
-      '8.8.8.8',
+      'tcp://8.8.8.8',
     );
     for (final (tag, addresses) in [
       ('app-dns-proxy', ['1.1.1.1']),
@@ -778,13 +778,13 @@ void _rejectAssets(Object? assets) => _reject({
 });
 
 Map<String, dynamic> _storedDns({
-  String direct = '8.8.8.8',
+  String direct = 'tcp://8.8.8.8',
   bool fakeDns = false,
 }) => {
   'disableCache': false,
   'disableFallbackIfMatch': false,
   'servers': [
-    {'tag': 'app-dns-proxy', 'address': '8.8.8.8'},
+    {'tag': 'app-dns-proxy', 'address': 'tcp://8.8.8.8'},
     {'tag': 'app-dns-direct', 'address': direct},
     if (fakeDns) {'tag': 'app-dns-fake', 'address': 'fakedns'},
   ],

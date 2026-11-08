@@ -106,7 +106,10 @@ abstract final class VpnConfigAdapter {
     _checkDefaultDnsInbound(inbounds);
     dns['servers'] = [
       for (final address in [ipv4Address, ?ipv6Address])
-        {'address': address, 'tag': defaultDnsTag},
+        {
+          'address': Uri(scheme: 'tcp', host: address).toString(),
+          'tag': defaultDnsTag,
+        },
     ];
     config['dns'] = dns;
     _ensureDnsDirect(outbounds);

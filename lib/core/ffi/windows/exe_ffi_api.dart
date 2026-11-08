@@ -108,6 +108,7 @@ class WindowsExeFfiApi extends WindowsFfiApi {
       final errorFile = desktopCoreErrorFile(config);
       await errorFile.writeAsString('', flush: true);
       final arguments = desktopCoreRunArguments(
+        setDns: false,
         dns: request.tun?.tunDnsIPv4 ?? '',
         interfaceName: request.tun?.autoOutboundsInterface ?? '',
         configPath: config,

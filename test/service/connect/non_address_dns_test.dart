@@ -50,6 +50,7 @@ void main() {
             final forwarding = outbounds.singleWhere(
               (outbound) => outbound['tag'] == 'dnsOut',
             );
+            expect(forwarding['settings']['rewriteNetwork'], 'tcp');
             expect(forwarding['settings']['rules'], [
               {'action': 'hijack', 'qType': '1,28'},
               {

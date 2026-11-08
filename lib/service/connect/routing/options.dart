@@ -68,7 +68,7 @@ enum NonAddressDnsPolicy { proxy, direct, empty }
 
 /// App-owned DNS policy; runtime domain blocks are generated from routing.
 final class RoutingDnsSettings {
-  static const defaultAddress = '8.8.8.8';
+  static const defaultAddress = 'tcp://8.8.8.8';
   static const proxyTag = 'app-dns-proxy';
   static const directTag = 'app-dns-direct';
   static const defaultResolvers = [RoutingDnsResolver(address: defaultAddress)];

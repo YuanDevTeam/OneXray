@@ -36,6 +36,10 @@ void main() {
       final before = jsonEncode(source);
       final result = VpnConfigAdapter.adapt(source);
       expect(result['outbounds'].first, source['outbounds'][0]);
+      final dns = (result['outbounds'] as List).singleWhere(
+        (outbound) => outbound['protocol'] == 'dns',
+      );
+      expect(dns['settings']['rewriteNetwork'], 'tcp');
       expect(result['inbounds'].single['tag'], 'tunIn');
       expect(result['routing']['rules'].first, {
         'type': 'field',
