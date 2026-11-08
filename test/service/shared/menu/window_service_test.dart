@@ -20,6 +20,10 @@ class TestWindow implements native.Window {
   bool isFullScreen = false;
   @override
   bool isMinimized = false;
+  @override
+  bool isVisible = false;
+  @override
+  bool isFocused = false;
 
   @override
   set titleBarStyle(native.TitleBarStyle value) => style = value;
@@ -42,11 +46,24 @@ class TestWindow implements native.Window {
   @override
   void center() => calls.add('center');
   @override
-  void show() => calls.add('show');
+  void show() {
+    calls.add('show');
+    isVisible = true;
+  }
+
   @override
-  void focus() => calls.add('focus');
+  void focus() {
+    calls.add('focus');
+    isFocused = isVisible && !isMinimized;
+  }
+
   @override
-  void hide() => calls.add('hide');
+  void hide() {
+    calls.add('hide');
+    isVisible = false;
+    isFocused = false;
+  }
+
   @override
   void restore() {
     calls.add('restore');
@@ -194,6 +211,86 @@ void main() {
       expect(window.listener, isNull);
     },
   );
+
+  test('Linux preserves GTK chrome during window actions', () async {
+    final window = TestWindow()
+      ..style = native.TitleBarStyle.normal
+      ..controlsVisible = false;
+    final service = WindowService.forTesting(
+      readWindow: () => window,
+      isMacOS: false,
+      isLinux: true,
+      setDockIconVisible: (_) => throw StateError('macOS-only API'),
+    );
+    addTearDown(service.dispose);
+
+    await service.prepare(
+      size: const Size(1160, 720),
+      minimumSize: const Size(480, 600),
+    );
+
+    // GTK retains its decorated window with a hidden native header. Changing
+    // either native property would replace that runner-owned chrome policy.
+    expect(window.style, native.TitleBarStyle.normal);
+    expect(window.controlsVisible, isFalse);
+    expect(window.contentUnderTitleBar, isNull);
+    expect(window.background, isNull);
+    expect(service.hasSidebarMaterial, isFalse);
+    expect(service.titlebarHeight, isNull);
+    expect(
+      [window.preparedSize!.width, window.preparedSize!.height],
+      [1160, 720],
+    );
+    expect([window.minSize!.width, window.minSize!.height], [480, 600]);
+    expect(window.isVisible, isFalse);
+    expect(window.isFocused, isFalse);
+    expect(window.calls.where((c) => c == 'show' || c == 'focus'), isEmpty);
+
+    await service.showAndFocus();
+    expect(window.isVisible, isTrue);
+    expect(window.isFocused, isTrue);
+
+    final request = CloseRequest();
+    await window.listener!(
+      native.WindowCloseRequestedEvent(windowId: 1, request: request),
+    );
+    expect(request.cancelled, isTrue);
+    expect(window.isVisible, isFalse);
+    expect(window.isFocused, isFalse);
+
+    window.calls.clear();
+    window.isMinimized = true;
+    await service.showAndFocus();
+    expect(window.isMinimized, isFalse);
+    expect(window.isVisible, isTrue);
+    expect(window.isFocused, isTrue);
+    expect(window.calls, ['restore', 'show', 'focus']);
+    expect(window.style, native.TitleBarStyle.normal);
+    expect(window.controlsVisible, isFalse);
+  });
+
+  test('Windows prepares hidden chrome without showing the window', () async {
+    final window = TestWindow()
+      ..style = native.TitleBarStyle.normal
+      ..controlsVisible = false;
+    final service = WindowService.forTesting(
+      readWindow: () => window,
+      isMacOS: false,
+      setDockIconVisible: (_) => throw StateError('macOS-only API'),
+    );
+    addTearDown(service.dispose);
+
+    await service.prepare(
+      size: const Size(1160, 720),
+      minimumSize: const Size(480, 600),
+    );
+
+    expect(window.style, native.TitleBarStyle.hidden);
+    expect(window.controlsVisible, isTrue);
+    expect(service.hasSidebarMaterial, isFalse);
+    expect(window.isVisible, isFalse);
+    expect(window.isFocused, isFalse);
+  });
 
   test(
     'other desktops change taskbar visibility without the macOS Dock API',

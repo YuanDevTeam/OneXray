@@ -20,6 +20,7 @@ final class WindowService {
         Application.instance.setDockIconVisible,
         AppPlatform.isDesktop,
         AppPlatform.isMacOS,
+        AppPlatform.isLinux,
       );
 
   WindowService._(
@@ -27,6 +28,7 @@ final class WindowService {
     this._setDockIconVisible,
     this._isDesktop,
     this._isMacOS,
+    this._isLinux,
   );
 
   @visibleForTesting
@@ -35,12 +37,14 @@ final class WindowService {
     required bool Function(bool) setDockIconVisible,
     bool isDesktop = true,
     bool isMacOS = true,
-  }) : this._(readWindow, setDockIconVisible, isDesktop, isMacOS);
+    bool isLinux = false,
+  }) : this._(readWindow, setDockIconVisible, isDesktop, isMacOS, isLinux);
 
   final Window? Function() _readWindow;
   final bool Function(bool) _setDockIconVisible;
   final bool _isDesktop;
   final bool _isMacOS;
+  final bool _isLinux;
   Window? _window;
   ListenerId? _listenerId;
   final _titlebarHeight = ValueNotifier<double?>(null);
@@ -76,12 +80,16 @@ final class WindowService {
         ygLogger('initialize window material failed: $error\n$stackTrace');
       }
     }
-    // Native macOS chrome keeps AppKit's drag and double-click handling.
-    // The hidden style transfers those gestures to a custom Flutter caption.
-    window.titleBarStyle = _hasSidebarMaterial
-        ? TitleBarStyle.normal
-        : TitleBarStyle.hidden;
-    window.isWindowControlButtonsVisible = true;
+    // The Linux runner hides GTK's header while retaining its decoration and
+    // resize handling. Changing the native style would install core shadows.
+    if (!_isLinux) {
+      // Native macOS chrome keeps AppKit's drag and double-click handling.
+      // The hidden style transfers those gestures to a custom Flutter caption.
+      window.titleBarStyle = _hasSidebarMaterial
+          ? TitleBarStyle.normal
+          : TitleBarStyle.hidden;
+      window.isWindowControlButtonsVisible = true;
+    }
     if (_hasSidebarMaterial) {
       window.setContentUnderTitleBar(true);
       window.backgroundColor = const Color(0x00000000).toNative();
