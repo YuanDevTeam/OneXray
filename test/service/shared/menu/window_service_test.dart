@@ -11,6 +11,7 @@ class TestWindow implements native.Window {
   FutureOr<void> Function(native.WindowEvent)? listener;
   native.TitleBarStyle? style;
   bool? controlsVisible;
+  bool? contentUnderTitleBar;
   native.Size? preparedSize;
   native.Size? minSize;
   native.Color? background;
@@ -24,6 +25,12 @@ class TestWindow implements native.Window {
   set titleBarStyle(native.TitleBarStyle value) => style = value;
   @override
   set isWindowControlButtonsVisible(bool value) => controlsVisible = value;
+  @override
+  bool setContentUnderTitleBar(bool value) {
+    contentUnderTitleBar = value;
+    return true;
+  }
+
   @override
   set backgroundColor(native.Color value) => background = value;
   @override
@@ -113,6 +120,8 @@ void main() {
       );
       await prepare();
       expect(service.hasSidebarMaterial, isFalse);
+      expect(window.style, native.TitleBarStyle.hidden);
+      expect(window.contentUnderTitleBar, isNull);
       materialAvailable = true;
       calls.clear();
       await prepare();
@@ -124,7 +133,8 @@ void main() {
       expect(calls.singleWhere((c) => c.method == 'setMaterial').arguments, {
         'material': NSVisualEffectViewMaterial.sidebar.index,
       });
-      expect(window.style, native.TitleBarStyle.hidden);
+      expect(window.style, native.TitleBarStyle.normal);
+      expect(window.contentUnderTitleBar, isTrue);
       expect(window.controlsVisible, isTrue);
       expect(
         [window.preparedSize!.width, window.preparedSize!.height],

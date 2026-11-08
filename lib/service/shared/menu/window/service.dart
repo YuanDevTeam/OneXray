@@ -76,9 +76,14 @@ final class WindowService {
         ygLogger('initialize window material failed: $error\n$stackTrace');
       }
     }
-    window.titleBarStyle = TitleBarStyle.hidden;
+    // Native macOS chrome keeps AppKit's drag and double-click handling.
+    // The hidden style transfers those gestures to a custom Flutter caption.
+    window.titleBarStyle = _hasSidebarMaterial
+        ? TitleBarStyle.normal
+        : TitleBarStyle.hidden;
     window.isWindowControlButtonsVisible = true;
     if (_hasSidebarMaterial) {
+      window.setContentUnderTitleBar(true);
       window.backgroundColor = const Color(0x00000000).toNative();
     }
     window.setSize(size.toNative(), false);

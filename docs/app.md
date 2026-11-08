@@ -77,6 +77,8 @@ Flutter 窗口背景和侧栏分别使用不透明的主题背景色与侧栏色
 `PageAppBar` 仅为进入 macOS 原生标题栏区域的可见按钮注册点击转发；隐藏或退出页面后移除。
 弹窗不穿透遮罩，空白标题栏保留系统拖动和双击语义。`macos_window_utils` 管理原生材质及标题栏，
 `window_manager` 管理窗口事件，不同时启用两套窗口 delegate。
+macOS 原生侧栏使用普通标题栏样式和 `setContentUnderTitleBar(true)`，保持透明、全尺寸内容及 AppKit 手势；
+隐藏标题栏样式用于需要自行处理手势的独立 Flutter 控制栏。
 窗口服务使用 `window_manager` 0.6 的原生 `Window` API，准备阶段只设置窗口属性；
 实际显示或隐藏继续由启动策略决定。关闭请求先取消再隐藏，恢复最小化窗口后才显示并聚焦。
 macOS Dock 图标通过原生 Application 控制，窗口菜单的可见性不代替 Dock 可见性。
