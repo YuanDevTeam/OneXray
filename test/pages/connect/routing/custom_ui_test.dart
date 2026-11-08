@@ -396,7 +396,7 @@ void main() {
       expect(controller.profileState.directDnsAddress, '1.1.1.1');
       final storedDns = jsonDecode(controller.previewState!.encode())['dns'];
       expect(storedDns['servers'], [
-        {'tag': 'app-dns-proxy', 'address': '8.8.8.8'},
+        {'tag': 'app-dns-proxy', 'address': 'tcp://8.8.8.8'},
         {'tag': 'app-dns-direct', 'address': '1.1.1.1'},
         {'tag': 'app-dns-fake', 'address': 'fakedns'},
       ]);

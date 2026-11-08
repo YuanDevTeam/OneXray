@@ -99,6 +99,7 @@ void main() {
           'sockopt': {'dialerProxy': 'app-vpn-dns-direct'},
         },
         'settings': {
+          'rewriteNetwork': 'tcp',
           'rules': [
             {'action': 'hijack', 'qType': '1,28'},
             {'action': 'direct'},

@@ -178,7 +178,7 @@ void main() {
       (json['dns']['servers'] as List).singleWhere(
         (server) => server['tag'] == 'app-dns-proxy',
       )['address'],
-      '8.8.8.8',
+      'tcp://8.8.8.8',
     );
     expect(
       (json['routing']['rules'] as List).single['ruleTag'],
@@ -312,7 +312,7 @@ void main() {
         servers.singleWhere(
           (server) => server['tag'] == 'app-dns-proxy',
         )['address'],
-        '8.8.8.8',
+        'tcp://8.8.8.8',
       );
     },
   );

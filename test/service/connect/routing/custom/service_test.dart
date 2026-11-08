@@ -129,6 +129,7 @@ void main() {
           'tag': 'dnsOut',
           'protocol': 'dns',
           'settings': {
+            'rewriteNetwork': 'tcp',
             'rules': [
               {'action': 'hijack', 'qType': '1,28'},
               {'action': 'direct'},
@@ -224,7 +225,7 @@ void main() {
         'disableCache': false,
         'disableFallbackIfMatch': false,
         'servers': [
-          {'tag': 'app-dns-proxy', 'address': '8.8.8.8'},
+          {'tag': 'app-dns-proxy', 'address': 'tcp://8.8.8.8'},
           {'tag': 'app-dns-direct', 'address': '9.9.9.9'},
         ],
       });

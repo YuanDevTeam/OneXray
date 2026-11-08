@@ -172,7 +172,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         value.effectiveProxyResolvers.map((resolver) => resolver.address),
-        ['8.8.8.8', 'https://dns.example/dns-query', '9.9.9.9'],
+        ['tcp://8.8.8.8', 'https://dns.example/dns-query', '9.9.9.9'],
       );
       final delete = find.descendant(
         of: extraFallback,
@@ -196,9 +196,9 @@ void main() {
       final restored = RoutingDnsSettings.fromJson(saved!);
       expect(
         restored.effectiveProxyResolvers.map((resolver) => resolver.address),
-        ['8.8.8.8', 'https://dns.example/dns-query'],
+        ['tcp://8.8.8.8', 'https://dns.example/dns-query'],
       );
-      expect(restored.directAddress, '8.8.8.8');
+      expect(restored.directAddress, 'tcp://8.8.8.8');
       expect(restored.sameExitOnly, true);
       expect(restored.disableCache, true);
       expect(find.byType(TextField), findsNWidgets(3));

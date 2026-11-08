@@ -152,7 +152,7 @@ void main() {
         final runtime = compiled.config;
         _fixture('${provider ? 'provider' : 'raw'}-$dnsCase', compiled);
         expect(runtime['dns']['servers'], [
-          for (final address in [_ipv4, _ipv6])
+          for (final address in ['tcp://$_ipv4', 'tcp://[$_ipv6]'])
             {
               'address': address,
               'tag': VpnConfigAdapter.defaultDnsTag,
@@ -357,8 +357,8 @@ void main() {
           final config = compiled.config;
           final servers = config['dns']['servers'] as List;
           expect(servers.map((value) => value['address']).toList(), [
-            _ipv4,
-            if (ipv6) _ipv6,
+            'tcp://$_ipv4',
+            if (ipv6) 'tcp://[$_ipv6]',
           ]);
           expect(
             servers.every(
