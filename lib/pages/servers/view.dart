@@ -16,7 +16,6 @@ import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
-import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/pages/servers/details.dart';
@@ -206,6 +205,36 @@ class _ServerBrowserState extends State<ServerBrowser> {
                 .contains(query));
   }
 
+  Widget _testVisibleNodes(BuildContext context, List<CoreConfigData> rows) {
+    final l = AppLocalizations.of(context)!;
+    const groupId = ServersController.mainListTestGroupId;
+    final testing = controller.testingGroup(groupId);
+    final cancelling = controller.cancellingGroup(groupId);
+    final testable = rows.where(controller.canTest).toList();
+    return OutlinedButton.icon(
+      key: const ValueKey('server-test-visible'),
+      onPressed: testing
+          ? cancelling
+                ? null
+                : () => controller.cancelTest(groupId)
+          : controller.busy ||
+                testable.isEmpty ||
+                testable.any(controller.serverBusy)
+          ? null
+          : () => controller.test(context, testable, groupId: groupId),
+      icon: testing
+          ? const ButtonProgressIndicator()
+          : const Icon(LucideIcons.activity, size: 17),
+      label: Text(
+        testing
+            ? cancelling
+                  ? l.prototypePleaseWait
+                  : l.prototypeCancel
+            : l.prototypeTestServers,
+      ),
+    );
+  }
+
   Widget _resources(BuildContext context, {required bool complete}) {
     final l = AppLocalizations.of(context)!;
     final mobile =
@@ -293,24 +322,7 @@ class _ServerBrowserState extends State<ServerBrowser> {
                         key: ValueKey('server-probe-activity'),
                         downloading: false,
                       ),
-                      if (!mobile)
-                        OutlinedButton.icon(
-                          onPressed: () => controller.choose(
-                            context,
-                            const ServerSelection.automatic(),
-                          ),
-                          icon: const Icon(LucideIcons.shuffle, size: 17),
-                          label: Text(l.prototypeAutomaticSelection),
-                        ),
-                      if (!mobile)
-                        OutlinedButton.icon(
-                          onPressed: () => controller.choose(
-                            context,
-                            const ServerSelection.source(0),
-                          ),
-                          icon: const Icon(LucideIcons.layers, size: 17),
-                          label: Text(l.prototypeManualAdditions),
-                        ),
+                      _testVisibleNodes(context, ordinary),
                     ] else ...[
                       FilledButton.icon(
                         onPressed: () => controller.addServers(context),
@@ -523,22 +535,6 @@ class ServerManualGroupsPage extends StatelessWidget {
                     ManualGroupOrderButton(
                       controller: controller,
                       showLabel: true,
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => controller.choose(
-                        context,
-                        const ServerSelection.automatic(),
-                      ),
-                      icon: const Icon(LucideIcons.shuffle, size: 17),
-                      label: Text(l.prototypeAutomaticSelection),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: () => controller.choose(
-                        context,
-                        const ServerSelection.source(0),
-                      ),
-                      icon: const Icon(LucideIcons.layers, size: 17),
-                      label: Text(l.prototypeManualAdditions),
                     ),
                   ],
                 ),

@@ -132,6 +132,8 @@ class ServersPageState {
 
 class ServersController extends PageCubit<ServersPageState>
     with ServerLabels, ServerGroups {
+  static const mainListTestGroupId = 'main-list';
+
   ServersController({
     AppDatabase? database,
     ConnectionCoordinator? coordinator,
