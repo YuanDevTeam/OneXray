@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="#linux">Linux</a> · <a href="#onexrayse">OneXraySE</a> · <a href="#其他下载">其他下载</a>
+  <a href="#系统要求">系统要求</a> · <a href="#linux">Linux</a> · <a href="#onexrayse">OneXraySE</a> · <a href="#其他下载">其他下载</a>
 </p>
 
 <p align="center">
@@ -44,6 +44,24 @@
 - **自主控制路由。** 使用智能路由或自定义路由，也可使用完整 Raw 配置和服务商配置，包括 Remnawave 订阅。
 - **开源，保护隐私。** 源码采用 GPL-3.0 许可，并附 [VPN 服务商豁免](#许可证)，无需账户，不含广告、分析或跟踪。[隐私政策](https://onexray.com/zh/docs/privacy/)。
 
+## 系统要求
+
+当前官方安装包要求以下操作系统和处理器架构：
+
+| 平台 | 最低操作系统要求 | 支持的架构 |
+| --- | --- | --- |
+| iPhone / iPad | iOS / iPadOS 16+ | arm64 |
+| macOS（Mac App Store） | macOS 13 | Apple silicon（arm64）、Intel（x86_64） |
+| macOS（OneXraySE） | macOS 13 | Apple silicon（arm64）、Intel（x86_64） |
+| Android | Android 10（API 29） | arm64-v8a、x86_64；不支持 32 位设备 |
+| Windows x64 | Windows 10 20H2（内部版本 19042） | x64（x86_64） |
+| Windows ARM64 | Windows 11 | ARM64 |
+| Linux（DEB / ZIP） | Ubuntu 24.04 LTS 或兼容发行版，需具备 Linux 内核 5.3+、glibc 2.39+、GLib 2.80+ 和 GTK 3 运行库 | x86_64、arm64 |
+
+Ubuntu 22.04 自带的 GLib 2.72 不满足当前官方 DEB / ZIP 安装包的要求。请使用 Ubuntu 24.04 LTS 或满足上述全部要求的其他发行版。
+
+详细说明见[系统要求指南](https://onexray.com/zh/docs/system-requirements/)。
+
 ## 快速开始
 
 1. 从官方商店安装，完成初始化并授予所需的系统权限。Windows 和 Linux 还需要选择出口网卡。
@@ -54,20 +72,20 @@
 
 ## 下载
 
-选择适合设备的官方商店：
+请先确认[系统要求](#系统要求)，再选择适合设备的官方商店：
 
-- **iPhone / iPad：** [App Store](https://apps.apple.com/us/app/onexray/id6745748773) — iOS / iPadOS 15+。
-- **macOS：** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773) — macOS 13+，Apple silicon 或 Intel。
-- **Android 手机 / 平板：** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray) — Android 10+，arm64-v8a 或 x86_64。
-- **Windows：** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D) — Windows 10 20H2+（x64）或 Windows 11（ARM64）。
+- **iPhone / iPad：** [App Store](https://apps.apple.com/us/app/onexray/id6745748773)。
+- **macOS：** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773)。
+- **Android 手机 / 平板：** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray)。
+- **Windows：** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D)。
 
 ### Linux
 
-[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb)。需要 Linux 5.3+ 和 glibc 2.39+。依赖与权限要求见 [Linux 安装指南](https://onexray.com/zh/docs/install/#linux)。
+[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb)。请确认 [Linux 系统要求](#系统要求)，依赖与权限要求见 [Linux 安装指南](https://onexray.com/zh/docs/install/#linux)。
 
 ### OneXraySE
 
-macOS System Extension 版本可通过 [Homebrew](https://formulae.brew.sh/cask/onexrayse) 或 [Universal ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-macos-universal.zip) 安装。需要 macOS 13+，支持 Apple silicon 和 Intel。扩展授权与更新步骤见 [macOS 安装指南](https://onexray.com/zh/docs/install/#macos)。
+macOS System Extension 版本可通过 [Homebrew](https://formulae.brew.sh/cask/onexrayse) 或 [Universal ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-macos-universal.zip) 安装。请确认[系统要求](#系统要求)，扩展授权与更新步骤见 [macOS 安装指南](https://onexray.com/zh/docs/install/#macos)。
 
 ### 其他下载
 

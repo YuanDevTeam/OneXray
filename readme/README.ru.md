@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="#linux">Linux</a> · <a href="#onexrayse">OneXraySE</a> · <a href="#другие-варианты-загрузки">Другие варианты загрузки</a>
+  <a href="#системные-требования">Системные требования</a> · <a href="#linux">Linux</a> · <a href="#onexrayse">OneXraySE</a> · <a href="#другие-варианты-загрузки">Другие варианты загрузки</a>
 </p>
 
 <p align="center">
@@ -44,6 +44,24 @@
 - **Маршрутизация под вашим контролем.** Выбирайте умную или пользовательскую маршрутизацию либо используйте полные конфигурации Raw и провайдеров, включая подписки Remnawave.
 - **Открытость и конфиденциальность.** Исходный код под GPL-3.0 с [исключением для VPN-провайдеров](#лицензия), без учётных записей, рекламы, аналитики и отслеживания. [Политика конфиденциальности](https://onexray.com/ru/docs/privacy/).
 
+## Системные требования
+
+Текущие официальные пакеты требуют следующих операционных систем и архитектур:
+
+| Платформа | Минимальная операционная система | Поддерживаемые архитектуры |
+| --- | --- | --- |
+| iPhone / iPad | iOS / iPadOS 16+ | arm64 |
+| macOS (Mac App Store) | macOS 13 | Apple silicon (arm64), Intel (x86_64) |
+| macOS (OneXraySE) | macOS 13 | Apple silicon (arm64), Intel (x86_64) |
+| Android | Android 10 (API 29) | arm64-v8a, x86_64; 32-битные устройства не поддерживаются |
+| Windows x64 | Windows 10 20H2 (сборка 19042) | x64 (x86_64) |
+| Windows ARM64 | Windows 11 | ARM64 |
+| Linux (DEB / ZIP) | Ubuntu 24.04 LTS или совместимые дистрибутивы с ядром Linux 5.3+, glibc 2.39+, GLib 2.80+ и библиотекой GTK 3 | x86_64, arm64 |
+
+Системная библиотека GLib 2.72 в Ubuntu 22.04 не отвечает требованиям текущих официальных пакетов DEB / ZIP. Используйте Ubuntu 24.04 LTS или другой дистрибутив, отвечающий всем требованиям выше.
+
+Подробнее см. в [руководстве по системным требованиям](https://onexray.com/ru/docs/system-requirements/).
+
 ## Первые шаги
 
 1. Установите приложение из официального магазина, завершите настройку и предоставьте системные разрешения. На Windows и Linux также нужно выбрать исходящий сетевой интерфейс.
@@ -54,20 +72,20 @@
 
 ## Загрузка
 
-Выберите официальный магазин для своего устройства:
+Проверьте [системные требования](#системные-требования), затем выберите официальный магазин для своего устройства:
 
-- **iPhone / iPad:** [App Store](https://apps.apple.com/us/app/onexray/id6745748773) — iOS / iPadOS 15+.
-- **macOS:** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773) — macOS 13+, Apple silicon или Intel.
-- **Телефоны / планшеты Android:** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray) — Android 10+, arm64-v8a или x86_64.
-- **Windows:** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D) — Windows 10 20H2+ (x64) или Windows 11 (ARM64).
+- **iPhone / iPad:** [App Store](https://apps.apple.com/us/app/onexray/id6745748773).
+- **macOS:** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773).
+- **Телефоны / планшеты Android:** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray).
+- **Windows:** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D).
 
 ### Linux
 
-[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb). Требуются Linux 5.3+ и glibc 2.39+. Зависимости и разрешения описаны в [руководстве по установке на Linux](https://onexray.com/ru/docs/install/#linux).
+[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb). Проверьте [системные требования Linux](#системные-требования); зависимости и разрешения описаны в [руководстве по установке на Linux](https://onexray.com/ru/docs/install/#linux).
 
 ### OneXraySE
 
-Версия для macOS с System Extension доступна через [Homebrew](https://formulae.brew.sh/cask/onexrayse) или в виде [Universal ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-macos-universal.zip). Требуется macOS 13+, Apple silicon или Intel. Разрешение расширения и обновление описаны в [руководстве по установке на macOS](https://onexray.com/ru/docs/install/#macos).
+Версия для macOS с System Extension доступна через [Homebrew](https://formulae.brew.sh/cask/onexrayse) или в виде [Universal ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-macos-universal.zip). Проверьте [системные требования](#системные-требования); разрешение расширения и обновление описаны в [руководстве по установке на macOS](https://onexray.com/ru/docs/install/#macos).
 
 ### Другие варианты загрузки
 
