@@ -35,6 +35,10 @@ void main() {
     ) async {
       await tester.binding.setSurfaceSize(const Size(480, 600));
       addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(480, 600);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
       Size? pageViewport;
       await tester.pumpWidget(
         MaterialApp(
@@ -65,6 +69,19 @@ void main() {
       );
       await tester.pumpAndSettle();
       final caption = find.byKey(const ValueKey('desktop-window-caption'));
+      if (platform == TargetPlatform.linux) {
+        expect(caption, findsNothing);
+        expect(find.byType(WindowCaption), findsNothing);
+        expect(find.byType(VirtualWindowFrame), findsNothing);
+        expect(find.byType(DragToResizeArea), findsNothing);
+        expect(tester.getTopLeft(find.byKey(const Key('body'))), Offset.zero);
+        expect(pageViewport, const Size(480, 600));
+        await tester.tap(find.text('Open'));
+        await tester.pumpAndSettle();
+        expect(find.text('Dialog'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        return;
+      }
       final height = platform == TargetPlatform.macOS
           ? AppLayout.macOSTitlebarHeight
           : kWindowCaptionHeight;
@@ -83,7 +100,10 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       expect(find.text('Dialog'), findsOneWidget);
-      expect(caption.hitTestable(at: const Alignment(0.8, 0)), findsOneWidget);
+      expect(
+        caption.hitTestable(at: const Alignment(0.8, 0.5)),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     }, variant: TargetPlatformVariant.only(platform));
   }

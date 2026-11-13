@@ -2,7 +2,7 @@ import 'dart:ffi';
 import 'dart:io';
 
 import 'package:ffi/ffi.dart';
-import 'package:nativeapi/nativeapi.dart' show Window, WindowManager;
+import 'package:window_manager/window_manager.dart' show Window, WindowManager;
 import 'package:win32/win32.dart' as win32;
 
 /// Resolves this app's main window without showing or activating it.
@@ -15,8 +15,8 @@ Window? resolveDesktopWindow() {
 }
 
 Window? _windowsMainWindow() => using((arena) {
-  // Nativeapi's Windows getCurrent uses thread-local GetActiveWindow, which
-  // cannot resolve a hidden Flutter runner from the Dart isolate's thread.
+  // The official getCurrent() finds an active window. A cold-started Flutter
+  // runner is still hidden here, so resolve its process-owned HWND explicitly.
   final currentProcess = win32.GetCurrentProcessId();
   final processId = arena<Uint32>();
   const classNameCapacity = 256;

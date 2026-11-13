@@ -81,9 +81,9 @@ dependencies:
   re_highlight: ^0.0.3
 
   # desktop
+  # Native application API supplies macOS Dock visibility and shared geometry.
   nativeapi: ^0.6.0
   tray_manager: ^0.9.0
-  # Desktop window handling uses nativeapi's window APIs.
   window_manager: ^0.7.0
   macos_window_utils: ^1.9.1
   win32: ^6.4.0

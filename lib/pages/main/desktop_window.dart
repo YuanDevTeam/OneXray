@@ -7,8 +7,8 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/shared/menu/window/service.dart';
 import 'package:window_manager/window_manager.dart';
 
-/// Native macOS controls use local safe areas, not a second full-width bar.
-/// Other desktops retain their separate caption outside the Router.
+/// Linux uses its system frame. macOS controls use local safe areas, while
+/// Windows retains the plugin's separate Flutter caption outside the Router.
 class DesktopWindowFrame extends StatefulWidget {
   const DesktopWindowFrame({super.key, required this.child});
 
@@ -58,8 +58,7 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     if (theme.platform != TargetPlatform.macOS &&
-        theme.platform != TargetPlatform.windows &&
-        theme.platform != TargetPlatform.linux) {
+        theme.platform != TargetPlatform.windows) {
       return widget.child;
     }
     final palette = ColorManager.palette(context);
@@ -97,18 +96,14 @@ class _DesktopWindowFrameState extends State<DesktopWindowFrame> {
               : Directionality(
                   // OS caption buttons stay on the right in RTL languages.
                   textDirection: TextDirection.ltr,
-                  // window_manager still uses Flutter's legacy Material theme.
-                  // ignore: deprecated_member_use
-                  child: MaterialUiCompatibilityBridge(
-                    child: WindowCaption(
-                      window: WindowService().nativeWindow,
-                      backgroundColor: palette.header,
-                      brightness: theme.brightness,
-                      title: Text(
-                        'OneXray',
-                        style: AppTypography.supporting.copyWith(
-                          color: palette.foreground,
-                        ),
+                  child: WindowCaption(
+                    window: WindowService().nativeWindow,
+                    backgroundColor: palette.header,
+                    brightness: theme.brightness,
+                    title: Text(
+                      'OneXray',
+                      style: AppTypography.supporting.copyWith(
+                        color: palette.foreground,
                       ),
                     ),
                   ),

@@ -83,18 +83,18 @@ Flutter 窗口背景和侧栏分别使用不透明的主题背景色与侧栏色
 `window_manager` 管理窗口事件，不同时启用两套窗口 delegate。
 macOS 原生侧栏使用普通标题栏样式和 `setContentUnderTitleBar(true)`，保持透明、全尺寸内容及 AppKit 手势；
 隐藏标题栏样式用于需要自行处理手势的独立 Flutter 控制栏。
-窗口服务使用 `window_manager` 0.6 的原生 `Window` API，准备阶段只设置窗口属性；
+窗口服务使用 `window_manager` 0.7 与 `nativeapi` 0.6 的正式 `Window` API，准备阶段只设置窗口属性；
 实际显示或隐藏继续由启动策略决定。关闭请求先取消再隐藏，恢复最小化窗口后才显示并聚焦。
 macOS Dock 图标通过原生 Application 控制，窗口菜单的可见性不代替 Dock 可见性。
-Windows/Linux 保留独立纯色控制栏，布局扣除控制栏高度；Windows Snap Layout 在对应系统验收。
+Windows 保留独立纯色 Flutter 控制栏，布局扣除控制栏高度；Windows Snap Layout 在对应系统验收。
+Windows 隐藏启动时，当前官方 `getCurrent()` 仅查找活跃窗口；App 保留按当前进程和 Flutter runner 类
+解析 HWND 的兼容适配，解析时不显示或激活窗口。
 macOS 与 Linux 的渲染后端沿用 Flutter 默认配置。
-Linux runner 安装始终隐藏的 GTK HeaderBar，保留 GTK 的
-CSD、原生缩放边缘与可用阴影；无合成器的 X11 使用 GTK 的实色边框。Wayland 与 X11 均由 Flutter
-绘制唯一可见控制栏，非 GNOME 的 X11 窗口管理器也不额外添加系统标题栏。
-Linux 窗口服务不再通过 nativeapi 重设标题栏样式或原生控制按钮，避免替换 runner 已建立的 GTK 装饰策略；
-窗口尺寸、最小尺寸、居中、关闭隐藏及恢复聚焦仍由同一窗口服务管理。
-系统接管控制栏拖动后若消费了鼠标释放事件，runner 在下一条真实指针事件确认按键已松开时补发给 Flutter，
-避免拖动后的首次点击失效；仍按住鼠标时不提前结束拖动。
+Linux 在 Wayland 与 X11 均使用系统标题栏，窗口服务设置 `TitleBarStyle.normal` 并显示系统窗口按钮。
+标题栏、按钮、拖动与四边四角缩放由 GTK 和窗口管理器负责，并遵守窗口最小尺寸；Flutter 直接绘制正文。
+runner 创建普通 GTK 窗口，沿用系统装饰，不额外安装自定义隐藏 HeaderBar 或添加应用阴影。
+系统拖动后的指针状态由 Flutter 3.50 恢复，runner 不再补发鼠标释放事件；
+拖动后的首次点击正常响应，仍按住鼠标时不提前结束拖动。
 
 macOS 应用菜单“设置…”及 ⌘, 恢复并聚焦既有主窗口，进入设置分支并保留其当前子页，
 不重置其它分支草稿、不重复压栈。存在模态或尚在 Setup/初始化时仅显示当前界面，不关闭编辑、
@@ -360,6 +360,7 @@ EXE/ZIP/Linux 的 Quit 先停止 VPN。需要停止的退出失败时保持 App 
 切换配置复用已有服务器或 Raw 选择页，不另建选择器。
 
 桌面托盘独立提供启停、重连、服务器/Raw/流量方式选择、订阅与路由数据更新、窗口及退出动作。
+托盘使用 `tray_manager` 正式 API；Linux 通过 `ContextMenuTrigger.clicked` 交由面板显示导出菜单。
 数据库 stream 更新菜单；各数据列表按当前顺序取前 10 条，不影响全量更新或页面数据。
 菜单打开期间不替换，关闭后合并最新结果。选择服务器显式退出专家模式，保留原 App 路由偏好；
 未连接时只保存选择，已连接时确认重连。提供方来源展开完整配置项，不提供来源自动选择；

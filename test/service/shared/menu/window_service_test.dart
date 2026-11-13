@@ -212,9 +212,9 @@ void main() {
     },
   );
 
-  test('Linux preserves GTK chrome during window actions', () async {
+  test('Linux prepares system chrome and preserves window actions', () async {
     final window = TestWindow()
-      ..style = native.TitleBarStyle.normal
+      ..style = native.TitleBarStyle.hidden
       ..controlsVisible = false;
     final service = WindowService.forTesting(
       readWindow: () => window,
@@ -229,10 +229,8 @@ void main() {
       minimumSize: const Size(480, 600),
     );
 
-    // GTK retains its decorated window with a hidden native header. Changing
-    // either native property would replace that runner-owned chrome policy.
     expect(window.style, native.TitleBarStyle.normal);
-    expect(window.controlsVisible, isFalse);
+    expect(window.controlsVisible, isTrue);
     expect(window.contentUnderTitleBar, isNull);
     expect(window.background, isNull);
     expect(service.hasSidebarMaterial, isFalse);
@@ -266,7 +264,7 @@ void main() {
     expect(window.isFocused, isTrue);
     expect(window.calls, ['restore', 'show', 'focus']);
     expect(window.style, native.TitleBarStyle.normal);
-    expect(window.controlsVisible, isFalse);
+    expect(window.controlsVisible, isTrue);
   });
 
   test('Windows prepares hidden chrome without showing the window', () async {
