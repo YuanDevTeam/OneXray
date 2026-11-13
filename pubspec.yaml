@@ -13,7 +13,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
-  material_ui: ^1.10.0
+  material_ui: ^1.11.0
 
   #---------- flutter.dev plugin
   path_provider: ^2.1.6
@@ -21,7 +21,7 @@ dependencies:
   url_launcher: ^6.3.3
   quick_actions: ^1.1.1
   home_widget: ^0.10.0
-  go_router: ^18.1.3
+  go_router: ^18.1.4
   image_picker: ^1.2.4
   process: ^5.0.6
   app_links: ^7.2.2
@@ -46,18 +46,18 @@ dependencies:
   share_plus: ^13.3.1
 
   #---------- third party plugin
-  drift: ^2.35.3
+  drift: ^2.35.4
   drift_flutter: ^0.3.1
-  sqlite3: ^3.9.0
+  sqlite3: ^3.9.1
 
   dio: ^5.11.1
   uuid: ^4.6.0
   permission_handler: ^13.0.2
   # qrcode
-  file_picker: ^13.3.2
+  file_picker: ^13.3.3
   # Reuse the existing desktop file-selector implementations for path-only saves.
   file_selector_platform_interface: ^2.7.0
-  icloud_storage_plus: ^4.2.0
+  icloud_storage_plus: ^4.3.0
   saf_stream: ^4.0.3
   mobile_scanner: ^7.5.0
   image: ^4.12.0
@@ -65,12 +65,12 @@ dependencies:
   # export
   # state management
   flutter_bloc: ^9.1.1
-  shadcn_ui: ^0.57.4
+  shadcn_ui: ^0.59.0
   # shadcn_ui 0.57.4 requires Lucide >=3.0.0 <4.0.0.
   lucide_icons_flutter: ^3.1.25
   # markdown
   flutter_markdown_plus: ^1.0.12
-  flutter_local_notifications: ^23.0.0-dev.5
+  flutter_local_notifications: ^23.0.1
   in_app_review: ^2.0.12
 
   isolate_manager: ^6.3.2
@@ -80,10 +80,10 @@ dependencies:
   re_highlight: ^0.0.3
 
   # desktop
-  nativeapi: ^0.5.10
-  tray_manager: ^0.8.3
+  nativeapi: ^0.6.0
+  tray_manager: ^0.9.0
   # Desktop window handling uses the nativeapi-backed 0.6 API.
-  window_manager: ^0.6.0
+  window_manager: ^0.7.0
   macos_window_utils: ^1.9.1
   win32: ^6.4.0
 
@@ -94,8 +94,8 @@ dev_dependencies:
   # FlutterGen 5.15.0 requires build 4; build_runner 2.17 uses build 5.
   build_runner: ^2.16.2
   json_serializable: ^6.15.2
-  drift_dev: ^2.35.2
-  pigeon: ^29.1.0
+  drift_dev: ^2.35.3
+  pigeon: ^30.0.2
   flutter_lints: ^6.0.0
   flutter_gen_runner: ^5.15.0
   ffigen: ^23.0.0
