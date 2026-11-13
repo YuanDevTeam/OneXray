@@ -6,6 +6,7 @@ import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/pages/theme/motion.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
@@ -103,7 +104,10 @@ class SettingsChoiceIndicator extends StatelessWidget {
   Widget build(BuildContext context) {
     final primary = Theme.of(context).colorScheme.primary;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 120),
+      duration: AppMotion.durationOf(
+        context,
+        const Duration(milliseconds: 120),
+      ),
       width: 22,
       height: 22,
       alignment: Alignment.center,

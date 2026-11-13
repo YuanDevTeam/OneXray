@@ -40,6 +40,7 @@ def build(project: str, target: str, build_scripts_dir: str, *, windows_mode: st
         builder.write_version(f"{marketing_version}+{builder.build_number}")
         run_command([flutter_command(), "pub", "get"], cwd=builder.root_dir)
         builder.before_build()
+        run_command([dart_command(), "run", "tool/generate_pigeon.dart"], cwd=builder.root_dir)
         # Native builds must refresh headers before FFI generation.
         run_command([dart_command(), "run", "tool/ffigen.dart"], cwd=builder.root_dir)
         builder.build_app()

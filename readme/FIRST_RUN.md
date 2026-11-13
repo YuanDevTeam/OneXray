@@ -131,7 +131,7 @@ sources change.
 | --- | --- |
 | ARB | `flutter gen-l10n` |
 | JSON/Drift models or declared assets | `dart run build_runner build --delete-conflicting-outputs` |
-| `pigeon/message.dart` | `dart run pigeon --input pigeon/message.dart` |
+| `pigeon/message.dart` or Pigeon version | `dart run tool/generate_pigeon.dart` |
 | FFI headers/configuration | `dart run tool/ffigen.dart` |
 
 Replace rebuilt native libraries and fully relaunch; hot reload cannot replace

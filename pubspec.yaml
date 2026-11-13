@@ -4,7 +4,8 @@ publish_to: "none"
 version: 26.11.4+1
 
 environment:
-  sdk: ">=3.13.0 <4.0.0"
+  sdk: ">=3.14.0 <4.0.0"
+  flutter: ">=3.50.0"
 
 dependencies:
   flutter:
@@ -66,7 +67,7 @@ dependencies:
   # state management
   flutter_bloc: ^9.1.1
   shadcn_ui: ^0.59.0
-  # shadcn_ui 0.57.4 requires Lucide >=3.0.0 <4.0.0.
+  # Keep Lucide within shadcn_ui's supported major version.
   lucide_icons_flutter: ^3.1.25
   # markdown
   flutter_markdown_plus: ^1.0.12
@@ -82,7 +83,7 @@ dependencies:
   # desktop
   nativeapi: ^0.6.0
   tray_manager: ^0.9.0
-  # Desktop window handling uses the nativeapi-backed 0.6 API.
+  # Desktop window handling uses nativeapi's window APIs.
   window_manager: ^0.7.0
   macos_window_utils: ^1.9.1
   win32: ^6.4.0

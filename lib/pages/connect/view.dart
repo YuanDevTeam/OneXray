@@ -5,6 +5,7 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/pages/theme/motion.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
@@ -357,7 +358,7 @@ class ConnectView extends StatelessWidget {
             if (_busy)
               SizedBox.square(
                 dimension: 17,
-                child: MediaQuery.disableAnimationsOf(context)
+                child: AppMotion.reducedOf(context)
                     ? Icon(LucideIcons.loaderCircle, color: color, size: 17)
                     : CircularProgressIndicator(strokeWidth: 2, color: color),
               )

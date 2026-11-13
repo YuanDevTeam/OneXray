@@ -46,7 +46,7 @@ class BuilderTest(unittest.TestCase):
                 main()
             run.assert_not_called()
 
-    def test_build_refreshes_headers_before_ffi_and_restores_pubspec_on_success_or_failure(self):
+    def test_build_refreshes_bindings_and_restores_pubspec_on_success_or_failure(self):
         header = self.root / "c/include/libXray.h"
         events = []
 
@@ -56,14 +56,18 @@ class BuilderTest(unittest.TestCase):
             events.append("native")
 
         def command(args, **kwargs):
-            if "tool/ffigen.dart" in args:
+            if "tool/generate_pigeon.dart" in args:
+                events.append("pigeon")
+                if fail == "pigeon":
+                    raise RuntimeError("generation failed")
+            elif "tool/ffigen.dart" in args:
                 self.assertEqual(header.read_text(), "fresh native header")
                 self.assertIn(b"26.8.5+401", self.pubspec.read_bytes())
                 events.append("ffi")
-                if fail:
+                if fail == "ffi":
                     raise RuntimeError("generation failed")
             elif "appbundle" in args:
-                self.assertEqual(events, ["native", "ffi"])
+                self.assertEqual(events, ["native", "pigeon", "ffi"])
                 aab = self.root / "build/app/outputs/bundle/release/app-release.aab"
                 aab.parent.mkdir(parents=True, exist_ok=True)
                 aab.write_bytes(b"release bundle")
@@ -75,7 +79,7 @@ class BuilderTest(unittest.TestCase):
                     b"downloaded APK"
                 )
 
-        for fail in (False, True):
+        for fail in (None, "pigeon", "ffi"):
             events.clear()
             with (
                 mock.patch.object(Builder, "build_core", native_build),
@@ -85,7 +89,10 @@ class BuilderTest(unittest.TestCase):
                 if fail:
                     with self.assertRaisesRegex(RuntimeError, "generation failed"):
                         build("OneXray", "android", str(self.root / "build_scripts"))
-                    self.assertEqual(events, ["native", "ffi"])
+                    self.assertEqual(
+                        events,
+                        ["native", "pigeon"] + (["ffi"] if fail == "ffi" else []),
+                    )
                 else:
                     build("OneXray", "android", str(self.root / "build_scripts"))
                     self.assertEqual(

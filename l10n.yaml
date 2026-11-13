@@ -1,5 +1,7 @@
 output-dir: lib/l10n/localizations
 # Approved Persian text contains intentional Unicode direction isolates. Preserve
 # the source text; only the generated translation literals need this exemption.
-header: '// ignore_for_file: text_direction_code_point_in_literal'
+# Flutter 3.50 gen-l10n still emits deprecated SDK design delegates. The App uses
+# AppLocalePolicy's standalone delegates; limit this exemption to generated code.
+header: '// ignore_for_file: text_direction_code_point_in_literal, deprecated_member_use'
 untranslated-messages-file: desiredFileName.txt

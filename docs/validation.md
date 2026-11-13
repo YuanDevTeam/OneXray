@@ -226,6 +226,7 @@ XDrive 配置通过原生构造不代表 S3/Google Drive 传输已经验收；�
 
 ```shell
 flutter gen-l10n
+dart run tool/generate_pigeon.dart
 dart run build_runner build
 dart run tool/ffigen.dart
 dart run tool/check_layer_dependencies.dart
@@ -236,6 +237,9 @@ git diff --check
 ```
 
 Pigeon、FFI、Drift 或本地化变更先生成对应输出；只改测试时不重复生成无关代码。
+Pigeon schema 或生成器版本更新时，用 `tool/generate_pigeon.dart` 同步生成 Dart/Kotlin/Swift，
+由 App 自有入口格式化并清理生成代码的尾部空白；不修改第三方生成器模板。
+重复执行应得到相同输出，CI 的生成源检查覆盖三端文件。
 只改文档时检查路径、锚点和 diff，不运行 App 测试。
 
 - 构建脚本：在 `build_scripts/` 执行 `python -m unittest discover -s tests`（仅需 Python 标准库）。

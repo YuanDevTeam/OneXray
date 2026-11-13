@@ -126,7 +126,7 @@ FFI 头文件与配置见 `pubspec.yaml`；已入库的模型、数据库、资�
 | --- | --- |
 | ARB | `flutter gen-l10n` |
 | JSON/Drift 模型或声明的资源 | `dart run build_runner build --delete-conflicting-outputs` |
-| `pigeon/message.dart` | `dart run pigeon --input pigeon/message.dart` |
+| `pigeon/message.dart` 或 Pigeon 版本 | `dart run tool/generate_pigeon.dart` |
 | FFI 头文件／配置 | `dart run tool/ffigen.dart` |
 
 重新构建并替换原生库后完整重启，热重载不能替换它们。隔离测试数据放在工作空间

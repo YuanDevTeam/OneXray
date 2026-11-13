@@ -47,6 +47,7 @@ void main() {
     int? activeRawId,
     VoidCallback? onAddServers,
     VoidCallback? onServer,
+    VoidCallback? onConnection,
   }) => ConnectView(
     view: view,
     hasServers: hasServers,
@@ -59,7 +60,7 @@ void main() {
     method: method,
     methodDetail: methodDetail,
     methodEnabled: methodEnabled,
-    onConnection: () {},
+    onConnection: onConnection ?? () {},
     onAddServers: onAddServers ?? () {},
     onServer: onServer ?? () {},
     onMethod: onMethod ?? () {},
@@ -69,6 +70,8 @@ void main() {
     Widget child, {
     Locale locale = const Locale('en'),
     double scale = 1,
+    bool reduceMotion = false,
+    bool disableAnimations = false,
   }) => MaterialApp(
     theme: AppTheme.light,
     locale: locale,
@@ -79,12 +82,56 @@ void main() {
         data: MediaQuery.of(context).copyWith(
           size: constraints.biggest,
           textScaler: TextScaler.linear(scale),
+          reduceMotion: reduceMotion,
+          disableAnimations: disableAnimations,
         ),
         child: ShadTheme(data: AppTheme.shad(Brightness.light), child: child!),
       ),
     ),
     home: Scaffold(body: child),
   );
+
+  testWidgets('motion preferences retain busy feedback and cancellation', (
+    tester,
+  ) async {
+    var cancellations = 0;
+    for (final (reduceMotion, disableAnimations) in const [
+      (false, false),
+      (true, false),
+      (false, true),
+      (false, false),
+    ]) {
+      await tester.pumpWidget(
+        app(
+          screen(
+            view: const ConnectionView(phase: ConnectionPhase.preparing),
+            onConnection: () => cancellations++,
+          ),
+          reduceMotion: reduceMotion,
+          disableAnimations: disableAnimations,
+        ),
+      );
+      await tester.pump();
+      final l = AppLocalizations.of(tester.element(find.byType(ConnectView)))!;
+      expect(find.text(l.connectionPreparing), findsNWidgets(2));
+      expect(
+        find.byType(CircularProgressIndicator),
+        reduceMotion || disableAnimations ? findsNothing : findsOneWidget,
+      );
+      expect(
+        find.byIcon(LucideIcons.loaderCircle),
+        reduceMotion || disableAnimations ? findsOneWidget : findsNothing,
+      );
+      final action = find.byType(FilledButton);
+      expect(tester.widget<FilledButton>(action).onPressed, isNotNull);
+      final before = cancellations;
+      await tester.tap(action);
+      await tester.pump();
+      expect(cancellations, before + 1);
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets(
     'provider traffic method is a read-only explanation on mobile and desktop',
