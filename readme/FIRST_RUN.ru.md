@@ -118,7 +118,7 @@ Apple/Android, поскольку общий Dart-код импортирует 
   ```shell
   flutter build linux --debug
   sudo setcap cap_net_admin,cap_net_raw+eip build/linux/x64/debug/bundle/OneXrayCore
-  flutter run -d linux --no-enable-impeller
+  flutter run -d linux
   ```
   Для ARM64 замените `x64` на `arm64`; после замены Core выдайте возможности заново.
 - Windows MSIX запускается как установленный подписанный пакет с идентичностью;

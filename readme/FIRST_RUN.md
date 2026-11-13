@@ -118,7 +118,7 @@ sources change.
   ```shell
   flutter build linux --debug
   sudo setcap cap_net_admin,cap_net_raw+eip build/linux/x64/debug/bundle/OneXrayCore
-  flutter run -d linux --no-enable-impeller
+  flutter run -d linux
   ```
   Use `arm64` on ARM64; reapply capabilities when rebuilding replaces Core.
 - Windows MSIX requires an installed, signed development package and its identity;

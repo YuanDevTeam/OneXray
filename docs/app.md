@@ -83,7 +83,8 @@ macOS 原生侧栏使用普通标题栏样式和 `setContentUnderTitleBar(true)`
 实际显示或隐藏继续由启动策略决定。关闭请求先取消再隐藏，恢复最小化窗口后才显示并聚焦。
 macOS Dock 图标通过原生 Application 控制，窗口菜单的可见性不代替 Dock 可见性。
 Windows/Linux 保留独立纯色控制栏，布局扣除控制栏高度；Windows Snap Layout 在对应系统验收。
-Linux runner 在创建 Flutter View 前关闭 Impeller，并安装始终隐藏的 GTK HeaderBar，保留 GTK 的
+macOS 与 Linux 的渲染后端沿用 Flutter 默认配置。
+Linux runner 安装始终隐藏的 GTK HeaderBar，保留 GTK 的
 CSD、原生缩放边缘与可用阴影；无合成器的 X11 使用 GTK 的实色边框。Wayland 与 X11 均由 Flutter
 绘制唯一可见控制栏，非 GNOME 的 X11 窗口管理器也不额外添加系统标题栏。
 Linux 窗口服务不再通过 nativeapi 重设标题栏样式或原生控制按钮，避免替换 runner 已建立的 GTK 装饰策略；

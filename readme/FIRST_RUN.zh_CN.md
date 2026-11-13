@@ -113,7 +113,7 @@ FFI 头文件与配置见 `pubspec.yaml`；已入库的模型、数据库、资�
   ```shell
   flutter build linux --debug
   sudo setcap cap_net_admin,cap_net_raw+eip build/linux/x64/debug/bundle/OneXrayCore
-  flutter run -d linux --no-enable-impeller
+  flutter run -d linux
   ```
   ARM64 将 `x64` 改为 `arm64`；重新构建替换 Core 后重新授予能力。
 - Windows MSIX 须运行已安装且签名的开发包；参阅
