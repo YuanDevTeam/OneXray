@@ -286,19 +286,3 @@ class _MethodOption extends StatelessWidget {
     );
   }
 }
-
-class ConnectExplanation extends StatelessWidget {
-  const ConnectExplanation({super.key, required this.icon, required this.text});
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(icon, size: 22, color: ColorManager.palette(context).primary),
-      const SizedBox(width: 12),
-      Expanded(child: Text(text, style: AppTypography.dialogBody)),
-    ],
-  );
-}

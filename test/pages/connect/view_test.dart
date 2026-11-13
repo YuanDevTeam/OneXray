@@ -63,7 +63,6 @@ void main() {
     onAddServers: onAddServers ?? () {},
     onServer: onServer ?? () {},
     onMethod: onMethod ?? () {},
-    onWhy: () {},
   );
 
   Widget app(
@@ -286,7 +285,7 @@ void main() {
     );
   }
 
-  testWidgets('connection explanation requires actual runtime metadata', (
+  testWidgets('runtime summary requires actual runtime metadata', (
     tester,
   ) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -302,7 +301,7 @@ void main() {
       ]) {
         await tester.pumpWidget(app(screen(view: view)));
         await tester.pumpAndSettle();
-        expect(find.text('Why this connection?'), findsNothing);
+        expect(find.text('Active connection'), findsNothing);
       }
       await tester.pumpWidget(
         app(
@@ -317,7 +316,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Why this connection?'), findsOneWidget);
+      expect(find.text('Active connection'), findsOneWidget);
       expect(find.text('Actual entry'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
@@ -412,7 +411,7 @@ void main() {
           tester.widget<TrafficReadout>(find.byType(TrafficReadout)).desktop,
           isFalse,
         );
-        expect(find.text('Why this connection?'), findsOneWidget);
+        expect(find.text('Why this connection?'), findsNothing);
         expect(find.text('Add Raw JSON'), findsNothing);
         expect(find.text('Frozen entry → Frozen exit'), findsOneWidget);
         expect(tester.takeException(), isNull);
@@ -725,7 +724,6 @@ void main() {
         );
       }
       expect(find.text('Add Raw JSON'), findsNothing);
-      expect(find.text('Why this connection?'), findsNothing);
       await tester.tap(find.text('Legacy 3'));
       expect(opened, isTrue);
     },

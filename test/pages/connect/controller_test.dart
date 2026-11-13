@@ -50,7 +50,7 @@ void main() {
   });
 
   testWidgets(
-    'provider selection and runtime snapshot use provider explanations without traffic changes',
+    'provider selection and runtime snapshot preserve provider routing without traffic changes',
     (tester) async {
       final coordinator = _Coordinator();
       final db = coordinator.db;
@@ -100,21 +100,13 @@ void main() {
         _testApp(
           Builder(
             builder: (context) => Scaffold(
-              body: Column(
-                children: [
-                  TextButton(
-                    onPressed: () => controller.showWhy(context),
-                    child: const Text('why'),
-                  ),
-                  TextButton(
-                    onPressed: () async {
-                      changed = await controller.change(context, {
-                        'trafficMode': 'allVpn',
-                      });
-                    },
-                    child: const Text('change-method'),
-                  ),
-                ],
+              body: TextButton(
+                onPressed: () async {
+                  changed = await controller.change(context, {
+                    'trafficMode': 'allVpn',
+                  });
+                },
+                child: const Text('change-method'),
               ),
             ),
           ),
@@ -147,11 +139,6 @@ void main() {
       expect(controller.runningProfile?.name, 'Provider profile');
       expect(controller.providerConfiguration, isTrue);
       expect(controller.runningRoute, isNull);
-      await tester.tap(find.text('why'));
-      await tester.pumpAndSettle();
-      expect(find.text(l.providerRoutingNotice), findsOneWidget);
-      expect(find.text(l.prototypeNoAvailableEntries), findsNothing);
-      expect(find.textContaining('3 entry nodes'), findsNothing);
       for (final selection in [
         const ServerSelection.automatic(),
         ServerSelection.source(sourceId),
@@ -221,162 +208,45 @@ void main() {
     expect(before.sameContentAs(after), isFalse);
   });
 
-  testWidgets(
-    'Raw runtime explains its own routing without changing ordinary preferences',
-    (tester) async {
-      final coordinator = _Coordinator();
-      coordinator.state.value = ConnectionView(
-        phase: ConnectionPhase.connected,
-        runtime: _runtime(expert: true),
-      );
-      final configuration = ConnectionConfiguration(
-        connection: ConnectionSettings(
-          expert: true,
-          rawId: 9,
-          trafficMode: TrafficMode.allVpn,
-          selection: const ServerSelection.source(17),
-          smart: SmartRoutingSettings(entryCount: 3, finalExitId: 900),
-        ),
-      );
-      coordinator.saved = configuration;
-      final controller = ConnectController(
-        database: coordinator.db,
-        coordinator: coordinator,
-      )..configuration = configuration;
-      addTearDown(controller.close);
-      addTearDown(coordinator.dispose);
-      addTearDown(coordinator.db.close);
-      await tester.pumpWidget(
-        _testApp(
-          Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () => controller.showWhy(context),
-                child: const Text('why'),
-              ),
-            ),
-          ),
-        ),
-      );
-      final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
-      final before = configuration.encode();
-      expect(
-        controller.homeMethodTitle(l),
-        l.completeConfigurationRoutingTitle,
-      );
-      expect(
-        controller.methodDescription(l),
-        l.completeConfigurationRoutingNotice,
-      );
-      expect(controller.selectionDetail(l), l.xrayRawPageTitle);
-      await tester.tap(find.text('why'));
-      await tester.pumpAndSettle();
-      expect(find.text(l.prototypeRawManagedSettingsNotice), findsOneWidget);
-      expect(find.text(l.prototypeAllViaVpnDescription), findsNothing);
-      expect(controller.configuration.encode(), before);
-      expect(coordinator.saved.encode(), before);
-      expect(coordinator.applyCount, 0);
-      expect(tester.takeException(), isNull);
-    },
-  );
-
-  testWidgets('connection explanation does not preview an unstarted plan', (
+  testWidgets('Raw routing labels preserve ordinary preferences', (
     tester,
   ) async {
     final coordinator = _Coordinator();
+    coordinator.state.value = ConnectionView(
+      phase: ConnectionPhase.connected,
+      runtime: _runtime(expert: true),
+    );
+    final configuration = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        expert: true,
+        rawId: 9,
+        trafficMode: TrafficMode.allVpn,
+        selection: const ServerSelection.source(17),
+        smart: SmartRoutingSettings(entryCount: 3, finalExitId: 900),
+      ),
+    );
+    coordinator.saved = configuration;
     final controller = ConnectController(
       database: coordinator.db,
       coordinator: coordinator,
-    )..configuration = coordinator.saved;
+    )..configuration = configuration;
     addTearDown(controller.close);
     addTearDown(coordinator.dispose);
     addTearDown(coordinator.db.close);
-    await tester.pumpWidget(
-      _testApp(
-        Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => controller.showWhy(context),
-              child: const Text('why'),
-            ),
-          ),
-        ),
-      ),
+    await tester.pumpWidget(_testApp(const Scaffold(body: SizedBox())));
+    final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
+    final before = configuration.encode();
+    expect(controller.homeMethodTitle(l), l.completeConfigurationRoutingTitle);
+    expect(
+      controller.methodDescription(l),
+      l.completeConfigurationRoutingNotice,
     );
-    for (final view in [
-      const ConnectionView(),
-      ConnectionView(runtime: _runtime()),
-      const ConnectionView(phase: ConnectionPhase.failed, issue: 'stopFailed'),
-    ]) {
-      coordinator.state.value = view;
-      await tester.tap(find.text('why'));
-      await tester.pumpAndSettle();
-      expect(find.text('Why this connection?'), findsNothing);
-    }
+    expect(controller.selectionDetail(l), l.xrayRawPageTitle);
+    expect(controller.configuration.encode(), before);
+    expect(coordinator.saved.encode(), before);
     expect(coordinator.applyCount, 0);
-    expect(coordinator.connectCount, 0);
-    expect(coordinator.disconnectCount, 0);
+    expect(tester.takeException(), isNull);
   });
-
-  for (final phase in [ConnectionPhase.connected, ConnectionPhase.failed]) {
-    testWidgets(
-      'connection explanation uses only actual runtime even when the saved plan differs; phase=$phase',
-      (tester) async {
-        final coordinator = _Coordinator();
-        coordinator.state.value = ConnectionView(
-          phase: phase,
-          issue: phase == ConnectionPhase.failed ? 'stopFailed' : null,
-          runtime: _runtime(),
-        );
-        final controller = ConnectController(
-          database: coordinator.db,
-          coordinator: coordinator,
-        )..configuration = coordinator.saved;
-        addTearDown(controller.close);
-        addTearDown(coordinator.dispose);
-        addTearDown(coordinator.db.close);
-        await tester.pumpWidget(
-          _testApp(
-            Scaffold(
-              body: Builder(
-                builder: (context) => TextButton(
-                  onPressed: () => controller.showWhy(context),
-                  child: const Text('why'),
-                ),
-              ),
-            ),
-          ),
-        );
-        final l = AppLocalizations.of(tester.element(find.byType(Scaffold)))!;
-        final before = coordinator.saved.encode();
-        expect(controller.configuration.connection.expert, isTrue);
-        await tester.tap(find.text('why'));
-        await tester.pumpAndSettle();
-        expect(
-          find.text(
-            l.prototypeSmartConnectionChainReason(
-              'Singapore 03 + Japan 02',
-              'United States 01',
-            ),
-          ),
-          findsOneWidget,
-        );
-        expect(
-          find.text(l.prototypeRunningEntriesReason('Singapore 03 + Japan 02')),
-          findsOneWidget,
-        );
-        expect(find.text(l.prototypeRawManagedSettingsNotice), findsNothing);
-        expect(find.text(l.providerRoutingNotice), findsNothing);
-        expect(
-          controller.runningRoute?.path,
-          'Singapore 03 + Japan 02 → United States 01',
-        );
-        expect(coordinator.saved.encode(), before);
-        expect(coordinator.applyCount, 0);
-        expect(coordinator.connectCount, 0);
-      },
-    );
-  }
 
   testWidgets(
     'scope fallback uses frozen source and runtime identities only after connection',
@@ -1446,7 +1316,6 @@ Widget _connectionScreen(ConnectController controller) => ShadTheme(
           onAddServers: () {},
           onServer: () {},
           onMethod: () {},
-          onWhy: () {},
         ),
       ),
     ),

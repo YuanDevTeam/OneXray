@@ -788,10 +788,6 @@
   "@prototypeExpertMode": {
     "description": "Approved prototype copy: Expert mode"
   },
-  "prototypeWhyThisConnection": "Why this connection?",
-  "@prototypeWhyThisConnection": {
-    "description": "Approved prototype copy: Why this connection?"
-  },
   "prototypeTraffic": "Traffic",
   "@prototypeTraffic": {
     "description": "Approved prototype copy: Traffic"
@@ -1270,57 +1266,6 @@
   "prototypeCannotUndo": "This change cannot be undone.",
   "@prototypeCannotUndo": {
     "description": "Approved prototype copy: This change cannot be undone."
-  },
-  "prototypeWhyConnectionTitle": "Why OneXray chose this connection",
-  "@prototypeWhyConnectionTitle": {
-    "description": "Approved prototype copy: Why OneXray chose this connection"
-  },
-  "prototypeSmartConnectionChainReason": "Smart Routing keeps the selected regions direct. VPN traffic enters through {entries}, then exits through {exit}.",
-  "@prototypeSmartConnectionChainReason": {
-    "description": "Approved prototype copy: Smart Routing keeps the selected regions direct. VPN traffic enters through {entries}, then exits through {exit}.",
-    "placeholders": {
-      "entries": {
-        "type": "String"
-      },
-      "exit": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeSmartConnectionReason": "Smart Routing keeps the selected regions direct. VPN traffic uses {entries}.",
-  "@prototypeSmartConnectionReason": {
-    "description": "Approved prototype copy: Smart Routing keeps the selected regions direct. VPN traffic uses {entries}.",
-    "placeholders": {
-      "entries": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeAllVpnConnectionReason": "All internet traffic uses {server}, except system-required traffic.",
-  "@prototypeAllVpnConnectionReason": {
-    "description": "Approved prototype copy: All internet traffic uses {server}, except system-required traffic.",
-    "placeholders": {
-      "server": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeCustomConnectionReason": "Your custom rules decide which traffic uses the VPN, stays direct, or is blocked. Rules do not store server choices.",
-  "@prototypeCustomConnectionReason": {
-    "description": "Approved prototype copy: Your custom rules decide which traffic uses the VPN, stays direct, or is blocked. Rules do not store server choices."
-  },
-  "prototypeRunningEntriesReason": "This connection selected {entries}. Retesting does not change the current connection.",
-  "@prototypeRunningEntriesReason": {
-    "description": "Approved prototype copy: This connection selected {entries}. Retesting does not change the current connection.",
-    "placeholders": {
-      "entries": {
-        "type": "String"
-      }
-    }
-  },
-  "prototypeNoAnalyticsLocalLogs": "OneXray does not collect or upload analytics. Optional logs stay on this device.",
-  "@prototypeNoAnalyticsLocalLogs": {
-    "description": "Approved prototype copy: OneXray does not collect or upload analytics. Optional logs stay on this device."
   },
   "prototypeEditSubscription": "Edit subscription",
   "@prototypeEditSubscription": {
