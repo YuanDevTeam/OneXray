@@ -38,6 +38,7 @@ void main() {
     bool hasServers = true,
     bool expert = false,
     String? runningPath,
+    String? locationHealth,
     String? fallbackMessage,
     bool methodEnabled = true,
     VoidCallback? onMethod,
@@ -56,6 +57,7 @@ void main() {
     activeRawId: activeRawId,
     location: 'Automatic selection',
     runningPath: runningPath,
+    locationHealth: locationHealth,
     fallbackMessage: fallbackMessage,
     method: method,
     methodDetail: methodDetail,
@@ -332,23 +334,55 @@ void main() {
     );
   }
 
-  testWidgets('runtime summary requires actual runtime metadata', (
+  testWidgets('runtime placeholder hides stale or missing session metadata', (
     tester,
   ) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    for (final width in [390.0, 768.0, 1440.0]) {
+    for (final width in [390.0, 768.0, 1160.0]) {
       await tester.binding.setSurfaceSize(Size(width, 900));
       for (final view in [
         const ConnectionView(),
-        ConnectionView(runtime: _runtime()),
+        ConnectionView(runtime: _runtime(rawName: 'Stale Raw JSON')),
+        ConnectionView(
+          phase: ConnectionPhase.preparing,
+          runtime: _runtime(rawName: 'Stale Raw JSON'),
+        ),
+        const ConnectionView(phase: ConnectionPhase.connected),
         const ConnectionView(
           phase: ConnectionPhase.failed,
           issue: 'stopFailed',
         ),
       ]) {
-        await tester.pumpWidget(app(screen(view: view)));
-        await tester.pumpAndSettle();
-        expect(find.text('Active connection'), findsNothing);
+        await tester.pumpWidget(
+          app(
+            screen(
+              view: view,
+              runningPath: 'Stale running path',
+              locationHealth: 'Stale path health',
+            ),
+          ),
+        );
+        await tester.pump();
+        final runtime = find.byKey(
+          const ValueKey('connection-session-runtime'),
+        );
+        expect(runtime, findsOneWidget);
+        expect(
+          find.descendant(of: runtime, matching: find.text('—')),
+          findsNWidgets(2),
+        );
+        for (final stale in [
+          'Stale Raw JSON',
+          'Stale running path',
+          'Stale path health',
+          'Automatic selection',
+        ]) {
+          expect(
+            find.descendant(of: runtime, matching: find.text(stale)),
+            findsNothing,
+          );
+        }
+        expect(tester.takeException(), isNull);
       }
       await tester.pumpWidget(
         app(
@@ -362,12 +396,83 @@ void main() {
           ),
         ),
       );
-      await tester.pumpAndSettle();
-      expect(find.text('Active connection'), findsOneWidget);
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('connection-session-runtime')),
+        findsOneWidget,
+      );
       expect(find.text('Actual entry'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
+    await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  for (final raw in [false, true]) {
+    testWidgets(
+      'session placeholder keeps layout through connection; raw=$raw',
+      (tester) async {
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final runtime = _runtime(rawName: raw ? 'Personal Raw JSON' : null);
+        for (final width in [390.0, 768.0, 1160.0]) {
+          await tester.binding.setSurfaceSize(Size(width, 1000));
+          final state = ValueNotifier(const ConnectionView());
+          await tester.pumpWidget(
+            app(
+              ValueListenableBuilder<ConnectionView>(
+                valueListenable: state,
+                builder: (_, view, _) => screen(
+                  expert: raw,
+                  view: view,
+                  runningPath: 'Actual entry with a longer label → Final exit with a longer label',
+                  locationHealth: 'Available',
+                ),
+              ),
+            ),
+          );
+          await tester.pump();
+          final session = find.byKey(const ValueKey('connection-session'));
+          final readout = find.byType(TrafficReadout);
+          final initial = tester.getRect(session);
+          final metricsOffset = tester.getTopLeft(readout).dy - initial.top;
+          for (final phase in [
+            ConnectionPhase.preparing,
+            ConnectionPhase.connecting,
+            ConnectionPhase.connected,
+            ConnectionPhase.disconnecting,
+            ConnectionPhase.disconnected,
+          ]) {
+            state.value = ConnectionView(
+              phase: phase,
+              runtime: phase == ConnectionPhase.disconnected ? null : runtime,
+              metricsAvailable: phase == ConnectionPhase.connected,
+              uploadSpeed: 32 * 1024,
+              downloadSpeed: 4 * 1024 * 1024,
+              traffic: const ConnectionTraffic(
+                uplink: 411 * 1024 * 1024,
+                downlink: 4 * 1024 * 1024 * 1024,
+                sampledAtMs: 0,
+              ),
+            );
+            await tester.pump();
+            final rect = tester.getRect(session);
+            expect(
+              rect.height,
+              closeTo(initial.height, .01),
+              reason: 'Session height changed at $phase / $width / raw=$raw',
+            );
+            expect(
+              tester.getTopLeft(readout).dy - rect.top,
+              closeTo(metricsOffset, .01),
+              reason: 'Metric position changed at $phase / $width / raw=$raw',
+            );
+            expect(tester.takeException(), isNull);
+          }
+          await tester.pumpWidget(const SizedBox.shrink());
+          state.dispose();
+        }
+      },
+    );
+  }
 
   testWidgets('scope fallback remains visible beside the actual running path', (
     tester,
@@ -395,7 +500,7 @@ void main() {
 
   for (final expert in [false, true]) {
     testWidgets(
-      'connection stacks state, plan, runtime and session; raw=$expert',
+      'connection merges runtime and traffic in one session; raw=$expert',
       (tester) async {
         await tester.binding.setSurfaceSize(const Size(1160, 800));
         addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -408,6 +513,7 @@ void main() {
                 runtime: _runtime(),
               ),
               runningPath: 'Frozen entry → Frozen exit',
+              locationHealth: 'All running paths are available',
             ),
           ),
         );
@@ -416,12 +522,7 @@ void main() {
           tester.element(find.byType(ConnectView)),
         )!;
         final cards =
-            [
-                  l.prototypeConnected,
-                  l.connectionPlan,
-                  l.connectionRuntimeTitle,
-                  l.connectionSessionTitle,
-                ]
+            [l.prototypeConnected, l.connectionPlan, l.connectionSessionTitle]
                 .map(
                   (title) => tester.getRect(
                     find
@@ -460,7 +561,26 @@ void main() {
         );
         expect(find.text('Why this connection?'), findsNothing);
         expect(find.text('Add Raw JSON'), findsNothing);
-        expect(find.text('Frozen entry → Frozen exit'), findsOneWidget);
+        expect(find.text(l.connectionRuntimeTitle), findsNothing);
+        final session = find.byKey(const ValueKey('connection-session'));
+        expect(
+          find.descendant(
+            of: session,
+            matching: find.text('Frozen entry → Frozen exit'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: session,
+            matching: find.text('All running paths are available'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: session, matching: find.byType(TrafficReadout)),
+          findsOneWidget,
+        );
         expect(tester.takeException(), isNull);
       },
     );
@@ -827,7 +947,7 @@ void main() {
   });
 }
 
-ConnectionRuntime _runtime() {
+ConnectionRuntime _runtime({String? rawName}) {
   final configuration = ConnectionConfiguration();
   return ConnectionRuntime.create(
     configuration: configuration,
@@ -843,6 +963,7 @@ ConnectionRuntime _runtime() {
       finalExit: null,
       nodeTags: const {},
     ),
+    rawName: rawName,
     platform: ConnectionPlatform.android,
     request: StartVpnRequest(
       configuration.policy.toTun(ConnectionPlatform.android),

@@ -64,6 +64,13 @@ class ConnectView extends StatelessWidget {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final raw = raws.where((row) => row.id == activeRawId).firstOrNull;
+    final hasRuntime = view.canDisconnect && view.runtime != null;
+    final runtimeName = hasRuntime
+        ? view.runtime?.profile?.name ??
+              view.runtime?.rawName ??
+              runningPath ??
+              l.prototypeCompleteXrayConfiguration
+        : null;
     Widget choice(
       IconData icon,
       String label,
@@ -204,42 +211,9 @@ class ConnectView extends StatelessWidget {
                 ),
               ),
             ),
-            if (view.canDisconnect && view.runtime != null) ...[
-              const SizedBox(height: 16),
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l.connectionRuntimeTitle,
-                        style: AppTypography.panelTitle,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        view.runtime?.profile?.name ??
-                            view.runtime?.rawName ??
-                            runningPath ??
-                            l.prototypeCompleteXrayConfiguration,
-                        style: AppTypography.rowTitle,
-                      ),
-                      if (locationHealth != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            locationHealth!,
-                            style: AppTypography.supporting,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
             const SizedBox(height: 16),
             Card(
+              key: const ValueKey('connection-session'),
               margin: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(18),
@@ -256,6 +230,46 @@ class ConnectView extends StatelessWidget {
                       style: AppTypography.supporting.copyWith(
                         color: palette.mutedForeground,
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      key: const ValueKey('connection-session-runtime'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            LucideIcons.activity,
+                            size: 18,
+                            color: hasRuntime
+                                ? palette.mutedStrong
+                                : palette.mutedForeground,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _SessionText(
+                                value: runtimeName,
+                                style: AppTypography.rowTitle.copyWith(
+                                  color: hasRuntime
+                                      ? palette.foreground
+                                      : palette.mutedForeground,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              _SessionText(
+                                value: hasRuntime ? locationHealth : null,
+                                style: AppTypography.supporting.copyWith(
+                                  color: palette.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     trafficBuilder?.call(false) ?? TrafficReadout(view: view),
@@ -451,6 +465,34 @@ class ConnectView extends StatelessWidget {
   }
 }
 
+/// Keep reserved text rows stable while unknown session values are replaced.
+class _SessionText extends StatelessWidget {
+  const _SessionText({required this.value, required this.style});
+
+  final String? value;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      value ?? '—',
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+    return SizedBox(
+      height:
+          MediaQuery.textScalerOf(context).scale(style.fontSize!) *
+          style.height!,
+      child: Align(
+        alignment: AlignmentDirectional.topStart,
+        child: value == null ? text : Tooltip(message: value!, child: text),
+      ),
+    );
+  }
+}
+
 class TrafficReadout extends StatelessWidget {
   const TrafficReadout({super.key, required this.view, this.desktop = false});
   final ConnectionView view;
@@ -470,6 +512,24 @@ class TrafficReadout extends StatelessWidget {
     final elapsed = duration == null
         ? '—'
         : '${duration.inHours.toString().padLeft(2, '0')}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+    Widget number(String value, TextStyle style) => SizedBox(
+      height:
+          MediaQuery.textScalerOf(context).scale(style.fontSize!) *
+          style.height!,
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+            value,
+            maxLines: 1,
+            textDirection: TextDirection.ltr,
+            style: style,
+          ),
+        ),
+      ),
+    );
     Widget metric(
       String title,
       String value,
@@ -494,22 +554,13 @@ class TrafficReadout extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 7),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(
-              value,
-              textDirection: TextDirection.ltr,
-              style: AppTypography.metric,
-            ),
-          ),
+          number(value, AppTypography.metric),
           if (detail != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(
+              child: number(
                 detail,
-                textDirection: TextDirection.ltr,
-                style: AppTypography.supporting.copyWith(
+                AppTypography.supporting.copyWith(
                   color: palette.mutedForeground,
                 ),
               ),
