@@ -89,7 +89,9 @@ macOS Dock 图标通过原生 Application 控制，窗口菜单的可见性不�
 Windows 保留独立纯色 Flutter 控制栏，布局扣除控制栏高度；Windows Snap Layout 在对应系统验收。
 Windows 隐藏启动时，当前官方 `getCurrent()` 仅查找活跃窗口；App 保留按当前进程和 Flutter runner 类
 解析 HWND 的兼容适配，解析时不显示或激活窗口。
-macOS 与 Linux 的渲染后端沿用 Flutter 默认配置。
+macOS 的渲染后端沿用 Flutter 默认配置。Linux 通过 Flutter 官方项目设置使用 Skia，
+兼容当前 Impeller/GLES 在 Mesa SVGA3D 上完成初始化后正文仍空白的问题；
+升级到包含上游修复的 SDK 后，需在真实驱动上重新验收再恢复默认后端。
 Linux 在 Wayland 与 X11 均使用系统标题栏，窗口服务设置 `TitleBarStyle.normal` 并显示系统窗口按钮。
 标题栏、按钮、拖动与四边四角缩放由 GTK 和窗口管理器负责，并遵守窗口最小尺寸；Flutter 直接绘制正文。
 runner 创建普通 GTK 窗口，沿用系统装饰，不额外安装自定义隐藏 HeaderBar 或添加应用阴影。

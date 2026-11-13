@@ -30,6 +30,10 @@ static void my_application_activate(GApplication* application) {
   gtk_window_set_default_size(window, 1280, 720);
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
+  // Impeller/GLES leaves the main page blank on Mesa SVGA3D. Use Flutter's
+  // supported Skia backend until the upstream SVGA3D fix reaches our SDK.
+  // https://github.com/flutter/flutter/pull/196022
+  fl_dart_project_set_enable_impeller(project, FALSE);
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
 
