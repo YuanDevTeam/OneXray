@@ -9,6 +9,7 @@ import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
+import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/launch/setup.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
@@ -51,83 +52,104 @@ class SetupView extends StatelessWidget {
           top: false,
           bottom: false,
           child: SetupBody(
+            header: SetupProgress(
+              current: welcome ? 0 : 1,
+              labels: [l.prototypeWelcomePrivacy, l.prototypeSettings],
+            ),
+            bottom: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (welcome)
+                  Card(
+                    margin: EdgeInsets.zero,
+                    child: SettingRow(
+                      title: l.prototypePrivacyPolicy,
+                      leading: const Icon(LucideIcons.fileText),
+                      showChevron: true,
+                      minHeight: 72,
+                      contentPadding: const EdgeInsets.all(20),
+                      onTap: _action(SetupAction.privacy),
+                    ),
+                  )
+                else if (state.localReady)
+                  SetupPoint(
+                    icon: LucideIcons.circleCheck,
+                    text: l.prototypeLocalConfigurationReady,
+                  ),
+                ..._feedback(context),
+              ],
+            ),
             children: [
               if (welcome) ...[
-                Text(
-                  l.prototypeWelcomeSubtitle,
-                  style: AppTypography.rowValue.copyWith(
-                    color: ColorManager.palette(context).mutedForeground,
+                SetupIntro(
+                  icon: LucideIcons.shieldCheck,
+                  title: l.prototypeWelcomeSubtitle,
+                ),
+                const SizedBox(height: 24),
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SetupPoint(
+                          icon: LucideIcons.lockKeyhole,
+                          text: l.prototypeNoDataCollection,
+                        ),
+                        const SizedBox(height: 24),
+                        SetupPoint(
+                          icon: LucideIcons.server,
+                          text: l.prototypeBringOwnServers,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  l.prototypeNoDataCollection,
-                  style: AppTypography.rowValue,
-                ),
-                const SizedBox(height: 16),
-                Text(l.prototypeBringOwnServers, style: AppTypography.rowValue),
-                const SizedBox(height: 24),
-                SettingRow(
-                  title: l.prototypePrivacyPolicy,
-                  leading: const Icon(LucideIcons.shieldCheck),
-                  onTap: _action(SetupAction.privacy),
                 ),
               ] else
                 ..._configuration(context),
-              ..._feedback(context),
             ],
           ),
         ),
         bottomNavigationBar: state.step == SetupStep.complete
             ? null
-            : PageActionBar(children: _actions(l)),
+            : PageActionBar(
+                maxWidth: AppLayout.setupContentMaxWidth,
+                children: _actions(l),
+              ),
       ),
     );
   }
 
   List<Widget> _configuration(BuildContext context) {
     final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
     return [
+      SetupIntro(icon: LucideIcons.route, title: l.prototypeSmartRouting),
+      const SizedBox(height: 24),
       if (requiresInterface) ...[
         _SetupRow(
           icon: LucideIcons.network,
           title: l.prototypeXrayOutboundInterface,
-          description: state.interfaceName.isEmpty
+          value: state.interfaceName.isEmpty
               ? l.prototypeNotSelected
               : state.interfaceName,
           busy: state.activeAction == SetupAction.chooseInterface,
           onTap: _action(SetupAction.chooseInterface),
         ),
-        const SizedBox(height: 10),
-        Text(
-          l.prototypeInterfaceSelectionNotice,
-          style: AppTypography.setupSkipNote.copyWith(
-            color: palette.mutedForeground,
-          ),
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
       ],
       _SetupRow(
         icon: LucideIcons.globe2,
-        title: switch (state.regions) {
+        title: l.prototypeDirectRegions,
+        value: switch (state.regions) {
           null => l.prototypeChooseCountryRegion,
           [] => l.prototypeNoDirectRegions,
           [final code, ...] => setupRegionLabel(l, code),
         },
-        description: l.prototypeRegionPurpose,
+        note: state.regions == null ? l.prototypeRegionSkipNotice : null,
         busy: state.activeAction == SetupAction.chooseRegion,
         onTap: _action(SetupAction.chooseRegion),
       ),
-      if (state.regions == null) ...[
-        const SizedBox(height: 10),
-        Text(
-          l.prototypeRegionSkipNotice,
-          style: AppTypography.setupSkipNote.copyWith(
-            color: palette.mutedForeground,
-          ),
-        ),
-      ],
     ];
   }
 
@@ -189,23 +211,79 @@ class _SetupRow extends StatelessWidget {
   const _SetupRow({
     required this.icon,
     required this.title,
-    required this.description,
+    required this.value,
+    this.note,
     this.onTap,
     this.busy = false,
   });
   final IconData icon;
   final String title;
-  final String description;
+  final String value;
+  final String? note;
   final VoidCallback? onTap;
   final bool busy;
 
   @override
-  Widget build(BuildContext context) => SettingRow(
-    title: title,
-    subtitle: description,
-    leading: Icon(icon),
-    onTap: onTap,
-    trailing: busy ? const ButtonProgressIndicator() : null,
-    showChevron: !busy,
-  );
+  Widget build(BuildContext context) {
+    final palette = ColorManager.palette(context);
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 22, color: palette.primaryText),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: AppTypography.supporting.copyWith(
+                              color: palette.mutedForeground,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(value, style: AppTypography.panelTitle),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    if (busy)
+                      const ButtonProgressIndicator()
+                    else
+                      Icon(
+                        LucideIcons.chevronRightDir,
+                        size: 20,
+                        color: palette.mutedForeground,
+                      ),
+                  ],
+                ),
+                if (note != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    note!,
+                    style: AppTypography.supporting.copyWith(
+                      color: palette.mutedForeground,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/pages/theme/motion.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 abstract final class AppTheme {
@@ -103,7 +104,11 @@ abstract final class AppTheme {
   static ShadThemeData pageActionsShad(BuildContext context) {
     final theme =
         ShadTheme.maybeOf(context) ??
-        shad(Theme.of(context).brightness, mobile: true);
+        shad(
+          Theme.of(context).brightness,
+          mobile: true,
+          reduceMotion: AppMotion.reducedOf(context),
+        );
     final height = math.max(
       AppLayout.touchExtent(
         AppLayout.pageActionButtonMinHeight,
@@ -200,6 +205,7 @@ abstract final class AppTheme {
   static ShadThemeData shad(
     Brightness brightness, {
     bool mobile = false,
+    bool reduceMotion = false,
     TextScaler textScaler = TextScaler.noScaling,
   }) {
     final palette = AppColorTokens.fallback(brightness).palette;
@@ -321,7 +327,9 @@ abstract final class AppTheme {
         width: AppLayout.switchWidth,
         height: AppLayout.switchHeight,
         margin: AppLayout.switchThumbMargin,
-        duration: const Duration(milliseconds: 100),
+        duration: reduceMotion
+            ? Duration.zero
+            : const Duration(milliseconds: 100),
         thumbColor: palette.primaryForeground,
         checkedTrackColor: palette.primarySolid,
         uncheckedTrackColor: palette.switchUnchecked,

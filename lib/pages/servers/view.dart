@@ -63,7 +63,6 @@ class _ServerBrowserState extends State<ServerBrowser> {
         controller.catalog.manualGroups.isEmpty) {
       final empty = PageEmptyState(
         title: l.prototypeNoServersYet,
-        description: l.prototypeAddProviderSubscriptionHint,
         primaryLabel: l.prototypeAddServer,
         onPrimary: () => controller.addServers(context),
         secondaryLabel: l.prototypeHowGetServers,
@@ -541,7 +540,6 @@ class ServerManualGroupsPage extends StatelessWidget {
                 const SizedBox(height: 18),
                 SettingSection(
                   title: l.manualGroupsTitle,
-                  description: l.manualGroupsUngroupedFirst,
                   padding: EdgeInsets.zero,
                   dividerIndent: 0,
                   children: [

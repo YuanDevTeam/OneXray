@@ -83,9 +83,15 @@ void main() {
           findsOneWidget,
         );
       }
+      final progress = find.byType(SetupProgress);
+      expect(progress, findsOneWidget);
       expect(
-        tester.getTopLeft(find.text(l.prototypeWelcomeSubtitle)).dy,
-        closeTo(tester.getBottomLeft(find.byType(PageAppBar)).dy + 16, 1),
+        tester.getBottomLeft(progress).dy,
+        lessThan(tester.getTopLeft(find.text(l.prototypeWelcomeSubtitle)).dy),
+      );
+      expect(
+        tester.getBottomLeft(find.text(l.prototypeWelcomeSubtitle)).dy,
+        lessThan(tester.getTopLeft(find.text(l.prototypeNoDataCollection)).dy),
       );
       final continueButton = find.descendant(
         of: find.byType(PageActionBar),
@@ -131,7 +137,7 @@ void main() {
         final l = AppLocalizations.of(tester.element(find.byType(SetupView)))!;
         expect(find.text(l.prototypeXrayOutboundInterface), findsOneWidget);
         expect(find.text('Ethernet'), findsOneWidget);
-        expect(find.text(l.prototypeRegionPurpose), findsOneWidget);
+        expect(find.text(l.prototypeDirectRegions), findsOneWidget);
         expect(find.text(l.prototypeSetUpVpn), findsNothing);
         expect(find.text(l.prototypeAddServers), findsNothing);
         expect(find.text(l.prototypeVpnPermission), findsNothing);

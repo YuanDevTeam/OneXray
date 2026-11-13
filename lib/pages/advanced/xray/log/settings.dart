@@ -41,7 +41,7 @@ class XrayLogSettingsPage extends StatelessWidget {
             !controller.loading &&
             controller.base != null &&
             !state.systemExtension;
-        Widget toggle(String title, String field, bool value, String hint) =>
+        Widget toggle(String title, String field, bool value, {String? hint}) =>
             XrayToggleField(
               title: title,
               description: hint,
@@ -100,7 +100,6 @@ class XrayLogSettingsPage extends StatelessWidget {
                                   l.prototypeRecordXrayLogs,
                                   'enabled',
                                   controller.logsEnabled,
-                                  l.xrayRecordLogsHint,
                                 ),
                                 if (controller.logsEnabled) ...[
                                   const SizedBox(height: 12),
@@ -126,13 +125,12 @@ class XrayLogSettingsPage extends StatelessWidget {
                                     l.prototypeRecordDnsQueries,
                                     'recordDns',
                                     controller.recordDns,
-                                    l.xrayRecordDnsHint,
+                                    hint: l.xrayRecordDnsHint,
                                   ),
                                   toggle(
                                     l.prototypeHideLogIpAddresses,
                                     'maskIp',
                                     controller.maskIp,
-                                    l.xrayMaskLogIpHint,
                                   ),
                                 ],
                               ],

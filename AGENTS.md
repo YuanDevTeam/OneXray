@@ -13,6 +13,10 @@ describe shipped behavior; Git history holds retired plans and progress logs.
   out of individual pages. UI-only changes preserve behavior and data contracts.
 - Verify dependency maintenance and SDK/platform compatibility before adoption:
   archive status, dated releases, substantive commits and maintainer responses.
+- Use upstream dependencies without vendoring or modifying third-party source,
+  including SDKs and package caches. Update dependencies or adapt OneXray's
+  integration. Retain supported compatibility settings when upstream blocks
+  a migration.
 - Keep `LIBXRAY_REF` in `.github/workflows/build.yml` set to `main` unless the
   user explicitly requests a different ref.
 - Edit source models, ARB, Pigeon and FFI definitions, then regenerate outputs.

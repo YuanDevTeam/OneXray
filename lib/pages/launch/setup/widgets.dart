@@ -5,34 +5,182 @@ import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 
-/// Setup uses the same top-aligned, single-column content flow as other pages.
+/// A full-page setup layout. The surrounding Scaffold owns fixed actions.
 class SetupBody extends StatelessWidget {
-  const SetupBody({super.key, required this.children, this.top = 16});
+  const SetupBody({
+    super.key,
+    required this.children,
+    this.header,
+    this.bottom,
+    this.top = 24,
+  });
 
   final List<Widget> children;
+  final Widget? header;
+  final Widget? bottom;
   final double top;
 
   @override
   Widget build(BuildContext context) {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    return SingleChildScrollView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      child: ResponsiveContent(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            mobile ? AppSpacing.mobilePage : AppSpacing.page,
-            top,
-            mobile ? AppSpacing.mobilePage : AppSpacing.page,
-            24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children,
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        child: ResponsiveContent(
+          desktopMaxWidth: AppLayout.setupContentMaxWidth,
+          adaptiveBreakpoint: AppLayout.setupContentMaxWidth,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                mobile ? AppSpacing.mobilePage : AppSpacing.page,
+                top,
+                mobile ? AppSpacing.mobilePage : AppSpacing.page,
+                24,
+              ),
+              child: Column(
+                mainAxisAlignment: header != null || bottom != null
+                    ? MainAxisAlignment.spaceBetween
+                    : MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ?header,
+                  Padding(
+                    padding: EdgeInsets.only(
+                      top: header == null ? 0 : 32,
+                      bottom: bottom == null ? 0 : 32,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: children,
+                    ),
+                  ),
+                  ?bottom,
+                ],
+              ),
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class SetupProgress extends StatelessWidget {
+  const SetupProgress({super.key, required this.current, required this.labels});
+
+  final int current;
+  final List<String> labels;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ColorManager.palette(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < labels.length; index++) ...[
+          if (index > 0)
+            Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(12, 16, 12, 0),
+              child: SizedBox(
+                width: 24,
+                child: Divider(height: 1, color: palette.borderStrong),
+              ),
+            ),
+          Expanded(
+            child: Semantics(
+              selected: index == current,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: index == current
+                          ? palette.primarySolid
+                          : index < current
+                          ? palette.selectedSurface
+                          : palette.card,
+                      shape: BoxShape.circle,
+                      border: index > current
+                          ? Border.all(color: palette.borderStrong)
+                          : null,
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: AppTypography.control.copyWith(
+                        color: index == current
+                            ? palette.primaryForeground
+                            : index < current
+                            ? palette.primaryText
+                            : palette.mutedForeground,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        labels[index],
+                        style:
+                            (index == current
+                                    ? AppTypography.setupStepActive
+                                    : AppTypography.setupStepLabel)
+                                .copyWith(
+                                  color: index == current
+                                      ? palette.foreground
+                                      : palette.mutedForeground,
+                                ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class SetupIntro extends StatelessWidget {
+  const SetupIntro({super.key, required this.icon, required this.title});
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ColorManager.palette(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: palette.selectedSurface,
+            borderRadius: BorderRadius.circular(AppRadii.card),
+          ),
+          child: Icon(icon, color: palette.primaryText, size: 28),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          title,
+          style: MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+              ? AppTypography.setupTitle
+              : AppTypography.setupDesktopTitle,
+        ),
+      ],
     );
   }
 }
@@ -95,22 +243,16 @@ class SetupPoint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mobile =
-        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final palette = ColorManager.palette(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Icon(icon, size: 23, color: palette.primary),
-        const SizedBox(width: 12),
+        Icon(icon, size: 22, color: palette.primaryText),
+        const SizedBox(width: 16),
         Expanded(
           child: Text(
             text,
-            style:
-                (mobile
-                        ? AppTypography.setupPoint
-                        : AppTypography.setupDesktopPoint)
-                    .copyWith(color: palette.mutedStrong),
+            style: AppTypography.rowValue.copyWith(color: palette.mutedStrong),
           ),
         ),
       ],

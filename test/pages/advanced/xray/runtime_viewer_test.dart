@@ -63,7 +63,6 @@ void main() {
             title: 'Access log',
             status: 'Resume following',
             exportLabel: 'Export',
-            note: 'Local log',
             code: const SizedBox.shrink(),
             onStatusPressed: () => resumes++,
           ),
@@ -109,7 +108,6 @@ void main() {
               title: 'Runtime diagnostics',
               status: status,
               exportLabel: 'Export',
-              note: 'Read only content',
               code: const SizedBox.shrink(),
             ),
           ),
@@ -215,10 +213,6 @@ void main() {
         lessThan(tester.getRect(export).top),
       );
       expect(tester.getRect(export).bottom + 12, closeTo(panel.top, .01));
-      expect(
-        tester.getRect(find.text(l.prototypeLocalLogNotice)).top,
-        greaterThanOrEqualTo(panel.bottom + 12),
-      );
       final line = tester.widget<Text>(find.text('first line'));
       expect(line.textDirection, TextDirection.ltr);
       expect(line.style!.fontSize, 13);
@@ -281,7 +275,6 @@ void main() {
               title: 'Runtime diagnostics',
               status: 'Resume following',
               exportLabel: 'Export',
-              note: 'Read only',
               code: const SizedBox.shrink(),
               onExport: () => exports++,
               onStatusPressed: () => resumes++,

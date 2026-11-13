@@ -84,7 +84,6 @@ void main() {
         hwidEnabled: state.hwidEnabled,
         onHwidChanged: controller.setHwidEnabled,
         encryptionTitle: 'Encryption',
-        ageProviderSupportTitle: 'Provider support required',
         ageProviderSupportDescription: 'Enter Age keys only when your provider supports encrypted subscriptions.',
         ageSecretKeyLabel: 'Age Secret Key',
         ageSecretKeyHint: 'AGE-SECRET-KEY-1...',
@@ -501,7 +500,7 @@ void main() {
           ),
           findsNothing,
         );
-        expect(find.text('Provider support required'), findsNothing);
+        expect(find.text('Encryption'), findsNothing);
         expect(find.byType(ShadSwitch), findsNothing);
         expect(find.text('Age Secret Key'), findsNothing);
         expect(
@@ -517,7 +516,7 @@ void main() {
         expect(controller.state.hasAgeKeys, isTrue);
         expect(controller.state.ageExpanded, isTrue);
         await tester.pumpAndSettle();
-        expect(find.text('Provider support required'), findsOneWidget);
+        expect(find.text('Encryption'), findsOneWidget);
         expect(
           find.byWidgetPredicate(
             (widget) => widget is ShadInput && widget.controller == secret,
@@ -546,7 +545,7 @@ void main() {
         await tester.ensureVisible(find.text('Clear'));
         await tester.tap(find.text('Clear'));
         await tester.pumpAndSettle();
-        expect(find.text('Provider support required'), findsOneWidget);
+        expect(find.text('Encryption'), findsOneWidget);
         expect(
           find.byWidgetPredicate(
             (widget) => widget is ShadInput && widget.controller == secret,
@@ -640,7 +639,7 @@ void main() {
     controller.clearKeys();
     await tester.pumpAndSettle();
     expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isFalse);
-    expect(find.text('Provider support required'), findsOneWidget);
+    expect(find.text('Encryption'), findsOneWidget);
     expect(input(secret), findsOneWidget);
     expect(secret.text, isEmpty);
     expect(public.text, isEmpty);
@@ -654,12 +653,12 @@ void main() {
     await tester.pumpWidget(app(form()));
     await tester.pumpAndSettle();
     expect(find.byType(ShadSwitch), findsNothing);
-    expect(find.text('Provider support required'), findsNothing);
+    expect(find.text('Encryption'), findsNothing);
 
     controller.setHwidEnabled(true);
     await tester.pumpAndSettle();
     expect(tester.widget<ShadSwitch>(find.byType(ShadSwitch)).value, isTrue);
-    expect(find.text('Provider support required'), findsOneWidget);
+    expect(find.text('Encryption'), findsOneWidget);
     expect(find.text('Age Secret Key'), findsNothing);
 
     await toggleAdvanced(tester);

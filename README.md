@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="#linux">Linux</a> · <a href="#onexrayse">OneXraySE</a> · <a href="#other-downloads">Other downloads</a>
+  <a href="#system-requirements">System requirements</a> · <a href="#linux">Linux</a> · <a href="#onexrayse">OneXraySE</a> · <a href="#other-downloads">Other downloads</a>
 </p>
 
 <p align="center">
@@ -35,7 +35,7 @@
 
 **Bring your own servers or subscription.** OneXray does not provide VPN access or proxy servers.
 
-[![OneXray running on Mac, iPad and iPhone](https://onexray.com/images/screenshots/devices-en.png)](https://onexray.com/images/screenshots/devices-en.png)
+[![OneXray running on Mac, iPad and iPhone](https://onexray.com/images/screenshots/devices-en.png?v=20261113)](https://onexray.com/images/screenshots/devices-en.png?v=20261113)
 
 ## Why OneXray
 
@@ -43,6 +43,24 @@
 - **Your servers, organized.** Import share links, Xray JSON and subscriptions. Group manual nodes and reorder them by dragging.
 - **Routing you control.** Choose Smart or Custom Routing, or use complete Raw and provider configurations, including Remnawave subscriptions.
 - **Open and private.** GPL-3.0 source with a [VPN provider exception](#license), without accounts, advertising, analytics or tracking. [Privacy policy](https://onexray.com/docs/privacy/).
+
+## System requirements
+
+The current official packages require the following operating systems and architectures:
+
+| Platform | Minimum operating system | Supported architectures |
+| --- | --- | --- |
+| iPhone / iPad | iOS / iPadOS 16 | arm64 |
+| macOS (Mac App Store) | macOS 13 | Apple silicon (arm64), Intel (x86_64) |
+| macOS (OneXraySE) | macOS 13 | Apple silicon (arm64), Intel (x86_64) |
+| Android | Android 10 (API 29) | arm64-v8a, x86_64; 32-bit devices are not supported |
+| Windows x64 | Windows 10 20H2 (build 19042) | x64 (x86_64) |
+| Windows ARM64 | Windows 11 | ARM64 |
+| Linux (DEB / ZIP) | Ubuntu 24.04 LTS or compatible distributions, with Linux kernel 5.3+, glibc 2.39+, GLib 2.80+ and the GTK 3 runtime | x86_64, arm64 |
+
+Ubuntu 22.04's system GLib 2.72 does not meet the current official DEB / ZIP requirements. Use Ubuntu 24.04 LTS or another distribution that meets all the requirements above.
+
+See the [system requirements guide](https://onexray.com/docs/system-requirements/) for details.
 
 ## Get started
 
@@ -54,20 +72,20 @@
 
 ## Download
 
-Choose the official store for your device:
+Check the [system requirements](#system-requirements), then choose the official store for your device:
 
-- **iPhone / iPad:** [App Store](https://apps.apple.com/us/app/onexray/id6745748773) — iOS / iPadOS 16+.
-- **macOS:** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773) — macOS 13+, Apple silicon or Intel.
-- **Android phones / tablets:** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray) — Android 10+, arm64-v8a or x86_64.
-- **Windows:** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D) — Windows 10 20H2+ (x64) or Windows 11 (ARM64).
+- **iPhone / iPad:** [App Store](https://apps.apple.com/us/app/onexray/id6745748773).
+- **macOS:** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773).
+- **Android phones / tablets:** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray).
+- **Windows:** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D).
 
 ### Linux
 
-[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb). Requires Linux 5.3+ and glibc 2.39+. See the [Linux installation guide](https://onexray.com/docs/install/#linux) for dependencies and permissions.
+[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb). Check the [Linux system requirements](#system-requirements) and see the [Linux installation guide](https://onexray.com/docs/install/#linux) for dependencies and permissions.
 
 ### OneXraySE
 
-The macOS System Extension edition is available through [Homebrew](https://formulae.brew.sh/cask/onexrayse) or [Universal ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-macos-universal.zip). Requires macOS 13+, Apple silicon or Intel. Follow the [macOS installation guide](https://onexray.com/docs/install/#macos) for extension approval and updates.
+The macOS System Extension edition is available through [Homebrew](https://formulae.brew.sh/cask/onexrayse) or [Universal ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-macos-universal.zip). Check the [system requirements](#system-requirements) and follow the [macOS installation guide](https://onexray.com/docs/install/#macos) for extension approval and updates.
 
 ### Other downloads
 

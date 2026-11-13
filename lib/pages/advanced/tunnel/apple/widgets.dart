@@ -34,7 +34,7 @@ class AppleSettingToggle extends StatelessWidget {
     return MergeSemantics(
       child: Container(
         constraints: BoxConstraints(minHeight: mobile ? 56 : 48),
-        padding: EdgeInsetsDirectional.fromSTEB(nested ? 24 : 12, 12, 12, 12),
+        padding: EdgeInsetsDirectional.fromSTEB(nested ? 12 : 0, 12, 0, 12),
         child: Row(
           children: [
             Expanded(
@@ -271,25 +271,11 @@ class _NetworkChoice extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final ios = controller.platform == ConnectionPlatform.ios;
     final field = ios ? 'cellularAction' : 'ethernetAction';
-    final label = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          ios ? l.prototypeCellularNetwork : l.prototypeEthernet,
-          style: mobile
-              ? AppTypography.appleRuleTitle
-              : AppTypography.appleRuleTitleDesktop,
-        ),
-        const SizedBox(height: 3),
-        Text(
-          ios ? l.prototypeWhenUsingCellular : l.prototypeWhenUsingEthernet,
-          style:
-              (mobile
-                      ? AppTypography.appleRuleHint
-                      : AppTypography.appleRuleHintDesktop)
-                  .copyWith(color: palette.mutedForeground),
-        ),
-      ],
+    final label = Text(
+      ios ? l.prototypeCellularNetwork : l.prototypeEthernet,
+      style: mobile
+          ? AppTypography.appleRuleTitle
+          : AppTypography.appleRuleTitleDesktop,
     );
     final options = Container(
       key: const ValueKey('apple-network-action-choice'),
@@ -328,7 +314,7 @@ class _NetworkChoice extends StatelessWidget {
       ),
     );
     return Container(
-      constraints: BoxConstraints(minHeight: mobile ? 0 : 70),
+      constraints: BoxConstraints(minHeight: mobile ? 0 : 62),
       padding: EdgeInsets.symmetric(horizontal: mobile ? 12 : 16, vertical: 12),
       child: mobile
           ? Column(
@@ -437,15 +423,6 @@ class _WifiFallback extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          l.prototypeKeepCurrentConnectionHint,
-          style:
-              (mobile
-                      ? AppTypography.appleSettingHint
-                      : AppTypography.appleSettingHintDesktop)
-                  .copyWith(color: palette.mutedForeground),
-        ),
       ],
     );
     final edit = TextButton(
@@ -488,7 +465,7 @@ class _WifiFallback extends StatelessWidget {
       );
     }
     return Container(
-      constraints: const BoxConstraints(minHeight: 76),
+      constraints: const BoxConstraints(minHeight: 62),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
@@ -504,14 +481,12 @@ class AppleWifiEditorSection extends StatefulWidget {
   const AppleWifiEditorSection({
     super.key,
     required this.title,
-    required this.description,
     required this.values,
     required this.otherValues,
     required this.onChanged,
     required this.enabled,
   });
   final String title;
-  final String description;
   final List<String> values;
   final List<String> otherValues;
   final ValueChanged<List<String>> onChanged;
@@ -577,7 +552,6 @@ class _AppleWifiEditorSectionState extends State<AppleWifiEditorSection> {
     final l = AppLocalizations.of(context)!;
     return SettingSection(
       title: widget.title,
-      description: widget.description,
       padding: EdgeInsets.zero,
       children: [
         for (var index = 0; index < widget.values.length; index++) ...[

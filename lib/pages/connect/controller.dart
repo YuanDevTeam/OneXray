@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 
 import 'package:material_ui/material_ui.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
@@ -602,93 +601,6 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
 
   Future<void> chooseTrafficMethod(BuildContext context) =>
       context.pushScoped(AppPageDestination.routing);
-
-  Future<void> showWhy(BuildContext context) async {
-    final view = connectionView;
-    final runtime = view.runtime;
-    if (!view.canDisconnect || runtime == null) return;
-    final settings = runtime.configuration.connection;
-    final l = AppLocalizations.of(context)!;
-    if (runtime.profile != null || settings.expert) {
-      await showConnectDialog<void>(
-        context,
-        (dialogContext) => ConnectDialog(
-          title: l.prototypeWhyConnectionTitle,
-          body: Padding(
-            padding: const EdgeInsets.all(22),
-            child: ConnectExplanation(
-              icon: LucideIcons.shieldCheck,
-              text: settings.expert
-                  ? l.prototypeRawManagedSettingsNotice
-                  : l.providerRoutingNotice,
-            ),
-          ),
-          actions: [
-            ConnectDialogButton(
-              label: l.prototypeDone,
-              onPressed: () => Navigator.of(dialogContext).pop(),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    final names = runtime.entries.map((entry) => entry.name).toList();
-    final entryNames = names.join(' + ');
-    final exit = runtime.finalExit?.name;
-    final methodReason = names.isEmpty
-        ? l.prototypeNoAvailableEntries
-        : switch (settings.trafficMode) {
-            TrafficMode.smart =>
-              exit == null
-                  ? l.prototypeSmartConnectionReason(entryNames)
-                  : l.prototypeSmartConnectionChainReason(entryNames, exit),
-            TrafficMode.allVpn => l.prototypeAllVpnConnectionReason(entryNames),
-            TrafficMode.custom => l.prototypeCustomConnectionReason,
-          };
-    final selectionReason = names.isEmpty
-        ? null
-        : l.prototypeRunningEntriesReason(entryNames);
-    await showConnectDialog<void>(
-      context,
-      (dialogContext) => ConnectDialog(
-        title: l.prototypeWhyConnectionTitle,
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 4),
-              child: Column(
-                children: [
-                  ConnectExplanation(
-                    icon: LucideIcons.shieldCheck,
-                    text: methodReason,
-                  ),
-                  if (selectionReason != null) ...[
-                    const SizedBox(height: 15),
-                    ConnectExplanation(
-                      icon: LucideIcons.wifi,
-                      text: selectionReason,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            ConnectCallout(
-              icon: LucideIcons.lockKeyhole,
-              text: l.prototypeNoAnalyticsLocalLogs,
-            ),
-          ],
-        ),
-        actions: [
-          ConnectDialogButton(
-            label: l.prototypeDone,
-            onPressed: () => Navigator.of(dialogContext).pop(),
-          ),
-        ],
-      ),
-    );
-  }
 
   ConnectionSettings _ordinarySettings(ConnectionSettings settings) =>
       ConnectionSettings.fromJson({...settings.toJson(), 'expert': false});

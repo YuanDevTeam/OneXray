@@ -118,7 +118,7 @@ sources change.
   ```shell
   flutter build linux --debug
   sudo setcap cap_net_admin,cap_net_raw+eip build/linux/x64/debug/bundle/OneXrayCore
-  flutter run -d linux --no-enable-impeller
+  flutter run -d linux
   ```
   Use `arm64` on ARM64; reapply capabilities when rebuilding replaces Core.
 - Windows MSIX requires an installed, signed development package and its identity;
@@ -131,7 +131,7 @@ sources change.
 | --- | --- |
 | ARB | `flutter gen-l10n` |
 | JSON/Drift models or declared assets | `dart run build_runner build --delete-conflicting-outputs` |
-| `pigeon/message.dart` | `dart run pigeon --input pigeon/message.dart` |
+| `pigeon/message.dart` or Pigeon version | `dart run tool/generate_pigeon.dart` |
 | FFI headers/configuration | `dart run tool/ffigen.dart` |
 
 Replace rebuilt native libraries and fully relaunch; hot reload cannot replace

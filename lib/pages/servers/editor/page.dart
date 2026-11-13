@@ -69,33 +69,36 @@ class ServerEditorPage extends StatelessWidget {
                     state.diagnostic ??
                     (state.error == null ? null : JsonDiagnostic(state.error!)),
               ),
-              footer: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    state.fromSubscription
-                        ? l.prototypeSubscriptionOutboundHint
-                        : l.prototypeOutboundJsonHint,
-                    style: AppTypography.importJsonHint.copyWith(
-                      color: p.mutedForeground,
-                    ),
-                  ),
-                  if (!state.loaded && state.error != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Semantics(
-                        liveRegion: true,
-                        child: SelectableText(
-                          state.error!,
-                          style: AppTypography.subscriptionInfo.copyWith(
-                            color: p.destructive,
+              footer:
+                  state.fromSubscription ||
+                      (!state.loaded && state.error != null)
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (state.fromSubscription)
+                          Text(
+                            l.prototypeSubscriptionOutboundHint,
+                            style: AppTypography.importJsonHint.copyWith(
+                              color: p.mutedForeground,
+                            ),
                           ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+                        if (!state.loaded && state.error != null)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: SelectableText(
+                                state.error!,
+                                style: AppTypography.subscriptionInfo.copyWith(
+                                  color: p.destructive,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    )
+                  : null,
             ),
             actions: [
               ConnectDialogButton(

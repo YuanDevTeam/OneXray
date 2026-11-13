@@ -95,77 +95,62 @@ class SubscriptionPackageDetails extends StatelessWidget {
             : date(expiry),
       ),
     ];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: palette.border)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            l.subscriptionPackageTitle,
-            style: AppTypography.sectionTitle.copyWith(
-              color: palette.foreground,
-            ),
-          ),
-          const SizedBox(height: 4),
-          SubscriptionPackageSummary(info: info),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final fontSize = AppTypography.rowValue.fontSize!;
-              final textScale =
-                  MediaQuery.textScalerOf(context).scale(fontSize) / fontSize;
-              final twoColumns = constraints.maxWidth >= 280 * textScale;
-              return Wrap(
-                spacing: 18,
-                runSpacing: 12,
-                children: [
-                  for (final (label, value) in values)
-                    SizedBox(
-                      width: twoColumns
-                          ? (constraints.maxWidth - 18) / 2
-                          : constraints.maxWidth,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            label,
-                            style: AppTypography.serverGroupSummary.copyWith(
-                              color: palette.mutedForeground,
-                            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l.subscriptionPackageTitle,
+          style: AppTypography.sectionTitle.copyWith(color: palette.foreground),
+        ),
+        const SizedBox(height: 4),
+        SubscriptionPackageSummary(info: info),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final fontSize = AppTypography.rowValue.fontSize!;
+            final textScale =
+                MediaQuery.textScalerOf(context).scale(fontSize) / fontSize;
+            final twoColumns = constraints.maxWidth >= 280 * textScale;
+            return Wrap(
+              spacing: 18,
+              runSpacing: 12,
+              children: [
+                for (final (label, value) in values)
+                  SizedBox(
+                    width: twoColumns
+                        ? (constraints.maxWidth - 18) / 2
+                        : constraints.maxWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: AppTypography.serverGroupSummary.copyWith(
+                            color: palette.mutedForeground,
                           ),
-                          const SizedBox(height: 3),
-                          Text(
-                            value,
-                            style: AppTypography.rowValue.copyWith(
-                              color: palette.foreground,
-                            ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          value,
+                          style: AppTypography.rowValue.copyWith(
+                            color: palette.foreground,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                ],
-              );
-            },
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 14),
+        Text(
+          l.subscriptionPackageUpdatedAt(date(info.updatedAt)),
+          style: AppTypography.serverGroupSummary.copyWith(
+            color: palette.mutedForeground,
           ),
-          const SizedBox(height: 14),
-          Text(
-            l.subscriptionPackageUpdatedAt(date(info.updatedAt)),
-            style: AppTypography.serverGroupSummary.copyWith(
-              color: palette.mutedForeground,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            l.subscriptionPackageCacheHint,
-            style: AppTypography.serverGroupSummary.copyWith(
-              color: palette.mutedForeground,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

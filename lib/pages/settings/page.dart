@@ -42,7 +42,9 @@ class SettingsPage extends StatelessWidget {
                 final palette = ColorManager.palette(context);
                 final rowHeight = mobile ? 56.0 : 48.0;
                 const sectionGap = 20.0;
-                const rowPadding = EdgeInsets.all(12);
+                const rowPadding = EdgeInsets.symmetric(
+                  vertical: AppSpacing.rowVertical,
+                );
                 final appearance = SettingSection(
                   title: l10n.settingsAppearanceAndLanguage,
                   icon: LucideIcons.sun,
@@ -57,6 +59,7 @@ class SettingsPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     SettingRow(
                       title: l10n.prototypeLanguage,
+                      leading: const Icon(LucideIcons.languages),
                       value: languageNativeLabel(
                         l10n,
                         preferences.languageCode,
@@ -72,6 +75,7 @@ class SettingsPage extends StatelessWidget {
                     if (controller.showAppIcon)
                       SettingRow(
                         title: l10n.prototypeAppIcon,
+                        leading: const Icon(LucideIcons.image),
                         subtitle: appIconLabel(l10n, state.appIcon),
                         minHeight: rowHeight,
                         contentPadding: rowPadding,
@@ -91,6 +95,7 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     SettingRow(
                       title: l10n.prototypeStartup,
+                      leading: const Icon(LucideIcons.power),
                       subtitle: state.connectOnLaunch
                           ? l10n.prototypeConnectAfterAppLaunch
                           : l10n.settingsManualConnection,
@@ -103,6 +108,7 @@ class SettingsPage extends StatelessWidget {
                     if (AppPlatform.isAndroid)
                       SettingRow(
                         title: l10n.trafficWidgetAdd,
+                        leading: const Icon(LucideIcons.panelsTopLeft),
                         trailing: state.addingWidget
                             ? const ButtonProgressIndicator(size: 20)
                             : null,
@@ -130,6 +136,7 @@ class SettingsPage extends StatelessWidget {
                       ),
                     SettingRow(
                       title: l10n.clearConnectionResources,
+                      leading: const Icon(LucideIcons.eraser),
                       enabled: !state.clearingData,
                       trailing:
                           state.clearingData &&
@@ -148,6 +155,7 @@ class SettingsPage extends StatelessWidget {
                     ),
                     SettingRow(
                       title: l10n.clearAllAppData,
+                      leading: const Icon(LucideIcons.trash2),
                       enabled: !state.clearingData,
                       minHeight: rowHeight,
                       contentPadding: rowPadding,
@@ -176,6 +184,7 @@ class SettingsPage extends StatelessWidget {
                         minHeight: rowHeight,
                         contentPadding: rowPadding,
                         title: l10n.prototypeAboutOneXray,
+                        leading: const Icon(LucideIcons.info),
                         titleStyle: AppTypography.rowTitle,
                         titleTrailing: preferences.appUpdateInfo == null
                             ? null
@@ -247,13 +256,13 @@ class SettingsBackupSummaryRow extends StatelessWidget {
     required this.onTap,
     this.service,
     this.minHeight,
-    this.contentPadding = const EdgeInsets.all(12),
+    this.contentPadding,
   });
 
   final VoidCallback onTap;
   final BackupService? service;
   final double? minHeight;
-  final EdgeInsetsGeometry contentPadding;
+  final EdgeInsetsGeometry? contentPadding;
 
   @override
   Widget build(BuildContext context) => BlocBuilder<BackupService, BackupState>(
@@ -262,6 +271,7 @@ class SettingsBackupSummaryRow extends StatelessWidget {
       final l = AppLocalizations.of(context)!;
       return SettingRow(
         title: l.backupTitle,
+        leading: const Icon(LucideIcons.archive),
         subtitle: backup.settings.target?.label ?? l.backupNotConfigured,
         minHeight: minHeight,
         contentPadding: contentPadding,

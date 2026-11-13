@@ -53,6 +53,7 @@ jobs:
       - name: Generate sources
         run: |
           flutter gen-l10n
+          dart run tool/generate_pigeon.dart
           dart run build_runner build
           dart run tool/ffigen.dart
 

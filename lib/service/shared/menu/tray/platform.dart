@@ -1,10 +1,9 @@
 import 'dart:async';
 
-import 'package:onexray/core/tools/logger.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/service/shared/menu/tray/entry.dart';
 import 'package:tray_manager/tray_manager.dart' as native;
-import 'package:nativeapi/nativeapi.dart' as nativeapi;
+import 'package:nativeapi/nativeapi.dart' as nativeapi show Size;
 
 abstract interface class TrayPlatform {
   void init({
@@ -37,10 +36,8 @@ final class NativeTrayPlatform implements TrayPlatform {
     if (tray == null) throw StateError('Unable to create the tray icon');
     _tray = tray;
     _onMenuVisibility = onMenuVisibility;
-    // Linux tray icons are StatusNotifierItems: the panel draws the menu from
-    // the exported dbusmenu, and nativeapi's openContextMenu() always returns
-    // false there. With the trigger `none` the item exports /NO_DBUSMENU, so no
-    // menu ever appears. Let the panel open the menu on any click instead.
+    // Linux panels render the exported StatusNotifierItem menu. The official
+    // trigger lets the panel handle both buttons without a second app popup.
     final hostShowsMenu = AppPlatform.isLinux;
     tray.setContextMenuTrigger(
       hostShowsMenu
@@ -50,18 +47,14 @@ final class NativeTrayPlatform implements TrayPlatform {
     tray.iconSize = nativeapi.Size(width: 18, height: 18);
     tray.setTooltip('OneXray');
     if (AppPlatform.isMacOS) tray.setTitle('');
-    _listener = tray.addListener((event) {
-      if (event is! native.TrayIconClickedEvent &&
-          event is! native.TrayIconRightClickedEvent) {
-        return;
-      }
-      if (hostShowsMenu) {
-        // Some hosts still call Activate/ContextMenu next to the exported menu.
-        ygLogger('Tray ${event.runtimeType} ignored: the panel shows the menu');
-        return;
-      }
-      onClick();
-    });
+    if (!hostShowsMenu) {
+      _listener = tray.addListener((event) {
+        if (event is native.TrayIconClickedEvent ||
+            event is native.TrayIconRightClickedEvent) {
+          onClick();
+        }
+      });
+    }
   }
 
   @override

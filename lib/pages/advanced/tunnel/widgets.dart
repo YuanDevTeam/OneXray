@@ -166,7 +166,7 @@ class PolicyToggle extends StatelessWidget {
       titleMaxLines: 4,
       minHeight: mobile ? 56 : 48,
       titleStyle: AppTypography.rowTitle,
-      contentPadding: const EdgeInsets.all(12),
+      contentPadding: const EdgeInsets.symmetric(vertical: 12),
       trailing: AppSwitch(
         value:
             (section == null
@@ -205,7 +205,7 @@ class PolicyValueRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
-    const padding = EdgeInsets.all(12);
+    const padding = EdgeInsets.symmetric(vertical: 12);
     final labelStyle = AppTypography.rowTitle.merge(titleStyle);
     final textStyle = AppTypography.rowValue
         .copyWith(color: ColorManager.primaryText(context))

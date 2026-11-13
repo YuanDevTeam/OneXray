@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/service/connect/coordinator.dart';
+import 'package:onexray/service/connect/settings.dart';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -90,7 +91,13 @@ class _ConnectPageState extends State<ConnectPage> {
                 locationDetail: controller.selectionDetail(l),
                 locationHealth: controller.selectionHealth(l),
                 method: controller.homeMethodTitle(l),
-                methodDetail: controller.methodDescription(l),
+                methodDetail:
+                    state.configuration.connection.expert ||
+                        controller.providerConfiguration ||
+                        state.configuration.connection.trafficMode ==
+                            TrafficMode.custom
+                    ? controller.methodDescription(l)
+                    : null,
                 methodEnabled:
                     !state.configuration.connection.expert &&
                     !controller.providerConfiguration,
@@ -98,7 +105,6 @@ class _ConnectPageState extends State<ConnectPage> {
                 onAddServers: () => controller.addServers(context),
                 onServer: () => controller.chooseServer(context),
                 onMethod: () => controller.chooseTrafficMethod(context),
-                onWhy: () => controller.showWhy(context),
               );
             },
           ),

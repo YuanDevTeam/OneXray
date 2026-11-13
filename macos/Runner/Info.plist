@@ -50,8 +50,6 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>0</string>
-	<key>FLTEnableImpeller</key>
-	<false/>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSApplicationCategoryType</key>

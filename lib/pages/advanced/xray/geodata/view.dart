@@ -59,11 +59,7 @@ class PendingGeoDataRow extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsetsDirectional.only(
-            start: 12,
-            end: 12,
-            bottom: 8,
-          ),
+          padding: const EdgeInsetsDirectional.only(bottom: 8),
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -180,11 +176,7 @@ class GeoDataRows extends StatelessWidget {
           ),
           if (custom)
             Padding(
-              padding: const EdgeInsetsDirectional.only(
-                start: 12,
-                end: 12,
-                bottom: 8,
-              ),
+              padding: const EdgeInsetsDirectional.only(bottom: 8),
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
                 child: _actions(context, file),

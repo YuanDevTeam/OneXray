@@ -130,7 +130,7 @@ class RoutingDnsSettingsForm extends StatelessWidget {
         : value.effectiveProxyResolvers;
     final active = enabled && (!direct || directEnabled);
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 16, 8),
+      padding: const EdgeInsetsDirectional.fromSTEB(18, 14, 18, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
@@ -439,6 +439,9 @@ class _RoutingDetailsState extends State<_RoutingDetails> {
         expanded: open,
         child: TextButton(
           onPressed: () => setState(() => open = !open),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          ),
           child: Row(
             children: [
               Expanded(child: Text(widget.title, textAlign: TextAlign.start)),
@@ -453,7 +456,7 @@ class _RoutingDetailsState extends State<_RoutingDetails> {
       Offstage(
         offstage: !open,
         child: Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 8, 16, 16),
+          padding: const EdgeInsetsDirectional.fromSTEB(18, 8, 18, 16),
           child: widget.child,
         ),
       ),
@@ -522,7 +525,7 @@ class _HelpPadding extends StatelessWidget {
   const _HelpPadding({required this.text});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 12),
+    padding: const EdgeInsetsDirectional.fromSTEB(18, 0, 18, 12),
     child: Text(
       text,
       style: AppTypography.routingRowDescription.copyWith(

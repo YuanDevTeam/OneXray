@@ -230,7 +230,6 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
                                   itemBuilder: (context, index) =>
                                       _region(context, visible[index], state),
                                 ),
-                              SliverToBoxAdapter(child: _note(context, mobile)),
                             ],
                           ),
                         ),
@@ -408,34 +407,6 @@ class _DirectRegionsPageState extends State<DirectRegionsPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _note(BuildContext context, bool mobile) {
-    final palette = ColorManager.palette(context);
-    return Container(
-      constraints: const BoxConstraints(minHeight: 52),
-      padding: EdgeInsets.symmetric(horizontal: mobile ? 12 : 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: palette.muted,
-        borderRadius: const BorderRadius.vertical(
-          bottom: Radius.circular(AppRadii.card - 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(LucideIcons.info, size: 17, color: palette.mutedForeground),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(
-              AppLocalizations.of(context)!.prototypeInstalledRegionsOnly,
-              style: AppTypography.routingSelectionNote.copyWith(
-                color: palette.mutedForeground,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

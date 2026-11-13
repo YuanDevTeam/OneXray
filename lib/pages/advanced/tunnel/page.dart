@@ -150,7 +150,6 @@ class VpnTunnelPane extends StatelessWidget {
                           controller,
                           destination: TunnelDestination.apple,
                           title: l.prototypeAppleSystemVpn,
-                          subtitle: l.prototypeAppleVpnDescription,
                           icon: LucideIcons.apple,
                         ),
                       if (controller.platform == ConnectionPlatform.android)
@@ -159,7 +158,6 @@ class VpnTunnelPane extends StatelessWidget {
                           controller,
                           destination: TunnelDestination.android,
                           title: l.prototypeAndroidSystemVpn,
-                          subtitle: l.prototypeAndroidVpnDescription,
                           icon: LucideIcons.appWindow,
                         ),
                       if (controller.supportsWindowsSystemVpn)
@@ -168,7 +166,6 @@ class VpnTunnelPane extends StatelessWidget {
                           controller,
                           destination: TunnelDestination.windows,
                           title: l.prototypeWindowsSystemVpn,
-                          subtitle: l.prototypeWindowsVpnDescription,
                           icon: LucideIcons.monitor,
                         ),
                       if (controller.service.requiresInterface)
@@ -227,7 +224,7 @@ class VpnTunnelPane extends StatelessWidget {
     PolicyEditorController controller, {
     required TunnelDestination destination,
     required String title,
-    required String subtitle,
+    String? subtitle,
     required IconData icon,
   }) => SettingRow(
     key: ValueKey('tunnel-open-${destination.name}'),

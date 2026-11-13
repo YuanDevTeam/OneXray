@@ -87,7 +87,6 @@ class _LogFileViewerViewState extends State<LogFileViewerView> {
           : l.logFileViewerContinueFollowing,
       exportLabel: l.prototypeExport,
       exporting: state.exporting,
-      note: l.prototypeLocalLogNotice,
       onExport: state.exporting || !state.fileExists ? null : widget.onExport,
       onStatusPressed: state.followTail || !state.fileExists
           ? null

@@ -169,10 +169,6 @@ class AndroidAppsPage extends StatelessWidget {
                               style: AppTypography.androidTitle,
                             ),
                           ),
-                          Text(
-                            l.prototypeSeparateAppListsNotice,
-                            style: AppTypography.androidBody,
-                          ),
                           const SizedBox(height: 14),
                           Semantics(
                             label: l.prototypeSearchInstalledApps,

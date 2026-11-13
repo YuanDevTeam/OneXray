@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/pages/shared/widgets/section.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
+import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -254,6 +255,93 @@ void main() {
     }
   });
 
+  testWidgets('a title-only section has balanced edges without an empty body', (
+    tester,
+  ) async {
+    await _pumpSection(
+      tester,
+      const SettingSection(
+        title: 'No custom routes',
+        padding: EdgeInsets.zero,
+        children: [],
+      ),
+    );
+    final card = _cardInnerRect(tester);
+    final title = tester.getRect(find.text('No custom routes'));
+    expect(title.top - card.top, closeTo(card.bottom - title.bottom, .01));
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final direction in TextDirection.values) {
+    testWidgets('section icons and rows share an edge in $direction', (
+      tester,
+    ) async {
+      var opened = 0;
+      await _pumpSection(
+        tester,
+        SettingSection(
+          title: 'Connection tools',
+          icon: LucideIcons.settings,
+          padding: EdgeInsets.zero,
+          children: [
+            SettingRow(
+              title: 'Network',
+              leading: const Icon(LucideIcons.network),
+              showChevron: true,
+              onTap: () => opened++,
+            ),
+          ],
+        ),
+        direction: direction,
+      );
+      final heading = tester.getRect(find.text('Connection tools'));
+      final row = tester.getRect(find.text('Network'));
+      final headingIcon = tester.getRect(find.byIcon(LucideIcons.settings));
+      final rowIcon = tester.getRect(find.byIcon(LucideIcons.network));
+      if (direction == TextDirection.ltr) {
+        expect(row.left, closeTo(heading.left, .01));
+        expect(rowIcon.left, closeTo(headingIcon.left, .01));
+      } else {
+        expect(row.right, closeTo(heading.right, .01));
+        expect(rowIcon.right, closeTo(headingIcon.right, .01));
+      }
+      await tester.tap(find.text('Network'));
+      expect(opened, 1);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('page gutters stay inside the responsive content width', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    for (final width in [390.0, 834.0, 1160.0]) {
+      await tester.binding.setSurfaceSize(Size(width, 800));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SettingsPageScroll(
+              padding: const EdgeInsets.all(28),
+              child: const SizedBox(
+                key: ValueKey('page-content'),
+                height: 80,
+                width: double.infinity,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final content = tester.getRect(
+        find.byKey(const ValueKey('page-content')),
+      );
+      final outer = width >= 840 ? (width - 960) / 2 : 0;
+      expect(content.left, closeTo(outer + 28, .01));
+      expect(width - content.right, closeTo(outer + 28, .01));
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('rows use plain leading icons and 12px padding unless opted in', (
     tester,
   ) async {
@@ -285,13 +373,6 @@ void main() {
               ),
       );
       final row = find.byType(SettingRow);
-      expect(
-        tester
-            .widget<SettingRow>(row)
-            .contentPadding
-            .resolve(TextDirection.ltr),
-        const EdgeInsets.all(12),
-      );
       final rowBounds = tester.getRect(row);
       final icon = tester.getRect(find.byKey(leading));
       expect(

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
@@ -9,7 +11,7 @@ class SectionView extends StatelessWidget {
   final String? description;
   final IconData? icon;
   final Widget? action;
-  final Widget child;
+  final Widget? child;
   final EdgeInsetsGeometry padding;
   final bool descriptionBelow;
   final double? headerInset;
@@ -20,7 +22,7 @@ class SectionView extends StatelessWidget {
     this.description,
     this.icon,
     this.action,
-    required this.child,
+    this.child,
     this.padding = const EdgeInsetsDirectional.fromSTEB(16, 11, 16, 11),
     this.descriptionBelow = false,
     this.headerInset,
@@ -33,48 +35,53 @@ class SectionView extends StatelessWidget {
         title.isNotEmpty ||
         (hasDescription && !descriptionBelow) ||
         action != null;
+    if (!hasHeader && child == null && !hasDescription) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ShadCard(
-            width: double.infinity,
-            padding: EdgeInsets.zero,
-            radius: const BorderRadius.all(Radius.circular(AppRadii.card)),
-            shadows: const [],
-            clipBehavior: Clip.antiAlias,
-            child: Material(
-              type: MaterialType.transparency,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (hasHeader)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 16,
-                      ),
-                      child: Padding(
-                        padding: EdgeInsetsDirectional.only(
-                          start: headerInset ?? 0,
+          if (hasHeader || child != null)
+            ShadCard(
+              width: double.infinity,
+              padding: EdgeInsets.zero,
+              radius: const BorderRadius.all(Radius.circular(AppRadii.card)),
+              shadows: const [],
+              clipBehavior: Clip.antiAlias,
+              child: Material(
+                type: MaterialType.transparency,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (hasHeader)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.cardContent,
+                          vertical: AppSpacing.sectionHeaderVertical,
                         ),
-                        child: _header(context, hasDescription),
+                        child: Padding(
+                          padding: EdgeInsetsDirectional.only(
+                            start: headerInset ?? 0,
+                          ),
+                          child: _header(context, hasDescription),
+                        ),
                       ),
-                    ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      18,
-                      hasHeader ? 0 : 18,
-                      18,
-                      18,
-                    ),
-                    child: child,
-                  ),
-                ],
+                    if (child != null)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          AppSpacing.cardContent,
+                          hasHeader ? 0 : AppSpacing.cardContent,
+                          AppSpacing.cardContent,
+                          AppSpacing.cardContent,
+                        ),
+                        child: child,
+                      ),
+                  ],
+                ),
               ),
             ),
-          ),
           if (hasDescription && descriptionBelow)
             Padding(
               padding: const EdgeInsetsDirectional.only(top: 10),
@@ -96,14 +103,23 @@ class SectionView extends StatelessWidget {
       children: [
         if (icon != null) ...[
           Padding(
-            padding: const EdgeInsets.only(top: 3),
+            padding: EdgeInsets.only(
+              top: math.max(
+                0.0,
+                (MediaQuery.textScalerOf(context)
+                                .scale(AppTypography.sectionTitle.fontSize!) *
+                            AppTypography.sectionTitle.height! -
+                        20) /
+                    2,
+              ),
+            ),
             child: Icon(
               icon,
-              size: 19,
+              size: 20,
               color: ColorManager.palette(context).primaryText,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: AppSpacing.rowIconGap),
         ],
         Expanded(
           child: Column(

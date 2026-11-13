@@ -84,8 +84,6 @@ void main() {
                 builder: (context) => AppIconChoiceView(
                   selected: AppIcon.primary,
                   useDockIconAssets: false,
-                  description: AppLocalizations.of(context)!
-                      .prototypeHomeScreenIconHint,
                   onSelected: (value) => icon = value,
                 ),
               ),

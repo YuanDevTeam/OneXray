@@ -118,7 +118,7 @@ Apple/Android, поскольку общий Dart-код импортирует 
   ```shell
   flutter build linux --debug
   sudo setcap cap_net_admin,cap_net_raw+eip build/linux/x64/debug/bundle/OneXrayCore
-  flutter run -d linux --no-enable-impeller
+  flutter run -d linux
   ```
   Для ARM64 замените `x64` на `arm64`; после замены Core выдайте возможности заново.
 - Windows MSIX запускается как установленный подписанный пакет с идентичностью;
@@ -131,7 +131,7 @@ Apple/Android, поскольку общий Dart-код импортирует 
 | --- | --- |
 | ARB | `flutter gen-l10n` |
 | Модели JSON/Drift или объявленные ресурсы | `dart run build_runner build --delete-conflicting-outputs` |
-| `pigeon/message.dart` | `dart run pigeon --input pigeon/message.dart` |
+| `pigeon/message.dart` или версия Pigeon | `dart run tool/generate_pigeon.dart` |
 | Заголовки/настройки FFI | `dart run tool/ffigen.dart` |
 
 После замены нативных библиотек полностью перезапустите приложение: hot reload

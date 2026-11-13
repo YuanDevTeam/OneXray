@@ -47,6 +47,7 @@ void main() {
   for (final scenario in const [
     (size: Size(390, 667), scale: 1.5, keyboard: 200.0, locale: Locale('ru')),
     (size: Size(768, 600), scale: 2.0, keyboard: 0.0, locale: Locale('fa')),
+    (size: Size(844, 390), scale: 1.5, keyboard: 0.0, locale: Locale('en')),
     (size: Size(1160, 720), scale: 1.0, keyboard: 0.0, locale: Locale('en')),
   ]) {
     for (final step in [SetupStep.welcome, SetupStep.configuration]) {
@@ -81,6 +82,10 @@ void main() {
         final footerAction = _footerText(label);
         final footerRect = tester.getRect(find.byType(PageActionBar));
         expect(find.byType(PageAppBar), findsOneWidget);
+        final progress = tester.widget<SetupProgress>(
+          find.byType(SetupProgress),
+        );
+        expect(progress.current, step == SetupStep.welcome ? 0 : 1);
         expect(find.byType(ShadCard), findsNothing);
         expect(footerAction.hitTestable(), findsOneWidget);
         expect(
@@ -110,6 +115,28 @@ void main() {
       });
     }
   }
+
+  testWidgets('wide setup aligns content and actions to the same column', (
+    tester,
+  ) async {
+    _size(tester, const Size(1160, 760));
+    await tester.pumpWidget(
+      _host(
+        SetupView(
+          state: const SetupPageState(busy: false),
+          requiresInterface: false,
+          onAction: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final card = tester.getRect(find.byType(Card).first);
+    final action = tester.getRect(find.byType(FilledButton));
+    expect(card.right, closeTo(action.right, 1));
+    expect(card.left, greaterThan(150));
+    expect(card.width, lessThan(760));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('privacy keeps its return action outside the scrolling text', (
     tester,

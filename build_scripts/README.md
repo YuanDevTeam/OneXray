@@ -126,6 +126,8 @@ before selecting the new version code for production and submitting changes.
 FFI generation runs `dart run tool/ffigen.dart` after refreshing the native
 headers. Use the same command from the App root after changing `c/include/` or
 the generator configuration; do not edit the generated bindings manually.
+The build also runs `dart run tool/generate_pigeon.dart` to keep Dart, Kotlin and
+Swift channel bindings aligned with the locked generator, including formatting.
 
 Native outputs and Geodata are refreshed. Apple updates Xcode build numbers;
 `macos_se` also replaces `macos/` with `macos_se/`, preserving framework symlinks.

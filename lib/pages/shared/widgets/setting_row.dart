@@ -43,17 +43,32 @@ class SettingSection extends StatelessWidget {
       padding: padding,
       descriptionBelow: descriptionBelow,
       headerInset: headerInset,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: _buildSettingChildren(
-          context,
-          children,
-          separated,
-          dividerIndent: dividerIndent,
-        ),
-      ),
+      child: children.isEmpty
+          ? null
+          : _SectionRows(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _buildSettingChildren(
+                  context,
+                  children,
+                  separated,
+                  dividerIndent: dividerIndent,
+                ),
+              ),
+            ),
     );
   }
+}
+
+/// Cards own horizontal insets; standalone rows retain their own padding.
+class _SectionRows extends InheritedWidget {
+  const _SectionRows({required super.child});
+
+  static bool contains(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_SectionRows>() != null;
+
+  @override
+  bool updateShouldNotify(_SectionRows oldWidget) => false;
 }
 
 List<Widget> _buildSettingChildren(
@@ -98,7 +113,7 @@ class SettingRow extends StatelessWidget {
   final int titleMaxLines;
   final int valueMaxLines;
   final double? minHeight;
-  final EdgeInsetsGeometry contentPadding;
+  final EdgeInsetsGeometry? contentPadding;
   final TextStyle? titleStyle;
   final TextStyle? valueStyle;
   final TextStyle? subtitleStyle;
@@ -122,7 +137,7 @@ class SettingRow extends StatelessWidget {
     this.titleMaxLines = 2,
     this.valueMaxLines = 1,
     this.minHeight,
-    this.contentPadding = const EdgeInsets.all(12),
+    this.contentPadding,
     this.titleStyle,
     this.valueStyle,
     this.subtitleStyle,
@@ -149,7 +164,11 @@ class SettingRow extends StatelessWidget {
               ),
       ),
       child: Padding(
-        padding: contentPadding,
+        padding:
+            contentPadding ??
+            (_SectionRows.contains(context)
+                ? const EdgeInsets.symmetric(vertical: AppSpacing.rowVertical)
+                : const EdgeInsets.all(AppSpacing.rowVertical)),
         child: Row(
           children: [
             if (leading != null) ...[
@@ -169,7 +188,7 @@ class SettingRow extends StatelessWidget {
                 )
               else
                 IconTheme.merge(data: _iconTheme(context), child: leading!),
-              const SizedBox(width: 12),
+              const SizedBox(width: AppSpacing.rowIconGap),
             ],
             Expanded(flex: value == null ? 1 : 5, child: _title(context)),
             if (value != null) ...[
@@ -250,7 +269,7 @@ class SettingRow extends StatelessWidget {
               titleTrailing!,
             ],
           ),
-        if (subtitle != null) ...[
+        if (subtitle?.isNotEmpty ?? false) ...[
           const SizedBox(height: 4),
           Text(
             subtitle!,

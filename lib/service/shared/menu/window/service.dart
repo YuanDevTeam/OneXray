@@ -80,16 +80,12 @@ final class WindowService {
         ygLogger('initialize window material failed: $error\n$stackTrace');
       }
     }
-    // The Linux runner hides GTK's header while retaining its decoration and
-    // resize handling. Changing the native style would install core shadows.
-    if (!_isLinux) {
-      // Native macOS chrome keeps AppKit's drag and double-click handling.
-      // The hidden style transfers those gestures to a custom Flutter caption.
-      window.titleBarStyle = _hasSidebarMaterial
-          ? TitleBarStyle.normal
-          : TitleBarStyle.hidden;
-      window.isWindowControlButtonsVisible = true;
-    }
+    // Linux uses the system caption and resize frame. Native macOS chrome
+    // retains AppKit gestures; other windows use the plugin's Flutter caption.
+    window.titleBarStyle = _hasSidebarMaterial || _isLinux
+        ? TitleBarStyle.normal
+        : TitleBarStyle.hidden;
+    window.isWindowControlButtonsVisible = true;
     if (_hasSidebarMaterial) {
       window.setContentUnderTitleBar(true);
       window.backgroundColor = const Color(0x00000000).toNative();

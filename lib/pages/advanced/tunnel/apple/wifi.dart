@@ -63,9 +63,6 @@ class AppleWifiView extends StatelessWidget {
                       title: connect
                           ? l.prototypeWifiConnectNetworks
                           : l.prototypeWifiDisconnectNetworks,
-                      description: connect
-                          ? l.prototypeWifiConnectNetworksHint
-                          : l.prototypeWifiDisconnectNetworksHint,
                       values: controller.strings(
                         'apple',
                         connect ? 'connectWifiSsids' : 'disconnectWifiSsids',

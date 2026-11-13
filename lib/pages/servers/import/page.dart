@@ -112,15 +112,13 @@ class _ServersImportPageState extends State<ServersImportPage> {
                         context,
                         ServerImportAction.json,
                         LucideIcons.fileJson,
-                        l10n.prototypeAddManually,
-                        subtitle: l10n.prototypeXrayNodeJson,
+                        l10n.prototypeXrayNodeJson,
                       ),
                       _choice(
                         context,
                         ServerImportAction.raw,
                         LucideIcons.fileJson,
                         l10n.prototypeAddRawJson,
-                        subtitle: l10n.prototypeCompleteXrayConfiguration,
                       ),
                     ],
                   ),
@@ -138,12 +136,10 @@ class _ServersImportPageState extends State<ServersImportPage> {
     BuildContext context,
     ServerImportAction action,
     IconData icon,
-    String title, {
-    String? subtitle,
-  }) => SettingRow(
+    String title,
+  ) => SettingRow(
     key: ValueKey('server-import-choice-${action.name}'),
     title: title,
-    subtitle: subtitle,
     enabled: !controller.state.busy,
     showChevron: true,
     onTap: () => controller.open(context, action),
@@ -227,10 +223,6 @@ class ServerImportFormPage extends StatelessWidget {
                       else
                         _paste(context),
                       _ImportFeedback(state: state, showError: !manual),
-                      ConnectCallout(
-                        icon: LucideIcons.lockKeyhole,
-                        text: l10n.prototypeLocalInputPrivacy,
-                      ),
                     ],
                   ),
             actions: [
@@ -314,12 +306,6 @@ class ServerImportFormPage extends StatelessWidget {
                   ),
                 ),
               ),
-              Text(
-                l10n.prototypeImportLinksHint,
-                style: AppTypography.importHint.copyWith(
-                  color: palette.mutedForeground,
-                ),
-              ),
             ],
           ),
         ],
@@ -354,10 +340,10 @@ class ServerImportFormPage extends StatelessWidget {
               color: palette.mutedForeground,
             ),
           ),
-          _ImportFeedback(state: controller.state, showError: false),
-          ConnectCallout(
-            icon: LucideIcons.lockKeyhole,
-            text: l10n.prototypeLocalInputPrivacy,
+          _ImportFeedback(
+            state: controller.state,
+            showError: false,
+            horizontalPadding: 0,
           ),
         ],
       ),
@@ -416,7 +402,6 @@ class ServerImportFormPage extends StatelessWidget {
           ? null
           : controller.setHwidEnabled,
       encryptionTitle: l10n.prototypeAgeEncryption,
-      ageProviderSupportTitle: l10n.prototypeAgeOptional,
       ageProviderSupportDescription: l10n.prototypeAgeSupportNotice,
       ageSecretKeyLabel: l10n.prototypeAgeSecretKey,
       ageSecretKeyHint: 'AGE-SECRET-KEY-1...',
@@ -468,6 +453,10 @@ class ServerImportPreviewPage extends StatelessWidget {
         final l10n = AppLocalizations.of(context)!;
         final palette = ColorManager.palette(context);
         final committed = state.committedResult;
+        final gutter =
+            MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+            ? AppSpacing.mobilePage
+            : AppSpacing.page;
         final incomplete = committed != null && committed.writeFailureCount > 0;
         final completedCount = committed == null
             ? 0
@@ -497,8 +486,8 @@ class ServerImportPreviewPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Container(
-                  margin: const EdgeInsets.all(20),
-                  padding: const EdgeInsets.all(17),
+                  margin: EdgeInsets.fromLTRB(gutter, 16, gutter, 16),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: committed == null
                         ? palette.card
@@ -565,37 +554,42 @@ class ServerImportPreviewPage extends StatelessWidget {
                 ),
                 if (preview.hasItems)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 0, 22, 12),
+                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
                     child: Column(
                       children: [
                         for (final row in preview.rows)
                           _PreviewItem(
+                            icon: LucideIcons.server,
                             name: row.name.value,
                             description: committed != null
-                                ? l10n.prototypeNameSaved(row.name.value)
+                                ? null
                                 : l10n.prototypeLocalServer,
                           ),
                         for (final raw in preview.raw)
                           _PreviewItem(
+                            icon: LucideIcons.fileJson,
                             name: raw.name,
                             description: committed != null
-                                ? l10n.prototypeNameSaved(raw.name)
+                                ? null
                                 : l10n.xrayRawPageTitle,
                           ),
                         for (final route in preview.customRoutes)
                           _PreviewItem(
+                            icon: LucideIcons.route,
                             name: route.name,
                             description: committed == null
                                 ? l10n.prototypeCustomRouting
-                                : l10n.prototypeNameSaved(route.name),
+                                : null,
                           ),
                         for (final dependency in preview.assets)
                           _PreviewItem(
+                            icon: LucideIcons.fileText,
                             name: dependency.fileName,
                             description: l10n.prototypeDataSource,
                           ),
                         for (final source in preview.geoData)
                           _PreviewItem(
+                            icon: LucideIcons.database,
                             name: source.name,
                             description: committed == null
                                 ? l10n.prototypeDataSource
@@ -611,7 +605,7 @@ class ServerImportPreviewPage extends StatelessWidget {
                   )
                 else
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 20),
                     child: Text(
                       l10n.prototypeNoSupportedLinks,
                       style: AppTypography.importHint.copyWith(
@@ -622,7 +616,7 @@ class ServerImportPreviewPage extends StatelessWidget {
                 _ImportFeedback(state: state),
                 if (preview.count > 0)
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 20),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       spacing: 8,
@@ -693,20 +687,22 @@ class ServerImportPreviewPage extends StatelessWidget {
 
 class _PreviewItem extends StatelessWidget {
   const _PreviewItem({
+    required this.icon,
     required this.name,
     required this.description,
     this.failed = false,
   });
 
   final String name;
-  final String description;
+  final IconData icon;
+  final String? description;
   final bool failed;
 
   @override
   Widget build(BuildContext context) {
     final palette = ColorManager.palette(context);
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: palette.border)),
       ),
@@ -714,16 +710,18 @@ class _PreviewItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 12,
         children: [
+          Icon(icon, size: 20, color: palette.mutedForeground),
           Expanded(child: Text(name, style: AppTypography.serverMenuTitle)),
-          Expanded(
-            child: Text(
-              description,
-              textAlign: TextAlign.end,
-              style: AppTypography.serverMenuHint.copyWith(
-                color: failed ? palette.destructive : palette.mutedForeground,
+          if (description != null)
+            Expanded(
+              child: Text(
+                description!,
+                textAlign: TextAlign.end,
+                style: AppTypography.serverMenuHint.copyWith(
+                  color: failed ? palette.destructive : palette.mutedForeground,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -773,17 +771,30 @@ class ServerImportScannerPage extends StatelessWidget {
 class _ImportFeedback extends StatelessWidget {
   final ServerImportPageState state;
   final bool showError;
-  const _ImportFeedback({required this.state, this.showError = true});
+  final double? horizontalPadding;
+  const _ImportFeedback({
+    required this.state,
+    this.showError = true,
+    this.horizontalPadding,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (state.subscriptionImports.isEmpty && state.error == null) {
+    if (state.subscriptionImports.isEmpty &&
+        (!showError || state.error == null)) {
       return const SizedBox.shrink();
     }
     final l10n = AppLocalizations.of(context)!;
     final palette = ColorManager.palette(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal:
+            horizontalPadding ??
+            (MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                ? AppSpacing.mobilePage
+                : AppSpacing.page),
+        vertical: 12,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 8,

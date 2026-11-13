@@ -65,6 +65,8 @@ void jsonEditorAssistanceTests(TargetPlatform platform) {
     Locale locale = const Locale('en'),
     double keyboardHeight = 0,
     double textScale = 1,
+    bool reduceMotion = false,
+    bool disableAnimations = false,
     Widget Function(BuildContext, Widget)? homeBuilder,
   }) async {
     tester.view.devicePixelRatio = 1;
@@ -80,8 +82,11 @@ void jsonEditorAssistanceTests(TargetPlatform platform) {
         supportedLocales: AppLocalizations.supportedLocales,
         theme: AppTheme.material(Brightness.light, mobile: mobile),
         builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(context)
-              .copyWith(textScaler: TextScaler.linear(textScale)),
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+            reduceMotion: reduceMotion,
+            disableAnimations: disableAnimations,
+          ),
           child: ShadTheme(
             data: AppTheme.shad(Brightness.light, mobile: mobile),
             child: ShadToaster(child: child!),
@@ -392,68 +397,78 @@ void jsonEditorAssistanceTests(TargetPlatform platform) {
   }
 
   if (mobile) {
-    editorTest(
-      'Raw-style scrolling form keeps the editor and candidates above page actions',
-      (tester) async {
-        await pumpEditor(
-          tester,
-          kind: JsonEditorKind.outbound,
-          homeBuilder: (context, editor) => Scaffold(
-            appBar: AppBar(title: const Text('Raw JSON')),
-            body: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
+    for (final (reduceMotion, disableAnimations) in const [
+      (false, false),
+      (true, false),
+      (false, true),
+    ]) {
+      editorTest(
+        'Raw-style scrolling form keeps the editor and candidates above page actions (reduceMotion=$reduceMotion, disableAnimations=$disableAnimations)',
+        (tester) async {
+          await pumpEditor(
+            tester,
+            kind: JsonEditorKind.outbound,
+            reduceMotion: reduceMotion,
+            disableAnimations: disableAnimations,
+            homeBuilder: (context, editor) => Scaffold(
+              appBar: AppBar(title: const Text('Raw JSON')),
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    const SizedBox(
+                      height: 240,
+                      child: Center(
+                        child: Text('Import and configuration name'),
+                      ),
+                    ),
+                    SizedBox(
+                      height: AppJsonEditor.heightForViewport(context, 392),
+                      child: editor,
+                    ),
+                    const SizedBox(
+                      height: 100,
+                      child: Text('Configuration notes'),
+                    ),
+                  ],
+                ),
+              ),
+              bottomNavigationBar: PageActionBar(
                 children: [
-                  const SizedBox(
-                    height: 240,
-                    child: Center(child: Text('Import and configuration name')),
-                  ),
-                  SizedBox(
-                    height: AppJsonEditor.heightForViewport(context, 392),
-                    child: editor,
-                  ),
-                  const SizedBox(
-                    height: 100,
-                    child: Text('Configuration notes'),
+                  ShadButton(
+                    key: const ValueKey('save-action'),
+                    onPressed: () {},
+                    child: const Text('Save'),
                   ),
                 ],
               ),
             ),
-            bottomNavigationBar: PageActionBar(
-              children: [
-                ShadButton(
-                  key: const ValueKey('save-action'),
-                  onPressed: () {},
-                  child: const Text('Save'),
-                ),
-              ],
+          );
+          await focusProtocol(tester);
+          tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+          await tester.pumpAndSettle();
+          final suggestions = find.byKey(
+            const ValueKey('json-editor-completions'),
+          );
+          expect(tester.getSize(find.byType(AppJsonEditor)).height, 230);
+          expect(
+            tester.getTopLeft(find.byType(CodeEditor)).dy,
+            greaterThanOrEqualTo(tester.getBottomLeft(find.byType(AppBar)).dy),
+          );
+          expect(
+            tester.getBottomLeft(suggestions).dy,
+            lessThanOrEqualTo(
+              tester.getTopLeft(find.byKey(const ValueKey('save-action'))).dy,
             ),
-          ),
-        );
-        await focusProtocol(tester);
-        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-        await tester.pumpAndSettle();
-        final suggestions = find.byKey(
-          const ValueKey('json-editor-completions'),
-        );
-        expect(tester.getSize(find.byType(AppJsonEditor)).height, 230);
-        expect(
-          tester.getTopLeft(find.byType(CodeEditor)).dy,
-          greaterThanOrEqualTo(tester.getBottomLeft(find.byType(AppBar)).dy),
-        );
-        expect(
-          tester.getBottomLeft(suggestions).dy,
-          lessThanOrEqualTo(
-            tester.getTopLeft(find.byKey(const ValueKey('save-action'))).dy,
-          ),
-        );
-        await tester.tap(find.text('vless'));
-        await tester.pumpAndSettle();
-        expect(controller.text, contains('"vless"'));
-        expect(tester.takeException(), isNull);
-      },
-      variant: variant,
-    );
+          );
+          await tester.tap(find.text('vless'));
+          await tester.pumpAndSettle();
+          expect(controller.text, contains('"vless"'));
+          expect(tester.takeException(), isNull);
+        },
+        variant: variant,
+      );
+    }
 
     editorTest(
       'actual outbound dialog keeps candidates visible when the keyboard opens',

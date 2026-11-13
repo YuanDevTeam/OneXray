@@ -5,6 +5,7 @@ import 'package:onexray/pages/main/url.dart';
 import 'package:onexray/pages/main/desktop_window.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/pages/theme/motion.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/event_bus/state.dart';
 import 'package:onexray/service/shared/event_bus/enum.dart';
@@ -58,6 +59,7 @@ class GoRouteApp extends StatelessWidget {
                 brightness,
                 mobile: mobile,
                 textScaler: MediaQuery.textScalerOf(context),
+                reduceMotion: AppMotion.reducedOf(context),
               ),
               child: ShadToaster(child: DesktopWindowFrame(child: routedChild)),
             );

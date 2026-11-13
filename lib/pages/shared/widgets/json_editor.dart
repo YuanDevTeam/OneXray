@@ -13,6 +13,7 @@ import 'package:onexray/pages/shared/widgets/json_editor_toolbar.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/pages/theme/motion.dart';
 import 'package:onexray/service/shared/json_editing.dart';
 import 'package:re_editor/re_editor.dart';
 import 'package:re_highlight/languages/json.dart';
@@ -146,7 +147,10 @@ class _AppJsonEditorState extends State<AppJsonEditor>
             scrollable.position.ensureVisible(
               editor,
               alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-              duration: const Duration(milliseconds: 120),
+              duration: AppMotion.durationOf(
+                context,
+                const Duration(milliseconds: 120),
+              ),
             ),
           );
           return;
@@ -185,13 +189,17 @@ class _AppJsonEditorState extends State<AppJsonEditor>
             .clamp(position.minScrollExtent, position.maxScrollExtent)
             .toDouble();
         if (target != position.pixels) {
-          unawaited(
-            position.animateTo(
-              target,
-              duration: const Duration(milliseconds: 120),
-              curve: Curves.ease,
-            ),
-          );
+          if (AppMotion.reducedOf(context)) {
+            position.jumpTo(target);
+          } else {
+            unawaited(
+              position.animateTo(
+                target,
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.ease,
+              ),
+            );
+          }
         }
       });
       WidgetsBinding.instance.ensureVisualUpdate();
@@ -492,7 +500,10 @@ class _AppJsonEditorState extends State<AppJsonEditor>
                                 Scrollable.of(context).position.ensureVisible(
                                   context.findRenderObject()!,
                                   alignment: .5,
-                                  duration: const Duration(milliseconds: 100),
+                                  duration: AppMotion.durationOf(
+                                    context,
+                                    const Duration(milliseconds: 100),
+                                  ),
                                 );
                               }
                             });

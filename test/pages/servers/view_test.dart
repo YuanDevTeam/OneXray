@@ -918,7 +918,12 @@ void main() {
             )
             .first,
       );
-      await tester.tap(find.text('Node 1'));
+      // The target can already exist in ListView's cache. Let the final
+      // ensureVisible jump lay out before reading its tap coordinates.
+      await tester.pumpAndSettle();
+      final node = find.text('Node 1');
+      expect(node.hitTestable(), findsOneWidget);
+      await tester.tap(node);
       await tester.pumpAndSettle();
       expect(find.byType(ServerResourcePage), findsOneWidget);
       expect(

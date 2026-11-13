@@ -87,10 +87,6 @@ class SharePage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
-          child: Text(l.shareContentTitle, style: AppTypography.panelTitle),
-        ),
         Semantics(
           label: l.prototypeLinkFormat,
           child: Container(
@@ -173,17 +169,6 @@ class SharePage extends StatelessWidget {
             ],
           ),
         ),
-        if (params.type == ShareType.subscription &&
-            state.format == ShareLinkFormat.onexray)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
-            child: Text(
-              l.prototypeSubscriptionShareAgeHint,
-              style: AppTypography.shareHint.copyWith(
-                color: palette.mutedForeground,
-              ),
-            ),
-          ),
         Padding(
           padding: const EdgeInsets.fromLTRB(18, 16, 18, 0),
           child: Column(

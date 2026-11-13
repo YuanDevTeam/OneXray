@@ -184,14 +184,14 @@ Future<bool?> showCustomRoutingModeDialog(BuildContext context) =>
             children: [
               _MethodOption(
                 title: l.routingNormalConfiguration,
-                description: l.prototypeCustomRoutingDescription,
+                icon: LucideIcons.listOrdered,
                 selected: false,
                 onPressed: () => Navigator.pop(dialogContext, false),
               ),
               const SizedBox(height: 12),
               _MethodOption(
                 title: l.routingAdvancedJson,
-                description: l.routingAdvancedSummary,
+                icon: LucideIcons.fileJson,
                 selected: false,
                 onPressed: () => Navigator.pop(dialogContext, true),
               ),
@@ -204,11 +204,12 @@ Future<bool?> showCustomRoutingModeDialog(BuildContext context) =>
 class _MethodOption extends StatelessWidget {
   const _MethodOption({
     required this.title,
-    required this.description,
+    required this.icon,
     required this.selected,
     required this.onPressed,
   });
-  final String title, description;
+  final String title;
+  final IconData icon;
   final bool selected;
   final VoidCallback onPressed;
 
@@ -216,7 +217,7 @@ class _MethodOption extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = ColorManager.palette(context);
     return Container(
-      constraints: const BoxConstraints(minHeight: 82),
+      constraints: const BoxConstraints(minHeight: 66),
       decoration: BoxDecoration(
         color: selected ? palette.selectedSurface : palette.card,
         border: Border.all(
@@ -235,7 +236,7 @@ class _MethodOption extends StatelessWidget {
                 onPressed: onPressed,
                 style: TextButton.styleFrom(
                   foregroundColor: palette.foreground,
-                  minimumSize: const Size(0, 80),
+                  minimumSize: const Size(0, 64),
                   padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 0, 12),
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -248,25 +249,13 @@ class _MethodOption extends StatelessWidget {
                         color: palette.selectedSurface,
                         borderRadius: BorderRadius.circular(9),
                       ),
-                      child: Icon(
-                        LucideIcons.shieldCheck,
-                        size: 21,
-                        color: palette.primary,
-                      ),
+                      child: Icon(icon, size: 21, color: palette.primary),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title, style: AppTypography.dialogOptionTitle),
-                          const SizedBox(height: 4),
-                          Text(
-                            description,
-                            style: AppTypography.dialogOptionDescription
-                                .copyWith(color: palette.mutedForeground),
-                          ),
-                        ],
+                      child: Text(
+                        title,
+                        style: AppTypography.dialogOptionTitle,
                       ),
                     ),
                   ],
@@ -285,20 +274,4 @@ class _MethodOption extends StatelessWidget {
       ),
     );
   }
-}
-
-class ConnectExplanation extends StatelessWidget {
-  const ConnectExplanation({super.key, required this.icon, required this.text});
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(icon, size: 22, color: ColorManager.palette(context).primary),
-      const SizedBox(width: 12),
-      Expanded(child: Text(text, style: AppTypography.dialogBody)),
-    ],
-  );
 }

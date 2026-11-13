@@ -95,7 +95,6 @@ class _RoutingPageState extends State<RoutingPage> {
                         _choice(
                           context,
                           title: l.prototypeSmartRouting,
-                          description: l.prototypeSmartRoutingDescription,
                           selected: settings.trafficMode == TrafficMode.smart,
                           icon: LucideIcons.route,
                           useKey: const ValueKey('routing-use-smart'),
@@ -108,22 +107,27 @@ class _RoutingPageState extends State<RoutingPage> {
                         _choice(
                           context,
                           title: l.prototypeAllViaVpn,
-                          description: l.prototypeAllViaVpnDescription,
                           selected: settings.trafficMode == TrafficMode.allVpn,
                           icon: LucideIcons.shield,
                           useKey: const ValueKey('routing-use-all'),
                           onUse: () =>
                               controller.select(context, TrafficMode.allVpn),
                         ),
-                        Text(
-                          l.prototypeCustomRouting,
-                          style: AppTypography.sectionTitle,
-                        ),
-                        Text(
-                          l.prototypeCustomRouteLimit,
-                          style: AppTypography.supporting.copyWith(
-                            color: palette.mutedForeground,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l.prototypeCustomRouting,
+                                style: AppTypography.sectionTitle,
+                              ),
+                            ),
+                            Text(
+                              '${state.profiles.length}/3',
+                              style: AppTypography.supporting.copyWith(
+                                color: palette.mutedForeground,
+                              ),
+                            ),
+                          ],
                         ),
                         for (final row in state.profiles)
                           _choice(
@@ -161,14 +165,8 @@ class _RoutingPageState extends State<RoutingPage> {
                           SettingSection(
                             title: l.prototypeNoCustomRoutes,
                             padding: EdgeInsets.zero,
-                            children: [
-                              Text(
-                                l.prototypeCustomRoutingDescription,
-                                style: AppTypography.supporting.copyWith(
-                                  color: palette.mutedForeground,
-                                ),
-                              ),
-                            ],
+                            icon: LucideIcons.listOrdered,
+                            children: const [],
                           ),
                         SettingSection(
                           title: l.prototypeRoutingData,
@@ -176,7 +174,6 @@ class _RoutingPageState extends State<RoutingPage> {
                           children: [
                             SettingRow(
                               title: l.prototypeRoutingDataSummary,
-                              subtitle: l.prototypeRoutingDataHint,
                               leading: const Icon(
                                 LucideIcons.database,
                                 size: 19,
@@ -219,7 +216,7 @@ class _RoutingPageState extends State<RoutingPage> {
     BuildContext context, {
     Key? key,
     required String title,
-    required String description,
+    String? description,
     required bool selected,
     required IconData icon,
     required VoidCallback onUse,
@@ -251,10 +248,15 @@ class _RoutingPageState extends State<RoutingPage> {
           children: [
             LayoutBuilder(
               builder: (context, constraints) => Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: description == null
+                    ? CrossAxisAlignment.center
+                    : CrossAxisAlignment.start,
                 children: [
                   Padding(
-                    padding: const EdgeInsetsDirectional.only(end: 12, top: 2),
+                    padding: EdgeInsetsDirectional.only(
+                      end: 12,
+                      top: description == null ? 0 : 2,
+                    ),
                     child: Icon(
                       icon,
                       size: 20,
@@ -267,12 +269,13 @@ class _RoutingPageState extends State<RoutingPage> {
                       spacing: 4,
                       children: [
                         Text(title, style: AppTypography.sectionTitle),
-                        Text(
-                          description,
-                          style: AppTypography.supporting.copyWith(
-                            color: palette.mutedForeground,
+                        if (description != null)
+                          Text(
+                            description,
+                            style: AppTypography.supporting.copyWith(
+                              color: palette.mutedForeground,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -292,9 +295,11 @@ class _RoutingPageState extends State<RoutingPage> {
                           color: palette.selectedSurface,
                           borderRadius: BorderRadius.circular(AppRadii.control),
                         ),
-                        child: Text(
-                          l.prototypeCurrentSelection,
-                          style: AppTypography.badge.copyWith(
+                        child: Tooltip(
+                          message: l.prototypeCurrentSelection,
+                          child: Icon(
+                            LucideIcons.circleCheck,
+                            size: 20,
                             color: palette.primaryText,
                           ),
                         ),
@@ -312,35 +317,38 @@ class _RoutingPageState extends State<RoutingPage> {
                       ?.copyWith(color: palette.destructive),
                 ),
               ),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                if (!selected)
-                  ShadButton.outline(
-                    key: useKey,
-                    size: ShadButtonSize.sm,
-                    enabled: !controller.state.busy && canUse,
-                    onPressed: onUse,
-                    child: Text(l.prototypeUse),
-                  ),
-                if (onEdit != null)
-                  ShadButton.outline(
-                    size: ShadButtonSize.sm,
-                    enabled: !controller.state.busy,
-                    onPressed: onEdit,
-                    child: Text(l.prototypeEdit),
-                  ),
-                if (onDelete != null)
-                  ShadButton.outline(
-                    size: ShadButtonSize.sm,
-                    enabled: !controller.state.busy,
-                    onPressed: onDelete,
-                    leading: const Icon(LucideIcons.trash2, size: 16),
-                    child: Text(l.prototypeDelete),
-                  ),
-              ],
-            ),
+            if (!selected || onEdit != null || onDelete != null)
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (!selected)
+                    ShadButton.outline(
+                      key: useKey,
+                      size: ShadButtonSize.sm,
+                      enabled: !controller.state.busy && canUse,
+                      onPressed: onUse,
+                      leading: const Icon(LucideIcons.check, size: 16),
+                      child: Text(l.prototypeUse),
+                    ),
+                  if (onEdit != null)
+                    ShadButton.outline(
+                      size: ShadButtonSize.sm,
+                      enabled: !controller.state.busy,
+                      onPressed: onEdit,
+                      leading: const Icon(LucideIcons.pencil, size: 16),
+                      child: Text(l.prototypeEdit),
+                    ),
+                  if (onDelete != null)
+                    ShadButton.outline(
+                      size: ShadButtonSize.sm,
+                      enabled: !controller.state.busy,
+                      onPressed: onDelete,
+                      leading: const Icon(LucideIcons.trash2, size: 16),
+                      child: Text(l.prototypeDelete),
+                    ),
+                ],
+              ),
           ],
         ),
       ),

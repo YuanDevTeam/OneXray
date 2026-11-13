@@ -200,7 +200,6 @@ Widget _screen(ConnectController controller) => MaterialApp(
           onAddServers: () {},
           onServer: () => controller.chooseServer(context),
           onMethod: () {},
-          onWhy: () {},
         );
       },
     ),

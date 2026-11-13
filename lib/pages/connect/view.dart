@@ -5,6 +5,7 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/layout.dart';
+import 'package:onexray/pages/theme/motion.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
@@ -36,7 +37,6 @@ class ConnectView extends StatelessWidget {
     required this.onAddServers,
     required this.onServer,
     required this.onMethod,
-    required this.onWhy,
   });
   final ConnectionView view;
   final Widget Function(bool desktop)? trafficBuilder;
@@ -52,7 +52,7 @@ class ConnectView extends StatelessWidget {
   final String? locationDetail, locationHealth, methodDetail;
   final String method;
   final bool methodEnabled;
-  final VoidCallback onConnection, onAddServers, onServer, onMethod, onWhy;
+  final VoidCallback onConnection, onAddServers, onServer, onMethod;
 
   bool get _connectionPending => pendingChange == 'connection';
   bool get _busy => view.busy || _connectionPending;
@@ -64,6 +64,13 @@ class ConnectView extends StatelessWidget {
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final raw = raws.where((row) => row.id == activeRawId).firstOrNull;
+    final hasRuntime = view.canDisconnect && view.runtime != null;
+    final runtimeName = hasRuntime
+        ? view.runtime?.profile?.name ??
+              view.runtime?.rawName ??
+              runningPath ??
+              l.prototypeCompleteXrayConfiguration
+        : null;
     Widget choice(
       IconData icon,
       String label,
@@ -106,16 +113,19 @@ class ConnectView extends StatelessWidget {
                             : palette.foreground,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      [
-                        if (includeLabel && label != value) label,
-                        if (detail != null && detail.isNotEmpty) detail,
-                      ].join(' · '),
-                      style: AppTypography.supporting.copyWith(
-                        color: palette.mutedForeground,
+                    if ((includeLabel && label != value) ||
+                        (detail != null && detail.isNotEmpty)) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          if (includeLabel && label != value) label,
+                          if (detail != null && detail.isNotEmpty) detail,
+                        ].join(' · '),
+                        style: AppTypography.supporting.copyWith(
+                          color: palette.mutedForeground,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -134,7 +144,6 @@ class ConnectView extends StatelessWidget {
       return ResponsiveContent(
         child: PageEmptyState(
           title: l.prototypeStartUsingOneXray,
-          description: l.prototypeFirstConnectionHint,
           primaryLabel: l.prototypeAddServers,
           onPrimary: onAddServers,
         ),
@@ -168,15 +177,6 @@ class ConnectView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(l.connectionPlan, style: AppTypography.panelTitle),
-                    const SizedBox(height: 4),
-                    Text(
-                      view.phase == ConnectionPhase.connected
-                          ? l.connectionPlanConnectedCaption
-                          : l.connectionPlanCaption,
-                      style: AppTypography.supporting.copyWith(
-                        color: palette.mutedForeground,
-                      ),
-                    ),
                     const SizedBox(height: 16),
                     choice(
                       expert || !methodEnabled
@@ -204,47 +204,9 @@ class ConnectView extends StatelessWidget {
                 ),
               ),
             ),
-            if (view.canDisconnect && view.runtime != null) ...[
-              const SizedBox(height: 16),
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l.connectionRuntimeTitle,
-                        style: AppTypography.panelTitle,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        view.runtime?.profile?.name ??
-                            view.runtime?.rawName ??
-                            runningPath ??
-                            l.prototypeCompleteXrayConfiguration,
-                        style: AppTypography.rowTitle,
-                      ),
-                      if (locationHealth != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            locationHealth!,
-                            style: AppTypography.supporting,
-                          ),
-                        ),
-                      TextButton.icon(
-                        onPressed: onWhy,
-                        icon: const Icon(LucideIcons.circleHelp, size: 16),
-                        label: Text(l.prototypeWhyThisConnection),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
             const SizedBox(height: 16),
             Card(
+              key: const ValueKey('connection-session'),
               margin: EdgeInsets.zero,
               child: Padding(
                 padding: const EdgeInsets.all(18),
@@ -255,12 +217,45 @@ class ConnectView extends StatelessWidget {
                       l.connectionSessionTitle,
                       style: AppTypography.panelTitle,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l.connectionSessionCaption,
-                      style: AppTypography.supporting.copyWith(
-                        color: palette.mutedForeground,
-                      ),
+                    const SizedBox(height: 16),
+                    Row(
+                      key: const ValueKey('connection-session-runtime'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            LucideIcons.activity,
+                            size: 18,
+                            color: hasRuntime
+                                ? palette.mutedStrong
+                                : palette.mutedForeground,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _SessionText(
+                                value: runtimeName,
+                                style: AppTypography.rowTitle.copyWith(
+                                  color: hasRuntime
+                                      ? palette.foreground
+                                      : palette.mutedForeground,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              _SessionText(
+                                value: hasRuntime ? locationHealth : null,
+                                style: AppTypography.supporting.copyWith(
+                                  color: palette.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     trafficBuilder?.call(false) ?? TrafficReadout(view: view),
@@ -363,7 +358,7 @@ class ConnectView extends StatelessWidget {
             if (_busy)
               SizedBox.square(
                 dimension: 17,
-                child: MediaQuery.disableAnimationsOf(context)
+                child: AppMotion.reducedOf(context)
                     ? Icon(LucideIcons.loaderCircle, color: color, size: 17)
                     : CircularProgressIndicator(strokeWidth: 2, color: color),
               )
@@ -456,6 +451,34 @@ class ConnectView extends StatelessWidget {
   }
 }
 
+/// Keep reserved text rows stable while unknown session values are replaced.
+class _SessionText extends StatelessWidget {
+  const _SessionText({required this.value, required this.style});
+
+  final String? value;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      value ?? '—',
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+    return SizedBox(
+      height:
+          MediaQuery.textScalerOf(context).scale(style.fontSize!) *
+          style.height!,
+      child: Align(
+        alignment: AlignmentDirectional.topStart,
+        child: value == null ? text : Tooltip(message: value!, child: text),
+      ),
+    );
+  }
+}
+
 class TrafficReadout extends StatelessWidget {
   const TrafficReadout({super.key, required this.view, this.desktop = false});
   final ConnectionView view;
@@ -475,6 +498,24 @@ class TrafficReadout extends StatelessWidget {
     final elapsed = duration == null
         ? '—'
         : '${duration.inHours.toString().padLeft(2, '0')}:${(duration.inMinutes % 60).toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+    Widget number(String value, TextStyle style) => SizedBox(
+      height:
+          MediaQuery.textScalerOf(context).scale(style.fontSize!) *
+          style.height!,
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+            value,
+            maxLines: 1,
+            textDirection: TextDirection.ltr,
+            style: style,
+          ),
+        ),
+      ),
+    );
     Widget metric(
       String title,
       String value,
@@ -499,22 +540,13 @@ class TrafficReadout extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 7),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(
-              value,
-              textDirection: TextDirection.ltr,
-              style: AppTypography.metric,
-            ),
-          ),
+          number(value, AppTypography.metric),
           if (detail != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(
+              child: number(
                 detail,
-                textDirection: TextDirection.ltr,
-                style: AppTypography.supporting.copyWith(
+                AppTypography.supporting.copyWith(
                   color: palette.mutedForeground,
                 ),
               ),

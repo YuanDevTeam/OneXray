@@ -2,9 +2,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/servers/subscription/user_info.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/servers/subscription/user_info.dart';
 import 'package:onexray/service/settings/language/locale.dart';
+import 'package:shadcn_ui/shadcn_ui.dart';
 
 void main() {
   const gib = 1024 * 1024 * 1024;
@@ -30,11 +32,18 @@ void main() {
         builder: (context, child) => MediaQuery(
           data: MediaQuery.of(context)
               .copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
+          child: ShadTheme(
+            data: AppTheme.shad(Brightness.light, mobile: width < 720),
+            child: child!,
+          ),
         ),
         home: Scaffold(
           body: SingleChildScrollView(
-            child: SubscriptionPackageDetails(info: info),
+            child: SettingSection(
+              title: '',
+              padding: EdgeInsets.zero,
+              children: [SubscriptionPackageDetails(info: info)],
+            ),
           ),
         ),
       ),
@@ -77,7 +86,6 @@ void main() {
     expect(find.text('10.0 GiB'), findsOneWidget);
     expect(find.text('7.0 GiB'), findsOneWidget);
     expect(find.textContaining('2026'), findsWidgets);
-    expect(find.text(l.subscriptionPackageCacheHint), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
