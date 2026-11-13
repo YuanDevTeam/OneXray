@@ -35,7 +35,7 @@
 
 **Добавьте свои серверы или подписку.** OneXray не предоставляет доступ к VPN или прокси-серверы.
 
-[![OneXray на Mac, iPad и iPhone](https://onexray.com/images/screenshots/devices-ru.png)](https://onexray.com/images/screenshots/devices-ru.png)
+[![OneXray на Mac, iPad и iPhone](https://onexray.com/images/screenshots/devices-ru.png?v=20261113)](https://onexray.com/images/screenshots/devices-ru.png?v=20261113)
 
 ## Почему OneXray
 
