@@ -79,7 +79,6 @@ class OutboundInterfaceView extends StatelessWidget {
     bloc: controller,
     builder: (context, state) {
       final l = AppLocalizations.of(context)!;
-      final palette = ColorManager.palette(context);
       final width = MediaQuery.sizeOf(context).width;
       final mobile = width <= AppLayout.mobileBreakpoint;
       final gutter = mobile
@@ -88,6 +87,10 @@ class OutboundInterfaceView extends StatelessWidget {
       final selected = controller.value['xrayOutboundInterfaceName'] as String;
       return PolicyDetailScaffold(
         title: l.prototypeXrayOutboundInterface,
+        help: [
+          l.prototypeInterfaceSelectionNotice,
+          l.prototypeManagedInterfaceNotice,
+        ],
         controller: controller,
         canSave:
             !controller.loading && !controller.failed && selected.isNotEmpty,
@@ -96,7 +99,7 @@ class OutboundInterfaceView extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(gutter, 20, gutter, mobile ? 18 : 24),
           child: SettingSection(
             title: l.prototypeChooseInterface,
-            description: l.prototypeInterfaceSelectionNotice,
+            icon: LucideIcons.network,
             padding: EdgeInsets.zero,
             children: [
               if (controller.loading)
@@ -141,29 +144,6 @@ class OutboundInterfaceView extends StatelessWidget {
                     ),
                   ],
                 ),
-              Container(
-                constraints: BoxConstraints(minHeight: mobile ? 50 : 49),
-                padding: EdgeInsets.symmetric(
-                  horizontal: mobile ? 10 : 16,
-                  vertical: 10,
-                ),
-                child: Row(
-                  children: [
-                    Icon(LucideIcons.info, size: 16, color: palette.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        l.prototypeManagedInterfaceNotice,
-                        style:
-                            (mobile
-                                    ? AppTypography.runtimeCodeNote
-                                    : AppTypography.runtimeCodeDesktopNote)
-                                .copyWith(color: palette.mutedForeground),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),

@@ -185,7 +185,6 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directPrivate',
             smart.directPrivate,
             state,
-            description: l.prototypeDirectPrivateAddressesHint,
             divider: false,
           ),
           _switch(
@@ -194,7 +193,6 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directApple',
             smart.directApple,
             state,
-            description: l.prototypeDirectAppleServicesHint,
             divider: false,
           ),
           _switch(
@@ -203,7 +201,6 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'directWindows',
             smart.directWindows,
             state,
-            description: l.directWindowsServicesHint,
             divider: false,
           ),
           _switch(
@@ -212,7 +209,6 @@ class SmartRoutingEditorContent extends StatelessWidget {
             'blockAds',
             smart.blockAds,
             state,
-            description: l.prototypeBlockAdDomainsHint,
             divider: false,
           ),
         ],
@@ -302,13 +298,11 @@ class SmartRoutingEditorContent extends StatelessWidget {
     bool value,
     SmartRoutingEditorState state, {
     Widget? below,
-    String? description,
     String? help,
     bool divider = true,
   }) => RoutingSettingRow(
     icon: icon,
     title: title,
-    description: description,
     help: help,
     divider: divider,
     enabled: state.original != null && !state.busy,

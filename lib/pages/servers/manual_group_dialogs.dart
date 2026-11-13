@@ -30,7 +30,6 @@ class ManualServerOrderScopeDialog extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     return AppDialog(
       title: l.manualServerOrder,
-      subtitle: l.manualOrderDisplayHint,
       body: Column(
         children: [
           for (final group in groups)

@@ -12,7 +12,7 @@ class PageEmptyState extends StatelessWidget {
   const PageEmptyState({
     super.key,
     required this.title,
-    required this.description,
+    this.description,
     required this.primaryLabel,
     required this.onPrimary,
     this.secondaryLabel,
@@ -20,7 +20,8 @@ class PageEmptyState extends StatelessWidget {
     this.scrollController,
   });
 
-  final String title, description, primaryLabel;
+  final String title, primaryLabel;
+  final String? description;
   final String? secondaryLabel;
   final VoidCallback onPrimary;
   final VoidCallback? onSecondary;
@@ -77,19 +78,21 @@ class PageEmptyState extends StatelessWidget {
                       color: palette.foreground,
                     ),
                   ),
-                  const SizedBox(height: 13),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      maxWidth: AppLayout.emptyStateTextMaxWidth,
-                    ),
-                    child: Text(
-                      description,
-                      textAlign: TextAlign.center,
-                      style: AppTypography.dialogBody.copyWith(
-                        color: palette.mutedForeground,
+                  if (description?.isNotEmpty ?? false) ...[
+                    const SizedBox(height: 13),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: AppLayout.emptyStateTextMaxWidth,
+                      ),
+                      child: Text(
+                        description!,
+                        textAlign: TextAlign.center,
+                        style: AppTypography.dialogBody.copyWith(
+                          color: palette.mutedForeground,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 13),
                   FilledButton.icon(
                     onPressed: onPrimary,

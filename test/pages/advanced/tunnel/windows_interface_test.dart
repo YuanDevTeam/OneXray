@@ -274,7 +274,6 @@ void main() {
           tester.getSize(find.byType(ShadRadio<String>).first),
           const Size(17, 17),
         );
-        expect(find.text(l.prototypeManagedInterfaceNotice), findsOneWidget);
         await tester.tap(find.text('Ethernet'));
         await tester.pumpAndSettle();
         expect(controller.value['xrayOutboundInterfaceName'], 'Ethernet');

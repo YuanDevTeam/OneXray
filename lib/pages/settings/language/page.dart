@@ -4,7 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/language/controller.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
-import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
@@ -83,38 +82,39 @@ class LanguageChoiceView extends StatelessWidget {
         padding: settingsContentPadding(context),
         child: SettingSection(
           title: l10n.settingsAppLanguage,
+          icon: LucideIcons.languages,
           padding: EdgeInsets.zero,
           children: [
-            Text(l10n.prototypeLanguage, style: AppTypography.rowValue),
-            const SizedBox(height: 12),
-            ShadSelect<LanguageCode>(
-              key: ValueKey(selected),
-              initialValue: selected,
-              selectedOptionBuilder: (_, language) => Text(
-                languageNativeLabel(l10n, language),
-                textDirection: language == LanguageCode.fa
-                    ? TextDirection.rtl
-                    : language == LanguageCode.system
-                    ? null
-                    : TextDirection.ltr,
-              ),
-              options: [
-                for (final language in LanguageCode.values)
-                  ShadOption(
-                    value: language,
-                    child: Text(
-                      languageNativeLabel(l10n, language),
-                      textDirection: language == LanguageCode.fa
-                          ? TextDirection.rtl
-                          : language == LanguageCode.system
-                          ? null
-                          : TextDirection.ltr,
+            Semantics(
+              label: l10n.prototypeLanguage,
+              child: ShadSelect<LanguageCode>(
+                key: ValueKey(selected),
+                initialValue: selected,
+                selectedOptionBuilder: (_, language) => Text(
+                  languageNativeLabel(l10n, language),
+                  textDirection: language == LanguageCode.fa
+                      ? TextDirection.rtl
+                      : language == LanguageCode.system
+                      ? null
+                      : TextDirection.ltr,
+                ),
+                options: [
+                  for (final language in LanguageCode.values)
+                    ShadOption(
+                      value: language,
+                      child: Text(
+                        languageNativeLabel(l10n, language),
+                        textDirection: language == LanguageCode.fa
+                            ? TextDirection.rtl
+                            : language == LanguageCode.system
+                            ? null
+                            : TextDirection.ltr,
+                      ),
                     ),
-                  ),
-              ],
-              onChanged: onSelected,
+                ],
+                onChanged: onSelected,
+              ),
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),

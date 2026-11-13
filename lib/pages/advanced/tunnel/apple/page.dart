@@ -58,6 +58,7 @@ class AppleVpnPage extends StatelessWidget {
             l.prototypeAllowDeviceCommunicationHint,
             l.prototypeAlwaysOnHint,
             l.prototypeConnectOnDemandHint,
+            l.appleExcludedNetworksHint,
           ],
           controller: controller,
           canSave: state.appleCapabilities != null,
@@ -205,7 +206,7 @@ class AppleVpnView extends StatelessWidget {
                   title: l.prototypeBypassNetworks,
                   description: apple['captureAllTraffic'] == true
                       ? l.appleExcludedNetworksInactive
-                      : l.appleExcludedNetworksHint,
+                      : null,
                   padding: EdgeInsets.zero,
                   children: [
                     if (apple['captureAllTraffic'] == false) ...[

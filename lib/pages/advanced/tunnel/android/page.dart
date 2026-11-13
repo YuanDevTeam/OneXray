@@ -67,7 +67,6 @@ class _AndroidVpnPageState extends State<AndroidVpnPage> {
             ),
             child: SettingSection(
               title: l.prototypeVpnAppScope,
-              description: l.prototypeChooseAndroidApps,
               padding: EdgeInsets.zero,
               children: [
                 ShadRadioGroup<String>(
@@ -125,7 +124,7 @@ class _AndroidVpnPageState extends State<AndroidVpnPage> {
                           children: [
                             Icon(
                               LucideIcons.appWindow,
-                              size: 19,
+                              size: 20,
                               color: palette.primary,
                             ),
                             Expanded(
@@ -216,6 +215,8 @@ class _AndroidModeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = ColorManager.palette(context);
+    final mobile =
+        MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     return Semantics(
       inMutuallyExclusiveGroup: true,
       child: MergeSemantics(
@@ -225,36 +226,33 @@ class _AndroidModeRow extends StatelessWidget {
           child: InkWell(
             onTap: enabled ? onTap : null,
             child: Container(
-              constraints: const BoxConstraints(minHeight: 68),
+              constraints: BoxConstraints(minHeight: mobile ? 56 : 48),
               padding: const EdgeInsets.all(12),
               child: Row(
                 spacing: 12,
                 children: [
-                  Padding(
-                    padding: const EdgeInsetsDirectional.fromSTEB(5, 3, 3, 0),
-                    child: ShadRadio<String>(
-                      value: value,
-                      enabled: enabled,
-                      size: 15,
-                      circleSize: 10,
-                      radioPadding: EdgeInsets.zero,
-                      decoration: ShadDecoration(
-                        border: ShadBorder.all(
-                          color: selected
-                              ? palette.primary
-                              : palette.mutedForeground,
-                          width: 1,
+                  SizedBox.square(
+                    dimension: 20,
+                    child: Center(
+                      child: ShadRadio<String>(
+                        value: value,
+                        enabled: enabled,
+                        size: 15,
+                        circleSize: 10,
+                        radioPadding: EdgeInsets.zero,
+                        decoration: ShadDecoration(
+                          border: ShadBorder.all(
+                            color: selected
+                                ? palette.primary
+                                : palette.mutedForeground,
+                            width: 1,
+                          ),
                         ),
                       ),
                     ),
                   ),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(title, style: AppTypography.androidModeTitle),
-                      ],
-                    ),
+                    child: Text(title, style: AppTypography.androidModeTitle),
                   ),
                 ],
               ),

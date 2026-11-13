@@ -135,13 +135,6 @@ class GeoDataAddPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      l.geodataValidatedBeforeAdding,
-                      style: AppTypography.supporting.copyWith(
-                        color: palette.mutedForeground,
-                      ),
-                    ),
                     if (state.formError != null) ...[
                       const SizedBox(height: 12),
                       Semantics(

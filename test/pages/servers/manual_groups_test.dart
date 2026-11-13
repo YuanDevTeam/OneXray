@@ -207,7 +207,6 @@ void main() {
         await settle(tester);
         expect(find.byType(ManualServerOrderScopeDialog), findsNothing);
         expect(find.byType(ManualOrderPage), findsOneWidget);
-        expect(find.text(l.manualOrderDisplayHint), findsOneWidget);
         expect(
           tester
               .widget<ManualOrderPage>(find.byType(ManualOrderPage))
@@ -503,7 +502,17 @@ void main() {
       expect(find.text('Empty folder'), findsOneWidget);
       expect(find.widgetWithText(AppBar, l.manualGroupsTitle), findsOneWidget);
       expect(find.text(l.manualGroupsDescription), findsNothing);
-      expect(find.text(l.manualGroupsUngroupedFirst), findsOneWidget);
+      expect(
+        tester
+            .widgetList<SettingRow>(
+              find.descendant(
+                of: find.byType(ServerManualGroupsPage),
+                matching: find.byType(SettingRow),
+              ),
+            )
+            .map((row) => row.title),
+        [l.manualGroupUngrouped, 'Empty folder'],
+      );
       expect(
         find.byWidgetPredicate(
           (w) => w is SettingSection && w.title == l.manualGroupsTitle,

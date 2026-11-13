@@ -719,7 +719,6 @@ class ServersController extends PageCubit<ServersPageState>
       extra: ManualOrderParams(
         title:
             '${AppLocalizations.of(context)!.manualServerOrder} · ${group.name}',
-        description: AppLocalizations.of(context)!.manualOrderDisplayHint,
         items: items(catalog),
         reload: load,
         save: (expected, ordered) => manualGroupService.reorderServers(

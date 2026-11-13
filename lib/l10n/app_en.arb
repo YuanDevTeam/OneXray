@@ -1,9 +1,6 @@
 {
   "configurationContentTitle": "Configuration content",
-  "connectionPlanCaption": "Used for this connection",
-  "connectionPlanConnectedCaption": "Confirm changes to apply and reconnect",
   "connectionSessionTitle": "This session",
-  "connectionSessionCaption": "Upload, download, and duration of this connection",
   "connectionSessionDuration": "Duration",
   "tunnelIpv6Enabled": "IPv6 enabled",
   "tunnelIpv6Disabled": "IPv6 disabled",
@@ -11,7 +8,6 @@
   "tunnelConnectionParameters": "Connection parameters",
   "tunnelCurrentPlatform": "Current platform",
   "subscriptionInformationTitle": "Subscription information",
-  "shareContentTitle": "Share content",
   "settingsAppLanguage": "App language",
   "settingsDockIcon": "Dock icon",
   "settingsHomeScreenIcon": "Home Screen icon",
@@ -23,7 +19,6 @@
   "pageRoutingDescription": "Choose traffic handling or manage routing profiles.",
   "headerSwitchToLight": "Switch to light theme",
   "headerSwitchToDark": "Switch to dark theme",
-  "navigationTagline": "Your servers, your connection",
   "navigationWorkspace": "Workspace",
   "navigationSystemAndCore": "System & core",
   "serverDialingTitle": "Server dialing",
@@ -64,7 +59,6 @@
   "automationPermissionHint": "Complete VPN and local network permissions in OneXray first. If a request fails, tap the notification to resolve it. OneXray will not open automatically.",
   "automationHelp": "Automation setup and troubleshooting",
   "localApiTitle": "Local API",
-  "localApiSummary": "Let local command-line tools check and compile configurations.",
   "localApiEnable": "Enable local API",
   "localApiPort": "Port",
   "localApiPortInvalid": "Enter a port between 1024 and 65535.",
@@ -116,7 +110,6 @@
   "@subscriptionPackageUpdatedAt": {
     "placeholders": {"time": {"type": "String"}}
   },
-  "subscriptionPackageCacheHint": "Provider data from the last subscription update, not live usage.",
   "trafficWidgetAdd": "Add traffic widget",
   "trafficWidgetManualHint": "Add the OneXray traffic widget from your launcher's widget picker.",
   "backupAutomatic": "Automatic backup",
@@ -168,7 +161,6 @@
   "geodataPendingDownload": "Not downloaded. Download this source before using configurations that require it.",
   "routingNormalConfiguration": "Normal configuration",
   "routingAdvancedJson": "Advanced JSON",
-  "routingAdvancedSummary": "Edit DNS, inbounds and routing in JSON; use servers already imported into OneXray.",
   "routingAdvancedTemplate": "Advanced routing template",
   "routingAdvancedNotice": "Start outbounds with 1–3 empty objects for entry nodes. OneXray supplies selected servers, the proxy balancer, direct/block and platform settings. You control DNS and rule order. Round robin leaves unmatched traffic on the first entry node. With lowest-latency selection, managed VPN and LAN traffic also use the proxy balancer after your rules. Extra inbounds need explicit routing rules. See the documentation before editing.",
   "routingFakeDns": "Use FakeDNS",
@@ -450,10 +442,6 @@
   "@prototypeSystemSetup": {
     "description": "Approved prototype copy: System setup"
   },
-  "prototypeYourRegion": "Your region",
-  "@prototypeYourRegion": {
-    "description": "Approved prototype copy: Your region"
-  },
   "prototypeWelcome": "Welcome to OneXray",
   "@prototypeWelcome": {
     "description": "Approved prototype copy: Welcome to OneXray"
@@ -570,10 +558,6 @@
   "@prototypeNoRegionsFound": {
     "description": "Approved prototype copy: No regions match your search."
   },
-  "prototypeRegionPurpose": "Used to set the direct region in Smart Routing.",
-  "@prototypeRegionPurpose": {
-    "description": "Approved prototype copy: Used to set the direct region in Smart Routing."
-  },
   "prototypeRegionSuggested": "Suggested from the current network. Please confirm.",
   "@prototypeRegionSuggested": {
     "description": "Approved prototype copy: Suggested from the current network. Please confirm."
@@ -617,10 +601,6 @@
   "prototypeStartUsingOneXray": "Start using OneXray",
   "@prototypeStartUsingOneXray": {
     "description": "Approved prototype copy: Start using OneXray"
-  },
-  "prototypeFirstConnectionHint": "Add a subscription or import a server to make your first connection.",
-  "@prototypeFirstConnectionHint": {
-    "description": "Approved prototype copy: Add a subscription or import a server to make your first connection."
   },
   "prototypeUseCompleteRawJson": "Use a complete Raw JSON configuration",
   "@prototypeUseCompleteRawJson": {
@@ -938,10 +918,6 @@
   "@prototypeImportLinks": {
     "description": "Approved prototype copy: Import links"
   },
-  "prototypeImportLinksHint": "One link per line. Supports servers, subscriptions, and OneXray import links.",
-  "@prototypeImportLinksHint": {
-    "description": "Approved prototype copy: One link per line. Supports servers, subscriptions, and OneXray import links."
-  },
   "prototypeNoSupportedLinks": "No supported links were recognized. Check the input and try again.",
   "@prototypeNoSupportedLinks": {
     "description": "Approved prototype copy: No supported links were recognized. Check the input and try again."
@@ -961,10 +937,6 @@
   "prototypeAgeEncryption": "Age encryption",
   "@prototypeAgeEncryption": {
     "description": "Approved prototype copy: Age encryption"
-  },
-  "prototypeAgeOptional": "Optional · requires provider support",
-  "@prototypeAgeOptional": {
-    "description": "Approved prototype copy: Optional · requires provider support"
   },
   "prototypeAgeSupportNotice": "Enter Age keys only when your subscription provider supports encrypted subscriptions. Age does not replace HTTPS.",
   "@prototypeAgeSupportNotice": {
@@ -1009,10 +981,6 @@
   "prototypeNodeJsonHint": "The root object must contain a non-empty outbounds array.",
   "@prototypeNodeJsonHint": {
     "description": "Approved prototype copy: The root object must contain a non-empty outbounds array."
-  },
-  "prototypeLocalInputPrivacy": "Input is processed on this device and is never sent to OneXray.",
-  "@prototypeLocalInputPrivacy": {
-    "description": "Approved prototype copy: Input is processed on this device and is never sent to OneXray."
   },
   "prototypeImportPreview": "Import preview",
   "@prototypeImportPreview": {
@@ -1160,10 +1128,6 @@
   "@prototypeNoServersYet": {
     "description": "Approved prototype copy: No servers yet"
   },
-  "prototypeAddProviderSubscriptionHint": "Add a provider subscription or import a server configuration to begin.",
-  "@prototypeAddProviderSubscriptionHint": {
-    "description": "Approved prototype copy: Add a provider subscription or import a server configuration to begin."
-  },
   "prototypeHowGetServers": "How do I get servers?",
   "@prototypeHowGetServers": {
     "description": "Approved prototype copy: How do I get servers?"
@@ -1287,10 +1251,6 @@
   "@prototypeXrayOutboundJson": {
     "description": "Approved prototype copy: Xray outbound JSON"
   },
-  "prototypeOutboundJsonHint": "The outbound must contain a tag and protocol.",
-  "@prototypeOutboundJsonHint": {
-    "description": "Approved prototype copy: The outbound must contain a tag and protocol."
-  },
   "prototypeSubscriptionOutboundHint": "The outbound must contain a tag and protocol. Subscription updates may replace local changes.",
   "@prototypeSubscriptionOutboundHint": {
     "description": "Approved prototype copy: The outbound must contain a tag and protocol. Subscription updates may replace local changes."
@@ -1413,10 +1373,6 @@
   "@prototypeSupportedRegions": {
     "description": "Approved prototype copy: Supported regions"
   },
-  "prototypeInstalledRegionsOnly": "Only regions supported by the installed routing data are listed.",
-  "@prototypeInstalledRegionsOnly": {
-    "description": "Approved prototype copy: Only regions supported by the installed routing data are listed."
-  },
   "prototypeNoDirectRegions": "No direct regions",
   "@prototypeNoDirectRegions": {
     "description": "Approved prototype copy: No direct regions"
@@ -1501,10 +1457,6 @@
   "prototypeEditRule": "Edit rule",
   "@prototypeEditRule": {
     "description": "Approved prototype copy: Edit rule"
-  },
-  "prototypeRuleEditHint": "Choose what this rule matches and what happens next.",
-  "@prototypeRuleEditHint": {
-    "description": "Approved prototype copy: Choose what this rule matches and what happens next."
   },
   "prototypeRuleConditionsHint": "All specified conditions must match.",
   "@prototypeRuleConditionsHint": {
@@ -1659,33 +1611,17 @@
   "@prototypeConnectAfterAppLaunch": {
     "description": "Approved prototype copy: Connect after app launch"
   },
-  "prototypeConnectAfterAppLaunchHint": "Connect to the last used server after opening the app",
-  "@prototypeConnectAfterAppLaunchHint": {
-    "description": "Approved prototype copy: Connect to the last used server after opening the app"
-  },
   "prototypeLaunchAtLogin": "Launch at login",
   "@prototypeLaunchAtLogin": {
     "description": "Approved prototype copy: Launch at login"
-  },
-  "prototypeLaunchAtLoginHint": "Start OneXray when you sign in",
-  "@prototypeLaunchAtLoginHint": {
-    "description": "Approved prototype copy: Start OneXray when you sign in"
   },
   "prototypeStartHidden": "Start hidden",
   "@prototypeStartHidden": {
     "description": "Approved prototype copy: Start hidden"
   },
-  "prototypeStartHiddenHint": "Open without showing the main window",
-  "@prototypeStartHiddenHint": {
-    "description": "Approved prototype copy: Open without showing the main window"
-  },
   "prototypeHideDockIcon": "Hide Dock icon",
   "@prototypeHideDockIcon": {
     "description": "Approved prototype copy: Hide Dock icon"
-  },
-  "prototypeHideDockIconHint": "Hide OneXray from the Dock",
-  "@prototypeHideDockIconHint": {
-    "description": "Approved prototype copy: Hide OneXray from the Dock"
   },
   "prototypeConfirmRestore": "Confirm restore",
   "@prototypeConfirmRestore": {
@@ -1727,10 +1663,6 @@
         "type": "String"
       }
     }
-  },
-  "prototypeCheckNewVersions": "Check for new OneXray versions",
-  "@prototypeCheckNewVersions": {
-    "description": "Approved prototype copy: Check for new OneXray versions"
   },
   "prototypeReleaseNotes": "Release notes",
   "@prototypeReleaseNotes": {
@@ -1932,10 +1864,6 @@
   "@prototypeRoutingData": {
     "description": "Approved prototype copy: Routing data (Geodata)"
   },
-  "prototypeRoutingDataHint": "Manage data sources for geoip / geosite routing rules.",
-  "@prototypeRoutingDataHint": {
-    "description": "Approved prototype copy: Manage data sources for geoip / geosite routing rules."
-  },
   "prototypeRoutingDataSummary": "Manage data sources",
   "@prototypeRoutingDataSummary": {
     "description": "Approved prototype copy: View, add, and update local routing data files"
@@ -1947,10 +1875,6 @@
   "prototypeUpdateAll": "Update all",
   "@prototypeUpdateAll": {
     "description": "Approved prototype copy: Update all"
-  },
-  "prototypeHttpsOnly": "HTTPS download URLs only",
-  "@prototypeHttpsOnly": {
-    "description": "Approved prototype copy: HTTPS download URLs only"
   },
   "prototypeDataType": "Data type",
   "@prototypeDataType": {
@@ -2061,21 +1985,9 @@
   "@prototypeErrorLog": {
     "description": "Approved prototype copy: Error log"
   },
-  "prototypeAccessLogHint": "Accepted connections and optional DNS queries",
-  "@prototypeAccessLogHint": {
-    "description": "Approved prototype copy: Accepted connections and optional DNS queries"
-  },
-  "prototypeErrorLogHint": "Core diagnostics and runtime errors",
-  "@prototypeErrorLogHint": {
-    "description": "Approved prototype copy: Core diagnostics and runtime errors"
-  },
   "prototypeRecentXrayConfiguration": "Recently generated Xray configuration",
   "@prototypeRecentXrayConfiguration": {
     "description": "Approved prototype copy: Recently generated Xray configuration"
-  },
-  "prototypeReadOnlyRuntimeConfiguration": "Read-only runtime configuration",
-  "@prototypeReadOnlyRuntimeConfiguration": {
-    "description": "Approved prototype copy: Read-only runtime configuration"
   },
   "prototypeManagedLogNotice": "OneXray manages both Xray log files. log settings in Raw JSON do not apply.",
   "@prototypeManagedLogNotice": {
@@ -2161,17 +2073,9 @@
   "@prototypeAndroidSystemVpn": {
     "description": "Approved prototype copy: Android system VPN"
   },
-  "prototypeAndroidVpnDescription": "VpnService and app routing settings",
-  "@prototypeAndroidVpnDescription": {
-    "description": "Approved prototype copy: VpnService and app routing settings"
-  },
   "prototypeVpnAppScope": "VPN app scope",
   "@prototypeVpnAppScope": {
     "description": "Approved prototype copy: VPN app scope"
-  },
-  "prototypeChooseAndroidApps": "Choose which Android apps use the VPN",
-  "@prototypeChooseAndroidApps": {
-    "description": "Approved prototype copy: Choose which Android apps use the VPN"
   },
   "prototypeAllApps": "All apps",
   "@prototypeAllApps": {
@@ -2221,10 +2125,6 @@
   "@prototypeChooseAppsBypassVpn": {
     "description": "Approved prototype copy: Choose apps that bypass the VPN"
   },
-  "prototypeSeparateAppListsNotice": "The two app lists are saved separately when you switch modes.",
-  "@prototypeSeparateAppListsNotice": {
-    "description": "Approved prototype copy: The two app lists are saved separately when you switch modes."
-  },
   "prototypeSearchInstalledApps": "Search installed apps",
   "@prototypeSearchInstalledApps": {
     "description": "Approved prototype copy: Search installed apps"
@@ -2245,10 +2145,6 @@
   "prototypeWindowsSystemVpn": "Windows system VPN",
   "@prototypeWindowsSystemVpn": {
     "description": "Approved prototype copy: Windows system VPN"
-  },
-  "prototypeWindowsVpnDescription": "Automatic connection and network bypass",
-  "@prototypeWindowsVpnDescription": {
-    "description": "Approved prototype copy: Automatic connection and network bypass"
   },
   "prototypeSystemVpnPolicy": "System VPN policy",
   "@prototypeSystemVpnPolicy": {
@@ -2348,10 +2244,6 @@
   "@prototypeAppleSystemVpn": {
     "description": "Approved prototype copy: Apple system VPN"
   },
-  "prototypeAppleVpnDescription": "Network Extension settings",
-  "@prototypeAppleVpnDescription": {
-    "description": "Approved prototype copy: Network Extension settings"
-  },
   "prototypeCaptureAllTraffic": "Capture all traffic",
   "@prototypeCaptureAllTraffic": {
     "description": "Approved prototype copy: Capture all traffic"
@@ -2440,10 +2332,6 @@
   "@prototypeKeepCurrentConnection": {
     "description": "Approved prototype copy: Keep current connection"
   },
-  "prototypeKeepCurrentConnectionHint": "Do not connect automatically or disconnect an existing connection.",
-  "@prototypeKeepCurrentConnectionHint": {
-    "description": "Approved prototype copy: Do not connect automatically or disconnect an existing connection."
-  },
   "prototypeEditWifiRules": "Edit Wi-Fi rules",
   "@prototypeEditWifiRules": {
     "description": "Approved prototype copy: Edit Wi-Fi rules"
@@ -2456,17 +2344,9 @@
   "@prototypeWifiConnectNetworks": {
     "description": "Approved prototype copy: Wi-Fi networks that connect the VPN"
   },
-  "prototypeWifiConnectNetworksHint": "Connect to these Wi-Fi networks to automatically connect the VPN.",
-  "@prototypeWifiConnectNetworksHint": {
-    "description": "Approved prototype copy: Connect to these Wi-Fi networks to automatically connect the VPN."
-  },
   "prototypeWifiDisconnectNetworks": "Wi-Fi networks that disconnect the VPN",
   "@prototypeWifiDisconnectNetworks": {
     "description": "Approved prototype copy: Wi-Fi networks that disconnect the VPN"
-  },
-  "prototypeWifiDisconnectNetworksHint": "Connect to these Wi-Fi networks to disconnect the VPN.",
-  "@prototypeWifiDisconnectNetworksHint": {
-    "description": "Approved prototype copy: Connect to these Wi-Fi networks to disconnect the VPN."
   },
   "prototypeAddWifi": "Add Wi-Fi",
   "@prototypeAddWifi": {
@@ -2492,17 +2372,9 @@
   "@prototypeCellularNetwork": {
     "description": "Approved prototype copy: Cellular network"
   },
-  "prototypeWhenUsingCellular": "When using cellular data",
-  "@prototypeWhenUsingCellular": {
-    "description": "Approved prototype copy: When using cellular data"
-  },
   "prototypeEthernet": "Ethernet",
   "@prototypeEthernet": {
     "description": "Approved prototype copy: Ethernet"
-  },
-  "prototypeWhenUsingEthernet": "When using a wired network",
-  "@prototypeWhenUsingEthernet": {
-    "description": "Approved prototype copy: When using a wired network"
   },
   "prototypeConnectAutomatically": "Connect automatically",
   "@prototypeConnectAutomatically": {
@@ -2551,10 +2423,6 @@
   "prototypeSaveAsLocalServer": "Save as a local server",
   "@prototypeSaveAsLocalServer": {
     "description": "Approved prototype copy: Save as a local server"
-  },
-  "prototypeLocalCopyHint": "Keep a separate copy that subscription updates cannot replace",
-  "@prototypeLocalCopyHint": {
-    "description": "Approved prototype copy: Keep a separate copy that subscription updates cannot replace"
   },
   "prototypeLocalCopy": "Local copy",
   "@prototypeLocalCopy": {
@@ -2682,14 +2550,6 @@
   "@prototypeIconRed": {
     "description": "Approved prototype copy: Red"
   },
-  "prototypeHomeScreenIconHint": "Choose the OneXray icon shown on the Home Screen.",
-  "@prototypeHomeScreenIconHint": {
-    "description": "Approved prototype copy: Choose the OneXray icon shown on the Home Screen."
-  },
-  "prototypeDockIconHint": "Choose the OneXray icon shown in the Dock.",
-  "@prototypeDockIconHint": {
-    "description": "Approved prototype copy: Choose the OneXray icon shown in the Dock."
-  },
   "prototypeHomeScreenPreview": "Home Screen preview",
   "@prototypeHomeScreenPreview": {
     "description": "Approved prototype copy: Home Screen preview"
@@ -2815,10 +2675,6 @@
   "@buttonOpenSettings": {
     "description": "Approved prototype copy: Open system settings"
   },
-  "prototypeAboutPrivacyNotice": "OneXray does not collect or upload usage, traffic, or browsing data.",
-  "@prototypeAboutPrivacyNotice": {
-    "description": "Approved prototype copy: OneXray does not collect or upload usage, traffic, or browsing data."
-  },
   "prototypeEditServerHint": "Edit its Xray outbound JSON",
   "@prototypeEditServerHint": {
     "description": "Approved prototype copy: Edit its Xray outbound JSON"
@@ -2875,10 +2731,6 @@
   "prototypeServerShareLink": "Server share link",
   "@prototypeServerShareLink": {
     "description": "Approved prototype copy: Server share link"
-  },
-  "prototypeSubscriptionShareAgeHint": "Includes the name and optional Age type, never an Age secret key. The receiving app creates its own keys.",
-  "@prototypeSubscriptionShareAgeHint": {
-    "description": "Approved prototype copy: Includes the name and optional Age type, never an Age secret key. The receiving app creates its own keys."
   },
   "prototypeCustomRouteCount": "{count} of 3 custom routes",
   "@prototypeCustomRouteCount": {
@@ -2978,7 +2830,6 @@
   "@providerConfigurationCount": {"placeholders": {"count": {"type": "int"}}},
   "providerChooseConfigurationHint": "Select a configuration from this subscription to connect.",
   "providerViewConfiguration": "View JSON",
-  "providerViewConfigurationHint": "View the original subscription JSON. Copy it to personal Raw to edit.",
   "providerCopyAsRaw": "Copy to personal Raw",
   "providerCopyAsRawHint": "The copy can be edited, counts toward the 3 Raw limit, and is independent of subscription updates.",
   "providerRawCopySaved": "Personal Raw copy saved",
@@ -3045,7 +2896,6 @@
   "manualOrderReload": "Reload order",
   "manualOrderClearSearch": "Clear search to arrange.",
   "manualOrderDisplayHint": "Saved positions are shown with Default sorting. Sorting by name or latency is unchanged.",
-  "subscriptionAdvancedOff": "HWID and Age are off",
   "subscriptionAdvancedConfigured": "Configured: {options}",
   "@subscriptionAdvancedConfigured": {
     "placeholders": {"options": {"type": "String"}}
@@ -3089,7 +2939,6 @@
   "connectionRestoreOrdinary": "Use previous ordinary plan",
   "connectionPreparing": "Preparing connection",
   "xrayDiagnostics": "Diagnostics",
-  "xrayDiagnosticsHint": "Review connection errors, runtime configuration and logs.",
   "xrayRefreshStatus": "Refresh status",
   "xrayNoConnectionError": "There is no current connection error.",
   "xrayNoRuntimeConfiguration": "No runtime configuration yet. Connect to view the actual startup configuration.",
@@ -3143,16 +2992,12 @@
   "serverImportPageDescription": "Choose how to add subscriptions, nodes, or configurations.",
   "serverImportMethods": "Import method",
   "manualGroupsDescription": "Manage groups and ordering for local nodes.",
-  "manualGroupsUngroupedFirst": "Ungrouped always appears first.",
   "serverResourceInformation": "Resource information",
   "serverProtocol": "Protocol",
   "serverConfigurationJson": "Configuration JSON",
   "geodataAddDescription": "Add an HTTPS source for GeoIP or GeoSite rules.",
-  "geodataValidatedBeforeAdding": "Adding downloads and validates the resource before saving its source.",
   "geodataCategoriesAndReferences": "Categories and references",
-  "xrayRecordLogsHint": "Save core runtime logs to help diagnose problems.",
   "xrayRecordDnsHint": "Logs may include the domains you visit.",
-  "xrayMaskLogIpHint": "Hide IP addresses in logs.",
   "importPreviewIncomplete": "Import incomplete",
   "importPreviewResultSummary": "Imported: {completed}. Failed: {failed}.",
   "@importPreviewResultSummary": {"placeholders": {"completed": {"type": "int"}, "failed": {"type": "int"}}}

@@ -4,8 +4,6 @@ import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/controller.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
-import 'package:onexray/pages/theme/color.dart';
-import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
@@ -29,7 +27,6 @@ class AboutOneXrayPage extends StatelessWidget {
           body: SafeArea(
             child: SettingsPageScroll(
               desktopMaxWidth: AppLayout.routingMaxWidth,
-              alignment: AlignmentDirectional.topStart,
               padding: EdgeInsets.zero,
               child: Padding(
                 padding: settingsContentPadding(context),
@@ -54,8 +51,9 @@ class AboutOneXrayPage extends StatelessWidget {
                         BlocBuilder<AppEventBus, AppEventBusState>(
                           builder: (context, preferences) => SettingRow(
                             title: l10n.prototypeCheckAppUpdates,
+                            leading: const Icon(LucideIcons.refreshCw),
                             subtitle: preferences.appUpdateInfo == null
-                                ? l10n.prototypeCheckNewVersions
+                                ? null
                                 : l10n.prototypeVersionAvailable(
                                     preferences.appUpdateInfo!.latestVersion,
                                   ),
@@ -122,15 +120,6 @@ class AboutOneXrayPage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 20),
-                      child: Text(
-                        l10n.prototypeAboutPrivacyNotice,
-                        style: AppTypography.supporting.copyWith(
-                          color: ColorManager.secondaryText(context),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -150,6 +139,16 @@ class _LinkRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingRow(
       title: label,
+      leading: Icon(switch (link) {
+        SettingsLink.documentation => LucideIcons.bookOpen,
+        SettingsLink.releaseNotes => LucideIcons.history,
+        SettingsLink.review => LucideIcons.star,
+        SettingsLink.community => LucideIcons.messagesSquare,
+        SettingsLink.feedback => LucideIcons.messageSquare,
+        SettingsLink.source => LucideIcons.code,
+        SettingsLink.credits => LucideIcons.heart,
+        SettingsLink.privacy => LucideIcons.shieldCheck,
+      }),
       trailing: const Icon(LucideIcons.chevronRightDir, size: 17),
       onTap: () => context.read<SettingsController>().openLink(context, link),
     );

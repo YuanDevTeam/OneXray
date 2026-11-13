@@ -131,7 +131,6 @@ void main() {
           findsOneWidget,
         );
         expect(find.text(l.prototypeNodeJsonHint), findsOneWidget);
-        expect(find.text(l.prototypeLocalInputPrivacy), findsOneWidget);
         final gutter = size.width <= 720 ? 16.0 : 28.0;
         expect(tester.getRect(editor).left, closeTo(gutter, .01));
         expect(tester.getRect(editor).right, closeTo(size.width - gutter, .01));

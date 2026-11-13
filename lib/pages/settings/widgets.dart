@@ -91,11 +91,21 @@ class SettingsThemeOptions extends StatelessWidget {
                 child: selected == theme
                     ? ShadButton(
                         height: 48,
+                        leading: Icon(switch (theme) {
+                          ThemeCode.system => LucideIcons.monitor,
+                          ThemeCode.light => LucideIcons.sun,
+                          ThemeCode.dark => LucideIcons.moon,
+                        }, size: 18),
                         onPressed: () => onSelected(theme),
                         child: Text(labels[theme]!),
                       )
                     : ShadButton.outline(
                         height: 48,
+                        leading: Icon(switch (theme) {
+                          ThemeCode.system => LucideIcons.monitor,
+                          ThemeCode.light => LucideIcons.sun,
+                          ThemeCode.dark => LucideIcons.moon,
+                        }, size: 18),
                         onPressed: () => onSelected(theme),
                         child: Text(labels[theme]!),
                       ),

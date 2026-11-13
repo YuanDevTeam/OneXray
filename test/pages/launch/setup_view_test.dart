@@ -137,7 +137,7 @@ void main() {
         final l = AppLocalizations.of(tester.element(find.byType(SetupView)))!;
         expect(find.text(l.prototypeXrayOutboundInterface), findsOneWidget);
         expect(find.text('Ethernet'), findsOneWidget);
-        expect(find.text(l.prototypeRegionPurpose), findsOneWidget);
+        expect(find.text(l.prototypeDirectRegions), findsOneWidget);
         expect(find.text(l.prototypeSetUpVpn), findsNothing);
         expect(find.text(l.prototypeAddServers), findsNothing);
         expect(find.text(l.prototypeVpnPermission), findsNothing);

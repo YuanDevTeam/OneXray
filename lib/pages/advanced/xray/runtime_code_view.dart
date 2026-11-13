@@ -16,7 +16,6 @@ class RuntimeCodeScaffold extends StatelessWidget {
     required this.title,
     required this.status,
     required this.exportLabel,
-    required this.note,
     required this.code,
     this.onExport,
     this.onStatusPressed,
@@ -26,7 +25,6 @@ class RuntimeCodeScaffold extends StatelessWidget {
   final String title;
   final String status;
   final String exportLabel;
-  final String note;
   final Widget code;
   final VoidCallback? onExport;
   final VoidCallback? onStatusPressed;
@@ -161,30 +159,6 @@ class RuntimeCodeScaffold extends StatelessWidget {
                               child: code,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Icon(
-                              LucideIcons.info,
-                              size: 16,
-                              color: palette.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                note,
-                                style:
-                                    (mobile
-                                            ? AppTypography.runtimeCodeNote
-                                            : AppTypography
-                                                  .runtimeCodeDesktopNote)
-                                        .copyWith(
-                                          color: palette.mutedForeground,
-                                        ),
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),

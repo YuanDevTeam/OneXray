@@ -101,9 +101,10 @@ class XrayRuntimePage extends StatelessWidget {
                                   context,
                                   mobile: mobile,
                                   title: l.xrayDiagnostics,
+                                  icon: LucideIcons.stethoscope,
                                   subtitle: state.connection.failed
                                       ? l.prototypeConnectionFailed
-                                      : l.xrayDiagnosticsHint,
+                                      : null,
                                   enabled: true,
                                   onTap: () => onDiagnostics!(context),
                                 ),
@@ -112,6 +113,7 @@ class XrayRuntimePage extends StatelessWidget {
                                   context,
                                   mobile: mobile,
                                   title: l.prototypeLogs,
+                                  icon: LucideIcons.logs,
                                   subtitle: controller.logsEnabled
                                       ? l.xrayLogsEnabled
                                       : l.xrayLogsDisabled,
@@ -130,9 +132,10 @@ class XrayRuntimePage extends StatelessWidget {
                                 context,
                                 mobile: mobile,
                                 title: l.prototypeRecentXrayConfiguration,
+                                icon: LucideIcons.fileJson,
                                 subtitle: controller.runtime == null
                                     ? l.xrayNoRuntimeConfiguration
-                                    : l.prototypeReadOnlyRuntimeConfiguration,
+                                    : null,
                                 enabled: controller.runtime != null,
                                 onTap: () =>
                                     controller.openConfig(context, onConfig),
@@ -146,6 +149,7 @@ class XrayRuntimePage extends StatelessWidget {
                                 context,
                                 mobile: mobile,
                                 title: l.prototypeRoutingData,
+                                icon: LucideIcons.database,
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
                                       activity.downloading
@@ -159,6 +163,7 @@ class XrayRuntimePage extends StatelessWidget {
                                 context,
                                 mobile: mobile,
                                 title: l.prototypeDataUpdates,
+                                icon: LucideIcons.refreshCw,
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
                                       activity.downloading
@@ -172,6 +177,7 @@ class XrayRuntimePage extends StatelessWidget {
                                 context,
                                 mobile: mobile,
                                 title: l.prototypeSpeedTest,
+                                icon: LucideIcons.gauge,
                                 subtitle: controller.speedSummary(l),
                                 trailing: AppActivityBuilder(
                                   builder: (context, activity) =>
@@ -192,6 +198,7 @@ class XrayRuntimePage extends StatelessWidget {
                                   context,
                                   mobile: mobile,
                                   title: l.serverDialingTitle,
+                                  icon: LucideIcons.network,
                                   enabled: !disabled,
                                   onTap: () => onServerDialing!(context),
                                 ),
@@ -211,9 +218,12 @@ class XrayRuntimePage extends StatelessWidget {
                             children: [
                               SettingRow(
                                 title: l.lanProxyTitle,
+                                leading: const Icon(LucideIcons.share2),
                                 titleMaxLines: 4,
                                 titleStyle: AppTypography.rowTitle,
-                                contentPadding: const EdgeInsets.all(12),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -249,7 +259,7 @@ class XrayRuntimePage extends StatelessWidget {
                                   context,
                                   mobile: mobile,
                                   title: l.localApiTitle,
-                                  subtitle: l.localApiSummary,
+                                  icon: LucideIcons.terminal,
                                   enabled: true,
                                   onTap: () => onLocalApi!(context),
                                 ),
@@ -358,16 +368,18 @@ class XrayRuntimePage extends StatelessWidget {
     BuildContext context, {
     required bool mobile,
     required String title,
+    required IconData icon,
     String? subtitle,
     Widget? trailing,
     required bool enabled,
     required VoidCallback onTap,
   }) => SettingRow(
     title: title,
+    leading: Icon(icon),
     subtitle: subtitle,
     titleStyle: AppTypography.rowTitle,
     subtitleStyle: AppTypography.supporting,
-    contentPadding: const EdgeInsets.all(12),
+    contentPadding: const EdgeInsets.symmetric(vertical: 12),
     minHeight: mobile ? 56 : 48,
     decorateLeading: false,
     trailing: trailing ?? _chevron(context),

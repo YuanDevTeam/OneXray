@@ -192,20 +192,6 @@ class ServerResourcePage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
-                  if (raw || provider) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Text(
-                        raw
-                            ? l.prototypeRawManagedSettingsNotice
-                            : l.providerViewConfigurationHint,
-                        style: AppTypography.supporting.copyWith(
-                          color: ColorManager.palette(context).mutedForeground,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
                   SettingSection(
                     title: l.serverConfigurationJson,
                     padding: EdgeInsets.zero,
@@ -221,9 +207,6 @@ class ServerResourcePage extends StatelessWidget {
                           title: provider
                               ? l.providerCopyAsRaw
                               : l.prototypeSaveAsLocalServer,
-                          subtitle: provider
-                              ? l.providerCopyAsRawHint
-                              : l.prototypeLocalCopyHint,
                           leading: const Icon(LucideIcons.copy, size: 18),
                           enabled: !busy,
                           onTap: () => controller.serverAction(
@@ -381,12 +364,11 @@ class ServerSourcePage extends StatelessWidget {
                             ? l.subscriptionModeProviderManaged
                             : l.subscriptionModeAppManaged,
                       ),
-                      SettingRow(
-                        title: l.subscriptionUserAgentTitle,
-                        subtitle: source.userAgent?.isNotEmpty == true
-                            ? source.userAgent
-                            : l.subscriptionUserAgentHint,
-                      ),
+                      if (source.userAgent?.isNotEmpty == true)
+                        SettingRow(
+                          title: l.subscriptionUserAgentTitle,
+                          subtitle: source.userAgent,
+                        ),
                       const SizedBox(height: 20),
                       Wrap(
                         spacing: 10,
@@ -434,7 +416,7 @@ class ServerSourcePage extends StatelessWidget {
                         ? l.providerConfigurationTitle
                         : l.serverNodesTab,
                     description: controller.providerSource(source)
-                        ? l.providerChooseConfigurationHint
+                        ? l.providerConfigurationCount(rows.length)
                         : l.prototypeServerCount(rows.length),
                     padding: EdgeInsets.zero,
                     children: [

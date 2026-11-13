@@ -62,7 +62,12 @@ class ManualOrderPage extends StatelessWidget {
                     if (state.failure != null)
                       SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: mobile
+                                ? AppSpacing.mobilePage
+                                : AppSpacing.page,
+                            vertical: 16,
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [

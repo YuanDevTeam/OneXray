@@ -209,10 +209,6 @@ void main() {
                 widget.title == l.prototypeRecordXrayLogs,
           );
           expect(preference, findsOneWidget);
-          expect(
-            tester.widget<XrayToggleField>(preference).description,
-            l.xrayRecordLogsHint,
-          );
           final field = find.byKey(const ValueKey('xray-log-level-field'));
           final select = find.descendant(
             of: field,

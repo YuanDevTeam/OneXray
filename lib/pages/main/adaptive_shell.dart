@@ -482,13 +482,6 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 9),
-                        Text(
-                          localizations.navigationTagline,
-                          style: AppTypography.sidebarTagline.copyWith(
-                            color: palette.mutedForeground,
-                          ),
-                        ),
                       ],
                     ),
                   ),

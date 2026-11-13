@@ -124,11 +124,7 @@ class SetupView extends StatelessWidget {
   List<Widget> _configuration(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     return [
-      SetupIntro(
-        icon: LucideIcons.route,
-        title: l.prototypeSmartRouting,
-        description: l.prototypeSmartRoutingDescription,
-      ),
+      SetupIntro(icon: LucideIcons.route, title: l.prototypeSmartRouting),
       const SizedBox(height: 24),
       if (requiresInterface) ...[
         _SetupRow(
@@ -137,7 +133,6 @@ class SetupView extends StatelessWidget {
           value: state.interfaceName.isEmpty
               ? l.prototypeNotSelected
               : state.interfaceName,
-          description: l.prototypeInterfaceSelectionNotice,
           busy: state.activeAction == SetupAction.chooseInterface,
           onTap: _action(SetupAction.chooseInterface),
         ),
@@ -145,13 +140,12 @@ class SetupView extends StatelessWidget {
       ],
       _SetupRow(
         icon: LucideIcons.globe2,
-        title: l.prototypeYourRegion,
+        title: l.prototypeDirectRegions,
         value: switch (state.regions) {
           null => l.prototypeChooseCountryRegion,
           [] => l.prototypeNoDirectRegions,
           [final code, ...] => setupRegionLabel(l, code),
         },
-        description: l.prototypeRegionPurpose,
         note: state.regions == null ? l.prototypeRegionSkipNotice : null,
         busy: state.activeAction == SetupAction.chooseRegion,
         onTap: _action(SetupAction.chooseRegion),
@@ -218,7 +212,6 @@ class _SetupRow extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.value,
-    required this.description,
     this.note,
     this.onTap,
     this.busy = false,
@@ -226,7 +219,6 @@ class _SetupRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
-  final String description;
   final String? note;
   final VoidCallback? onTap;
   final bool busy;
@@ -248,7 +240,7 @@ class _SetupRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Icon(icon, size: 22, color: palette.primaryText),
                     const SizedBox(width: 14),
@@ -277,13 +269,6 @@ class _SetupRow extends StatelessWidget {
                         color: palette.mutedForeground,
                       ),
                   ],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  description,
-                  style: AppTypography.rowValue.copyWith(
-                    color: palette.mutedStrong,
-                  ),
                 ),
                 if (note != null) ...[
                   const SizedBox(height: 8),

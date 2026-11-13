@@ -82,6 +82,7 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                 title: l.prototypeCustomRouting,
                 messages: [
                   l.prototypeRulesMatchInOrder,
+                  l.routingNormalDescription,
                   l.prototypeCustomImportHint,
                   l.routingCustomDnsHint,
                 ],
@@ -107,13 +108,6 @@ class _CustomRoutingEditorPageState extends State<CustomRoutingEditorPage> {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             spacing: 20,
                             children: [
-                              Text(
-                                l.routingNormalDescription,
-                                style: AppTypography.rowValue.copyWith(
-                                  color: ColorManager.palette(context)
-                                      .mutedForeground,
-                                ),
-                              ),
                               _identity(context, mobile, state),
                               CustomRoutingSections(
                                 rules: _rules(context, mobile, state),

@@ -206,7 +206,6 @@ void main() {
     final sidebarLocalizations = AppLocalizations.of(
       tester.element(desktopNavigation),
     )!;
-    expect(find.text(sidebarLocalizations.navigationTagline), findsOneWidget);
     expect(find.text(sidebarLocalizations.navigationWorkspace), findsOneWidget);
     expect(
       find.text(sidebarLocalizations.navigationSystemAndCore),

@@ -102,11 +102,6 @@ class CustomRoutingRuleForm extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (!mobile)
-                  RoutingCardHeader(
-                    title: l.prototypeEditRule,
-                    description: l.prototypeRuleEditHint,
-                  ),
                 Container(
                   padding: EdgeInsets.symmetric(
                     horizontal: mobile ? 12 : 16,

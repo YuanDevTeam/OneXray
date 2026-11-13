@@ -85,11 +85,10 @@ class SettingsPageScroll extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: padding,
       child: ResponsiveContent(
         desktopMaxWidth: desktopMaxWidth,
         alignment: alignment,
-        child: child,
+        child: Padding(padding: padding, child: child),
       ),
     );
   }

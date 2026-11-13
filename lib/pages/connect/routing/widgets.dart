@@ -297,7 +297,10 @@ class RoutingSettingRow extends StatelessWidget {
     );
     final content = Container(
       constraints: BoxConstraints(minHeight: mobile ? 56 : 48),
-      padding: EdgeInsetsDirectional.symmetric(horizontal: 18, vertical: 10),
+      padding: const EdgeInsetsDirectional.symmetric(
+        horizontal: 18,
+        vertical: 4,
+      ),
       decoration: divider
           ? BoxDecoration(
               border: Border(bottom: BorderSide(color: palette.border)),

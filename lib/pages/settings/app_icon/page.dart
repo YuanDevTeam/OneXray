@@ -6,7 +6,6 @@ import 'package:onexray/gen/assets.gen.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/settings/app_icon/controller.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
-import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/settings/widgets.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/layout.dart';
@@ -37,9 +36,6 @@ class AppIconPage extends StatelessWidget {
                 child: AppIconChoiceView(
                   selected: state.appIcon,
                   useDockIconAssets: useDockIconLabel,
-                  description: useDockIconLabel
-                      ? l10n.prototypeDockIconHint
-                      : l10n.prototypeHomeScreenIconHint,
                   onSelected: controller.updateIcon,
                 ),
               ),
@@ -73,14 +69,12 @@ class AppIconPage extends StatelessWidget {
 class AppIconChoiceView extends StatelessWidget {
   final AppIcon selected;
   final bool useDockIconAssets;
-  final String description;
   final ValueChanged<AppIcon> onSelected;
 
   const AppIconChoiceView({
     super.key,
     required this.selected,
     required this.useDockIconAssets,
-    required this.description,
     required this.onSelected,
   });
 
@@ -95,25 +89,27 @@ class AppIconChoiceView extends StatelessWidget {
           title: useDockIconAssets
               ? l10n.settingsDockIcon
               : l10n.settingsHomeScreenIcon,
+          icon: LucideIcons.image,
           padding: EdgeInsets.zero,
           children: [
-            Text(l10n.prototypeAppIcon, style: AppTypography.rowValue),
-            const SizedBox(height: 12),
-            ShadSelect<AppIcon>(
-              key: ValueKey(selected),
-              initialValue: selected,
-              selectedOptionBuilder: (_, icon) =>
-                  Text(appIconLabel(l10n, icon)),
-              options: [
-                for (final icon in AppIcon.values)
-                  ShadOption(
-                    value: icon,
-                    child: Text(appIconLabel(l10n, icon)),
-                  ),
-              ],
-              onChanged: (icon) {
-                if (icon != null && icon != selected) onSelected(icon);
-              },
+            Semantics(
+              label: l10n.prototypeAppIcon,
+              child: ShadSelect<AppIcon>(
+                key: ValueKey(selected),
+                initialValue: selected,
+                selectedOptionBuilder: (_, icon) =>
+                    Text(appIconLabel(l10n, icon)),
+                options: [
+                  for (final icon in AppIcon.values)
+                    ShadOption(
+                      value: icon,
+                      child: Text(appIconLabel(l10n, icon)),
+                    ),
+                ],
+                onChanged: (icon) {
+                  if (icon != null && icon != selected) onSelected(icon);
+                },
+              ),
             ),
             const SizedBox(height: 28),
             Center(

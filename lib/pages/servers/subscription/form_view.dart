@@ -44,7 +44,6 @@ class SubscriptionFormView extends StatelessWidget {
     required this.hwidEnabled,
     required this.onHwidChanged,
     required this.encryptionTitle,
-    required this.ageProviderSupportTitle,
     required this.ageProviderSupportDescription,
     required this.ageSecretKeyLabel,
     required this.ageSecretKeyHint,
@@ -98,7 +97,6 @@ class SubscriptionFormView extends StatelessWidget {
   final bool hwidEnabled;
   final ValueChanged<bool>? onHwidChanged;
   final String encryptionTitle;
-  final String ageProviderSupportTitle;
   final String ageProviderSupportDescription;
   final String ageSecretKeyLabel;
   final String ageSecretKeyHint;
@@ -157,7 +155,7 @@ class SubscriptionFormView extends StatelessWidget {
             ? AppLocalizations.of(context)!.subscriptionAdvancedConfigured(
                 [if (hwidEnabled) 'HWID', if (hasAgeKeys) 'Age'].join(' · '),
               )
-            : AppLocalizations.of(context)!.subscriptionAdvancedOff,
+            : null,
         child: Column(
           spacing: 14,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -242,7 +240,7 @@ class SubscriptionFormView extends StatelessWidget {
   }) => LayoutBuilder(
     builder: (context, constraints) => constraints.maxWidth < 400
         ? Padding(
-            padding: const EdgeInsets.all(13),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -277,7 +275,10 @@ class SubscriptionFormView extends StatelessWidget {
             titleStyle: AppTypography.fieldLabel.copyWith(
               color: ColorManager.palette(context).foreground,
             ),
-            contentPadding: const EdgeInsets.all(13),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 18,
+              vertical: 12,
+            ),
             trailing: trailing,
           ),
   );
@@ -294,7 +295,10 @@ class SubscriptionFormView extends StatelessWidget {
         title: hwidTitle,
         titleMaxLines: 3,
         titleStyle: AppTypography.subscriptionAgeTitle,
-        contentPadding: const EdgeInsets.all(13),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 12,
+        ),
         titleTrailing: PageHelpButton(
           title: hwidTitle,
           messages: [hwidDescription],
@@ -344,40 +348,6 @@ class SubscriptionFormView extends StatelessWidget {
     );
   }
 
-  Widget _notice(BuildContext context, String text, {bool warning = false}) {
-    final palette = ColorManager.palette(context);
-    return Container(
-      padding: EdgeInsets.all(warning ? 10 : 12),
-      decoration: BoxDecoration(
-        color: warning ? palette.warningSurface : palette.selectedSurface,
-        borderRadius: BorderRadius.circular(
-          warning ? AppRadii.control : AppRadii.card,
-        ),
-      ),
-      child: Row(
-        spacing: warning ? 8 : 10,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            LucideIcons.info,
-            size: warning ? 17 : 18,
-            color: warning ? palette.restarting : palette.primary,
-          ),
-          Expanded(
-            child: Text(
-              text,
-              style:
-                  (warning
-                          ? AppTypography.subscriptionAgeWarning
-                          : AppTypography.subscriptionInfo)
-                      .copyWith(color: palette.mutedStrong),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _encryptionCard(BuildContext context) {
     final palette = ColorManager.palette(context);
     return Container(
@@ -398,28 +368,26 @@ class SubscriptionFormView extends StatelessWidget {
               child: Container(
                 constraints: const BoxConstraints(minHeight: 58),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 10,
+                  horizontal: 18,
+                  vertical: 12,
                 ),
                 child: Row(
                   spacing: 12,
                   children: [
+                    Icon(
+                      LucideIcons.lockKeyhole,
+                      size: 20,
+                      color: palette.primaryText,
+                    ),
                     Expanded(
-                      child: Column(
-                        spacing: 3,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            encryptionTitle,
-                            style: AppTypography.subscriptionAgeTitle,
-                          ),
-                          Text(
-                            ageProviderSupportTitle,
-                            style: AppTypography.subscriptionAgeOptional
-                                .copyWith(color: palette.mutedForeground),
-                          ),
-                        ],
+                      child: Text(
+                        encryptionTitle,
+                        style: AppTypography.subscriptionAgeTitle,
                       ),
+                    ),
+                    PageHelpButton(
+                      title: encryptionTitle,
+                      messages: [ageProviderSupportDescription],
                     ),
                     Icon(
                       ageExpanded
@@ -436,16 +404,11 @@ class SubscriptionFormView extends StatelessWidget {
           if (ageExpanded) ...[
             Divider(height: 0, color: palette.border),
             Padding(
-              padding: const EdgeInsets.all(13),
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
               child: Column(
                 spacing: 12,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _notice(
-                    context,
-                    ageProviderSupportDescription,
-                    warning: true,
-                  ),
                   Column(
                     spacing: 7,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -731,7 +694,7 @@ class _SubscriptionAdvanced extends StatefulWidget {
 
   final bool configured;
   final bool hasError;
-  final String summary;
+  final String? summary;
   final Widget child;
 
   @override
@@ -763,37 +726,48 @@ class _SubscriptionAdvancedState extends State<_SubscriptionAdvanced> {
             key: const ValueKey('subscription-advanced'),
             borderRadius: BorderRadius.circular(AppRadii.card),
             onTap: () => setState(() => _expanded = !_expanded),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-              child: Row(
-                spacing: 12,
-                children: [
-                  Expanded(
-                    child: Column(
-                      spacing: 3,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          AppLocalizations.of(context)!.prototypeAdvanced,
-                          style: AppTypography.subscriptionAgeTitle,
-                        ),
-                        Text(
-                          widget.summary,
-                          style: AppTypography.subscriptionAgeOptional.copyWith(
-                            color: palette.mutedForeground,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: AppLayout.touchExtent(
+                  0,
+                  platform: Theme.of(context).platform,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 12,
+                ),
+                child: Row(
+                  spacing: 12,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        spacing: 3,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            AppLocalizations.of(context)!.prototypeAdvanced,
+                            style: AppTypography.subscriptionAgeTitle,
                           ),
-                        ),
-                      ],
+                          if (widget.summary != null)
+                            Text(
+                              widget.summary!,
+                              style: AppTypography.subscriptionAgeOptional
+                                  .copyWith(color: palette.mutedForeground),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Icon(
-                    _expanded
-                        ? LucideIcons.arrowDown
-                        : LucideIcons.arrowRightDir,
-                    size: 18,
-                    textDirection: Directionality.of(context),
-                  ),
-                ],
+                    Icon(
+                      _expanded
+                          ? LucideIcons.arrowDown
+                          : LucideIcons.arrowRightDir,
+                      size: 18,
+                      textDirection: Directionality.of(context),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

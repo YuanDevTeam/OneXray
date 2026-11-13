@@ -154,7 +154,7 @@ class WindowsVpnView extends StatelessWidget {
 
   Widget _toggle(BuildContext context, String field, String title) {
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
           Expanded(

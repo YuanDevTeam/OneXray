@@ -63,7 +63,6 @@ class ServerActionsMenu extends StatelessWidget {
             ServerAction.copy,
             LucideIcons.copy,
             provider ? l.providerCopyAsRaw : l.prototypeSaveAsLocalServer,
-            hint: provider ? l.providerCopyAsRawHint : l.prototypeLocalCopyHint,
           ),
           if (canMove)
             _menuRow(
@@ -96,7 +95,6 @@ Widget _menuRow<T>(
   T action,
   IconData icon,
   String title, {
-  String? hint,
   bool destructive = false,
 }) {
   final palette = ColorManager.palette(context);
@@ -107,7 +105,7 @@ Widget _menuRow<T>(
       onTap: () => Navigator.of(context).pop(action),
       hoverColor: palette.surfaceHover,
       child: Container(
-        constraints: BoxConstraints(minHeight: hint == null ? 52 : 68),
+        constraints: const BoxConstraints(minHeight: 52),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
         decoration: BoxDecoration(
           border: destructive
@@ -134,13 +132,6 @@ Widget _menuRow<T>(
                       color: textColor,
                     ),
                   ),
-                  if (hint != null)
-                    Text(
-                      hint,
-                      style: AppTypography.serverMenuHint.copyWith(
-                        color: palette.mutedForeground,
-                      ),
-                    ),
                 ],
               ),
             ),

@@ -25,7 +25,6 @@ class DesktopSettingsPage extends StatelessWidget {
         final l = AppLocalizations.of(context)!;
         final connect = _StartupToggle(
           title: l.prototypeConnectAfterAppLaunch,
-          subtitle: l.prototypeConnectAfterAppLaunchHint,
           value: settings.connectOnLaunch,
           onChanged: settings.loading || settings.saving
               ? null
@@ -116,7 +115,7 @@ class DesktopSettingsView extends StatelessWidget {
               title: l.settingsPageLaunchAtLogin,
               subtitle: launchStatus.state == LaunchAtLoginState.unavailable
                   ? l.settingsPageLaunchAtLoginUnavailable
-                  : l.prototypeLaunchAtLoginHint,
+                  : null,
               value: launchStatus.enabled,
               onChanged: state.launchToggleEnabled && !state.requiresApproval
                   ? onLaunchAtLoginChanged
@@ -156,7 +155,6 @@ class DesktopSettingsView extends StatelessWidget {
             ],
             _StartupToggle(
               title: l.settingsPageStartHidden,
-              subtitle: l.prototypeStartHiddenHint,
               value: state.startHidden,
               onChanged: state.behaviorSettingsEnabled
                   ? onStartHiddenChanged
@@ -165,7 +163,6 @@ class DesktopSettingsView extends StatelessWidget {
             if (showMacOSOptions)
               _StartupToggle(
                 title: l.desktopSettingsPageHideDockIcon,
-                subtitle: l.prototypeHideDockIconHint,
                 value: state.hideDockIcon,
                 onChanged: state.behaviorSettingsEnabled
                     ? onHideDockIconChanged

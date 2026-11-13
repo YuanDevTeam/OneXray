@@ -37,7 +37,7 @@ class SetupBody extends StatelessWidget {
                 mobile ? AppSpacing.mobilePage : AppSpacing.page,
                 top,
                 mobile ? AppSpacing.mobilePage : AppSpacing.page,
-                mobile ? 24 : 32,
+                24,
               ),
               child: Column(
                 mainAxisAlignment: header != null || bottom != null
@@ -152,16 +152,10 @@ class SetupProgress extends StatelessWidget {
 }
 
 class SetupIntro extends StatelessWidget {
-  const SetupIntro({
-    super.key,
-    required this.icon,
-    required this.title,
-    this.description,
-  });
+  const SetupIntro({super.key, required this.icon, required this.title});
 
   final IconData icon;
   final String title;
-  final String? description;
 
   @override
   Widget build(BuildContext context) {
@@ -186,13 +180,6 @@ class SetupIntro extends StatelessWidget {
               ? AppTypography.setupTitle
               : AppTypography.setupDesktopTitle,
         ),
-        if (description != null) ...[
-          const SizedBox(height: 10),
-          Text(
-            description!,
-            style: AppTypography.rowValue.copyWith(color: palette.mutedStrong),
-          ),
-        ],
       ],
     );
   }

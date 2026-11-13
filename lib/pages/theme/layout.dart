@@ -65,6 +65,10 @@ abstract final class AppLayout {
 }
 
 abstract final class AppSpacing {
+  static const cardContent = 18.0;
+  static const sectionHeaderVertical = 16.0;
+  static const rowVertical = 12.0;
+  static const rowIconGap = 12.0;
   static double advancedDesktopGutter(double viewportWidth) => page;
   static const page = 28.0;
   static const desktopPageTop = 24.0;

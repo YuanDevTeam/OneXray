@@ -72,15 +72,6 @@ void main() {
           ),
           findsOneWidget,
         );
-        expect(find.text(l.routingNormalDescription), findsOneWidget);
-        expect(
-          find.descendant(
-            of: find.byType(AppBar),
-            matching: find.text(l.routingNormalDescription),
-          ),
-          findsNothing,
-        );
-
         final identity = find.byKey(const ValueKey('custom-identity'));
         final rules = find.byKey(const ValueKey('custom-rule-list'));
         final proxy = find.byKey(const ValueKey('custom-proxy-settings'));

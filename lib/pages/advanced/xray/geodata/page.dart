@@ -126,7 +126,9 @@ class _GeoDataPageState extends State<GeoDataPage> {
                             children: [
                               if (state.custom.isEmpty && state.pending.isEmpty)
                                 Padding(
-                                  padding: const EdgeInsets.all(12),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
                                   child: Text(
                                     l.prototypeNoCustomRoutingData,
                                     style: AppTypography.supporting.copyWith(
@@ -209,7 +211,6 @@ class _GeoDataPageState extends State<GeoDataPage> {
     GeoDataController controller,
   ) {
     final l = AppLocalizations.of(context)!;
-    final palette = ColorManager.palette(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -224,14 +225,6 @@ class _GeoDataPageState extends State<GeoDataPage> {
                 : const Icon(LucideIcons.refreshCw, size: 15),
           ),
           label: Text(l.prototypeUpdateAll),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          l.prototypeHttpsOnly,
-          textAlign: TextAlign.start,
-          style: AppTypography.geodataValue.copyWith(
-            color: palette.mutedForeground,
-          ),
         ),
       ],
     );

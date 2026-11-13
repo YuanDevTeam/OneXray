@@ -118,7 +118,7 @@ class XrayDiagnosticsPage extends StatelessWidget {
                       children: [
                         if (controller.runtime == null)
                           Padding(
-                            padding: const EdgeInsets.all(12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                             child: Text(
                               l.xrayNoRuntimeConfiguration,
                               style: Theme.of(context).textTheme.bodyMedium
@@ -128,7 +128,6 @@ class XrayDiagnosticsPage extends StatelessWidget {
                         else
                           SettingRow(
                             title: l.prototypeRecentXrayConfiguration,
-                            subtitle: l.prototypeReadOnlyRuntimeConfiguration,
                             leading: const Icon(LucideIcons.fileJson, size: 19),
                             decorateLeading: false,
                             showChevron: true,
@@ -144,7 +143,6 @@ class XrayDiagnosticsPage extends StatelessWidget {
                         children: [
                           SettingRow(
                             title: l.prototypeErrorLog,
-                            subtitle: l.prototypeErrorLogHint,
                             leading: const Icon(LucideIcons.terminal, size: 19),
                             decorateLeading: false,
                             showChevron: true,
@@ -154,7 +152,6 @@ class XrayDiagnosticsPage extends StatelessWidget {
                           ),
                           SettingRow(
                             title: l.prototypeAccessLog,
-                            subtitle: l.prototypeAccessLogHint,
                             leading: const Icon(LucideIcons.fileText, size: 19),
                             decorateLeading: false,
                             showChevron: true,

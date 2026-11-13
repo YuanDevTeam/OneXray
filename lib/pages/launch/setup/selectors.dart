@@ -30,7 +30,6 @@ class SetupInterfacePage extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return _SetupSelector(
       title: l10n.prototypeXrayOutboundInterface,
-      description: l10n.prototypeInterfaceSelectionNotice,
       selected: params.selected,
       choices: [
         for (final item in params.interfaces)
@@ -73,12 +72,10 @@ class _ChoiceController extends PageCubit<_ChoiceState> {
 
 class _SetupSelector extends StatelessWidget {
   final String title;
-  final String description;
   final String selected;
   final List<_Choice> choices;
   const _SetupSelector({
     required this.title,
-    required this.description,
     required this.selected,
     required this.choices,
   });
@@ -119,17 +116,6 @@ class _SetupSelector extends StatelessWidget {
                     ),
                     sliver: SliverMainAxisGroup(
                       slivers: [
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Text(
-                              description,
-                              style: AppTypography.rowValue.copyWith(
-                                color: palette.mutedForeground,
-                              ),
-                            ),
-                          ),
-                        ),
                         if (state.choices.isEmpty)
                           SliverToBoxAdapter(
                             child: Text(

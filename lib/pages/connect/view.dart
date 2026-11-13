@@ -113,16 +113,19 @@ class ConnectView extends StatelessWidget {
                             : palette.foreground,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      [
-                        if (includeLabel && label != value) label,
-                        if (detail != null && detail.isNotEmpty) detail,
-                      ].join(' · '),
-                      style: AppTypography.supporting.copyWith(
-                        color: palette.mutedForeground,
+                    if ((includeLabel && label != value) ||
+                        (detail != null && detail.isNotEmpty)) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        [
+                          if (includeLabel && label != value) label,
+                          if (detail != null && detail.isNotEmpty) detail,
+                        ].join(' · '),
+                        style: AppTypography.supporting.copyWith(
+                          color: palette.mutedForeground,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -141,7 +144,6 @@ class ConnectView extends StatelessWidget {
       return ResponsiveContent(
         child: PageEmptyState(
           title: l.prototypeStartUsingOneXray,
-          description: l.prototypeFirstConnectionHint,
           primaryLabel: l.prototypeAddServers,
           onPrimary: onAddServers,
         ),
@@ -175,15 +177,6 @@ class ConnectView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(l.connectionPlan, style: AppTypography.panelTitle),
-                    const SizedBox(height: 4),
-                    Text(
-                      view.phase == ConnectionPhase.connected
-                          ? l.connectionPlanConnectedCaption
-                          : l.connectionPlanCaption,
-                      style: AppTypography.supporting.copyWith(
-                        color: palette.mutedForeground,
-                      ),
-                    ),
                     const SizedBox(height: 16),
                     choice(
                       expert || !methodEnabled
@@ -223,13 +216,6 @@ class ConnectView extends StatelessWidget {
                     Text(
                       l.connectionSessionTitle,
                       style: AppTypography.panelTitle,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      l.connectionSessionCaption,
-                      style: AppTypography.supporting.copyWith(
-                        color: palette.mutedForeground,
-                      ),
                     ),
                     const SizedBox(height: 16),
                     Row(

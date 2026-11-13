@@ -88,7 +88,6 @@ void main() {
         findsOneWidget,
       );
       expect(find.text(l.geodataAddDescription), findsNothing);
-      expect(find.text(l.geodataValidatedBeforeAdding), findsOneWidget);
       await _fill(tester, 'http://example.test/custom.dat');
       await tester.tap(find.byKey(const ValueKey('geodata-source-add')));
       await tester.pumpAndSettle();
