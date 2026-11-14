@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/connect/routing/smart/controller.dart';
 import 'package:onexray/pages/connect/routing/widgets.dart';
+import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
@@ -20,17 +21,20 @@ import 'package:shadcn_ui/shadcn_ui.dart';
 class SmartRoutingEditorPage extends StatefulWidget {
   final OpenDirectRegions openRegions;
   final OpenFinalExit openFinalExit;
+  final SmartRoutingEditorController Function()? createController;
   const SmartRoutingEditorPage({
     super.key,
     required this.openRegions,
     required this.openFinalExit,
+    this.createController,
   });
   @override
   State<SmartRoutingEditorPage> createState() => _SmartRoutingEditorPageState();
 }
 
 class _SmartRoutingEditorPageState extends State<SmartRoutingEditorPage> {
-  final controller = SmartRoutingEditorController();
+  late final controller =
+      widget.createController?.call() ?? SmartRoutingEditorController();
   bool _started = false;
   @override
   void didChangeDependencies() {
@@ -152,6 +156,22 @@ class SmartRoutingEditorContent extends StatelessWidget {
       _dnsSettings(context),
       _sniffingSettings(context),
       _preview(context, state),
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TextButton(
+          key: const ValueKey('smart-routing-restore-defaults'),
+          onPressed: state.busy || state.original == null
+              ? null
+              : () {
+                  controller.restoreDefaults();
+                  ContextAlert.showToast(
+                    context,
+                    AppLocalizations.of(context)!.settingsDefaultsRestored,
+                  );
+                },
+          child: Text(AppLocalizations.of(context)!.prototypeRestoreDefaults),
+        ),
+      ),
     ],
   );
 
@@ -235,6 +255,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
                 : (count) => controller.update('entryCount', count),
           ),
           RoutingSelectionSettingsForm(
+            key: ValueKey('smart-routing-selection-${state.resetRevision}'),
             value: smart.selection,
             enabled: !state.busy,
             entryCount: controller.effectiveEntryCount,
@@ -264,6 +285,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
   }
 
   Widget _dnsSettings(BuildContext context) => RoutingDnsSettingsForm(
+    key: ValueKey('smart-routing-dns-${state.resetRevision}'),
     value: state.draft.dns,
     enabled: !state.busy,
     directEnabled: state.draft.directDns,
@@ -279,6 +301,7 @@ class SmartRoutingEditorContent extends StatelessWidget {
   );
 
   Widget _sniffingSettings(BuildContext context) => RoutingSniffingSettingsForm(
+    key: ValueKey('smart-routing-sniffing-${state.resetRevision}'),
     value: state.draft.sniffing,
     enabled: !state.busy,
     fakeDns: state.draft.fakeDns,

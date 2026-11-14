@@ -29,6 +29,7 @@ class SmartRoutingEditorState {
   final String? finalExitName;
   final String? error;
   final bool busy;
+  final int resetRevision;
 
   SmartRoutingEditorState({
     this.original,
@@ -36,6 +37,7 @@ class SmartRoutingEditorState {
     this.finalExitName,
     this.error,
     this.busy = true,
+    this.resetRevision = 0,
   }) : draft = draft ?? SmartRoutingSettings();
 
   SmartRoutingEditorState copyWith({
@@ -44,6 +46,7 @@ class SmartRoutingEditorState {
     Object? finalExitName = _unchangedSmartRoutingValue,
     Object? error = _unchangedSmartRoutingValue,
     bool? busy,
+    int? resetRevision,
   }) => SmartRoutingEditorState(
     original: original ?? this.original,
     draft: draft ?? this.draft,
@@ -54,17 +57,20 @@ class SmartRoutingEditorState {
         ? this.error
         : error as String?,
     busy: busy ?? this.busy,
+    resetRevision: resetRevision ?? this.resetRevision,
   );
 }
 
 class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
   final SmartRoutingEditorService service;
+  int _selectionRevision = 0;
 
   SmartRoutingEditorController({SmartRoutingEditorService? service})
     : service = service ?? SmartRoutingEditorService(),
       super(SmartRoutingEditorState());
 
   Future<void> load(BuildContext context) async {
+    _selectionRevision++;
     emit(state.copyWith(busy: true, error: null));
     try {
       final value = await service.load();
@@ -103,6 +109,25 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
       ),
     );
   }
+
+  void restoreDefaults() {
+    if (state.original == null || state.busy) return;
+    _selectionRevision++;
+    emit(
+      state.copyWith(
+        draft: SmartRoutingSettings(),
+        finalExitName: null,
+        error: null,
+        resetRevision: state.resetRevision + 1,
+      ),
+    );
+  }
+
+  bool _canCompleteSelection(int revision) =>
+      isPageActive &&
+      !state.busy &&
+      state.original != null &&
+      revision == _selectionRevision;
 
   List<XrayRoutingRule> rulesFor(String action) => state.original == null
       ? []
@@ -163,12 +188,13 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
     BuildContext context,
     OpenDirectRegions open,
   ) async {
-    if (state.busy) return;
+    if (state.busy || state.original == null) return;
+    final revision = _selectionRevision;
     final selected = await open(context, List.of(state.draft.directRegions));
-    if (!isPageActive || selected == null) return;
+    if (!_canCompleteSelection(revision) || selected == null) return;
     try {
       final regions = await service.regions();
-      if (!isPageActive) return;
+      if (!_canCompleteSelection(revision)) return;
       final previous = state.original!;
       final original = SmartRoutingEditorDraft(
         configuration: previous.configuration,
@@ -187,7 +213,7 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
         ),
       );
     } catch (error) {
-      if (context.mounted) {
+      if (context.mounted && _canCompleteSelection(revision)) {
         emit(
           state.copyWith(
             error: AppLocalizations.of(context)!
@@ -200,6 +226,7 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
 
   Future<void> chooseFinalExit(BuildContext context, OpenFinalExit open) async {
     if (state.busy || state.original == null) return;
+    final revision = _selectionRevision;
     final selection = state.original!.configuration.connection.selection;
     final choice = await open(
       context,
@@ -210,10 +237,10 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
         },
       ),
     );
-    if (!isPageActive || choice == null) return;
+    if (!_canCompleteSelection(revision) || choice == null) return;
     try {
       final name = await service.serverName(choice.id);
-      if (!isPageActive) return;
+      if (!_canCompleteSelection(revision)) return;
       if (choice.id != null && name == null) {
         throw const FormatException('Final exit is missing');
       }
@@ -228,7 +255,7 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
         ),
       );
     } catch (error) {
-      if (context.mounted) {
+      if (context.mounted && _canCompleteSelection(revision)) {
         emit(
           state.copyWith(
             error: AppLocalizations.of(context)!
@@ -241,6 +268,7 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
 
   Future<void> save(BuildContext context) async {
     if (state.busy || state.original == null) return;
+    _selectionRevision++;
     final l = AppLocalizations.of(context)!;
     emit(state.copyWith(busy: true, error: null));
     try {

@@ -566,6 +566,58 @@ void main() {
     );
   }
 
+  test('restoring active Smart defaults requires confirmation before writing or reconnecting', () async {
+    final original = ConnectionConfiguration(
+      connection: ConnectionSettings(
+        smart: SmartRoutingSettings(blockAds: true, directRegions: ['RU']),
+      ),
+    );
+    await db.connectionConfigDao.commit(configurationJson: original.encode());
+    final old = _runtime('a', original);
+    var host = HostConnection(VpnStatus.connected, runtime: old);
+    final calls = <String>[];
+    final coordinator = await _initialize(
+      ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => host.runtime,
+        inspect: (_, {observedStatus}) async => host,
+        prepare: (next, _) async => _runtime('b', next),
+        start: (runtime) async {
+          calls.add('start');
+          return host = HostConnection(VpnStatus.connected, runtime: runtime);
+        },
+        stop: () async {
+          calls.add('stop');
+          return host = const HostConnection(VpnStatus.disconnected);
+        },
+      ),
+    );
+    final service = SmartRoutingEditorService(
+      database: db,
+      coordinator: coordinator,
+      loadRegions: () async => _regions(),
+    );
+    Future<bool> save(bool confirm) => service.save(
+      original: original,
+      smart: SmartRoutingSettings(),
+      confirmReconnect: () async => confirm,
+    );
+    expect(await save(false), isFalse);
+    expect(calls, isEmpty);
+    expect((await coordinator.configuration).encode(), original.encode());
+    expect(coordinator.state.value.runtime, same(old));
+    expect(await save(true), isTrue);
+    expect(calls, ['stop', 'start']);
+    expect(
+      (await coordinator.configuration).connection.smart.toJson(),
+      SmartRoutingSettings().toJson(),
+    );
+    expect(
+      coordinator.state.value.runtime!.configuration.connection.smart.toJson(),
+      SmartRoutingSettings().toJson(),
+    );
+  });
+
   test(
     'active save cancels without writes and failed reconnect is not restored',
     () async {
