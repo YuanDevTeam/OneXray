@@ -1,8 +1,10 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:onexray/core/constants/preferences.dart';
 import 'package:onexray/core/network/client.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/tools/logger.dart';
-import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pub_semver/pub_semver.dart';
@@ -10,7 +12,12 @@ import 'package:url_launcher/url_launcher.dart';
 
 enum AppUpdateCheckStatus { available, upToDate, failed }
 
-enum AppUpdateDestination { appStore, googlePlay, githubRelease }
+enum AppUpdateDestination {
+  appStore,
+  googlePlay,
+  microsoftStore,
+  githubRelease,
+}
 
 class AppUpdateInfo {
   final String currentVersion;
@@ -52,7 +59,22 @@ class AppUpdateService {
 
   factory AppUpdateService() => _singleton;
 
-  AppUpdateService._internal();
+  AppUpdateService._internal()
+    : _client = NetClient(),
+      _operatingSystem = Platform.operatingSystem,
+      _useSystemExtension = AppHostApi().useSystemExtension;
+
+  @visibleForTesting
+  AppUpdateService.forTesting({
+    required this._client,
+    required this._operatingSystem,
+    Future<bool> Function()? useSystemExtension,
+  }) : _useSystemExtension =
+           useSystemExtension ?? AppHostApi().useSystemExtension;
+
+  final NetClient _client;
+  final String _operatingSystem;
+  final Future<bool> Function() _useSystemExtension;
 
   static const _githubLatestReleaseApi =
       "https://api.github.com/repos/YuanDevTeam/OneXray/releases/latest";
@@ -62,6 +84,8 @@ class AppUpdateService {
       "https://apps.apple.com/us/app/onexray/id6745748773";
   static const _googlePlayUrl =
       "https://play.google.com/store/apps/details?id=net.yuandev.onexray";
+  static const _microsoftStoreUrl =
+      "https://apps.microsoft.com/detail/9NJ0MVHW215D";
   static const _automaticCheckInterval = Duration(days: 1);
 
   Future<AppUpdateCheckResult> checkForUpdate() async {
@@ -76,7 +100,7 @@ class AppUpdateService {
       }
 
       final releaseJson = await AppEventBus.instance.trackDownload(
-        () => NetClient().getJson(_githubLatestReleaseApi),
+        () => _client.getJson(_githubLatestReleaseApi),
       );
       if (releaseJson == null) {
         return const AppUpdateCheckResult.failed();
@@ -146,20 +170,26 @@ class AppUpdateService {
   Future<({Uri item1, AppUpdateDestination item2})> _resolveUpdateUri(
     Uri releaseUri,
   ) async {
-    if (AppPlatform.isIOS) {
+    if (_operatingSystem == 'ios') {
       return (
         item1: Uri.parse(_appStoreUrl),
         item2: AppUpdateDestination.appStore,
       );
     }
-    if (AppPlatform.isAndroid) {
+    if (_operatingSystem == 'android') {
       return (
         item1: Uri.parse(_googlePlayUrl),
         item2: AppUpdateDestination.googlePlay,
       );
     }
-    if (AppPlatform.isMacOS) {
-      final useSystemExtension = await AppHostApi().useSystemExtension();
+    if (_operatingSystem == 'windows') {
+      return (
+        item1: Uri.parse(_microsoftStoreUrl),
+        item2: AppUpdateDestination.microsoftStore,
+      );
+    }
+    if (_operatingSystem == 'macos') {
+      final useSystemExtension = await _useSystemExtension();
       if (!useSystemExtension) {
         return (
           item1: Uri.parse(_appStoreUrl),

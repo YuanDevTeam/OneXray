@@ -310,6 +310,8 @@ Apple、Android、Windows 提供备份详情页，Linux 不显示，协议与恢
 周期仍在同一分区编辑，Apple 位置选择保留 iCloud 主动作，敏感数据提醒及恢复、覆盖确认保持原规则。
 关于展示 App/Xray-core 版本；有新版本时入口显示圆点，桌面侧栏保留更新提醒。
 更新说明有独立入口打开项目发行记录，原有版本检查与更新弹窗继续保留。
+版本发现与更新说明继续使用 GitHub Release；更新按钮按发行渠道跳转：iOS/iPadOS 与普通 macOS 为 App Store，
+Android 为 Google Play，Windows EXE/MSIX 均为 Microsoft Store，macOS SE 与 Linux 为对应 GitHub Release。
 清理连接资源与清理全部数据是不同操作；成功留在业务页面，不重新进入 Setup，
 保留范围、失败阶段与数据保护见 [清理数据](data-management.md#清理数据)。
 
