@@ -56,9 +56,9 @@
 | Android | Android 10（API 29） | arm64-v8a、x86_64；不支持 32 位设备 |
 | Windows x64 | Windows 10 20H2（内部版本 19042） | x64（x86_64） |
 | Windows ARM64 | Windows 11 | ARM64 |
-| Linux（DEB / ZIP） | Ubuntu 24.04 LTS 或兼容发行版，需具备 Linux 内核 5.3+、glibc 2.39+、GLib 2.80+ 和 GTK 3 运行库 | x86_64、arm64 |
+| Linux（DEB / RPM / ZIP） | Ubuntu 24.04 LTS 或兼容发行版，需具备 Linux 内核 5.3+、glibc 2.39+、GLib 2.80+ 和 GTK 3 运行库 | x86_64、arm64 |
 
-Ubuntu 22.04 自带的 GLib 2.72 不满足当前官方 DEB / ZIP 安装包的要求。请使用 Ubuntu 24.04 LTS 或满足上述全部要求的其他发行版。
+Ubuntu 22.04 自带的 GLib 2.72 不满足当前官方 Linux 安装包的要求。请使用 Ubuntu 24.04 LTS 或满足上述全部要求的其他发行版。
 
 详细说明见[系统要求指南](https://onexray.com/zh/docs/system-requirements/)。
 
@@ -81,7 +81,17 @@ Ubuntu 22.04 自带的 GLib 2.72 不满足当前官方 DEB / ZIP 安装包的要
 
 ### Linux
 
-[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb)。请确认 [Linux 系统要求](#系统要求)，依赖与权限要求见 [Linux 安装指南](https://onexray.com/zh/docs/install/#linux)。
+[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb)
+
+[RPM · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.rpm) · [RPM · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.rpm)
+
+Fedora 下载 RPM 后执行：
+
+```shell
+sudo dnf install ./OneXray-linux-x86_64.rpm
+```
+
+arm64 使用 `OneXray-linux-aarch64.rpm`。RPM 安装和升级会安装所需依赖，并自动授予 `OneXrayCore` 网络权限；正常用户启动 App 即可。ZIP 仍需手动设置 Core 权限。请确认 [Linux 系统要求](#系统要求)，ZIP 的依赖与权限要求见 [Linux 安装指南](https://onexray.com/zh/docs/install/#linux)。
 
 ### OneXraySE
 

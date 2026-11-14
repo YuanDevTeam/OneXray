@@ -56,9 +56,9 @@
 | Android | Android 10 (API 29) | arm64-v8a, x86_64; 32-битные устройства не поддерживаются |
 | Windows x64 | Windows 10 20H2 (сборка 19042) | x64 (x86_64) |
 | Windows ARM64 | Windows 11 | ARM64 |
-| Linux (DEB / ZIP) | Ubuntu 24.04 LTS или совместимые дистрибутивы с ядром Linux 5.3+, glibc 2.39+, GLib 2.80+ и библиотекой GTK 3 | x86_64, arm64 |
+| Linux (DEB / RPM / ZIP) | Ubuntu 24.04 LTS или совместимые дистрибутивы с ядром Linux 5.3+, glibc 2.39+, GLib 2.80+ и библиотекой GTK 3 | x86_64, arm64 |
 
-Системная библиотека GLib 2.72 в Ubuntu 22.04 не отвечает требованиям текущих официальных пакетов DEB / ZIP. Используйте Ubuntu 24.04 LTS или другой дистрибутив, отвечающий всем требованиям выше.
+Системная библиотека GLib 2.72 в Ubuntu 22.04 не отвечает требованиям текущих официальных пакетов Linux. Используйте Ubuntu 24.04 LTS или другой дистрибутив, отвечающий всем требованиям выше.
 
 Подробнее см. в [руководстве по системным требованиям](https://onexray.com/ru/docs/system-requirements/).
 
@@ -81,7 +81,17 @@
 
 ### Linux
 
-[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb). Проверьте [системные требования Linux](#системные-требования); зависимости и разрешения описаны в [руководстве по установке на Linux](https://onexray.com/ru/docs/install/#linux).
+[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb)
+
+[RPM · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.rpm) · [RPM · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.rpm)
+
+На Fedora установите загруженный RPM командой:
+
+```shell
+sudo dnf install ./OneXray-linux-x86_64.rpm
+```
+
+Для arm64 используйте `OneXray-linux-aarch64.rpm`. Установка и обновление RPM устанавливают необходимые зависимости и автоматически предоставляют `OneXrayCore` сетевые права; запускайте приложение от обычного пользователя. Для ZIP права Core по-прежнему нужно настроить вручную. Проверьте [системные требования Linux](#системные-требования); зависимости и разрешения для ZIP описаны в [руководстве по установке на Linux](https://onexray.com/ru/docs/install/#linux).
 
 ### OneXraySE
 

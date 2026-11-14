@@ -14,8 +14,10 @@ PUBLIC_PACKAGES = {
     "linux": [
         "linux-x64/OneXray-linux-x86_64.zip",
         "linux-x64/OneXray-linux-x86_64.deb",
+        "linux-x64/OneXray-linux-x86_64.rpm",
         "linux-arm64/OneXray-linux-aarch64.zip",
         "linux-arm64/OneXray-linux-aarch64.deb",
+        "linux-arm64/OneXray-linux-aarch64.rpm",
     ],
     "windows": [
         "windows-x64/OneXray-windows-amd64.exe",
@@ -101,6 +103,25 @@ class ReleaseTest(unittest.TestCase):
         ):
             with self.subTest(field=field), self.assertRaises(ValueError):
                 verify_release(self.artifacts, {**self.run, field: value})
+
+    def test_missing_linux_rpm_blocks_linux_and_all_releases(self):
+        for target in ("linux", "all"):
+            (self.metadata / "target.txt").write_text(target)
+            for name in PUBLIC_PACKAGES["linux"]:
+                if not name.endswith(".rpm"):
+                    continue
+                path = self.artifacts / name
+                path.unlink()
+                with self.subTest(target=target, package=name):
+                    with self.assertRaises(FileNotFoundError) as raised:
+                        verify_release(self.artifacts, self.run)
+                    self.assertIn(name, str(raised.exception))
+                    if target == "all":
+                        self.assertEqual(
+                            verify_release(self.artifacts, self.run, windows_only=True),
+                            [self.artifacts / package for package in STORE_PACKAGES],
+                        )
+                path.write_bytes(b"package fixture")
 
     def test_failed_job_rerun_can_reuse_successful_metadata_and_packages(self):
         (self.metadata / "tag.txt").write_text("v26.10.3")

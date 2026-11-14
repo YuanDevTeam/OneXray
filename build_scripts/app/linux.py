@@ -10,12 +10,13 @@ class LinuxBuilder(Builder):
         arguments = ("--artifact-name", f"{self.project}-{self.package_suffix}." + "{{ext}}")
         self.fastforge_build("zip", arguments=arguments)
         self._build_deb(arguments)
+        self.fastforge_build("rpm", arguments=arguments)
         packages = [
             Path(self.root_dir)
             / "dist"
             / self.read_version()
             / f"{self.project}-{self.package_suffix}.{extension}"
-            for extension in ("zip", "deb")
+            for extension in ("zip", "deb", "rpm")
         ]
         for package in packages:
             if not package.is_file():

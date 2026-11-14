@@ -1,0 +1,29 @@
+display_name: OneXray
+package_name: onexray
+summary: Xray-core client for managing servers and routing
+vendor: Yuan Dev LLC
+packager: Yuan Dev LLC
+packager_email: yuan@yuandev.net
+license: GPLv3
+url: https://onexray.com
+icon: assets/logo.png
+requires:
+  - glibc >= 2.39
+  - glib2 >= 2.80
+  - gtk3
+  - libcap
+  - procps-ng
+  - libayatana-appindicator-gtk3
+postinstall_scripts:
+  - setcap cap_net_admin,cap_net_raw+eip /usr/share/onexray/OneXrayCore
+keywords:
+  - OneXray
+  - Xray
+  - VPN
+  - Proxy
+generic_name: VPN and Proxy Client
+categories:
+  - Network
+startup_notify: true
+supported_mime_type:
+  - x-scheme-handler/onexray

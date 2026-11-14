@@ -632,7 +632,7 @@ jobs:
           if-no-files-found: error
 
   # =================================================================
-  # Linux — fastforge .zip + .deb, x64 and arm64
+  # Linux — Fastforge ZIP/DEB/RPM, x64 and arm64
   #   Pinned to ubuntu-24.04 (x64) / ubuntu-24.04-arm (arm64): the
   #   produced binary's glibc requirement is whatever the runner ships
   #   (glibc 2.39). Upgrading the runner image would silently bump the
@@ -693,7 +693,7 @@ jobs:
             ninja-build clang cmake pkg-config \
             libgtk-3-dev liblzma-dev libblkid-dev libsecret-1-dev \
             libayatana-appindicator3-dev \
-            file
+            file rpm patchelf
 
       - name: Install fastforge
         run: dart pub global activate fastforge
@@ -708,4 +708,5 @@ jobs:
           path: |
             output/OneXray-*.zip
             output/OneXray-*.deb
+            output/OneXray-*.rpm
           if-no-files-found: error

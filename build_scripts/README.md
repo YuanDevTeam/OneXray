@@ -19,7 +19,7 @@ Platform tools and CI versions are defined in the [Build workflow](../.github/wo
 | Apple | macOS, Xcode, SwiftPM, Fastlane and signing credentials. |
 | Android | Android SDK/NDK, compatible JDK, Fastlane and Play credentials; see [Gradle](../android/app/build.gradle.kts). |
 | Windows | Native x64/ARM64 host, Visual Studio C++, Windows SDK, Rust and matching Go/C tools. EXE/ZIP also need Dart Fastforge; EXE needs Inno Setup (`INNO_SETUP_PATH`). |
-| Linux | Native Linux toolchain, GTK/plugin dependencies and Dart Fastforge. |
+| Linux | Native Linux toolchain, GTK/plugin dependencies, Dart Fastforge, `rpmbuild` and `patchelf` (the `rpm` and `patchelf` packages on Ubuntu build hosts). |
 
 Linux hosts also need `clang`, `pkg-config`, `libgtk-3-dev`, `libx11-dev` and
 `libxi-dev` when building Android: Dart-based FFI generation runs the
@@ -102,13 +102,13 @@ PowerShell uses `$env:BUILD_NUMBER = "1"`; the build command is otherwise the sa
 | `macos_se` | Developer ID signed, notarized universal ZIP. |
 | `android` | Play internal draft AAB upload and universal APK download. |
 | `windows` | EXE + ZIP, or MSIX with `--windows-mode msix`. |
-| `linux` | ZIP + DEB for the host architecture. |
+| `linux` | ZIP + DEB + RPM for the host architecture. |
 
 **Apple/Android deployment and notarization are not local checks.** The sequence is
 version/pub get → native libraries/Core/Geodata → FFI generation → platform build/package.
 `pubspec.yaml` is restored on success or failure. Android passes its effective
 build number through the environment, without rewriting Fastfile. Linux collects
-only the current version's ZIP/DEB.
+only the current version's ZIP/DEB/RPM.
 
 Android uploads remain internal drafts and explicitly skip metadata, images,
 screenshots and changelogs. Do not set `changes_not_sent_for_review` for this
@@ -139,6 +139,30 @@ provisioning profile, read-only, as well as the App and tunnel profiles. Configu
 all three App IDs for the shared App Group before deploying. Check that the
 archive/IPA embeds the Widget extension and its resources; unsigned or Simulator
 builds do not validate distribution signing or device Widget availability.
+
+## Linux
+
+The native x86_64 and ARM64 jobs each use Fastforge to build ZIP, DEB and RPM, named
+`OneXray-linux-x86_64.<ext>` and `OneXray-linux-aarch64.<ext>` respectively.
+The Build workflow uploads all three formats; Publish requires both architectures'
+RPM files alongside the existing Linux packages.
+
+The [RPM configuration](../linux/packaging/rpm/make_config.yaml) declares Fedora
+runtime dependencies. Its `postinstall_scripts` hook runs
+`setcap cap_net_admin,cap_net_raw+eip /usr/share/onexray/OneXrayCore` during first
+installation and upgrades. The Dart Fastforge RPM maker installs the bundle in
+`/usr/share/onexray`; the [DEB configuration](../linux/packaging/deb/make_config.yaml)
+uses `/opt/OneXray`. The app runs as the normal user; ZIP users still set Core
+capabilities manually after extraction or replacing Core.
+
+On Fedora, install or update the downloaded package with:
+
+```shell
+sudo dnf install ./OneXray-linux-x86_64.rpm
+```
+
+Use `OneXray-linux-aarch64.rpm` for ARM64. Packaging does not change the Linux
+runtime baseline: kernel 5.3+, glibc 2.39+, GLib 2.80+ and GTK 3.
 
 ## Windows
 

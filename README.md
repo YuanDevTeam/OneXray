@@ -56,9 +56,9 @@ The current official packages require the following operating systems and archit
 | Android | Android 10 (API 29) | arm64-v8a, x86_64; 32-bit devices are not supported |
 | Windows x64 | Windows 10 20H2 (build 19042) | x64 (x86_64) |
 | Windows ARM64 | Windows 11 | ARM64 |
-| Linux (DEB / ZIP) | Ubuntu 24.04 LTS or compatible distributions, with Linux kernel 5.3+, glibc 2.39+, GLib 2.80+ and the GTK 3 runtime | x86_64, arm64 |
+| Linux (DEB / RPM / ZIP) | Ubuntu 24.04 LTS or compatible distributions, with Linux kernel 5.3+, glibc 2.39+, GLib 2.80+ and the GTK 3 runtime | x86_64, arm64 |
 
-Ubuntu 22.04's system GLib 2.72 does not meet the current official DEB / ZIP requirements. Use Ubuntu 24.04 LTS or another distribution that meets all the requirements above.
+Ubuntu 22.04's system GLib 2.72 does not meet the current official Linux package requirements. Use Ubuntu 24.04 LTS or another distribution that meets all the requirements above.
 
 See the [system requirements guide](https://onexray.com/docs/system-requirements/) for details.
 
@@ -81,7 +81,17 @@ Check the [system requirements](#system-requirements), then choose the official 
 
 ### Linux
 
-[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb). Check the [Linux system requirements](#system-requirements) and see the [Linux installation guide](https://onexray.com/docs/install/#linux) for dependencies and permissions.
+[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb)
+
+[RPM · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.rpm) · [RPM · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.rpm)
+
+On Fedora, install the downloaded RPM with:
+
+```shell
+sudo dnf install ./OneXray-linux-x86_64.rpm
+```
+
+Use `OneXray-linux-aarch64.rpm` for arm64. RPM installation and upgrades install the required dependencies and automatically grant `OneXrayCore` its network capabilities; run the app as your normal user. ZIP installations still need manual Core permission setup. Check the [Linux system requirements](#system-requirements) and see the [Linux installation guide](https://onexray.com/docs/install/#linux) for ZIP dependencies and permissions.
 
 ### OneXraySE
 
