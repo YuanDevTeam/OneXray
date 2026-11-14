@@ -3000,5 +3000,7 @@
   "xrayRecordDnsHint": "Logs may include the domains you visit.",
   "importPreviewIncomplete": "Import incomplete",
   "importPreviewResultSummary": "Imported: {completed}. Failed: {failed}.",
-  "@importPreviewResultSummary": {"placeholders": {"completed": {"type": "int"}, "failed": {"type": "int"}}}
+  "@importPreviewResultSummary": {"placeholders": {"completed": {"type": "int"}, "failed": {"type": "int"}}},
+  "connectionStartupProbeFailed": "Node check didn't succeed. VPN remains connected.",
+  "@connectionStartupProbeFailed": {"description": "Non-blocking notice when a one-time node check after connecting fails; VPN remains connected."}
 }

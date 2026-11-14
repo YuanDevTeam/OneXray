@@ -1023,5 +1023,6 @@
   "geodataCategoriesAndReferences": "دسته‌ها و ارجاع‌ها",
   "xrayRecordDnsHint": "گزارش‌ها ممکن است شامل دامنه‌های بازدیدشده باشند.",
   "importPreviewIncomplete": "واردسازی کامل نشد",
-  "importPreviewResultSummary": "واردشده: {completed}؛ ناموفق: {failed}."
+  "importPreviewResultSummary": "واردشده: {completed}؛ ناموفق: {failed}.",
+  "connectionStartupProbeFailed": "بررسی گره موفق نبود. اتصال VPN برقرار می‌ماند."
 }

@@ -1023,5 +1023,6 @@
   "geodataCategoriesAndReferences": "分类与引用",
   "xrayRecordDnsHint": "日志可能包含访问的域名。",
   "importPreviewIncomplete": "导入未完成",
-  "importPreviewResultSummary": "已导入 {completed} 项，失败 {failed} 项。"
+  "importPreviewResultSummary": "已导入 {completed} 项，失败 {failed} 项。",
+  "connectionStartupProbeFailed": "本次节点探测未成功，VPN 仍保持连接。"
 }

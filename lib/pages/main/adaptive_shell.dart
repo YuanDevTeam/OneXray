@@ -9,10 +9,12 @@ import 'package:onexray/core/tools/logger.dart';
 import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/main/desktop_window.dart';
 import 'package:onexray/pages/main/menu_actions.dart';
+import 'package:onexray/pages/shared/connection_probe_notice.dart';
 import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/settings/app_update/service.dart';
+import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/event_bus/state.dart';
 import 'package:onexray/service/manager.dart';
@@ -246,19 +248,23 @@ class _AdaptiveMainShellState extends State<AdaptiveMainShell> {
           );
         }
         _attachMenus();
-        return BlocSelector<AppEventBus, AppEventBusState, AppUpdateInfo?>(
-          selector: (state) => state.appUpdateInfo,
-          builder: (context, appUpdateInfo) => LayoutBuilder(
-            builder: (context, constraints) {
-              if (constraints.maxWidth > AppLayout.mobileBreakpoint) {
-                return _railScaffold(
-                  context,
-                  constraints.maxWidth,
-                  appUpdateInfo,
-                );
-              }
-              return _bottomNavigationScaffold(context);
-            },
+        return ConnectionProbeNotice(
+          failures: ConnectionCoordinator.instance.startupProbeFailure,
+          consume: ConnectionCoordinator.instance.consumeStartupProbeFailure,
+          child: BlocSelector<AppEventBus, AppEventBusState, AppUpdateInfo?>(
+            selector: (state) => state.appUpdateInfo,
+            builder: (context, appUpdateInfo) => LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth > AppLayout.mobileBreakpoint) {
+                  return _railScaffold(
+                    context,
+                    constraints.maxWidth,
+                    appUpdateInfo,
+                  );
+                }
+                return _bottomNavigationScaffold(context);
+              },
+            ),
           ),
         );
       },
