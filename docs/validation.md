@@ -281,6 +281,11 @@ Pigeon schema 或生成器版本更新时，用 `tool/generate_pigeon.dart` 同�
 - macOS SE 激活：`bash tool/test_system_extension_activation.sh` 编译生产 Swift，
   验证待批准时重试、已安装时跳过、强制替换及并发请求合并；使用可控系统回复，不申请真实扩展授权或启动 VPN。
   页面测试核对授权未完成时不连接、批准说明持续显示、取消与打开设置，以及设置打开失败的反馈。
+- Apple VPN 删除：`bash tool/test_apple_vpn_removal.sh` 使用可控系统边界执行生产删除协调器，
+  验证所属配置筛选、全部停止后再删除、并发准入、系统失败和待重启结果。
+  `test/service/advanced/tunnel/apple/removal_test.dart` 核对连接队列、停止失败及数据保留；
+  `test/pages/advanced/tunnel/apple/removal_test.dart` 核对平台入口、确认取消、繁忙、失败与待重启提示。
+  替身测试不替代真实 NetworkExtension 配置删除、管理员确认及系统扩展卸载验收。
 - Android 原生：在 `android/` 执行 `./gradlew :app:testDebugUnitTest`，
   Robolectric 调用正式 Receiver、保存配置、Widget 资源与 VPN 状态桥；
   状态桥回归使用真实 command/changed 与可控 Binder 重演停止确认后旧事件迟到，

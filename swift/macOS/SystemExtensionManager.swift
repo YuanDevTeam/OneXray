@@ -74,15 +74,30 @@ enum SystemExtensionManager {
     }
 
     static func deactivate() async throws -> OSSystemExtensionRequest.Result? {
-        try await ExtensionRequestDriver().runResult(timeout: .seconds(20)) { queue in
+        // Authorization can remain open indefinitely. Keep removal admission
+        // held until the OS reports its terminal result rather than abandoning
+        // a request that may still uninstall the extension after a timeout.
+        try await ExtensionRequestDriver(waitForTerminalResult: true).runResult(timeout: nil) { queue in
             OSSystemExtensionRequest.deactivationRequest(forExtensionWithIdentifier: packetTunnelId(), queue: queue)
         }
+    }
+
+    static func deactivateIfPresent() async throws -> OSSystemExtensionRequest.Result? {
+        // Removal targets every registered version of our identifier. An older
+        // installed version need not match the extension bundled with this app.
+        let properties = try await ExtensionRequestDriver().runProperties(timeout: .seconds(5)) { queue in
+            OSSystemExtensionRequest.propertiesRequest(forExtensionWithIdentifier: packetTunnelId(), queue: queue)
+        }
+        guard properties.contains(where: { $0.bundleIdentifier == packetTunnelId() }) else {
+            return .completed
+        }
+        return try await deactivate()
     }
 }
 
 // MARK: - Private
 
-private typealias RequestFactory = @Sendable (DispatchQueue) -> OSSystemExtensionRequest
+typealias RequestFactory = @Sendable (DispatchQueue) -> OSSystemExtensionRequest
 
 private enum SystemExtensionRequestError: Error {
     case timeout
@@ -149,7 +164,7 @@ private extension ExtensionPropertiesSnapshot {
 /// Handles a single OSSystemExtensionRequest. Delegate callbacks run on a
 /// dedicated serial queue that also guards all mutable state, making the
 /// driver effectively single-threaded despite its `@unchecked Sendable`.
-private final class ExtensionRequestDriver: NSObject, OSSystemExtensionRequestDelegate, @unchecked Sendable {
+final class ExtensionRequestDriver: NSObject, OSSystemExtensionRequestDelegate, @unchecked Sendable {
     private enum Waiter {
         case none
         case result(UUID, CheckedContinuation<OSSystemExtensionRequest.Result?, Error>)
@@ -168,23 +183,36 @@ private final class ExtensionRequestDriver: NSObject, OSSystemExtensionRequestDe
     private static let delegateQueue = DispatchQueue(label: "net.yuandev.onexray.system-extension")
 
     private let forceReplace: Bool
+    private let waitForTerminalResult: Bool
+    private let submitRequest: @Sendable (OSSystemExtensionRequest, DispatchQueue) -> Void
     private var waiter: Waiter = .none
 
-    init(forceReplace: Bool = false) {
+    init(
+        forceReplace: Bool = false,
+        waitForTerminalResult: Bool = false,
+        submitRequest: @escaping @Sendable (OSSystemExtensionRequest, DispatchQueue) -> Void = { request, _ in
+            OSSystemExtensionManager.shared.submitRequest(request)
+        }
+    ) {
         self.forceReplace = forceReplace
+        self.waitForTerminalResult = waitForTerminalResult
+        self.submitRequest = submitRequest
         super.init()
     }
 
     func runResult(
-        timeout: DispatchTimeInterval,
+        timeout: DispatchTimeInterval?,
         _ make: @escaping RequestFactory
     ) async throws -> OSSystemExtensionRequest.Result? {
-        try await withCheckedThrowingContinuation { continuation in
+        // OSSystemExtensionRequest retains its delegate weakly, including while
+        // a deactivation waits on authorization without a timeout task.
+        defer { withExtendedLifetime(self) {} }
+        return try await withCheckedThrowingContinuation { continuation in
             submit(.result(UUID(), continuation), timeout: timeout, make: make)
         }
     }
 
-    func runProperties(
+    fileprivate func runProperties(
         timeout: DispatchTimeInterval,
         _ make: @escaping RequestFactory
     ) async throws -> [ExtensionPropertiesSnapshot] {
@@ -193,15 +221,15 @@ private final class ExtensionRequestDriver: NSObject, OSSystemExtensionRequestDe
         }
     }
 
-    private func submit(_ waiter: Waiter, timeout: DispatchTimeInterval, make: @escaping RequestFactory) {
+    private func submit(_ waiter: Waiter, timeout: DispatchTimeInterval?, make: @escaping RequestFactory) {
         Self.delegateQueue.async {
             self.waiter = waiter
-            if let token = waiter.token {
+            if let token = waiter.token, let timeout {
                 self.scheduleTimeout(token, timeout: timeout)
             }
             let request = make(Self.delegateQueue)
             request.delegate = self
-            OSSystemExtensionManager.shared.submitRequest(request)
+            self.submitRequest(request, Self.delegateQueue)
         }
     }
 
@@ -249,6 +277,9 @@ private final class ExtensionRequestDriver: NSObject, OSSystemExtensionRequestDe
         // Resolve with nil so callers treat "pending approval" as "not ready";
         // the success path is detected later via isInstalled().
         YGLog("system extension awaiting user approval in System Settings")
+        // Deactivation must continue holding admission while the actual OS
+        // request is pending, and receive its eventual success or denial.
+        if waitForTerminalResult { return }
         if case let .result(_, continuation) = waiter {
             waiter = .none
             continuation.resume(returning: nil)

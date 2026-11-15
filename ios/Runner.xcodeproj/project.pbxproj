@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		EBAA00000000000000000002 /* AppleVpnRemoval.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBAA00000000000000000001 /* AppleVpnRemoval.swift */; };
 		EB2401000000000000000002 /* AppleWidgetVpnActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2401000000000000000001 /* AppleWidgetVpnActions.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
@@ -109,6 +110,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		EBAA00000000000000000001 /* AppleVpnRemoval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleVpnRemoval.swift; sourceTree = "<group>"; };
 		EB2401000000000000000001 /* AppleWidgetVpnActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetVpnActions.swift; path = ../swift/iOS/AppleWidgetVpnActions.swift; sourceTree = SOURCE_ROOT; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
@@ -344,6 +346,7 @@
 			children = (
 				EB68C7112F94D172007C293A /* pigeon */,
 				EB68C7122F94D172007C293A /* Vpn.swift */,
+				EBAA00000000000000000001 /* AppleVpnRemoval.swift */,
 				A4B28326E4F2407F9AEDB9C1 /* BackupFileStore.swift */,
 				EF6C196001D54A57BBD4AAD2 /* SimulatorProxy.swift */,
 			);
@@ -582,6 +585,7 @@
 				EB68C7072F94D150007C293A /* Logger.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				EB68C7162F94D172007C293A /* Vpn.swift in Sources */,
+				EBAA00000000000000000002 /* AppleVpnRemoval.swift in Sources */,
 				EF6C196001D54A57BBD4AAD1 /* SimulatorProxy.swift in Sources */,
 				EB68C7172F94D172007C293A /* HostApi.swift in Sources */,
 				B316F8C5899D423CA135969F /* BackupFileStore.swift in Sources */,

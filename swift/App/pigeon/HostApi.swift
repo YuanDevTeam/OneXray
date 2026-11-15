@@ -66,6 +66,13 @@ final class AppHostApi: @preconcurrency BridgeHostApi {
         }
     }
 
+    func removeAppleVpn(completion: @escaping (Result<AppleVpnRemovalResult, any Error>) -> Void) {
+        Task {
+            do { completion(.success(try await VPNManager.shared.removeAppleVpn())) }
+            catch { completion(.failure(error)) }
+        }
+    }
+
     func invoke(requestJson: String, completion: @escaping (Result<String, any Error>) -> Void) {
         Task {
             do {

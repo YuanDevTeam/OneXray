@@ -21,6 +21,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		EBAA00000000000000000002 /* AppleVpnRemoval.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBAA00000000000000000001 /* AppleVpnRemoval.swift */; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
 		33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F22044A3C60003C045 /* Assets.xcassets */; };
 		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
@@ -100,6 +101,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		EBAA00000000000000000001 /* AppleVpnRemoval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleVpnRemoval.swift; sourceTree = "<group>"; };
 		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
 		335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GeneratedPluginRegistrant.swift; sourceTree = "<group>"; };
 		33CC10ED2044A3C60003C045 /* OneXraySE.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OneXraySE.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -267,6 +269,7 @@
 			children = (
 				EB68C6E62F94D08D007C293A /* pigeon */,
 				EB68C6E82F94D08D007C293A /* Vpn.swift */,
+				EBAA00000000000000000001 /* AppleVpnRemoval.swift */,
 				A83C922B290C4203ADD0079B /* BackupFileStore.swift */,
 			);
 			name = App;
@@ -498,6 +501,7 @@
 				EBE36B5A2F9684A700686880 /* Logger.swift in Sources */,
 				EB68C6F22F94D08D007C293A /* SystemExtensionManager.swift in Sources */,
 				EB68C6F32F94D08D007C293A /* Vpn.swift in Sources */,
+				EBAA00000000000000000002 /* AppleVpnRemoval.swift in Sources */,
 				EB68C6F42F94D08D007C293A /* FlutterApi.swift in Sources */,
 				EB68C6F52F94D08D007C293A /* Messages.g.swift in Sources */,
 				EB68C6F62F94D08D007C293A /* AppDelegate.swift in Sources */,

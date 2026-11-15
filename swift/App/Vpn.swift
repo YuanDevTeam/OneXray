@@ -31,6 +31,7 @@ class VPNManager {
     private var cancellable: Cancellable?
     private var statusObserver: VPNStatusCallback?
     private var stopTask: Task<NativeVpnCommandResult, Never>?
+    private let removal = AppleVpnRemoval()
     #if os(iOS)
     private let startAdmission = AppleVpnStartAdmission(
         startBlockedURL: FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId())?
@@ -152,6 +153,75 @@ class VPNManager {
         return nil
     }
 
+    private func requireProfileMutationAllowed() throws {
+        try removal.requireMutationAllowed()
+        #if os(iOS)
+        try requireStartAllowed()
+        #endif
+    }
+
+    func removeAppleVpn() async throws -> AppleVpnRemovalResult {
+        let outcome = try await removal.remove(
+            providerIdentifier: packetTunnelId(),
+            invalidateStarts: {
+                #if os(iOS)
+                let tokens = self.startAdmission.invalidate()
+                AppleWidgetActionInbox.shared.recordNativeStop(invalidatedPreparations: tokens)
+                #endif
+            },
+            prepare: {
+                if let pending = self.stopTask {
+                    // Drain the previous command, then independently confirm
+                    // every owned profile through stopProfile below.
+                    _ = await pending.value
+                }
+                #if targetEnvironment(simulator)
+                try await SimulatorProxy.stop()
+                #endif
+            },
+            load: {
+                #if targetEnvironment(simulator)
+                return [NETunnelProviderManager]()
+                #else
+                return try await NETunnelProviderManager.loadAllFromPreferences()
+                #endif
+            },
+            identifier: { ($0.protocolConfiguration as? NETunnelProviderProtocol)?.providerBundleIdentifier },
+            stop: { try await self.stopProfile($0) },
+            remove: { try await $0.removeFromPreferences() },
+            profilesRemoved: {
+                self.vpn = nil
+                self.awaitingStart = false
+                self.observedConnecting = false
+                self.lastCommandError = nil
+                #if os(iOS)
+                self.activeStartGeneration = nil
+                AppleWidgetPublisher.publish(.disconnected)
+                #endif
+                self.runStatusObserver()
+            },
+            deactivate: {
+                #if os(macOS)
+                if Constants.useSystemExtension {
+                    guard let result = try await SystemExtensionManager.deactivateIfPresent() else {
+                        throw AppleVpnRemovalError.extensionApprovalRequired
+                    }
+                    switch result {
+                    case .completed: return .removed
+                    case .willCompleteAfterReboot: return .restartRequired
+                    @unknown default: throw AppleVpnRemovalError.unexpectedExtensionResult
+                    }
+                }
+                #endif
+                return .removed
+            }
+        )
+        switch outcome {
+        case .removed: return .removed
+        case .restartRequired: return .restartRequired
+        }
+    }
+
     private func newVpn() -> NETunnelProviderManager {
         let serverAddress = vpnServerAddress()
 
@@ -168,6 +238,8 @@ class VPNManager {
     }
 
     func queryPlatformPermission() async -> PlatformPermissionResult {
+        let queryGeneration = removal.generation
+        let canCacheProfile = !removal.isRemoving
         #if targetEnvironment(simulator)
         // The simulator cannot query NetworkExtension VPN preferences.
         return PlatformPermissionResult(
@@ -185,10 +257,13 @@ class VPNManager {
         }
         #endif
         do {
-            vpn = try await findVpn()
+            let current = try await findVpn()
+            if canCacheProfile && !removal.isRemoving && removal.generation == queryGeneration {
+                vpn = current
+            }
             return PlatformPermissionResult(
                 kind: .appleVpn,
-                state: vpn == nil ? .notDetermined : .granted,
+                state: current == nil ? .notDetermined : .granted,
                 message: nil
             )
         } catch {
@@ -203,6 +278,14 @@ class VPNManager {
     }
 
     func requestPlatformPermission() async -> PlatformPermissionResult {
+        let mutation: UUID
+        do {
+            try requireProfileMutationAllowed()
+            mutation = try removal.beginMutation()
+        } catch {
+            return PlatformPermissionResult(kind: .appleVpn, state: .failed, message: error.localizedDescription)
+        }
+        defer { removal.finishMutation(mutation) }
         #if targetEnvironment(simulator)
         return await queryPlatformPermission()
         #else
@@ -218,12 +301,16 @@ class VPNManager {
         }
         #endif
         do {
+            try requireProfileMutationAllowed()
             if let existing = try await findVpn() {
+                try requireProfileMutationAllowed()
                 vpn = existing
             } else {
+                try requireProfileMutationAllowed()
                 let manager = newVpn()
                 // Prepare authorization only; the initial profile has no On Demand rules.
                 try await saveVpn(vpn: manager, tun: TunJson())
+                try requireProfileMutationAllowed()
                 vpn = manager
             }
             return PlatformPermissionResult(
@@ -340,7 +427,7 @@ class VPNManager {
     func readVpnStatus() async throws -> VpnStatus {
         guard let status = try await readStatus() else {
             #if os(iOS)
-            AppleWidgetPublisher.publish(.unknown)
+            AppleWidgetPublisher.publish(.disconnected)
             #endif
             return .disconnected
         }
@@ -378,6 +465,7 @@ class VPNManager {
 
     #if os(iOS)
     func requireStartAllowed() throws {
+        try removal.requireMutationAllowed()
         guard FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) != nil else {
             throw VPNError.noGroupContainer
         }
@@ -434,11 +522,13 @@ class VPNManager {
     var widgetCommandGeneration: UInt64 { startAdmission.invalidationGeneration }
 
     func readWidgetVpnStatus() async throws -> AppleWidgetStatus {
+        if removal.isRemoving { return .disconnecting }
         let generation = startAdmission.invalidationGeneration
         do {
             #if !targetEnvironment(simulator)
             let current = try await findVpn()
             try startAdmission.checkInvalidation(generation)
+            if removal.isRemoving { return .disconnecting }
             vpn = current
             #endif
             if stopTask != nil { return .disconnecting }
@@ -503,12 +593,14 @@ class VPNManager {
     #endif
 
     private func checkStartAdmission(_ generation: UInt64?) throws {
+        try removal.requireMutationAllowed()
         #if os(iOS)
         if let generation { try startAdmission.check(generation) }
         #endif
     }
 
     private func startIsCurrent(_ generation: UInt64?) -> Bool {
+        if removal.isRemoving { return false }
         #if os(iOS)
         if let generation { return startAdmission.isCurrent(generation) }
         #endif
@@ -526,16 +618,27 @@ class VPNManager {
     }
 
     private func commandResult(
-        _ state: NativeVpnCommandState, startGeneration: UInt64? = nil
+        _ state: NativeVpnCommandState, startGeneration: UInt64?
     ) async -> NativeVpnCommandResult {
-        guard startIsCurrent(startGeneration) else { return cancelledStartResult }
+        await commandResult(state, validateStart: { self.startIsCurrent(startGeneration) })
+    }
+
+    private func commandResult(_ state: NativeVpnCommandState) async -> NativeVpnCommandResult {
+        // Stops remain authoritative when removal is waiting for them to drain.
+        await commandResult(state, validateStart: { true })
+    }
+
+    private func commandResult(
+        _ state: NativeVpnCommandState, validateStart: () -> Bool
+    ) async -> NativeVpnCommandResult {
+        guard validateStart() else { return cancelledStartResult }
         let permission = await queryPlatformPermission()
-        guard startIsCurrent(startGeneration) else { return cancelledStartResult }
+        guard validateStart() else { return cancelledStartResult }
         switch state {
         case .success:
             do {
                 let status = try await readVpnStatus()
-                guard startIsCurrent(startGeneration) else { return cancelledStartResult }
+                guard validateStart() else { return cancelledStartResult }
                 return NativeVpnCommandResult(
                     state: .success,
                     status: status,
@@ -602,6 +705,14 @@ class VPNManager {
             if activeStartGeneration == generation { activeStartGeneration = nil }
             #endif
         }
+        let mutation: UUID
+        do {
+            try requireProfileMutationAllowed()
+            mutation = try removal.beginMutation()
+        } catch {
+            return NativeVpnCommandResult(state: .failed, message: error.localizedDescription)
+        }
+        defer { removal.finishMutation(mutation) }
         lastCommandError = nil
         awaitingStart = true
         observedConnecting = false
@@ -689,6 +800,9 @@ class VPNManager {
     }
 
     func stopVpn() async -> NativeVpnCommandResult {
+        if removal.isRemoving {
+            return NativeVpnCommandResult(state: .failed, message: AppleVpnRemovalError.inProgress.localizedDescription)
+        }
         #if os(iOS)
         let tokens = startAdmission.invalidate()
         AppleWidgetActionInbox.shared.recordNativeStop(invalidatedPreparations: tokens)
@@ -720,17 +834,6 @@ class VPNManager {
         runStatusObserver()
         return await commandResult(state)
         #else
-        #if os(macOS)
-        if Constants.useSystemExtension {
-            let installed = await querySystemExtensionIfNeeded()
-            YGLog("querySystemExtensionIfNeeded \(installed)")
-            if installed != .installed {
-                return await commandResult(
-                    installed == .waitForApproval ? .waitingForPlatformPermission : .failed
-                )
-            }
-        }
-        #endif
         do {
             vpn = try await findVpn()
         } catch {
@@ -745,28 +848,7 @@ class VPNManager {
             return NativeVpnCommandResult(state: .success, status: .disconnected)
         }
         do {
-            if vpn.isOnDemandEnabled || vpn.onDemandRules != nil {
-                vpn.isOnDemandEnabled = false
-                vpn.onDemandRules = nil
-                try await vpn.saveToPreferences()
-                try await vpn.loadFromPreferences()
-            }
-        } catch {
-            YGLog(error.localizedDescription)
-            lastCommandError = error.localizedDescription
-            return await commandResult(.failed)
-        }
-        do {
-            guard let session = vpn.connection as? NETunnelProviderSession else {
-                throw VPNError.sessionNotReady
-            }
-            if session.status == .disconnecting {
-                try await waitForStatus(session: session, accepted: [.disconnected, .invalid], timeout: 15)
-            } else if session.status != .disconnected && session.status != .invalid {
-                try await waitForStatus(session: session, accepted: [.disconnected, .invalid], timeout: 15) {
-                    session.stopTunnel()
-                }
-            }
+            try await stopProfile(vpn)
             runStatusObserver()
             return await commandResult(.success)
         } catch {
@@ -776,7 +858,27 @@ class VPNManager {
         #endif
     }
 
+    private func stopProfile(_ manager: NETunnelProviderManager) async throws {
+        if manager.isOnDemandEnabled || manager.onDemandRules != nil {
+            manager.isOnDemandEnabled = false
+            manager.onDemandRules = nil
+            try await manager.saveToPreferences()
+            try await manager.loadFromPreferences()
+        }
+        guard let session = manager.connection as? NETunnelProviderSession else {
+            throw VPNError.sessionNotReady
+        }
+        if session.status == .disconnecting {
+            try await waitForStatus(session: session, accepted: [.disconnected, .invalid], timeout: 15)
+        } else if session.status != .disconnected && session.status != .invalid {
+            try await waitForStatus(session: session, accepted: [.disconnected, .invalid], timeout: 15) {
+                session.stopTunnel()
+            }
+        }
+    }
+
     private func saveVpn(vpn: NETunnelProviderManager, tun: TunJson, request: StartVpnRequest? = nil) async throws {
+        try requireProfileMutationAllowed()
         vpn.isEnabled = true
         if let conf = vpn.protocolConfiguration as? NETunnelProviderProtocol {
             applyAppleNetworkRouting(conf, tun: tun)

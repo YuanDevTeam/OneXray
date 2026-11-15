@@ -4,12 +4,14 @@ import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
+import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/service/connect/failure.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/advanced/policy_editor.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/advanced/tunnel/interface.dart';
+import 'package:onexray/service/advanced/tunnel/apple/removal.dart';
 import 'package:onexray/service/shared/failure.dart';
 
 enum TunnelDestination { dns, network, apple, android, windows, interface }
@@ -44,6 +46,11 @@ class PolicyEditorPageState {
   final List<OutboundInterfaceOption> interfaces;
   final bool interfacesLoading;
   final bool interfacesFailed;
+  final bool? appleSystemExtension;
+  final bool appleVpnRemovalLoading;
+  final bool appleVpnRemovalBusy;
+  final String? appleVpnRemovalError;
+  final bool appleVpnRemovalRestartRequired;
 
   PolicyEditorPageState({
     this.draft,
@@ -57,6 +64,11 @@ class PolicyEditorPageState {
     List<OutboundInterfaceOption> interfaces = const [],
     this.interfacesLoading = true,
     this.interfacesFailed = false,
+    this.appleSystemExtension,
+    this.appleVpnRemovalLoading = false,
+    this.appleVpnRemovalBusy = false,
+    this.appleVpnRemovalError,
+    this.appleVpnRemovalRestartRequired = false,
   }) : androidAppNames = Map<String, String>.unmodifiable(androidAppNames),
        interfaces = List<OutboundInterfaceOption>.unmodifiable(interfaces);
 
@@ -72,6 +84,11 @@ class PolicyEditorPageState {
     List<OutboundInterfaceOption>? interfaces,
     bool? interfacesLoading,
     bool? interfacesFailed,
+    Object? appleSystemExtension = _notProvided,
+    bool? appleVpnRemovalLoading,
+    bool? appleVpnRemovalBusy,
+    Object? appleVpnRemovalError = _notProvided,
+    bool? appleVpnRemovalRestartRequired,
   }) => PolicyEditorPageState(
     draft: identical(draft, _notProvided)
         ? this.draft
@@ -91,11 +108,23 @@ class PolicyEditorPageState {
     interfaces: interfaces ?? this.interfaces,
     interfacesLoading: interfacesLoading ?? this.interfacesLoading,
     interfacesFailed: interfacesFailed ?? this.interfacesFailed,
+    appleSystemExtension: identical(appleSystemExtension, _notProvided)
+        ? this.appleSystemExtension
+        : appleSystemExtension as bool?,
+    appleVpnRemovalLoading:
+        appleVpnRemovalLoading ?? this.appleVpnRemovalLoading,
+    appleVpnRemovalBusy: appleVpnRemovalBusy ?? this.appleVpnRemovalBusy,
+    appleVpnRemovalError: identical(appleVpnRemovalError, _notProvided)
+        ? this.appleVpnRemovalError
+        : appleVpnRemovalError as String?,
+    appleVpnRemovalRestartRequired:
+        appleVpnRemovalRestartRequired ?? this.appleVpnRemovalRestartRequired,
   );
 }
 
 class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   final PolicyEditorService service;
+  final AppleVpnRemovalService appleVpnRemoval;
   final _dnsFocusNodes = <TunnelDnsField, FocusNode>{};
   final _dnsTouched = <TunnelDnsField>{};
   bool _dnsSubmitted = false;
@@ -103,13 +132,23 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   PolicyEditorController({
     PolicyEditorDraft? draft,
     PolicyEditorService? service,
-  }) : this._(draft, service ?? PolicyEditorService());
+    AppleVpnRemovalService? appleVpnRemoval,
+  }) : this._(draft, service ?? PolicyEditorService(), appleVpnRemoval);
 
-  PolicyEditorController._(PolicyEditorDraft? draft, this.service)
-    : super(
+  PolicyEditorController._(
+    PolicyEditorDraft? draft,
+    this.service,
+    AppleVpnRemovalService? appleVpnRemoval,
+  ) : appleVpnRemoval =
+          appleVpnRemoval ??
+          AppleVpnRemovalService(coordinator: service.coordinator),
+      super(
         PolicyEditorPageState(
           draft: draft?.copy(),
           connection: service.coordinator.state.value,
+          appleSystemExtension: service.platform == ConnectionPlatform.ios
+              ? false
+              : null,
         ),
       ) {
     service.coordinator.state.addListener(_connectionChanged);
@@ -121,7 +160,10 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   bool get busy => state.busy;
   String? get error => state.error;
   bool get connected => state.connection.phase == ConnectionPhase.connected;
-  bool get blocked => state.busy;
+  bool get blocked => state.busy || state.appleVpnRemovalBusy;
+  bool get supportsAppleVpnRemoval =>
+      platform == ConnectionPlatform.ios ||
+      platform == ConnectionPlatform.macos;
   bool get runtimeBusy => state.connection.busy;
   Map<String, dynamic> get value => state.draft!.policy;
   Map<String, dynamic> group(String key) => value[key] as Map<String, dynamic>;
@@ -207,6 +249,7 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   }
 
   Future<void> load(BuildContext context) async {
+    if (state.appleVpnRemovalBusy) return;
     _dnsTouched.clear();
     _dnsSubmitted = false;
     emit(state.copyWith(busy: true, error: null, dnsFailure: null));
@@ -223,6 +266,94 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
       }
     } finally {
       emit(state.copyWith(busy: false));
+    }
+  }
+
+  Future<void> loadAppleVpnRemoval(BuildContext context) async {
+    if (!supportsAppleVpnRemoval ||
+        state.appleSystemExtension != null ||
+        state.appleVpnRemovalLoading) {
+      return;
+    }
+    emit(
+      state.copyWith(appleVpnRemovalLoading: true, appleVpnRemovalError: null),
+    );
+    try {
+      final systemExtension = await appleVpnRemoval.useSystemExtension();
+      emit(state.copyWith(appleSystemExtension: systemExtension));
+    } catch (error) {
+      if (context.mounted) {
+        final l = AppLocalizations.of(context)!;
+        emit(
+          state.copyWith(
+            appleVpnRemovalError: appFailureMessage(
+              l,
+              error,
+              operation: l.tunnelVpnRemovalEditionFailed,
+            ),
+          ),
+        );
+      }
+    } finally {
+      emit(state.copyWith(appleVpnRemovalLoading: false));
+    }
+  }
+
+  Future<void> removeAppleVpn(BuildContext context) async {
+    final systemExtension = state.appleSystemExtension;
+    if (!supportsAppleVpnRemoval ||
+        systemExtension == null ||
+        blocked ||
+        runtimeBusy ||
+        state.appleVpnRemovalRestartRequired) {
+      return;
+    }
+    final l = AppLocalizations.of(context)!;
+    final label = systemExtension
+        ? l.tunnelUninstallSystemExtension
+        : l.tunnelDeleteVpnConfiguration;
+    emit(state.copyWith(appleVpnRemovalBusy: true));
+    try {
+      if (!await AppConfirmationDialog(
+            title: label,
+            content: systemExtension
+                ? l.tunnelUninstallSystemExtensionConfirmation
+                : l.tunnelDeleteVpnConfigurationConfirmation,
+            cancelLabel: l.prototypeCancel,
+            confirmLabel: label,
+            destructive: true,
+            barrierDismissible: false,
+          ).show(context) ||
+          !context.mounted ||
+          !isPageActive) {
+        return;
+      }
+      emit(state.copyWith(appleVpnRemovalError: null));
+      final result = await appleVpnRemoval.remove();
+      final restartRequired = result == AppleVpnRemovalResult.restartRequired;
+      emit(state.copyWith(appleVpnRemovalRestartRequired: restartRequired));
+      if (context.mounted) {
+        ContextAlert.showToast(
+          context,
+          restartRequired
+              ? l.tunnelSystemExtensionRestartRequired
+              : systemExtension
+              ? l.tunnelSystemExtensionRemoved
+              : l.tunnelVpnConfigurationRemoved,
+        );
+      }
+    } catch (error) {
+      emit(
+        state.copyWith(
+          appleVpnRemovalError: appFailureMessage(
+            l,
+            error,
+            operation: l.tunnelVpnRemovalFailed,
+          ),
+        ),
+      );
+    } finally {
+      emit(state.copyWith(appleVpnRemovalBusy: false));
     }
   }
 

@@ -6,6 +6,7 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/shared/alert.dart';
+import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/color.dart';
@@ -26,6 +27,7 @@ class VpnTunnelPane extends StatelessWidget {
     create: (context) {
       final controller = createController?.call() ?? PolicyEditorController();
       if (controller.draft == null) controller.load(context);
+      controller.loadAppleVpnRemoval(context);
       return controller;
     },
     child: BlocBuilder<PolicyEditorController, PolicyEditorPageState>(
@@ -201,6 +203,8 @@ class VpnTunnelPane extends StatelessWidget {
                       child: Text(l.prototypeRestoreDefaults),
                     ),
                   ),
+                  if (controller.supportsAppleVpnRemoval)
+                    _removalSection(context, controller, l),
                 ],
               ),
             ),
@@ -216,6 +220,101 @@ class VpnTunnelPane extends StatelessWidget {
               : null,
         );
       },
+    ),
+  );
+
+  Widget _removalSection(
+    BuildContext context,
+    PolicyEditorController controller,
+    AppLocalizations l,
+  ) {
+    final state = controller.state;
+    final palette = ColorManager.palette(context);
+    final systemExtension = state.appleSystemExtension;
+    final enabled =
+        !controller.blocked &&
+        !controller.runtimeBusy &&
+        !state.appleVpnRemovalRestartRequired;
+    return SettingSection(
+      key: const ValueKey('tunnel-apple-vpn-removal'),
+      title: l.tunnelSystemManagement,
+      children: [
+        if (systemExtension == null)
+          SettingRow(
+            key: const ValueKey('tunnel-apple-vpn-removal-edition'),
+            title: state.appleVpnRemovalLoading
+                ? l.tunnelVpnRemovalChecking
+                : l.prototypeRetry,
+            leading: const Icon(LucideIcons.refreshCw),
+            enabled: !state.appleVpnRemovalLoading && !controller.blocked,
+            onTap: state.appleVpnRemovalLoading || controller.blocked
+                ? null
+                : () => controller.loadAppleVpnRemoval(context),
+            trailing: state.appleVpnRemovalLoading
+                ? const ButtonProgressIndicator()
+                : null,
+          )
+        else
+          SettingRow(
+            key: const ValueKey('tunnel-remove-apple-vpn'),
+            title: systemExtension
+                ? l.tunnelUninstallSystemExtension
+                : l.tunnelDeleteVpnConfiguration,
+            titleMaxLines: 4,
+            leading: Icon(
+              systemExtension ? LucideIcons.packageMinus : LucideIcons.trash2,
+              color: palette.destructive,
+            ),
+            titleStyle: AppTypography.rowTitle.copyWith(
+              color: palette.destructive,
+            ),
+            enabled: enabled,
+            onTap: enabled ? () => controller.removeAppleVpn(context) : null,
+            trailing: state.appleVpnRemovalBusy
+                ? const ButtonProgressIndicator()
+                : null,
+          ),
+        if (state.appleVpnRemovalRestartRequired)
+          _removalNotice(
+            text: l.tunnelSystemExtensionRestartRequired,
+            color: palette.restartingText,
+            icon: LucideIcons.rotateCw,
+            key: const ValueKey('tunnel-apple-vpn-restart-required'),
+          ),
+        if (state.appleVpnRemovalError != null)
+          _removalNotice(
+            text: state.appleVpnRemovalError!,
+            color: palette.destructive,
+            icon: LucideIcons.circleAlert,
+            key: const ValueKey('tunnel-apple-vpn-removal-error'),
+          ),
+      ],
+    );
+  }
+
+  Widget _removalNotice({
+    required Key key,
+    required String text,
+    required Color color,
+    required IconData icon,
+  }) => Semantics(
+    key: key,
+    liveRegion: true,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SelectableText(
+              text,
+              style: AppTypography.supporting.copyWith(color: color),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 

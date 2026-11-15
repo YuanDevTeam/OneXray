@@ -123,13 +123,14 @@ void main() {
         final l = AppLocalizations.of(
           tester.element(find.byType(VpnTunnelPane)),
         )!;
-        expect(find.byType(SettingSection), findsNWidgets(2));
+        expect(find.byType(SettingSection), findsNWidgets(3));
         expect(find.byType(TextField), findsNothing);
         expect(find.byType(PolicyActions), findsNothing);
         expect(find.text('iOS'), findsOneWidget);
         for (final key in [
           'tunnel-system-capture',
           'tunnel-connection-parameters',
+          'tunnel-apple-vpn-removal',
         ]) {
           final rect = tester.getRect(find.byKey(ValueKey(key)));
           expect(rect.left, greaterThanOrEqualTo(size.width <= 720 ? 16 : 28));

@@ -36,6 +36,9 @@ abstract class BridgeHostApi {
   @asyncCallback
   PlatformPermissionResult requestPlatformPermission();
 
+  @asyncCallback
+  AppleVpnRemovalResult removeAppleVpn();
+
   //android=======================
 
   @asyncCallback
@@ -181,6 +184,8 @@ enum PlatformPermissionState {
 }
 
 enum NativeVpnCommandState { success, waitingForPlatformPermission, failed }
+
+enum AppleVpnRemovalResult { removed, restartRequired }
 
 enum NativeLaunchAtLoginState {
   enabled,

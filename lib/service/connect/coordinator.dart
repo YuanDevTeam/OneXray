@@ -769,6 +769,33 @@ class ConnectionCoordinator with WidgetsBindingObserver {
     return _run(_stopForMaintenance);
   }
 
+  /// Keep platform maintenance in the same queue as connection changes. Data
+  /// cleanup waits for this command too, rather than sharing its pause marker.
+  Future<T> withStoppedVpn<T>(Future<T> Function() action) {
+    _invalidateStartupProbe();
+    cancel();
+    Future<T> run() => _commands.run(() async {
+      late T result;
+      await _executeCommand(() async {
+        await _stopForMaintenance();
+        state.value = const ConnectionView(
+          phase: ConnectionPhase.disconnecting,
+        );
+        try {
+          result = await action();
+        } finally {
+          try {
+            _publish(await _inspect(await _currentRuntime()));
+          } catch (error) {
+            await _publishHostFailure('runtimeUnavailable', error: error);
+          }
+        }
+      });
+      return result;
+    });
+    return _ready ? run() : initialize().then((_) => run());
+  }
+
   Future<void> pauseForDataClear() {
     _invalidateStartupProbe();
     cancel();

@@ -218,6 +218,11 @@ enum NativeVpnCommandState: Int, CaseIterable {
   case failed = 2
 }
 
+enum AppleVpnRemovalResult: Int, CaseIterable {
+  case removed = 0
+  case restartRequired = 1
+}
+
 enum NativeLaunchAtLoginState: Int, CaseIterable {
   case enabled = 0
   case disabled = 1
@@ -551,22 +556,28 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 133:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return NativeLaunchAtLoginState(rawValue: enumResultAsInt)
+        return AppleVpnRemovalResult(rawValue: enumResultAsInt)
       }
       return nil
     case 134:
-      return AndroidAutomationSettings.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return NativeLaunchAtLoginState(rawValue: enumResultAsInt)
+      }
+      return nil
     case 135:
-      return BackupLocation.fromList(self.readValue() as! [Any?])
+      return AndroidAutomationSettings.fromList(self.readValue() as! [Any?])
     case 136:
-      return AppleVpnCapabilities.fromList(self.readValue() as! [Any?])
+      return BackupLocation.fromList(self.readValue() as! [Any?])
     case 137:
-      return NativeLaunchAtLoginResult.fromList(self.readValue() as! [Any?])
+      return AppleVpnCapabilities.fromList(self.readValue() as! [Any?])
     case 138:
-      return PlatformPermissionResult.fromList(self.readValue() as! [Any?])
+      return NativeLaunchAtLoginResult.fromList(self.readValue() as! [Any?])
     case 139:
-      return NativeVpnCommandResult.fromList(self.readValue() as! [Any?])
+      return PlatformPermissionResult.fromList(self.readValue() as! [Any?])
     case 140:
+      return NativeVpnCommandResult.fromList(self.readValue() as! [Any?])
+    case 141:
       return AndroidAppInfo.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -588,29 +599,32 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? NativeVpnCommandState {
       super.writeByte(132)
       super.writeValue(value.rawValue)
-    } else if let value = value as? NativeLaunchAtLoginState {
+    } else if let value = value as? AppleVpnRemovalResult {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? AndroidAutomationSettings {
+    } else if let value = value as? NativeLaunchAtLoginState {
       super.writeByte(134)
-      super.writeValue(value.toList())
-    } else if let value = value as? BackupLocation {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? AndroidAutomationSettings {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? AppleVpnCapabilities {
+    } else if let value = value as? BackupLocation {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? NativeLaunchAtLoginResult {
+    } else if let value = value as? AppleVpnCapabilities {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? PlatformPermissionResult {
+    } else if let value = value as? NativeLaunchAtLoginResult {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? NativeVpnCommandResult {
+    } else if let value = value as? PlatformPermissionResult {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? AndroidAppInfo {
+    } else if let value = value as? NativeVpnCommandResult {
       super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? AndroidAppInfo {
+      super.writeByte(141)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -642,6 +656,7 @@ protocol BridgeHostApi {
   func invoke(requestJson: String, completion: @escaping (Result<String, Error>) -> Void)
   func queryPlatformPermission(completion: @escaping (Result<PlatformPermissionResult, Error>) -> Void)
   func requestPlatformPermission(completion: @escaping (Result<PlatformPermissionResult, Error>) -> Void)
+  func removeAppleVpn(completion: @escaping (Result<AppleVpnRemovalResult, Error>) -> Void)
   func getInstalledApps(completion: @escaping (Result<[AndroidAppInfo], Error>) -> Void)
   func getAppIcon(packageName: String, completion: @escaping (Result<FlutterStandardTypedData?, Error>) -> Void)
   func useSystemExtension(completion: @escaping (Result<Bool, Error>) -> Void)
@@ -765,6 +780,21 @@ class BridgeHostApiSetup {
       }
     } else {
       requestPlatformPermissionChannel.setMessageHandler(nil)
+    }
+    let removeAppleVpnChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.BridgeHostApi.removeAppleVpn\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      removeAppleVpnChannel.setMessageHandler { _, reply in
+        api.removeAppleVpn { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      removeAppleVpnChannel.setMessageHandler(nil)
     }
     let getInstalledAppsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.BridgeHostApi.getInstalledApps\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
