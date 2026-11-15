@@ -21,11 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="#system-requirements">System requirements</a> · <a href="#linux">Linux</a> · <a href="#onexrayse">OneXraySE</a> · <a href="#other-downloads">Other downloads</a>
-</p>
-
-<p align="center">
-  If OneXray is useful to you, give this repository a ⭐ <strong>Star</strong> to support its continued development.
+  <a href="https://onexray.com/docs/">Documentation</a> · <a href="https://onexray.com/docs/install/">Installation</a> · <a href="https://onexray.com/docs/system-requirements/">System requirements</a>
 </p>
 
 <p align="center">
@@ -37,113 +33,31 @@
 
 [![OneXray running on Mac, iPad and iPhone](https://onexray.com/images/screenshots/devices-en.png?v=20261113)](https://onexray.com/images/screenshots/devices-en.png?v=20261113)
 
-## Why OneXray
+## Features
 
-- **Across your devices.** Use iPhone, iPad, Mac, Android, Windows or Linux, with light/dark themes and five interface languages.
-- **Your servers, organized.** Import share links, Xray JSON and subscriptions. Group manual nodes and reorder them by dragging.
-- **Routing you control.** Choose Smart or Custom Routing, or use complete Raw and provider configurations, including Remnawave subscriptions.
-- **Open and private.** GPL-3.0 source with a [VPN provider exception](#license), without accounts, advertising, analytics or tracking. [Privacy policy](https://onexray.com/docs/privacy/).
+- iPhone, iPad, Mac, Android, Windows and Linux, with light/dark themes and five interface languages.
+- Share links, Xray JSON, subscriptions, manual groups and server testing.
+- Smart and Custom Routing, Raw JSON and complete provider configurations, including Remnawave.
+- No accounts, advertising, analytics or tracking. [Privacy policy](https://onexray.com/docs/privacy/).
 
-## System requirements
+## Downloads
 
-The current official packages require the following operating systems and architectures:
+Use the official store buttons above. See the [system requirements](https://onexray.com/docs/system-requirements/) and [installation guide](https://onexray.com/docs/install/) for supported devices, standalone packages and updates.
 
-| Platform | Minimum operating system | Supported architectures |
-| --- | --- | --- |
-| iPhone / iPad | iOS / iPadOS 16 | arm64 |
-| macOS (Mac App Store) | macOS 13 | Apple silicon (arm64), Intel (x86_64) |
-| macOS (OneXraySE) | macOS 13 | Apple silicon (arm64), Intel (x86_64) |
-| Android | Android 10 (API 29) | arm64-v8a, x86_64; 32-bit devices are not supported |
-| Windows x64 | Windows 10 20H2 (build 19042) | x64 (x86_64) |
-| Windows ARM64 | Windows 11 | ARM64 |
-| Linux (DEB / RPM / ZIP) | Ubuntu 24.04 LTS or compatible distributions, with Linux kernel 5.3+, glibc 2.39+, GLib 2.80+ and the GTK 3 runtime | x86_64, arm64 |
+- **Linux:** [DEB and ZIP](https://onexray.com/docs/install/#linux) · [Fedora ZIP](https://onexray.com/docs/install/#linux-zip-fedora) · [Arch Linux ZIP](https://onexray.com/docs/install/#linux-zip-arch).
+- **OneXraySE for macOS:** [Homebrew](https://formulae.brew.sh/cask/onexrayse) · [System Extension setup](https://onexray.com/docs/install/#macos).
+- **APK, IPA and Windows installers:** [Installation guide](https://onexray.com/docs/install/) · [All releases](https://github.com/YuanDevTeam/OneXray/releases).
 
-Ubuntu 22.04's system GLib 2.72 does not meet the current official Linux package requirements. Use Ubuntu 24.04 LTS or another distribution that meets all the requirements above.
+## Documentation and support
 
-See the [system requirements guide](https://onexray.com/docs/system-requirements/) for details.
+[First connection](https://onexray.com/docs/getting-started/) · [Import servers](https://onexray.com/docs/servers/import/) · [Routing](https://onexray.com/docs/connect/smart-routing/) · [Configure with AI](https://onexray.com/docs/ai/) · [All documentation](https://onexray.com/docs/)
 
-## Get started
+[Report a bug or request a feature](https://github.com/YuanDevTeam/OneXray/issues) with your App/Core versions and reproduction steps; remove credentials from configurations and logs. Join the [Telegram community](https://t.me/YuanDevTeam).
 
-1. Install from the official store and complete setup and system permissions. Windows and Linux also need an outbound-interface selection.
-2. Open **Servers** and add your subscription, share links or Xray JSON. Complete provider configurations are recognized during subscription import.
-3. On **Connect**, choose a server or complete configuration and start the VPN. For App-managed nodes, Smart Routing is a useful starting point; provider configurations use their own routing and DNS.
-
-[First connection guide](https://onexray.com/docs/getting-started/) · [Import guide](https://onexray.com/docs/servers/import/) · [Remnawave guide](https://onexray.com/docs/servers/remnawave/)
-
-## Download
-
-Check the [system requirements](#system-requirements), then choose the official store for your device:
-
-- **iPhone / iPad:** [App Store](https://apps.apple.com/us/app/onexray/id6745748773).
-- **macOS:** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773).
-- **Android phones / tablets:** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray).
-- **Windows:** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D).
-
-### Linux
-
-[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb)
-
-[RPM · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.rpm) · [RPM · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.rpm)
-
-On Fedora, install the downloaded RPM with:
-
-```shell
-sudo dnf install ./OneXray-linux-x86_64.rpm
-```
-
-Use `OneXray-linux-aarch64.rpm` for arm64. RPM installation and upgrades install the required dependencies and automatically grant `OneXrayCore` its network capabilities; run the app as your normal user. ZIP installations still need manual Core permission setup. Check the [Linux system requirements](#system-requirements) and see the [Linux installation guide](https://onexray.com/docs/install/#linux) for ZIP dependencies and permissions.
-
-### OneXraySE
-
-The macOS System Extension edition is available through [Homebrew](https://formulae.brew.sh/cask/onexrayse) or [Universal ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-macos-universal.zip). Check the [system requirements](#system-requirements) and follow the [macOS installation guide](https://onexray.com/docs/install/#macos) for extension approval and updates.
-
-### Other downloads
-
-<details>
-<summary>Direct packages and installation details</summary>
-
-| Platform | Packages |
-| --- | --- |
-| iPhone / iPad | [IPA](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-ios.ipa) |
-| Android | [Universal APK](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-android-universal.apk) |
-| Windows x64 | [EXE via winget](https://onexray.com/docs/install/#windows) · [ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-windows-amd64.zip) |
-| Windows ARM64 | [EXE via winget](https://onexray.com/docs/install/#windows) · [ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-windows-arm64.zip) |
-| Linux x86_64 | [ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.zip) |
-| Linux arm64 | [ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.zip) |
-
-The [installation guide](https://onexray.com/docs/install/) covers IPA signing, Windows editions and separate data locations, ZIP permissions and updates. [All releases](https://github.com/YuanDevTeam/OneXray/releases).
-
-</details>
-
-## Configuration and help
-
-- [User documentation](https://onexray.com/docs/) — setup, routing, subscriptions and platform features.
-- [Configure with AI](https://onexray.com/docs/ai/) — copy the guide's prompt into an assistant you trust, or attach the [complete guide](https://onexray.com/llms-full.txt). OneXray has no built-in AI service and does not send configurations to an assistant; review generated JSON in the App before connecting.
-- [Report a bug or request a feature](https://github.com/YuanDevTeam/OneXray/issues) — include your platform, App/Core versions and reproduction steps. Remove credentials from shared configurations, subscription links and logs.
-- [Telegram community](https://t.me/YuanDevTeam).
-
-## Support OneXray
-
-Enjoy OneXray? Give this repository a ⭐ **Star** to support its continued development.
-
-[App Store](https://apps.apple.com/us/app/onexray/id6745748773) · [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray) · [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D)
-
-Code, translations and documentation contributions are welcome. Start with the [development setup](./readme/FIRST_RUN.md), [build guide](./build_scripts/README.md) and [App contracts](./docs/README.md).
+Contributions are welcome: [development setup](./readme/FIRST_RUN.md) · [build guide](./build_scripts/README.md) · [App contracts](./docs/README.md).
 
 ## License
 
-OneXray is licensed under the [GNU General Public License v3.0](./LICENSE), with the [OneXray VPN Provider Exception](./LICENSE-EXCEPTION).
+[GPL-3.0](./LICENSE), with the [VPN Provider Exception](./LICENSE-EXCEPTION). The exception permits dedicated closed-source clients only for the provider's own VPN service, without general-purpose third-party configuration or subscription support, and requires visible in-app OneXray attribution and a project link. See the full exception for all conditions and third-party obligations.
 
-VPN service providers may build and distribute dedicated, customized closed-source clients that connect exclusively to their own VPN services without complying with the repository's GPL requirements for the code covered by the exception.
-
-To qualify, the client must not include general-purpose custom-configuration or subscription features, including the ability to import or use arbitrary third-party VPN or proxy configurations or subscription URLs. Configurations and subscriptions supplied by the provider solely for access to its own VPN service are permitted. Branding the client for the provider, distributing it only to the provider's subscribers, or making the provider's service the default is not sufficient if the client can also connect to third-party services.
-
-Each closed-source client distributed under this exception must clearly acknowledge that it is based on the OneXray project and include a link to [OneXray](https://github.com/YuanDevTeam/OneXray) in a reasonably accessible part of its user interface, such as an About, Credits or Open-source Notices screen.
-
-These conditions apply to eligibility for the exception. Other uses remain subject to the GPL or another applicable permission.
-
-Yuan Dev Team guarantees that it will not introduce direct third-party dependencies that require a qualifying customized client as a whole to be GPL-licensed or to disclose its source code under the GPL. Third-party licenses and their component-specific obligations still apply; the exception only covers rights Yuan Dev Team owns or is authorized to license.
-
-## Business inquiries
-
-For business partnerships, please email [yuan@yuandev.net](mailto:yuan@yuandev.net).
+Business inquiries: [yuan@yuandev.net](mailto:yuan@yuandev.net).
