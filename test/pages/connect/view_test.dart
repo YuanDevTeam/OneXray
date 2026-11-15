@@ -19,6 +19,7 @@ import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/service/connect/traffic.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/settings/backup/service.dart';
 
 void main() {
@@ -44,6 +45,7 @@ void main() {
     VoidCallback? onMethod,
     String method = 'Smart Routing',
     String? methodDetail,
+    bool proxyMode = false,
     List<CoreConfigData> raws = const [],
     int? activeRawId,
     VoidCallback? onAddServers,
@@ -62,6 +64,8 @@ void main() {
     method: method,
     methodDetail: methodDetail,
     methodEnabled: methodEnabled,
+    showCaptureMode: proxyMode,
+    proxyMode: proxyMode,
     onConnection: onConnection ?? () {},
     onAddServers: onAddServers ?? () {},
     onServer: onServer ?? () {},
@@ -91,6 +95,96 @@ void main() {
       ),
     ),
     home: Scaffold(body: child),
+  );
+
+  testWidgets(
+    'proxy states distinguish local runtime and publish endpoints only when ready',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1160, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      for (final phase in ConnectionPhase.values) {
+        await tester.pumpWidget(
+          app(
+            screen(
+              proxyMode: true,
+              view: ConnectionView(
+                phase: phase,
+                runtime: phase == ConnectionPhase.connected
+                    ? _runtime(proxy: true)
+                    : null,
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final l = AppLocalizations.of(
+          tester.element(find.byType(ConnectView)),
+        )!;
+        expect(
+          find.text(l.prototypeSystemVpn),
+          findsNothing,
+          reason: phase.name,
+        );
+        expect(find.textContaining('Protected for'), findsNothing);
+        expect(
+          find.byKey(const ValueKey('connection-proxy-endpoints')),
+          phase == ConnectionPhase.connected ? findsOneWidget : findsNothing,
+        );
+        if (phase == ConnectionPhase.connected) {
+          expect(find.text('http://127.0.0.1:10808'), findsOneWidget);
+          expect(find.text('socks5://127.0.0.1:10808'), findsOneWidget);
+          expect(find.byTooltip(l.desktopCopyProxyAddress), findsNWidgets(2));
+        }
+        expect(tester.takeException(), isNull);
+      }
+    },
+  );
+
+  testWidgets(
+    'proxy endpoints survive stop failure and reflect actual system ownership changes',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1160, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final runtime = _runtime(proxy: true, automaticSystemProxy: true);
+      for (final phase in [ConnectionPhase.connected, ConnectionPhase.failed]) {
+        for (final active in [true, false]) {
+          await tester.pumpWidget(
+            app(
+              screen(
+                proxyMode: true,
+                view: ConnectionView(
+                  phase: phase,
+                  runtime: runtime,
+                  systemProxyActive: active,
+                  issue: phase == ConnectionPhase.failed ? 'stopFailed' : null,
+                ),
+              ),
+            ),
+          );
+          await tester.pump();
+          final l = AppLocalizations.of(
+            tester.element(find.byType(ConnectView)),
+          )!;
+          expect(runtime.configuration.policy.autoSetSystemProxy, true);
+          expect(
+            find.byKey(const ValueKey('connection-proxy-endpoints')),
+            findsOneWidget,
+          );
+          expect(find.text('http://127.0.0.1:10808'), findsOneWidget);
+          expect(find.text('socks5://127.0.0.1:10808'), findsOneWidget);
+          expect(
+            find.text(l.desktopSystemProxyActive),
+            active ? findsWidgets : findsNothing,
+          );
+          expect(
+            find.text(l.desktopSystemProxyInactive),
+            active ? findsNothing : findsOneWidget,
+          );
+          expect(find.text(l.desktopProxyManualHint), findsNothing);
+          expect(tester.takeException(), isNull);
+        }
+      }
+    },
   );
 
   testWidgets('motion preferences retain busy feedback and cancellation', (
@@ -947,8 +1041,19 @@ void main() {
   });
 }
 
-ConnectionRuntime _runtime({String? rawName}) {
-  final configuration = ConnectionConfiguration();
+ConnectionRuntime _runtime({
+  String? rawName,
+  bool proxy = false,
+  bool automaticSystemProxy = false,
+}) {
+  final configuration = ConnectionConfiguration(
+    policy: proxy
+        ? PlatformPolicy.fromJson({
+            'captureMode': 'proxy',
+            'autoSetSystemProxy': automaticSystemProxy,
+          })
+        : null,
+  );
   return ConnectionRuntime.create(
     configuration: configuration,
     compiled: CompiledConnection(
@@ -964,12 +1069,16 @@ ConnectionRuntime _runtime({String? rawName}) {
       nodeTags: const {},
     ),
     rawName: rawName,
-    platform: ConnectionPlatform.android,
+    platform: proxy ? ConnectionPlatform.macos : ConnectionPlatform.android,
     request: StartVpnRequest(
-      configuration.policy.toTun(ConnectionPlatform.android),
-      null,
+      configuration.policy.toTun(
+        proxy ? ConnectionPlatform.macos : ConnectionPlatform.android,
+      ),
+      proxy ? '10808' : null,
       null,
       '{}',
+      captureMode: proxy ? 'proxy' : 'tun',
+      autoSetSystemProxy: automaticSystemProxy,
     ),
   );
 }

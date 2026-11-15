@@ -486,6 +486,98 @@ void main() {
     expect(coordinator.state.value.phase, ConnectionPhase.connected);
   });
 
+  test(
+    'a proxy exit during asset commit is reconciled after the command',
+    () async {
+      final events = StreamController<VpnStatus>.broadcast(sync: true);
+      final runtime = _runtime('proxy-commit', proxy: true);
+      var host = const HostConnection(VpnStatus.disconnected);
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      final coordinator = ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => host.runtime,
+        inspect: (_, {observedStatus}) async {
+          expect(
+            observedStatus,
+            isNull,
+            reason: 'Query the proxy host, not the NE event.',
+          );
+          return host;
+        },
+        prepare: (_, _) async => runtime,
+        start: (runtime) async =>
+            host = HostConnection(VpnStatus.connected, runtime: runtime),
+        statusEvents: events.stream,
+        observeStatus: () async {},
+        disposeStatus: () {},
+      );
+      addTearDown(coordinator.dispose);
+      addTearDown(events.close);
+      await coordinator.initialize(registerReferences: false);
+      final applying = coordinator.apply(
+        runtime.configuration,
+        connect: true,
+        writeAssets: () async {
+          entered.complete();
+          await release.future;
+        },
+      );
+      await entered.future;
+      host = const HostConnection(VpnStatus.disconnected);
+      events.add(VpnStatus.disconnected);
+      release.complete();
+      await applying;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(coordinator.state.value.runtime, isNull);
+    },
+  );
+
+  test(
+    'proxy notifications arriving during a status read trigger another read',
+    () async {
+      final events = StreamController<VpnStatus>.broadcast(sync: true);
+      final runtime = _runtime('proxy-refresh', proxy: true);
+      var host = HostConnection(VpnStatus.connected, runtime: runtime);
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      var pauseRead = false;
+      final coordinator = ConnectionCoordinator(
+        database: db,
+        readRuntime: () async => runtime,
+        inspect: (_, {observedStatus}) async {
+          expect(observedStatus, isNull);
+          final snapshot = host;
+          if (pauseRead) {
+            pauseRead = false;
+            entered.complete();
+            await release.future;
+          }
+          return snapshot;
+        },
+        statusEvents: events.stream,
+        observeStatus: () async {},
+        disposeStatus: () {},
+      );
+      addTearDown(coordinator.dispose);
+      addTearDown(events.close);
+      await coordinator.initialize(registerReferences: false);
+      pauseRead = true;
+      final reading = coordinator.refresh();
+      await entered.future;
+      host = const HostConnection(VpnStatus.disconnected);
+      events.add(VpnStatus.disconnected);
+      release.complete();
+      await reading;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+      expect(coordinator.state.value.runtime, isNull);
+    },
+  );
+
   testWidgets('a same-state native notification clears a monitoring error', (
     tester,
   ) async {
@@ -691,6 +783,7 @@ void main() {
         inspect: (_, {observedStatus}) async => HostConnection(
           VpnStatus.connected,
           runtime: _runtime('a'),
+          systemProxyActive: true,
           permission: PlatformPermissionResult(
             kind: PlatformPermissionKind.appleVpn,
             state: PlatformPermissionState.notRequired,
@@ -712,6 +805,7 @@ void main() {
     expect(coordinator.state.value.phase, ConnectionPhase.failed);
     expect(coordinator.state.value.runtime, isNotNull);
     expect(coordinator.state.value.issue, 'stopFailed');
+    expect(coordinator.state.value.systemProxyActive, isTrue);
   });
 
   test('initialization exposes a missing platform permission', () async {
@@ -2025,9 +2119,12 @@ ConnectionRuntime _runtime(
   List<int> entryIds = const [1],
   int? exitId,
   PlatformPolicy? policy,
+  bool proxy = false,
 }) {
   final configuration = ConnectionConfiguration(
-    policy: policy,
+    policy:
+        policy ??
+        (proxy ? PlatformPolicy.fromJson({'captureMode': 'proxy'}) : null),
     connection: ConnectionSettings(
       selection: entryIds.length == 1
           ? ServerSelection.server(entryIds.single)
@@ -2074,8 +2171,14 @@ ConnectionRuntime _runtime(
   return ConnectionRuntime.create(
     configuration: configuration,
     compiled: compiled,
-    platform: ConnectionPlatform.android,
-    request: StartVpnRequest(null, null, '18003', jsonEncode(invoke.toJson())),
+    platform: proxy ? ConnectionPlatform.macos : ConnectionPlatform.android,
+    request: StartVpnRequest(
+      null,
+      proxy ? '10808' : null,
+      '18003',
+      jsonEncode(invoke.toJson()),
+      captureMode: proxy ? 'proxy' : 'tun',
+    ),
   );
 }
 

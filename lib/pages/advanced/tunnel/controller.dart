@@ -51,6 +51,8 @@ class PolicyEditorPageState {
   final bool appleVpnRemovalBusy;
   final String? appleVpnRemovalError;
   final bool appleVpnRemovalRestartRequired;
+  final bool? systemProxySupported;
+  final bool systemProxyLoading;
 
   PolicyEditorPageState({
     this.draft,
@@ -69,6 +71,8 @@ class PolicyEditorPageState {
     this.appleVpnRemovalBusy = false,
     this.appleVpnRemovalError,
     this.appleVpnRemovalRestartRequired = false,
+    this.systemProxySupported,
+    this.systemProxyLoading = false,
   }) : androidAppNames = Map<String, String>.unmodifiable(androidAppNames),
        interfaces = List<OutboundInterfaceOption>.unmodifiable(interfaces);
 
@@ -89,6 +93,8 @@ class PolicyEditorPageState {
     bool? appleVpnRemovalBusy,
     Object? appleVpnRemovalError = _notProvided,
     bool? appleVpnRemovalRestartRequired,
+    bool? systemProxySupported,
+    bool? systemProxyLoading,
   }) => PolicyEditorPageState(
     draft: identical(draft, _notProvided)
         ? this.draft
@@ -119,6 +125,8 @@ class PolicyEditorPageState {
         : appleVpnRemovalError as String?,
     appleVpnRemovalRestartRequired:
         appleVpnRemovalRestartRequired ?? this.appleVpnRemovalRestartRequired,
+    systemProxySupported: systemProxySupported ?? this.systemProxySupported,
+    systemProxyLoading: systemProxyLoading ?? this.systemProxyLoading,
   );
 }
 
@@ -156,6 +164,29 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
 
   ConnectionPlatform get platform => service.platform;
   bool get supportsWindowsSystemVpn => service.supportsWindowsSystemVpn;
+  bool get supportsProxy => service.supportsProxy;
+  bool get proxyMode => supportsProxy && value['captureMode'] == 'proxy';
+  bool get activeProxy => state.connection.runtime?.isProxy ?? proxyMode;
+
+  Future<void> loadProxyCapability() async {
+    if (!supportsProxy ||
+        state.systemProxyLoading ||
+        state.systemProxySupported != null) {
+      return;
+    }
+    emit(state.copyWith(systemProxyLoading: true));
+    try {
+      final capability = await service.proxyCapability();
+      if (isPageActive) {
+        emit(state.copyWith(systemProxySupported: capability.supported));
+      }
+    } catch (_) {
+      if (isPageActive) emit(state.copyWith(systemProxySupported: false));
+    } finally {
+      if (isPageActive) emit(state.copyWith(systemProxyLoading: false));
+    }
+  }
+
   PolicyEditorDraft? get draft => state.draft;
   bool get busy => state.busy;
   String? get error => state.error;
@@ -422,6 +453,15 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   }
 
   String? validationHint(AppLocalizations l) {
+    if (proxyMode) {
+      final port = value['proxyPort'] as int;
+      if (port < 1024 || port > 65535) return l.localApiPortInvalid;
+      if (value['lanProxy']['enabled'] == true &&
+          value['lanProxy']['port'] == port) {
+        return l.desktopProxyPortConflict;
+      }
+      return null;
+    }
     if (ipv6Conflict) {
       return l.prototypeIpv6BypassConflict;
     }
@@ -435,7 +475,7 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
     return null;
   }
 
-  String saveLabel(AppLocalizations l) => connected
+  String saveLabel(AppLocalizations l) => state.connection.canDisconnect
       ? emptyIncluded
             ? l.prototypeDisconnectVpn
             : l.prototypeSaveAndReconnect

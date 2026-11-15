@@ -18,6 +18,8 @@ ConnectionPlatform get connectionPlatform => switch (Platform.operatingSystem) {
 
 enum TunnelDnsField { ipv4, ipv6, serverName }
 
+enum CaptureMode { tun, proxy }
+
 final class TunnelDnsValidationException extends FormatException {
   final TunnelDnsField field;
 
@@ -34,6 +36,13 @@ final class PlatformPolicy {
 
   factory PlatformPolicy.fromJson(Map<String, dynamic> value) {
     final policy = _readPolicyObject(_defaults, value);
+    if (!CaptureMode.values.any((mode) => mode.name == policy['captureMode'])) {
+      throw const FormatException('Invalid desktop capture mode');
+    }
+    final proxyPort = policy['proxyPort'] as int;
+    if (proxyPort < 1024 || proxyPort > 65535) {
+      throw const FormatException('Proxy port must be between 1024 and 65535');
+    }
     policy['dialing'] = ServerDialingSettings.fromJson(
       policy['dialing'] as Map<String, dynamic>,
     ).toJson();
@@ -79,12 +88,28 @@ final class PlatformPolicy {
     if (port < 1024 || port > 65535) {
       throw const FormatException('Proxy port must be between 1024 and 65535');
     }
+    if (policy['captureMode'] == 'proxy' &&
+        sharing['enabled'] == true &&
+        proxyPort == port) {
+      throw const FormatException(
+        'Local proxy port conflicts with LAN sharing',
+      );
+    }
     return PlatformPolicy._(policy);
   }
 
   Map<String, dynamic> toJson() => jsonDecode(_json) as Map<String, dynamic>;
 
   bool get ipv6Enabled => toJson()['ipv6Enabled'] as bool;
+  CaptureMode get captureMode =>
+      CaptureMode.values.byName(toJson()['captureMode'] as String);
+  bool get autoSetSystemProxy => toJson()['autoSetSystemProxy'] as bool;
+  int get proxyPort => toJson()['proxyPort'] as int;
+  bool usesProxy(ConnectionPlatform platform) =>
+      captureMode == CaptureMode.proxy &&
+      (platform == ConnectionPlatform.macos ||
+          platform == ConnectionPlatform.windows ||
+          platform == ConnectionPlatform.linux);
   ServerDialingSettings get dialing => ServerDialingSettings.fromJson(
     toJson()['dialing'] as Map<String, dynamic>,
   );
@@ -105,6 +130,7 @@ final class PlatformPolicy {
 
   /// Native DNS setters require IP literals; Xray DNS syntax is independent.
   void validateDns(ConnectionPlatform platform, {WindowsMode? windowsMode}) {
+    if (usesProxy(platform)) return;
     void checkAddress(
       String value,
       InternetAddressType family,
@@ -151,6 +177,9 @@ final class PlatformPolicy {
 
   /// Compiles for a real start. Inactive platform drafts remain in [toJson].
   TunJson toTun(ConnectionPlatform platform, {WindowsMode? windowsMode}) {
+    if (usesProxy(platform)) {
+      return TunJson.fromJson({'enableIPv6': ipv6Enabled});
+    }
     validateDns(platform, windowsMode: windowsMode);
     final policy = toJson();
     final tun = <String, dynamic>{
@@ -260,6 +289,9 @@ final class PlatformPolicy {
 }
 
 const _defaults = <String, dynamic>{
+  'captureMode': 'tun',
+  'autoSetSystemProxy': false,
+  'proxyPort': 10808,
   'ipv6Enabled': true,
   'dialing': {'domainStrategy': 'system', 'happyEyeballs': false},
   'dnsIpv4Address': '8.8.8.8',

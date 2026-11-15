@@ -232,6 +232,8 @@ class ConnectionRuntime {
       request.coreInvokeText,
       snapshotToken: request.snapshotToken,
       metadataJson: metadataJson,
+      captureMode: request.captureMode,
+      autoSetSystemProxy: request.autoSetSystemProxy,
     );
     return ConnectionRuntime._(
       configuration: configuration,
@@ -315,6 +317,13 @@ class ConnectionRuntime {
 
   String get identity =>
       '${startedAt.microsecondsSinceEpoch}:${request.metricsPort}';
+  bool get isProxy =>
+      request.captureMode == 'proxy' &&
+      const {
+        ConnectionPlatform.macos,
+        ConnectionPlatform.windows,
+        ConnectionPlatform.linux,
+      }.contains(platform);
   Set<int> get nodeIds => {
     for (final entry in entries) entry.id,
     if (finalExit != null) finalExit!.id,

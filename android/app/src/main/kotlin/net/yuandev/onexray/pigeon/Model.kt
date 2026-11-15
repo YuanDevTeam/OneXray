@@ -51,6 +51,8 @@ data class StartVpnRequest(
     val coreInvokeText: String?,
     val snapshotToken: String? = null,
     val metadataJson: String? = null,
+    val captureMode: String? = null,
+    val autoSetSystemProxy: Boolean? = null,
 )
 
 @Serializable

@@ -4,6 +4,19 @@ import FlutterMacOS
 @main
 @MainActor
 class AppDelegate: FlutterAppDelegate {
+    private var terminatingProxy = false
+
+    override func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard DesktopProxyHost.shared.isActive else { return .terminateNow }
+        guard !terminatingProxy else { return .terminateLater }
+        terminatingProxy = true
+        Task {
+            _ = await DesktopProxyHost.shared.stop()
+            NSApp.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
     override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }

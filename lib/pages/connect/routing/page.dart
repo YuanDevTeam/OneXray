@@ -106,7 +106,9 @@ class _RoutingPageState extends State<RoutingPage> {
                         ),
                         _choice(
                           context,
-                          title: l.prototypeAllViaVpn,
+                          title: controller.proxyMode
+                              ? l.desktopAllViaProxy
+                              : l.prototypeAllViaVpn,
                           selected: settings.trafficMode == TrafficMode.allVpn,
                           icon: LucideIcons.shield,
                           useKey: const ValueKey('routing-use-all'),

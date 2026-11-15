@@ -1061,6 +1061,84 @@ interface BridgeHostApi {
     }
   }
 }
+/**
+ * macOS local proxy runtime; this does not create a VPN configuration.
+ *
+ * Generated interface from Pigeon that represents a handler of messages from Flutter.
+ */
+interface BridgeDesktopProxyApi {
+  fun startProxy(requestJson: String, callback: (Result<NativeVpnCommandResult>) -> Unit)
+  fun stopProxy(callback: (Result<NativeVpnCommandResult>) -> Unit)
+  fun readProxyStatus(callback: (Result<NativeVpnCommandResult>) -> Unit)
+
+  companion object {
+    /** The codec used by BridgeDesktopProxyApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      MessagesPigeonCodec()
+    }
+    /** Sets up an instance of `BridgeDesktopProxyApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: BridgeDesktopProxyApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.startProxy$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestJsonArg = args[0] as String
+            api.startProxy(requestJsonArg) { result: Result<NativeVpnCommandResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.stopProxy$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.stopProxy{ result: Result<NativeVpnCommandResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.readProxyStatus$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.readProxyStatus{ result: Result<NativeVpnCommandResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface AppleWidgetHostApi {
   fun takeAction(callback: (Result<String?>) -> Unit)

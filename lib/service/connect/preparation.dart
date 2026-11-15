@@ -195,8 +195,12 @@ class ConnectionPreparation {
       sourceMode = source.mode;
       originalSelectionName = source.name;
     }
-    await ConnectionPlatformRequirements(platform: platform)
-        .ensureOutboundInterface(policy.xrayOutboundInterfaceName);
+    final proxyMode = policy.usesProxy(platform);
+    final requirements = ConnectionPlatformRequirements(platform: platform);
+    await requirements.ensureOutboundInterface(
+      policy.xrayOutboundInterfaceName,
+      proxyMode: proxyMode,
+    );
     final tun = policy.toTun(platform);
     String? raw = rawDraft;
     String? rawName;
@@ -353,6 +357,11 @@ class ConnectionPreparation {
     }
     final shareLanProxy =
         profile == null && !settings.expert && policy.lanProxyEnabled;
+    if (proxyMode && policy.proxyPort == apiPort) {
+      throw const FormatException(
+        'Local proxy port conflicts with the HTTP API port',
+      );
+    }
     if (shareLanProxy && policy.lanProxyPort == apiPort) {
       throw const FormatException(
         'LAN proxy port conflicts with the HTTP API port',
@@ -360,7 +369,11 @@ class ConnectionPreparation {
     }
     final ports = await allocateRuntimePorts(
       userInbounds.cast<Map<String, dynamic>>(),
-      excludePorts: [?apiPort, if (shareLanProxy) policy.lanProxyPort],
+      excludePorts: [
+        ?apiPort,
+        if (shareLanProxy) policy.lanProxyPort,
+        if (proxyMode) policy.proxyPort,
+      ],
       getFreePorts: getFreePorts,
     );
     final compiled = ConnectionCompiler.compile(
@@ -373,8 +386,9 @@ class ConnectionPreparation {
       regions: regions,
       options: RuntimeOptions(
         platform: platform,
+        proxyMode: proxyMode,
         sessionDirectory: VpnConstants.runDir,
-        socksPort: ports[0],
+        socksPort: proxyMode ? policy.proxyPort : ports[0],
         metricsPort: ports[1],
         lanProxyEnabled: shareLanProxy,
         lanProxyPort: policy.lanProxyPort,
@@ -382,7 +396,7 @@ class ConnectionPreparation {
         dialing: policy.dialing,
         tunDnsIpv4Address: policy.dnsIpv4Address,
         tunDnsIpv6Address: policy.dnsIpv6Address,
-        interfaceName: policy.xrayOutboundInterfaceName,
+        interfaceName: proxyMode ? '' : policy.xrayOutboundInterfaceName,
         logEnabled: policy.logEnabled,
         logLevel: policy.logLevel,
         dnsLog: policy.recordDns,
@@ -420,9 +434,10 @@ class ConnectionPreparation {
     }
     final request = StartVpnRequest(
       tun,
-      platform == ConnectionPlatform.windows ||
+      proxyMode ||
+              platform == ConnectionPlatform.windows ||
               platform == ConnectionPlatform.ios
-          ? '${ports[0]}'
+          ? '${proxyMode ? policy.proxyPort : ports[0]}'
           : null,
       '${ports[1]}',
       jsonEncode(
@@ -431,6 +446,8 @@ class ConnectionPreparation {
           payload: RunXrayRequest(compiled.xrayJson).toJson(),
         ).toJson(),
       ),
+      captureMode: proxyMode ? 'proxy' : 'tun',
+      autoSetSystemProxy: proxyMode && policy.autoSetSystemProxy,
     );
     return ConnectionRuntime.create(
       configuration: configuration,

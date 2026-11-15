@@ -10,6 +10,39 @@ import 'package:path/path.dart' as p;
 import '../../support/test_directory.dart';
 
 void main() {
+  test(
+    'a proxy CLI needs only config while existing TUN arguments stay intact',
+    () {
+      expect(
+        desktopCoreRunArguments(
+          dns: '',
+          interfaceName: '',
+          configPath: '/proxy.json',
+          setDns: false,
+        ),
+        ['run', '-set-dns=false', '-config', '/proxy.json'],
+      );
+      expect(
+        desktopCoreRunArguments(
+          dns: '8.8.8.8',
+          interfaceName: 'Ethernet',
+          configPath: '/tun.json',
+          setDns: false,
+        ),
+        [
+          'run',
+          '-set-dns=false',
+          '-dns',
+          '8.8.8.8:53',
+          '-interface',
+          'Ethernet',
+          '-config',
+          '/tun.json',
+        ],
+      );
+    },
+  );
+
   test('builds protected desktop Core arguments', () {
     expect(
       desktopCoreRunArguments(

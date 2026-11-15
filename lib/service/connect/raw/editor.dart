@@ -257,13 +257,18 @@ class RawEditorService {
     ];
     return RuntimeOptions(
       platform: runtime?.platform ?? connectionPlatform,
+      proxyMode: policy.usesProxy(runtime?.platform ?? connectionPlatform),
       sessionDirectory: VpnConstants.runDir,
       metricsPort: metricsPort ?? comparisonPorts.removeAt(0),
-      socksPort: socksPort ?? comparisonPorts.removeAt(0),
+      socksPort: policy.usesProxy(runtime?.platform ?? connectionPlatform)
+          ? policy.proxyPort
+          : socksPort ?? comparisonPorts.removeAt(0),
       ipv6: policy.ipv6Enabled,
       tunDnsIpv4Address: policy.dnsIpv4Address,
       tunDnsIpv6Address: policy.dnsIpv6Address,
-      interfaceName: policy.xrayOutboundInterfaceName,
+      interfaceName: policy.usesProxy(runtime?.platform ?? connectionPlatform)
+          ? ''
+          : policy.xrayOutboundInterfaceName,
       logEnabled: policy.logEnabled,
       logLevel: policy.logLevel,
       dnsLog: policy.recordDns,

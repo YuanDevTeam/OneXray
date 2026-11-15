@@ -6,9 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
+import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
+import 'package:onexray/service/connect/compiler.dart';
+import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/menu/tray/entry.dart';
 import 'package:onexray/service/shared/menu/tray/service.dart';
@@ -40,6 +45,7 @@ void main() {
   late Completer<void> stopping;
   late Completer<HostConnection> stopped;
   late VpnStatus status;
+  ConnectionRuntime? runtime;
   final actions = binding.actions;
 
   Future<void> select(String key) => tray.onMenuAction(TrayMenuEntry(key: key));
@@ -47,14 +53,18 @@ void main() {
   setUp(() async {
     actions.clear();
     status = VpnStatus.connected;
+    runtime = null;
     stopping = Completer<void>();
     stopped = Completer<HostConnection>();
     final db = AppDatabase.forTesting(NativeDatabase.memory());
     addTearDown(db.close);
     coordinator = ConnectionCoordinator(
       database: db,
-      readRuntime: () async => null,
-      inspect: (_, {observedStatus}) async => HostConnection(status),
+      readRuntime: () async => runtime,
+      inspect: (_, {observedStatus}) async => HostConnection(
+        status,
+        runtime: status == VpnStatus.disconnected ? null : runtime,
+      ),
       stop: () async {
         actions.add('stop');
         stopping.complete();
@@ -116,6 +126,30 @@ void main() {
     );
   }
 
+  test(
+    'proxy Quit always stops its Core before exiting, including after failure',
+    () async {
+      runtime = _proxyRuntime();
+      await coordinator.refresh();
+      final quitting = select('quitApp');
+      await stopping.future.timeout(const Duration(seconds: 2));
+      expect(actions, ['stop']);
+      stopped.completeError(const ConnectionHostException('stopFailed'));
+      await quitting;
+      expect(actions, ['stop', 'showWindow']);
+      expect(coordinator.state.value.runtime?.isProxy, true);
+
+      stopping = Completer<void>();
+      stopped = Completer<HostConnection>();
+      final retry = select('quitApp');
+      await stopping.future.timeout(const Duration(seconds: 2));
+      expect(actions, ['stop', 'showWindow', 'stop']);
+      stopped.complete(const HostConnection(VpnStatus.disconnected));
+      await retry;
+      expect(actions, ['stop', 'showWindow', 'stop', 'stopped', 'exit']);
+    },
+  );
+
   if (independentVpn) {
     test('plain Quit exits without stopping the independent VPN', () async {
       await select('quitApp');
@@ -136,3 +170,17 @@ void main() {
     expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
   });
 }
+
+ConnectionRuntime _proxyRuntime() => ConnectionRuntime.create(
+  configuration: ConnectionConfiguration(
+    policy: PlatformPolicy.fromJson({'captureMode': 'proxy'}),
+  ),
+  compiled: CompiledConnection(
+    xrayJson: '{}',
+    entries: [],
+    finalExit: null,
+    nodeTags: {},
+  ),
+  platform: ConnectionPlatform.macos,
+  request: StartVpnRequest(null, '10808', null, '{}', captureMode: 'proxy'),
+);

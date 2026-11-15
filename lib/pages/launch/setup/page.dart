@@ -4,6 +4,7 @@ import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/launch/setup/controller.dart';
 import 'package:onexray/pages/launch/setup/view.dart';
 import 'package:onexray/service/launch/setup.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 
 export 'controller.dart' show SetupAction, SetupPageState;
 export 'privacy.dart' show SetupPrivacyPage, SetupPrivacyView;
@@ -26,7 +27,10 @@ class SetupPage extends StatelessWidget {
         final controller = context.read<SetupController>();
         return SetupView(
           state: state,
-          requiresInterface: controller.service.requiresInterface,
+          requiresInterface:
+              controller.service.requiresInterface &&
+              state.captureMode != CaptureMode.proxy,
+          supportsProxy: controller.service.supportsProxy,
           failureText: state.failure == null
               ? null
               : controller.failureText(AppLocalizations.of(context)!),

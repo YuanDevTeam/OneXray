@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -67,6 +68,14 @@ class _ConnectPageState extends State<ConnectPage> {
               }
               return ConnectView(
                 view: state.connectionView,
+                showCaptureMode:
+                    connectionPlatform == ConnectionPlatform.macos ||
+                    connectionPlatform == ConnectionPlatform.windows ||
+                    connectionPlatform == ConnectionPlatform.linux,
+                proxyMode: state.configuration.policy.usesProxy(
+                  connectionPlatform,
+                ),
+                proxyPort: state.configuration.policy.proxyPort,
                 trafficBuilder: (desktop) =>
                     BlocSelector<
                       ConnectController,

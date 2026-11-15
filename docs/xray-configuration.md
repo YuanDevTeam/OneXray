@@ -394,6 +394,29 @@ Cross-device connectivity, UDP, firewalls, lock screen and signed channels requi
 
 ## 隧道与平台策略
 
+桌面运行方式为 `captureMode: tun|proxy`，缺省 `tun`，独立于 Windows EXE/MSIX 与 macOS 普通版/SE 发行形式。
+`proxyPort` 缺省 10808，固定为可配置的 1024–65535 loopback 端口；占用或与运行、Raw 入站、LAN 共享及本地 API 冲突时明确失败，不自动换端口。
+`autoSetSystemProxy` 缺省关闭。三项均为本机偏好，备份不导出、恢复保留目标设备值；移动端始终使用 TUN。
+新启动请求显式携带实际运行方式，旧请求缺字段仍解释为 TUN，不根据 socksPort 或当前偏好改写旧输入。
+
+代理方式以私有 HTTP/SOCKS5 混合入站替代托管 `tunIn`，保留其 tag、路由、节点、metrics 与统计；不生成托管 TUN/WFP/系统路由/系统 DNS 接管或强制出口网卡。
+LAN 共享保持独立入口。高级模板、Raw 与提供方完整图只适配运行副本，额外 TUN 或端口冲突明确拒绝，存储原文不变。
+WireGuard 在代理运行副本使用 `noKernelTun: true`，防止已有 NET_ADMIN 触发内核 TUN；Raw/完整图显式要求 kernel TUN 时报告不兼容，不改写原文。
+代理只覆盖显式使用入口或遵从系统代理的应用，不承诺全部 UDP、DNS 或任意应用均被接管。
+
+macOS 普通版与 SE 使用同一套 Swift helper 源码，通过私有 socketpair 控制现有 libXray API；Runner 的测速/构造校验使用自身 libXray，不与长驻 Core 同进程重叠。
+普通版 helper 为 `net.yuandev.onexray.helper` / `OneXraymacOSHelper`，SE 为 `net.yuandev.onexray.se.helper` / `OneXraySEmacOSHelper`。
+helper 继承沙盒，代理方式不安装或激活 NE/SE。切换前仅查找本 App 已有 VPN profile，取消其 on-demand 并等待停止，不触碰其他 VPN。
+Windows EXE/MSIX 与 Linux 代理使用自身普通用户 Core 子进程及 `-set-dns=false`，不走旧提权、Vole/TUN、网卡或 capabilities 检查；已有安装包的 Core file capabilities 保留。
+
+自动系统代理仅在 Windows 当前用户策略允许、或 GNOME 所需 schema/session/逐键写权限可用时启用；macOS、KDE 和其他环境提供手动端点。
+Core 与本地入口就绪后，先保存本设备私有恢复记录，再写入并读回系统设置；真实接管状态与保存偏好分开显示。
+停止/失败/异常退出先条件还原仍归本次持有的设置，再释放 Core。外部修改保留；若仍指向本端点但无法安全还原，报告失败并保留可重试的运行及端点。
+自动模式只读观察系统代理设置变化，不把 metrics 不可用或外部改代理当作 Core 已停止。
+崩溃/掉电后的记录在下次同用户启动时恢复，不能承诺即时清理；手动填写的系统/浏览器代理不由 App 自动还原。
+
+以下网卡、隧道 DNS 与原生平台选项适用于 TUN；代理保留相应草稿供切回时使用。
+
 TUN 地址只读，隧道 IPv4/IPv6 DNS 与 Apple DoT 域名可编辑，独立于路由 DNS，保存在平台策略 JSON。
 原生 DNS 必须是对应地址族 IP；DoT 域名不是搜索域，需与服务器证书匹配。
 有效设置变化按已连接确认重连；停用的域名/IPv6 设置保留，不因其变化重连。

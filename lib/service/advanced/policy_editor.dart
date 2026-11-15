@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
+import 'package:onexray/core/proxy/host.dart';
 import 'package:onexray/service/advanced/local_api/service.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/compiler.dart';
@@ -31,6 +32,7 @@ class PolicyEditorService {
   final WindowsMode windowsMode;
   final bool validateInterface;
   final Future<int?> Function() _reservedApiPort;
+  final Future<({bool supported, String? reason})> Function()? _proxyCapability;
 
   PolicyEditorService({
     ConnectionCoordinator? coordinator,
@@ -38,11 +40,15 @@ class PolicyEditorService {
     WindowsMode? windowsMode,
     this.validateInterface = true,
     Future<int?> Function()? reservedApiPort,
+    Future<({bool supported, String? reason})> Function()? proxyCapability,
   }) : coordinator = coordinator ?? ConnectionCoordinator.instance,
        platform = platform ?? connectionPlatform,
        windowsMode = windowsMode ?? windowsBuildMode,
        _reservedApiPort =
-           reservedApiPort ?? LocalApiService.instance.reservedPort;
+           reservedApiPort ?? LocalApiService.instance.reservedPort,
+       // Keep the injectable named argument public while storing it privately.
+       // ignore: prefer_initializing_formals
+       _proxyCapability = proxyCapability;
 
   bool get supportsWindowsSystemVpn =>
       platform == ConnectionPlatform.windows && windowsMode == WindowsMode.msix;
@@ -56,6 +62,17 @@ class PolicyEditorService {
       validateInterface &&
       (platform == ConnectionPlatform.windows ||
           platform == ConnectionPlatform.linux);
+
+  bool get supportsProxy =>
+      platform == ConnectionPlatform.macos ||
+      platform == ConnectionPlatform.windows ||
+      platform == ConnectionPlatform.linux;
+
+  Future<({bool supported, String? reason})> proxyCapability() async {
+    if (_proxyCapability != null) return _proxyCapability();
+    final capability = await DesktopProxyHost().capability();
+    return (supported: capability.supported, reason: capability.reason);
+  }
 
   static bool emptyAndroidScope(PlatformPolicy policy) {
     final android = policy.toJson()['android'] as Map<String, dynamic>;
@@ -78,11 +95,15 @@ class PolicyEditorService {
               .toList();
     }
     final policy = PlatformPolicy.fromJson(value);
-    if (requiresInterface && policy.xrayOutboundInterfaceName.trim().isEmpty) {
+    if (!policy.usesProxy(platform) &&
+        requiresInterface &&
+        policy.xrayOutboundInterfaceName.trim().isEmpty) {
       throw const FormatException('Network interface is required');
     }
     Map<String, dynamic>? appleTun;
-    if (supportsWindowsSystemVpn) {
+    if (policy.usesProxy(platform)) {
+      // Tunnel-only drafts stay stored without becoming proxy requirements.
+    } else if (supportsWindowsSystemVpn) {
       policy.toWindowsPolicy();
     } else if (apple) {
       appleTun = policy.toTun(platform).toJson();
@@ -108,6 +129,19 @@ class PolicyEditorService {
     final policy = prepared.policy;
     await coordinator.initialize();
     await _validateLanProxy(draft, policy);
+    if (policy.usesProxy(platform) &&
+        policy.proxyPort == await _reservedApiPort()) {
+      throw const FormatException(
+        'Proxy port conflicts with the local HTTP API',
+      );
+    }
+    if (policy.usesProxy(platform) &&
+        policy.autoSetSystemProxy &&
+        !(await proxyCapability()).supported) {
+      throw const FormatException(
+        'Automatic system proxy settings are unavailable',
+      );
+    }
     await coordinator.refresh();
     if ((await coordinator.configuration).encode() != draft.original.encode()) {
       throw const ConnectionHostException('configurationChanged');
@@ -124,7 +158,7 @@ class PolicyEditorService {
     final disconnect =
         platform == ConnectionPlatform.android && emptyAndroidScope(policy);
     var allowed = false;
-    if (changed && coordinator.state.value.phase == ConnectionPhase.connected) {
+    if (changed && coordinator.state.value.canDisconnect) {
       allowed = await confirm(disconnect);
       if (!allowed) {
         return false;
@@ -237,6 +271,16 @@ class PolicyEditorService {
         'dnsIpv6Address': policy.dnsIpv6Address,
       'log': json['log'],
     };
+    if (platform == ConnectionPlatform.macos ||
+        platform == ConnectionPlatform.windows ||
+        platform == ConnectionPlatform.linux) {
+      result['captureMode'] = policy.captureMode.name;
+      if (policy.usesProxy(platform)) {
+        result['proxyPort'] = policy.proxyPort;
+        result['autoSetSystemProxy'] = policy.autoSetSystemProxy;
+        return result;
+      }
+    }
     if (platform == ConnectionPlatform.android) {
       final android = json['android'] as Map<String, dynamic>;
       final scope = android['appScope'];

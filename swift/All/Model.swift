@@ -89,6 +89,8 @@ struct StartVpnRequest: Codable {
     var coreInvokeText: String?
     var snapshotToken: String?
     var metadataJson: String?
+    var captureMode: String?
+    var autoSetSystemProxy: Bool?
 
     private static func fromUrl(_ url: URL) throws -> Self {
         let data = try Data(contentsOf: url)

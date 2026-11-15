@@ -13,6 +13,7 @@ import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/advanced/policy_editor.dart';
+import 'package:onexray/service/advanced/tunnel/apple/removal.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
@@ -59,6 +60,58 @@ _UiService _service({ConnectionPlatform platform = ConnectionPlatform.ios}) {
 }
 
 void main() {
+  testWidgets(
+    'desktop proxy settings preserve the TUN draft and disable unsupported automatic settings',
+    (tester) async {
+      _viewport(tester, const Size(1160, 1000));
+      final service = _service(platform: ConnectionPlatform.macos);
+      service.configuration = ConnectionConfiguration(
+        policy: PlatformPolicy.fromJson({
+          ...service.configuration.policy.toJson(),
+          'captureMode': 'proxy',
+          'proxyPort': 18081,
+        }),
+      );
+      final controller = PolicyEditorController(
+        draft: PolicyEditorDraft(service.configuration),
+        service: service,
+        appleVpnRemoval: AppleVpnRemovalService(
+          coordinator: service.coordinator,
+          platform: ConnectionPlatform.macos,
+          useSystemExtension: () async => false,
+        ),
+      );
+      await tester.pumpWidget(
+        _app(VpnTunnelPane(createController: () => controller), 1160),
+      );
+      await tester.pumpAndSettle();
+      expect(controller.state.systemProxyLoading, false);
+      expect(controller.state.appleVpnRemovalLoading, false);
+      final l = AppLocalizations.of(
+        tester.element(find.byType(VpnTunnelPane)),
+      )!;
+      expect(
+        find.byKey(const ValueKey('desktop-proxy-settings')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('tunnel-open-interface')), findsNothing);
+      expect(find.byKey(const ValueKey('tunnel-open-dns')), findsNothing);
+      expect(find.byKey(const ValueKey('tunnel-open-apple')), findsNothing);
+      expect(find.text(l.prototypeIpv4TunAddress), findsNothing);
+      expect(find.text(l.desktopSystemProxyUnavailable), findsOneWidget);
+      expect(controller.value['xrayOutboundInterfaceName'], 'Ethernet');
+      final field = find.descendant(
+        of: find.byKey(const ValueKey('desktop-proxy-port')),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(field, '19091');
+      expect(controller.value['proxyPort'], 19091);
+      controller.restoreDefaults();
+      await tester.pumpAndSettle();
+      expect(controller.value['captureMode'], 'tun');
+      expect(tester.takeException(), isNull);
+    },
+  );
   for (final size in const [
     Size(390, 844),
     Size(1032, 1376),
@@ -343,6 +396,9 @@ class _UiService extends PolicyEditorService {
   late ConnectionConfiguration configuration;
   int saves = 0;
   int loads = 0;
+  @override
+  Future<({bool supported, String? reason})> proxyCapability() async =>
+      (supported: false, reason: null);
   @override
   Future<PolicyEditorDraft> load() async {
     loads++;

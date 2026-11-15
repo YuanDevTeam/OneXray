@@ -155,6 +155,17 @@ all three App IDs for the shared App Group before deploying. Check that the
 archive/IPA embeds the Widget extension and its resources; unsigned or Simulator
 builds do not validate distribution signing or device Widget availability.
 
+Both macOS projects embed `Contents/Helpers/OneXrayProxyHelper.app` and compile
+the same sources from `swift/macOS/ProxyHelper/`. The Runner controls its owned
+child through a private socketpair; proxy mode does not activate a VPN extension.
+The normal helper uses `net.yuandev.onexray.helper` with the Mac App Store
+`OneXraymacOSHelper` profile; SE uses `net.yuandev.onexray.se.helper` with the
+Developer ID `OneXraySEmacOSHelper` profile. Each deploy lane fetches/maps its
+helper profile alongside the existing App and tunnel profiles, read-only.
+The helper uses sandbox inheritance and disables base entitlement injection so
+debug signing does not add `get-task-allow`. Verify the embedded profile, both
+architectures and nested code signatures in the actual distribution artifacts.
+
 ## Linux
 
 The native x86_64 and ARM64 jobs use Dart Fastforge for ZIP, DEB and RPM, then

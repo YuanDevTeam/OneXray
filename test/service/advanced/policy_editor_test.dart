@@ -9,6 +9,7 @@ import 'package:onexray/core/db/database/constants.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
+import 'package:onexray/l10n/localizations/app_localizations_en.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/service/connect/compiler.dart';
 import 'package:onexray/service/connect/dialing.dart';
@@ -94,18 +95,23 @@ void main() {
   late HostConnection host;
   late int stops;
   late bool allowRestart;
+  var failStop = false;
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     host = const HostConnection(VpnStatus.disconnected);
     stops = 0;
     allowRestart = false;
+    failStop = false;
     coordinator = ConnectionCoordinator(
       database: db,
       inspect: (_, {observedStatus}) async => host,
       prepare: (configuration, _) async {
         if (!allowRestart) throw StateError('Must not prepare');
-        return _runtime(configuration);
+        return _runtime(
+          configuration,
+          proxy: configuration.policy.captureMode == CaptureMode.proxy,
+        );
       },
       start: (runtime) async {
         if (!allowRestart) throw StateError('Must not start');
@@ -113,6 +119,7 @@ void main() {
       },
       stop: () async {
         stops++;
+        if (failStop) throw StateError('System proxy restore failed');
         return host = const HostConnection(VpnStatus.disconnected);
       },
     );
@@ -122,6 +129,71 @@ void main() {
       await db.close();
     });
   });
+
+  test(
+    'failed retained proxy confirms changes before reconnecting and can cancel',
+    () async {
+      final configuration = ConnectionConfiguration(
+        policy: PlatformPolicy.fromJson({'captureMode': 'proxy'}),
+      );
+      await db.connectionConfigDao.commit(
+        configurationJson: configuration.encode(),
+      );
+      host = HostConnection(
+        VpnStatus.connected,
+        runtime: _runtime(configuration, proxy: true),
+      );
+      await coordinator.refresh();
+      failStop = true;
+      await expectLater(coordinator.disconnect(), throwsStateError);
+      expect(coordinator.state.value.phase, ConnectionPhase.failed);
+      expect(coordinator.state.value.runtime?.isProxy, true);
+      final service = PolicyEditorService(
+        coordinator: coordinator,
+        platform: ConnectionPlatform.macos,
+        reservedApiPort: () async => null,
+      );
+      final draft = await service.load();
+      draft.policy['proxyPort'] = 18081;
+      final controller = PolicyEditorController(draft: draft, service: service);
+      addTearDown(controller.close);
+      final l = AppLocalizationsEn();
+      expect(controller.saveLabel(l), l.prototypeSaveAndReconnect);
+      var confirmations = 0;
+      expect(
+        await service.save(
+          draft: draft,
+          confirm: (disconnect) async {
+            confirmations++;
+            expect(disconnect, false);
+            return false;
+          },
+        ),
+        false,
+      );
+      expect(confirmations, 1);
+      expect(stops, 1);
+      expect((await coordinator.configuration).policy.proxyPort, 10808);
+
+      failStop = false;
+      allowRestart = true;
+      expect(
+        await service.save(
+          draft: draft,
+          confirm: (disconnect) async {
+            confirmations++;
+            expect(disconnect, false);
+            return true;
+          },
+        ),
+        true,
+      );
+      expect(confirmations, 2);
+      expect(stops, 2);
+      expect(host.runtime?.isProxy, true);
+      expect(host.runtime?.configuration.policy.proxyPort, 18081);
+    },
+  );
 
   test('offline dialing saves without connecting', () async {
     final service = PolicyEditorService(
@@ -1156,6 +1228,7 @@ void main() {
 ConnectionRuntime _runtime(
   ConnectionConfiguration configuration, {
   ResolvedProfile? profile,
+  bool proxy = false,
 }) {
   const text = '{"outbounds":[{"protocol":"freedom"}]}';
   return ConnectionRuntime.create(
@@ -1167,10 +1240,12 @@ ConnectionRuntime _runtime(
       nodeTags: {},
       profile: profile,
     ),
-    platform: ConnectionPlatform.android,
+    platform: proxy ? ConnectionPlatform.macos : ConnectionPlatform.android,
     request: StartVpnRequest(
-      configuration.policy.toTun(ConnectionPlatform.android),
-      null,
+      configuration.policy.toTun(
+        proxy ? ConnectionPlatform.macos : ConnectionPlatform.android,
+      ),
+      proxy ? '${configuration.policy.proxyPort}' : null,
       '18003',
       jsonEncode(
         LibXrayInvokeRequest(
@@ -1178,6 +1253,7 @@ ConnectionRuntime _runtime(
           payload: RunXrayRequest(text).toJson(),
         ).toJson(),
       ),
+      captureMode: proxy ? 'proxy' : 'tun',
     ),
   );
 }

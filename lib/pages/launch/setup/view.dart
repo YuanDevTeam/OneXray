@@ -11,6 +11,7 @@ import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/service/launch/setup.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// The production presentation, without creating services or changing setup
@@ -20,14 +21,19 @@ class SetupView extends StatelessWidget {
     super.key,
     required this.state,
     required this.requiresInterface,
+    this.supportsProxy = false,
     this.failureText,
     required this.onAction,
   });
 
   final SetupPageState state;
   final bool requiresInterface;
+  final bool supportsProxy;
   final String? failureText;
   final ValueChanged<SetupAction> onAction;
+  bool get _requiresInterface =>
+      requiresInterface &&
+      !(supportsProxy && state.captureMode == CaptureMode.proxy);
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +132,37 @@ class SetupView extends StatelessWidget {
     return [
       SetupIntro(icon: LucideIcons.route, title: l.prototypeSmartRouting),
       const SizedBox(height: 24),
-      if (requiresInterface) ...[
+      if (supportsProxy) ...[
+        Card(
+          margin: EdgeInsets.zero,
+          child: SettingRow(
+            key: const ValueKey('setup-capture-mode'),
+            title: l.desktopCaptureMode,
+            leading: const Icon(LucideIcons.monitor),
+            contentPadding: const EdgeInsets.all(16),
+            trailing: SettingSelect<CaptureMode>(
+              value: state.captureMode,
+              entries: {
+                CaptureMode.tun: l.desktopVpnTunnel,
+                CaptureMode.proxy: l.desktopLocalProxy,
+              },
+              onChanged: state.busy
+                  ? null
+                  : (mode) {
+                      if (mode != null) {
+                        onAction(
+                          mode == CaptureMode.proxy
+                              ? SetupAction.useProxy
+                              : SetupAction.useTunnel,
+                        );
+                      }
+                    },
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+      if (_requiresInterface) ...[
         _SetupRow(
           icon: LucideIcons.network,
           title: l.prototypeXrayOutboundInterface,
@@ -198,7 +234,7 @@ class SetupView extends StatelessWidget {
       SetupActionButton(
         label: l.prototypeGoToHome,
         busy: state.activeAction == SetupAction.finish,
-        onPressed: state.ready(requiresInterface: requiresInterface)
+        onPressed: state.ready(requiresInterface: _requiresInterface)
             ? _action(SetupAction.finish)
             : null,
       ),

@@ -9,6 +9,7 @@ import 'package:onexray/pages/shared/widgets/page_action_bar.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/launch/setup.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 Widget _app(
@@ -37,6 +38,37 @@ void _size(WidgetTester tester, bool mobile) {
 }
 
 void main() {
+  testWidgets('desktop proxy Setup can finish without a physical interface', (
+    tester,
+  ) async {
+    _size(tester, false);
+    final actions = <SetupAction>[];
+    await tester.pumpWidget(
+      _app(
+        SetupView(
+          state: const SetupPageState(
+            step: SetupStep.configuration,
+            busy: false,
+            localReady: true,
+            captureMode: CaptureMode.proxy,
+          ),
+          requiresInterface: true,
+          supportsProxy: true,
+          onAction: actions.add,
+        ),
+        mobile: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final l = AppLocalizations.of(tester.element(find.byType(SetupView)))!;
+    expect(find.byKey(const ValueKey('setup-capture-mode')), findsOneWidget);
+    expect(find.text(l.desktopLocalProxy), findsOneWidget);
+    expect(find.text(l.prototypeXrayOutboundInterface), findsNothing);
+    await tester.ensureVisible(find.text(l.prototypeGoToHome));
+    await tester.tap(find.text(l.prototypeGoToHome));
+    expect(actions, [SetupAction.finish]);
+    expect(tester.takeException(), isNull);
+  });
   for (final locale in const [
     Locale('en'),
     Locale('zh'),

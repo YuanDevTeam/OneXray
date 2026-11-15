@@ -349,6 +349,7 @@ class _SetupService extends SetupService {
   Future<void> finish({
     required String interfaceName,
     List<String>? regions,
+    CaptureMode? captureMode,
   }) async {
     if (saveFailure) throw StateError('Cannot save');
     savedInterface = interfaceName;

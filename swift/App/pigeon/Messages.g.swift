@@ -939,6 +939,70 @@ class BridgeHostApiSetup {
     }
   }
 }
+/// macOS local proxy runtime; this does not create a VPN configuration.
+///
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol BridgeDesktopProxyApi {
+  func startProxy(requestJson: String, completion: @escaping (Result<NativeVpnCommandResult, Error>) -> Void)
+  func stopProxy(completion: @escaping (Result<NativeVpnCommandResult, Error>) -> Void)
+  func readProxyStatus(completion: @escaping (Result<NativeVpnCommandResult, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class BridgeDesktopProxyApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `BridgeDesktopProxyApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: BridgeDesktopProxyApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    let startProxyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.startProxy\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startProxyChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let requestJsonArg = args[0] as! String
+        api.startProxy(requestJson: requestJsonArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      startProxyChannel.setMessageHandler(nil)
+    }
+    let stopProxyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.stopProxy\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopProxyChannel.setMessageHandler { _, reply in
+        api.stopProxy { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      stopProxyChannel.setMessageHandler(nil)
+    }
+    let readProxyStatusChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.readProxyStatus\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      readProxyStatusChannel.setMessageHandler { _, reply in
+        api.readProxyStatus { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      readProxyStatusChannel.setMessageHandler(nil)
+    }
+  }
+}
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol AppleWidgetHostApi {
   func takeAction(completion: @escaping (Result<String?, Error>) -> Void)

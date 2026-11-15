@@ -6,6 +6,7 @@ import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/service/shared/menu/tray/entry.dart';
 
@@ -19,6 +20,7 @@ class TrayMenuData {
   List<RoutingProfileData> routes = [];
   List<GeoDataData> geodata = [];
   ConnectionSettings configuration = ConnectionSettings();
+  PlatformPolicy policy = PlatformPolicy.defaults();
 
   static Stream<TrayMenuData> watch(AppDatabase db) => Stream.multi((sink) {
     final data = TrayMenuData();
@@ -41,9 +43,11 @@ class TrayMenuData {
       }, onError: sink.addError),
       db.connectionConfigDao.watch().listen((row) {
         try {
-          data.configuration = ConnectionConfiguration.fromJson(
+          final configuration = ConnectionConfiguration.fromJson(
             jsonDecode(row.configurationJson) as Map<String, dynamic>,
-          ).connection;
+          );
+          data.configuration = configuration.connection;
+          data.policy = configuration.policy;
           sink.add(data);
         } catch (error, stackTrace) {
           sink.addError(error, stackTrace);
@@ -61,6 +65,7 @@ class TrayMenuData {
     AppLocalizations l, {
     required bool busy,
     RuntimeProfile? runningProfile,
+    bool proxyMode = false,
   }) {
     final selected = configuration.selection;
     final provider =
@@ -173,7 +178,7 @@ class TrayMenuData {
           ),
           choice(
             'traffic:allVpn',
-            l.prototypeAllViaVpn,
+            proxyMode ? l.desktopAllViaProxy : l.prototypeAllViaVpn,
             configuration.trafficMode == TrafficMode.allVpn,
             enabled: trafficEnabled,
           ),

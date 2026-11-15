@@ -1,4 +1,21 @@
 {
+  "desktopSystemProxyInactive": "System proxy not managed by OneXray",
+  "desktopAllViaProxy": "All proxy traffic",
+  "desktopAllViaProxyDescription": "Route all proxy requests through the selected servers.",
+  "desktopCaptureMode": "Connection mode",
+  "desktopVpnTunnel": "VPN tunnel",
+  "desktopLocalProxy": "Local proxy",
+  "desktopProxyPort": "Proxy port",
+  "desktopAutoSystemProxy": "Set system proxy automatically",
+  "desktopProxyManualHint": "Set the HTTP or SOCKS5 address in the apps you want to proxy. Clear those settings before stopping the proxy.",
+  "desktopSystemProxyUnavailable": "Unavailable on this system",
+  "desktopSystemProxyActive": "System proxy configured",
+  "desktopProxyHttp": "HTTP / HTTPS",
+  "desktopProxySocks": "SOCKS5",
+  "desktopProxyRunning": "Running",
+  "desktopProxyStopped": "Stopped",
+  "desktopCopyProxyAddress": "Copy proxy address",
+  "desktopProxyPortConflict": "The local proxy port conflicts with LAN sharing.",
   "tunnelSystemManagement": "System management",
   "tunnelDeleteVpnConfiguration": "Delete VPN configuration",
   "tunnelUninstallSystemExtension": "Uninstall system extension",
@@ -424,7 +441,7 @@
   "@prototypeApplyChange": {
     "description": "Approved prototype copy: Apply this change?"
   },
-  "prototypeReconnectNotice": "The VPN will briefly disconnect and reconnect. This usually takes only a few seconds.",
+  "prototypeReconnectNotice": "The current connection will briefly stop and restart. This usually takes only a few seconds.",
   "@prototypeReconnectNotice": {
     "description": "Approved prototype copy: The VPN will briefly disconnect and reconnect. This usually takes only a few seconds."
   },

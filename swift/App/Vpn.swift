@@ -153,6 +153,22 @@ class VPNManager {
         return nil
     }
 
+    #if os(macOS)
+    /// Switching to a local proxy only retires this App's existing tunnel.
+    /// It never requests VPN permission, installs a profile or activates SE.
+    func prepareForLocalProxy() async throws {
+        try requireProfileMutationAllowed()
+        let mutation = try removal.beginMutation()
+        defer { removal.finishMutation(mutation) }
+        guard let manager = try await findVpn() else { return }
+        try requireProfileMutationAllowed()
+        awaitingStart = false
+        vpn = manager
+        try await stopProfile(manager)
+        runStatusObserver()
+    }
+    #endif
+
     private func requireProfileMutationAllowed() throws {
         try removal.requireMutationAllowed()
         #if os(iOS)

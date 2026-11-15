@@ -1,4 +1,7 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
+import 'package:onexray/pages/shared/alert.dart';
+import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/tools/traffic_format.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
@@ -33,6 +36,9 @@ class ConnectView extends StatelessWidget {
     required this.method,
     this.methodDetail,
     this.methodEnabled = true,
+    this.showCaptureMode = false,
+    this.proxyMode = false,
+    this.proxyPort = 10808,
     required this.onConnection,
     required this.onAddServers,
     required this.onServer,
@@ -52,10 +58,14 @@ class ConnectView extends StatelessWidget {
   final String? locationDetail, locationHealth, methodDetail;
   final String method;
   final bool methodEnabled;
+  final bool showCaptureMode;
+  final bool proxyMode;
+  final int proxyPort;
   final VoidCallback onConnection, onAddServers, onServer, onMethod;
 
   bool get _connectionPending => pendingChange == 'connection';
   bool get _busy => view.busy || _connectionPending;
+  bool get _proxy => view.runtime?.isProxy ?? proxyMode;
 
   @override
   Widget build(BuildContext context) {
@@ -178,6 +188,17 @@ class ConnectView extends StatelessWidget {
                   children: [
                     Text(l.connectionPlan, style: AppTypography.panelTitle),
                     const SizedBox(height: 16),
+                    if (showCaptureMode) ...[
+                      choice(
+                        _proxy ? LucideIcons.network : LucideIcons.shield,
+                        l.desktopCaptureMode,
+                        _proxy ? l.desktopLocalProxy : l.desktopVpnTunnel,
+                        null,
+                        null,
+                        includeLabel: false,
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                     choice(
                       expert || !methodEnabled
                           ? LucideIcons.fileJson
@@ -205,6 +226,10 @@ class ConnectView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
+            if (view.runtime?.isProxy == true && view.canDisconnect) ...[
+              _proxyEndpoints(context),
+              const SizedBox(height: 16),
+            ],
             Card(
               key: const ValueKey('connection-session'),
               margin: EdgeInsets.zero,
@@ -269,6 +294,51 @@ class ConnectView extends StatelessWidget {
     );
   }
 
+  Widget _proxyEndpoints(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
+    final port =
+        int.tryParse(view.runtime?.request.socksPort ?? '') ?? proxyPort;
+    final automatic = view.systemProxyActive;
+    final requested =
+        view.runtime?.configuration.policy.autoSetSystemProxy == true;
+    Widget endpoint(String label, String address) => SettingRow(
+      title: label,
+      value: address,
+      valueTextDirection: TextDirection.ltr,
+      trailing: IconButton(
+        tooltip: l.desktopCopyProxyAddress,
+        onPressed: () async {
+          await Clipboard.setData(ClipboardData(text: address));
+          if (context.mounted) {
+            ContextAlert.showToast(context, l.automationCopied);
+          }
+        },
+        icon: const Icon(LucideIcons.copy, size: 18),
+      ),
+    );
+    return SettingSection(
+      key: const ValueKey('connection-proxy-endpoints'),
+      title: l.desktopLocalProxy,
+      children: [
+        endpoint(l.desktopProxyHttp, 'http://127.0.0.1:$port'),
+        endpoint(l.desktopProxySocks, 'socks5://127.0.0.1:$port'),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            automatic
+                ? l.desktopSystemProxyActive
+                : requested
+                ? l.desktopSystemProxyInactive
+                : l.desktopProxyManualHint,
+            style: AppTypography.supporting.copyWith(
+              color: ColorManager.secondaryText(context),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _status(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final connected = view.phase == ConnectionPhase.connected;
@@ -276,10 +346,12 @@ class ConnectView extends StatelessWidget {
     final failed = view.failed && !connected;
     final presentationPhase = failed ? ConnectionPhase.failed : view.phase;
     final title = switch (presentationPhase) {
-      ConnectionPhase.disconnected => l.prototypeDisconnected,
+      ConnectionPhase.disconnected =>
+        _proxy ? l.desktopProxyStopped : l.prototypeDisconnected,
       ConnectionPhase.preparing => l.connectionPreparing,
       ConnectionPhase.connecting => l.prototypeConnecting,
-      ConnectionPhase.connected => l.prototypeConnected,
+      ConnectionPhase.connected =>
+        _proxy ? l.desktopProxyRunning : l.prototypeConnected,
       ConnectionPhase.disconnecting => l.prototypeDisconnecting,
       ConnectionPhase.failed => l.prototypeConnectionFailed,
     };
@@ -293,6 +365,10 @@ class ConnectView extends StatelessWidget {
       ConnectionPhase.disconnected => l.prototypeReadyToProtectConnection,
       ConnectionPhase.preparing ||
       ConnectionPhase.connecting => l.prototypePreparingSecureConnection,
+      ConnectionPhase.connected when _proxy =>
+        view.systemProxyActive
+            ? l.desktopSystemProxyActive
+            : l.desktopProxyRunning,
       ConnectionPhase.connected =>
         elapsed < 1
             ? l.prototypeJustConnected
@@ -364,7 +440,10 @@ class ConnectView extends StatelessWidget {
               )
             else
               Icon(LucideIcons.shield, size: 17, color: palette.primary),
-            Text(l.prototypeSystemVpn, style: AppTypography.badge),
+            Text(
+              _proxy ? l.desktopLocalProxy : l.prototypeSystemVpn,
+              style: AppTypography.badge,
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
               decoration: BoxDecoration(

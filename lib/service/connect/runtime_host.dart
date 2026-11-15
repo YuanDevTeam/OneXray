@@ -16,6 +16,7 @@ import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/pigeon/model_writer.dart';
 import 'package:onexray/core/tools/platform.dart';
+import 'package:onexray/core/proxy/host.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
@@ -35,11 +36,13 @@ class HostConnection {
   final ConnectionRuntime? runtime;
   final ConnectionTraffic? traffic;
   final PlatformPermissionResult? permission;
+  final bool? systemProxyActive;
   const HostConnection(
     this.status, {
     this.runtime,
     this.traffic,
     this.permission,
+    this.systemProxyActive,
   });
   bool get connected => status == VpnStatus.connected;
 }
@@ -69,6 +72,11 @@ class ConnectionRuntimeHost {
   final Future<NativeVpnCommandResult> Function(String, String)?
   _startPreparedVpn;
   final Future<int?> Function()? _connectedAtMilliseconds;
+  final Future<bool> Function()? _prefersProxy;
+  final Future<NativeVpnCommandResult> Function()? _readProxyStatus;
+  final Future<NativeVpnCommandResult> Function(ConnectionRuntime)? _startProxy;
+  final Future<NativeVpnCommandResult> Function()? _stopProxy;
+  bool? _runningProxy;
 
   ConnectionRuntimeHost({
     String? runDirectory,
@@ -81,6 +89,10 @@ class ConnectionRuntimeHost {
     AppleWidgetHostApi? appleWidgetApi,
     Future<NativeVpnCommandResult> Function(String, String)? startPreparedVpn,
     Future<int?> Function()? connectedAtMilliseconds,
+    Future<bool> Function()? prefersProxy,
+    Future<NativeVpnCommandResult> Function()? readProxyStatus,
+    Future<NativeVpnCommandResult> Function(ConnectionRuntime)? startProxy,
+    Future<NativeVpnCommandResult> Function()? stopProxy,
   }) : _runDirectory = runDirectory,
        _readStatus = readStatus,
        _startVpn = startVpn,
@@ -89,6 +101,10 @@ class ConnectionRuntimeHost {
        _appleWidgetApi = appleWidgetApi ?? AppleWidgetHostApi(),
        _startPreparedVpn = startPreparedVpn,
        _connectedAtMilliseconds = connectedAtMilliseconds,
+       _prefersProxy = prefersProxy,
+       _readProxyStatus = readProxyStatus,
+       _startProxy = startProxy,
+       _stopProxy = stopProxy,
        _metrics = readMetrics;
 
   Future<String?> beginPreparation() async {
@@ -128,12 +144,14 @@ class ConnectionRuntimeHost {
   Future<
     ({VpnStatus status, PlatformPermissionResult? permission, String? message})
   >
-  _status() async {
+  _status({bool proxy = false}) async {
     final readStatus = _readStatus;
-    if (readStatus != null) {
+    if (readStatus != null && !proxy) {
       return (status: await readStatus(), permission: null, message: null);
     }
-    final result = await _host.readVpnStatus();
+    final result = proxy
+        ? await (_readProxyStatus?.call() ?? DesktopProxyHost().readStatus())
+        : await _host.readVpnStatus();
     if (result.state != NativeVpnCommandState.success ||
         result.status == null) {
       throw ConnectionHostException(
@@ -260,9 +278,18 @@ class ConnectionRuntimeHost {
     ConnectionRuntime? runtime, {
     VpnStatus? observedStatus,
   }) async {
-    final platform = observedStatus == null
-        ? await _status()
+    final preferredProxy = await _prefersProxy?.call() ?? false;
+    var proxy = _runningProxy ?? runtime?.isProxy ?? preferredProxy;
+    var platform = observedStatus == null || proxy
+        ? await _status(proxy: proxy)
         : (status: observedStatus, permission: null, message: null);
+    // The cached request describes the last session, not a new preference.
+    if (platform.status == VpnStatus.disconnected && proxy != preferredProxy) {
+      proxy = preferredProxy;
+      platform = await _status(proxy: proxy);
+      runtime = null;
+    }
+    if (platform.status == VpnStatus.connected) _runningProxy = proxy;
     if (platform.status == VpnStatus.connected &&
         runtime?.platform == ConnectionPlatform.ios) {
       final readConnectedAt =
@@ -281,10 +308,18 @@ class ConnectionRuntimeHost {
       platform.status,
       runtime: platform.status == VpnStatus.disconnected ? null : runtime,
       permission: platform.permission,
+      systemProxyActive: proxy && DesktopProxyHost().systemProxyActive,
     );
   }
 
   Future<NativeVpnCommandResult> _start(ConnectionRuntime runtime) {
+    if (runtime.isProxy) {
+      return _startProxy?.call(runtime) ??
+          DesktopProxyHost().start(
+            runtime.request,
+            autoSetSystemProxy: runtime.request.autoSetSystemProxy,
+          );
+    }
     final startVpn = _startVpn;
     if (startVpn != null) return startVpn(runtime);
     final policy = runtime.configuration.policy;
@@ -346,6 +381,7 @@ class ConnectionRuntimeHost {
     // Only iOS has native admission and preparation draining for concurrent
     // Stop. Other platforms retain their serialized native-command contract.
     final Future<NativeVpnCommandResult> submitted;
+    _runningProxy = runtime.isProxy;
     if (preparedIos) {
       if (preparationToken == null) {
         throw const ConnectionHostException('preparationUnavailable');
@@ -382,17 +418,28 @@ class ConnectionRuntimeHost {
       result.status!,
       runtime: runtime,
       permission: result.permission,
+      systemProxyActive:
+          runtime.isProxy && DesktopProxyHost().systemProxyActive,
     );
   }
 
   Future<HostConnection> stop() async {
-    final result = await (_stopVpn?.call() ?? _host.stopVpn());
+    final proxy =
+        _runningProxy ??
+        (await readRuntime())?.isProxy ??
+        (await _prefersProxy?.call() ?? false);
+    final result =
+        await (_stopVpn?.call() ??
+            (proxy
+                ? (_stopProxy?.call() ?? DesktopProxyHost().stop())
+                : _host.stopVpn()));
     if (result.state != NativeVpnCommandState.success) {
       throw ConnectionHostException('stopFailed', cause: result.message);
     }
     if (result.status != VpnStatus.disconnected) {
       throw ConnectionHostException('stopNotConfirmed', cause: result.message);
     }
+    _runningProxy = null;
     return HostConnection(result.status!, permission: result.permission);
   }
 }

@@ -15,6 +15,7 @@ import 'package:onexray/service/connect/failure.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/provider_mode.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/servers/catalog.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
@@ -90,9 +91,14 @@ final class TrayService {
   String? _trayIcon;
   ConnectionRuntime? _lastRuntime;
 
+  bool get _usesProxy =>
+      _coordinator.state.value.runtime?.isProxy ??
+      _data.policy.usesProxy(connectionPlatform);
+
   bool get _canQuitWithoutStoppingVpn =>
-      AppPlatform.isMacOS ||
-      (AppPlatform.isWindows && windowsBuildMode == WindowsMode.msix);
+      !_usesProxy &&
+      (AppPlatform.isMacOS ||
+          (AppPlatform.isWindows && windowsBuildMode == WindowsMode.msix));
 
   void init() {
     if (!AppPlatform.isDesktop || _initialized) {
@@ -199,14 +205,18 @@ final class TrayService {
       items.add(
         TrayMenuEntry(
           key: _TrayMenuKey.stopVpn.name,
-          label: appLocalizationsNoContext().menuBarStopVpn,
+          label: _usesProxy
+              ? appLocalizationsNoContext().prototypeDisconnect
+              : appLocalizationsNoContext().menuBarStopVpn,
         ),
       );
     } else {
       items.add(
         TrayMenuEntry(
           key: _TrayMenuKey.startVpn.name,
-          label: appLocalizationsNoContext().menuBarStartVpn,
+          label: _usesProxy
+              ? appLocalizationsNoContext().prototypeConnect
+              : appLocalizationsNoContext().menuBarStartVpn,
           disabled: view.busy,
         ),
       );
@@ -224,6 +234,7 @@ final class TrayService {
         appLocalizationsNoContext(),
         busy: view.busy || _changingConfiguration,
         runningProfile: view.runtime?.profile,
+        proxyMode: _usesProxy,
       ),
     );
     items.add(TrayMenuEntry.separator());
@@ -470,6 +481,8 @@ final class TrayService {
         values = {'expert': false, 'trafficMode': value};
         label = value == TrafficMode.smart.name
             ? l.prototypeSmartRoutingRecommended
+            : _usesProxy
+            ? l.desktopAllViaProxy
             : l.prototypeAllViaVpn;
       default:
         return;
