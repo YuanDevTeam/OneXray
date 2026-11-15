@@ -156,6 +156,26 @@ abstract final class AppTheme {
     );
   }
 
+  static Color favoriteForeground(
+    BuildContext context, {
+    required bool selected,
+    bool enabled = true,
+  }) {
+    if (!enabled) return Theme.of(context).disabledColor;
+    final palette = ColorManager.palette(context);
+    return selected ? palette.primaryText : palette.mutedStrong;
+  }
+
+  static ButtonStyle favoriteButton(BuildContext context) => ButtonStyle(
+    foregroundColor: WidgetStateProperty.resolveWith(
+      (states) => favoriteForeground(
+        context,
+        selected: states.contains(WidgetState.selected),
+        enabled: !states.contains(WidgetState.disabled),
+      ),
+    ),
+  );
+
   static ButtonStyle connectionButton(
     BuildContext context, {
     required bool destructive,

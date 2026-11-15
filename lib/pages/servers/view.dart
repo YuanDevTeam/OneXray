@@ -13,6 +13,7 @@ import 'package:onexray/pages/theme/color.dart';
 import 'package:onexray/pages/theme/font.dart';
 import 'package:onexray/pages/theme/layout.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/app_favorite.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:onexray/pages/shared/widgets/page_empty_state.dart';
 import 'package:onexray/pages/shared/widgets/page_help.dart';
@@ -333,10 +334,10 @@ class _ServerBrowserState extends State<ServerBrowser> {
                         messages: [l.completeConfigurationDefinition],
                       ),
                     ],
-                    IconButton(
+                    AppFavoriteButton(
                       key: const ValueKey('server-favorites-filter'),
                       tooltip: l.prototypeFavorites,
-                      isSelected: favoriteFilter,
+                      selected: favoriteFilter,
                       onPressed: () => setState(() {
                         if (complete) {
                           completeFavoritesOnly = !completeFavoritesOnly;
@@ -344,7 +345,6 @@ class _ServerBrowserState extends State<ServerBrowser> {
                           favoritesOnly = !favoritesOnly;
                         }
                       }),
-                      icon: const Icon(LucideIcons.star, size: 18),
                     ),
                   ],
                 ),
@@ -1067,18 +1067,16 @@ class ServerNodeRow extends StatelessWidget {
                             color: p.primary,
                           ),
                         ),
-                      IconButton(
+                      AppFavoriteButton(
                         tooltip: row.favorite
                             ? l.prototypeRemoveFavorite
                             : l.prototypeAddFavorite,
                         onPressed: controller.serverBusy(row)
                             ? null
                             : () => controller.toggleFavorite(context, row),
-                        isSelected: row.favorite,
-                        icon: controller.favoritingIds.contains(row.id)
-                            ? const ButtonProgressIndicator()
-                            : const Icon(LucideIcons.star, size: 17),
-                        selectedIcon: const Icon(LucideIcons.star600, size: 17),
+                        selected: row.favorite,
+                        busy: controller.favoritingIds.contains(row.id),
+                        size: 17,
                       ),
                       ServerMenu(controller: controller, row: row),
                     ],
