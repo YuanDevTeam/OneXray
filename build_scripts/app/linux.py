@@ -1,3 +1,4 @@
+import os
 import re
 import shutil
 from pathlib import Path
@@ -11,12 +12,17 @@ class LinuxBuilder(Builder):
         self.fastforge_build("zip", arguments=arguments)
         self._build_deb(arguments)
         self.fastforge_build("rpm", arguments=arguments)
+        self.fastforge_build(
+            "pacman",
+            arguments=("--skip-build", *arguments),
+            executable=os.environ.get("ONEXRAY_FASTFORGE_PACMAN") or "fastforge-native",
+        )
         packages = [
             Path(self.root_dir)
             / "dist"
             / self.read_version()
             / f"{self.project}-{self.package_suffix}.{extension}"
-            for extension in ("zip", "deb", "rpm")
+            for extension in ("zip", "deb", "rpm", "pkg.tar.zst")
         ]
         for package in packages:
             if not package.is_file():

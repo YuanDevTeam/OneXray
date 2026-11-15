@@ -1,0 +1,32 @@
+display_name: OneXray
+package_name: onexray
+maintainer:
+  name: Yuan Dev LLC
+  email: yuan@yuandev.net
+licenses:
+  - GPL-3.0-only
+dependencies:
+  - glibc>=2.39
+  - glib2>=2.80
+  - gtk3
+  - libstdc++
+  - libcap
+  - procps-ng
+icon: assets/logo.png
+# Fastforge's native pacman maker installs the bundle in /opt/OneXray and
+# generates separate .INSTALL functions for first installation and upgrades.
+postinstall_scripts:
+  - setcap cap_net_admin,cap_net_raw+eip /opt/OneXray/OneXrayCore
+postupgrade_scripts:
+  - setcap cap_net_admin,cap_net_raw+eip /opt/OneXray/OneXrayCore
+keywords:
+  - OneXray
+  - Xray
+  - VPN
+  - Proxy
+generic_name: VPN and Proxy Client
+categories:
+  - Network
+startup_notify: true
+supported_mime_type:
+  - x-scheme-handler/onexray

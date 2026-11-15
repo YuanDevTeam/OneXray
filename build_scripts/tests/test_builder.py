@@ -172,6 +172,7 @@ class BuilderTest(unittest.TestCase):
         with (
             mock.patch("app.builder.platform.system", return_value="Linux"),
             mock.patch("app.builder.platform.machine", return_value="x86_64"),
+            mock.patch.dict(os.environ, {"ONEXRAY_FASTFORGE_PACMAN": "/tools/native fastforge"}),
         ):
             builder = LinuxBuilder("OneXray", "linux", str(self.root / "build_scripts"))
             previous_rpm = (
@@ -187,20 +188,25 @@ class BuilderTest(unittest.TestCase):
                 self.assertEqual(args[-2:], ["--artifact-name", "OneXray-linux-x86_64.{{ext}}"])
                 if extension == "deb":
                     self.assertIn("installed_size: 4", config.read_text())
-                elif extension == "rpm":
+                elif extension in ("rpm", "pacman"):
                     self.assertEqual(config.read_text(), original)
+                if extension == "pacman":
+                    self.assertEqual(args[0], "/tools/native fastforge")
+                    self.assertIn("--skip-build", args)
+                else:
+                    self.assertNotIn("--skip-build", args)
                 if extension == fail:
                     raise RuntimeError(f"{extension.upper()} packaging failed")
                 path = (
                     self.root
                     / "dist"
                     / builder.read_version()
-                    / f"OneXray-linux-x86_64.{extension}"
+                    / f"OneXray-linux-x86_64.{'pkg.tar.zst' if extension == 'pacman' else extension}"
                 )
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(extension.encode())
 
-            for fail in ("deb", "rpm", None):
+            for fail in ("deb", "rpm", "pacman", None):
                 calls.clear()
                 with (
                     self.subTest(fail=fail),
@@ -210,7 +216,10 @@ class BuilderTest(unittest.TestCase):
                         with self.assertRaisesRegex(RuntimeError, f"{fail.upper()} packaging failed"):
                             builder.build_app()
                         self.assertEqual(list(output.iterdir()), [])
-                        self.assertEqual(previous_rpm.read_bytes(), b"previous RPM")
+                        self.assertEqual(
+                            previous_rpm.read_bytes(),
+                            b"rpm" if fail == "pacman" else b"previous RPM",
+                        )
                     else:
                         builder.build_app()
                         self.assertEqual(
@@ -219,17 +228,21 @@ class BuilderTest(unittest.TestCase):
                                 "OneXray-linux-x86_64.zip",
                                 "OneXray-linux-x86_64.deb",
                                 "OneXray-linux-x86_64.rpm",
+                                "OneXray-linux-x86_64.pkg.tar.zst",
                             },
                         )
-                        for extension in ("zip", "deb", "rpm"):
+                        for target in ("zip", "deb", "rpm", "pacman"):
+                            extension = "pkg.tar.zst" if target == "pacman" else target
                             self.assertEqual(
                                 (output / f"OneXray-linux-x86_64.{extension}").read_bytes(),
-                                extension.encode(),
+                                target.encode(),
                             )
-                self.assertEqual(calls, ["zip", "deb"] + ([] if fail == "deb" else ["rpm"]))
+                targets = ["zip", "deb", "rpm", "pacman"]
+                expected = targets if fail is None else targets[: targets.index(fail) + 1]
+                self.assertEqual(calls, expected)
                 self.assertEqual(config.read_text(), original)
 
-    def test_linux_requires_current_rpm_before_collecting_packages(self):
+    def test_linux_requires_current_rpm_and_pacman_before_collecting_packages(self):
         config = self.root / "linux/packaging/deb/make_config.yaml"
         config.parent.mkdir(parents=True)
         original = "installed_size: 1\n"
@@ -239,35 +252,38 @@ class BuilderTest(unittest.TestCase):
         (bundle / "OneXray").write_bytes(b"current bundle")
         output = self.workspace / "output"
         output.mkdir()
-        stale = self.root / "dist/old-version/OneXray-linux-x86_64.rpm"
-        stale.parent.mkdir(parents=True)
-        stale.write_bytes(b"old RPM")
         with (
             mock.patch("app.builder.platform.system", return_value="Linux"),
             mock.patch("app.builder.platform.machine", return_value="x86_64"),
         ):
             builder = LinuxBuilder("OneXray", "linux", str(self.root / "build_scripts"))
+            current = self.root / "dist" / builder.read_version()
+            current.mkdir(parents=True)
+            for missing in ("rpm", "pkg.tar.zst"):
+                for path in current.iterdir():
+                    path.unlink()
+                stale = self.root / f"dist/old-version/OneXray-linux-x86_64.{missing}"
+                stale.parent.mkdir(parents=True, exist_ok=True)
+                stale.write_bytes(b"old package")
 
-            def package(args, **kwargs):
-                extension = args[args.index("--targets") + 1]
-                if extension == "rpm":
-                    return
-                path = (
-                    self.root / "dist" / builder.read_version()
-                    / f"OneXray-linux-x86_64.{extension}"
-                )
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(extension.encode())
+                def package(args, **kwargs):
+                    target = args[args.index("--targets") + 1]
+                    extension = "pkg.tar.zst" if target == "pacman" else target
+                    if extension != missing:
+                        (current / f"OneXray-linux-x86_64.{extension}").write_bytes(
+                            target.encode()
+                        )
 
-            with (
-                mock.patch("app.builder.run_command", side_effect=package) as run,
-                self.assertRaisesRegex(FileNotFoundError, "OneXray-linux-x86_64.rpm"),
-            ):
-                builder.build_app()
-            self.assertEqual(run.call_count, 3)
-            self.assertEqual(list(output.iterdir()), [])
-            self.assertEqual(config.read_text(), original)
-            self.assertEqual(stale.read_bytes(), b"old RPM")
+                with (
+                    self.subTest(missing=missing),
+                    mock.patch("app.builder.run_command", side_effect=package) as run,
+                    self.assertRaisesRegex(FileNotFoundError, f"OneXray-linux-x86_64.{missing}"),
+                ):
+                    builder.build_app()
+                self.assertEqual(run.call_count, 4)
+                self.assertEqual(list(output.iterdir()), [])
+                self.assertEqual(config.read_text(), original)
+                self.assertEqual(stale.read_bytes(), b"old package")
 
     @unittest.skipUnless(sys.platform == "win32", "Windows executable lookup")
     def test_run_command_finds_pub_tool_and_preserves_arguments_cwd_and_environment(self):

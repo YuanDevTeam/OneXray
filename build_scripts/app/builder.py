@@ -110,10 +110,11 @@ class Builder:
         *,
         arguments: tuple[str, ...] = (),
         env: dict[str, str] | None = None,
+        executable: str | None = None,
     ):
         run_command(
             [
-                fastforge_command(),
+                executable or fastforge_command(),
                 "package",
                 "--platform",
                 platform.system().lower(),

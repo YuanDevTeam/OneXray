@@ -19,7 +19,7 @@ Platform tools and CI versions are defined in the [Build workflow](../.github/wo
 | Apple | macOS, Xcode, SwiftPM, Fastlane and signing credentials. |
 | Android | Android SDK/NDK, compatible JDK, Fastlane and Play credentials; see [Gradle](../android/app/build.gradle.kts). |
 | Windows | Native x64/ARM64 host, Visual Studio C++, Windows SDK, Rust and matching Go/C tools. EXE/ZIP also need Dart Fastforge; EXE needs Inno Setup (`INNO_SETUP_PATH`). |
-| Linux | Native Linux toolchain, GTK/plugin dependencies, Dart Fastforge, `rpmbuild` and `patchelf` (the `rpm` and `patchelf` packages on Ubuntu build hosts). |
+| Linux | Native Linux toolchain, GTK/plugin dependencies, Dart Fastforge, native Fastforge 0.7.0-dev.7 for pacman, `rpmbuild`, `patchelf`, `bsdtar` and zstd (`rpm`, `patchelf`, `libarchive-tools`, `zstd` on Ubuntu build hosts). |
 
 Linux hosts also need `clang`, `pkg-config`, `libgtk-3-dev`, `libx11-dev` and
 `libxi-dev` when building Android: Dart-based FFI generation runs the
@@ -32,6 +32,21 @@ uv sync --project build_scripts
 # Only for Linux or Windows EXE/ZIP:
 dart pub global activate fastforge
 ```
+
+On Linux, install the official native Fastforge CLI separately for pacman. Keep
+the Dart CLI on `PATH` for ZIP/DEB/RPM:
+
+```shell
+export FASTFORGE_VERSION=0.7.0-dev.7
+export FASTFORGE_INSTALL_DIR="$HOME/.local/share/onexray-fastforge-native"
+curl -fsSL "https://raw.githubusercontent.com/fastforgedev/fastforge/v$FASTFORGE_VERSION/install.sh" | sh
+export ONEXRAY_FASTFORGE_PACMAN="$FASTFORGE_INSTALL_DIR/fastforge"
+```
+
+The Build workflow sets this executable path automatically. A manually installed
+native CLI named `fastforge-native` is also accepted when the variable is unset.
+The native CLI is pinned because the Dart pacman maker does not produce valid
+Arch package metadata; no Fastforge implementation is modified or embedded.
 
 Keep `LIBXRAY_REF=main` unless explicitly instructed otherwise. Run Flutter/Dart
 commands serially.
@@ -102,13 +117,13 @@ PowerShell uses `$env:BUILD_NUMBER = "1"`; the build command is otherwise the sa
 | `macos_se` | Developer ID signed, notarized universal ZIP. |
 | `android` | Play internal draft AAB upload and universal APK download. |
 | `windows` | EXE + ZIP, or MSIX with `--windows-mode msix`. |
-| `linux` | ZIP + DEB + RPM for the host architecture. |
+| `linux` | ZIP + DEB + RPM + pacman (`.pkg.tar.zst`) for the host architecture. |
 
 **Apple/Android deployment and notarization are not local checks.** The sequence is
 version/pub get → native libraries/Core/Geodata → FFI generation → platform build/package.
 `pubspec.yaml` is restored on success or failure. Android passes its effective
 build number through the environment, without rewriting Fastfile. Linux collects
-only the current version's ZIP/DEB/RPM.
+only the current version's ZIP/DEB/RPM/pacman artifacts.
 
 Android uploads remain internal drafts and explicitly skip metadata, images,
 screenshots and changelogs. Do not set `changes_not_sent_for_review` for this
@@ -142,10 +157,12 @@ builds do not validate distribution signing or device Widget availability.
 
 ## Linux
 
-The native x86_64 and ARM64 jobs each use Fastforge to build ZIP, DEB and RPM, named
-`OneXray-linux-x86_64.<ext>` and `OneXray-linux-aarch64.<ext>` respectively.
-The Build workflow uploads all three formats; Publish requires both architectures'
-RPM files alongside the existing Linux packages.
+The native x86_64 and ARM64 jobs use Dart Fastforge for ZIP, DEB and RPM, then
+native Fastforge for pacman with `--skip-build`, reusing the release bundle.
+Artifacts are `OneXray-linux-x86_64.<ext>` and
+`OneXray-linux-aarch64.<ext>`, where pacman's extension is `pkg.tar.zst`.
+The Build workflow uploads all four formats; Publish requires both architectures'
+packages. A failed packager or missing current-version file prevents collection.
 
 The [RPM configuration](../linux/packaging/rpm/make_config.yaml) declares Fedora
 runtime dependencies. Its `postinstall_scripts` hook runs
@@ -161,8 +178,21 @@ On Fedora, install or update the downloaded package with:
 sudo dnf install ./OneXray-linux-x86_64.rpm
 ```
 
-Use `OneXray-linux-aarch64.rpm` for ARM64. Packaging does not change the Linux
-runtime baseline: kernel 5.3+, glibc 2.39+, GLib 2.80+ and GTK 3.
+Use `OneXray-linux-aarch64.rpm` for ARM64.
+
+The [pacman configuration](../linux/packaging/pacman/make_config.yaml) declares
+Arch runtime dependencies and sets Core capabilities in both `post_install` and
+`post_upgrade`. Native Fastforge installs the bundle at `/opt/OneXray` and a
+package-managed `/usr/bin/OneXray` link; the graphical app runs as the normal user.
+Install or update an x86_64 Arch Linux package with:
+
+```shell
+sudo pacman -U ./OneXray-linux-x86_64.pkg.tar.zst
+```
+
+The ARM64 artifact is `OneXray-linux-aarch64.pkg.tar.zst`. No user configuration
+is packaged or removed by installation hooks. Packaging does not change the
+Linux runtime baseline: kernel 5.3+, glibc 2.39+, GLib 2.80+ and GTK 3.
 
 ## Windows
 

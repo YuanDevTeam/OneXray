@@ -13,9 +13,11 @@ _GITHUB_PACKAGES = {
         "linux-x64/OneXray-linux-x86_64.zip",
         "linux-x64/OneXray-linux-x86_64.deb",
         "linux-x64/OneXray-linux-x86_64.rpm",
+        "linux-x64/OneXray-linux-x86_64.pkg.tar.zst",
         "linux-arm64/OneXray-linux-aarch64.zip",
         "linux-arm64/OneXray-linux-aarch64.deb",
         "linux-arm64/OneXray-linux-aarch64.rpm",
+        "linux-arm64/OneXray-linux-aarch64.pkg.tar.zst",
     ),
     "windows": (
         "windows-x64/OneXray-windows-amd64.exe",
