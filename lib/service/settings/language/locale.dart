@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 
@@ -38,20 +36,9 @@ abstract final class AppLocalePolicy {
         .toList(growable: false);
   }
 
-  static Locale resolve(
-    Locale? locale,
-    Iterable<Locale> supportedLocales, {
-    Abi? abi,
-  }) {
+  static Locale resolve(Locale? locale, Iterable<Locale> supportedLocales) {
     final locales = supportedLocales.toList(growable: false);
     if (locale == null) {
-      return english;
-    }
-
-    // Keep the Linux ARM64 CJK compatibility fallback shared by Flutter's
-    // system-locale callback and explicit/background language selection.
-    if (const {"zh", "ja", "ko"}.contains(locale.languageCode) &&
-        (abi ?? Abi.current()) == Abi.linuxArm64) {
       return english;
     }
 
