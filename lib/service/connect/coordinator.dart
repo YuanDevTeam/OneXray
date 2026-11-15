@@ -6,6 +6,7 @@ import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/pigeon/flutter_api.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
+import 'package:onexray/core/tools/logger.dart';
 import 'package:onexray/service/connect/failure.dart';
 import 'package:onexray/service/connect/ordinary_plan.dart';
 export 'package:onexray/service/connect/ordinary_plan.dart'
@@ -14,6 +15,7 @@ import 'package:onexray/service/connect/preparation.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/connect/startup_probe.dart';
 import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
@@ -96,11 +98,18 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   late final InspectConnection _inspect;
   late final Future<ConnectionTraffic> Function(ConnectionRuntime) _readTraffic;
   late final Future<ConnectionRuntime?> Function() _readRuntime;
+  late final Future<bool?> Function(ConnectionRuntime) _probe;
+  final Duration startupProbeDelay;
   final Stream<VpnStatus> _statusEvents;
   final Future<void> Function() _observeStatus;
   final void Function() _disposeStatus;
   final _commands = CommandSerialExecutor();
   final state = ValueNotifier(const ConnectionView());
+  final startupProbeFailure = ValueNotifier<int?>(null);
+  Timer? _startupProbeTimer;
+  ConnectionRuntime? _startupProbeRuntime;
+  int _startupProbeEpoch = 0;
+  bool _startupProbeScheduled = false;
   Future<void>? _initializing;
   Future<void>? _connectRequested;
   StreamSubscription<VpnStatus>? _statusSubscription;
@@ -132,6 +141,8 @@ class ConnectionCoordinator with WidgetsBindingObserver {
     InspectConnection? inspect,
     Future<ConnectionTraffic> Function(ConnectionRuntime)? readTraffic,
     Future<ConnectionRuntime?> Function()? readRuntime,
+    Future<bool?> Function(ConnectionRuntime)? probe,
+    this.startupProbeDelay = const Duration(seconds: 1),
     Stream<VpnStatus>? statusEvents,
     Future<void> Function()? observeStatus,
     void Function()? disposeStatus,
@@ -160,6 +171,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
     _inspect = inspect ?? host.inspect;
     _readTraffic = readTraffic ?? host.query;
     _readRuntime = readRuntime ?? host.readRuntime;
+    _probe = probe ?? ConnectionStartupProbe().run;
     _prepare =
         prepare ??
         ((configuration, cancelled) => ConnectionPreparation(db: db).prepare(
@@ -228,6 +240,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
             _syncTrafficSampling();
             _drainNativeStatus();
           }
+          _syncStartupProbe();
         })
         .catchError((Object error, StackTrace stack) {
           unawaited(_statusSubscription?.cancel());
@@ -255,6 +268,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
     final wasVisible = _appVisible;
     final hadDemand = _hasTrafficDemand;
     _appVisible = isAppVisible(state);
+    if (!_appVisible) startupProbeFailure.value = null;
     if (hadDemand != _hasTrafficDemand) {
       _resetSpeed = true;
       _trafficGeneration++;
@@ -313,6 +327,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
 
   void _onNativeStatus(VpnStatus status) {
     if (_closed || status == _pendingStatus) return;
+    if (status != VpnStatus.connected) _invalidateStartupProbe();
     final phase = switch (status) {
       VpnStatus.connected => ConnectionPhase.connected,
       VpnStatus.connecting => ConnectionPhase.connecting,
@@ -432,6 +447,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
       _refreshing = false;
       _syncTrafficSampling();
       _drainNativeStatus();
+      _syncStartupProbe();
     }
   }
 
@@ -551,6 +567,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
           return;
         }
         if (shouldStart) _checkConnectionRequest(generation);
+        _invalidateStartupProbe();
         final cancellation = Completer<void>();
         _cancel = cancellation;
         final old = current.connected ? current.runtime : null;
@@ -747,11 +764,13 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   }
 
   Future<void> disconnect() {
+    _invalidateStartupProbe();
     cancel();
     return _run(_stopForMaintenance);
   }
 
   Future<void> pauseForDataClear() {
+    _invalidateStartupProbe();
     cancel();
     return _commands.pause();
   }
@@ -763,6 +782,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   Future<void> stopForMaintenance() => _executeCommand(_stopForMaintenance);
 
   Future<void> _stopForMaintenance() async {
+    _invalidateStartupProbe();
     try {
       final current = await _inspect(await _currentRuntime());
       state.value = ConnectionView(
@@ -826,6 +846,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
       _commandActive = false;
       _syncTrafficSampling();
       _drainNativeStatus();
+      _syncStartupProbe();
     }
   }
 
@@ -914,6 +935,115 @@ class ConnectionCoordinator with WidgetsBindingObserver {
       error: error,
     );
     _syncTrafficSampling();
+    _syncStartupProbe();
+  }
+
+  void _invalidateStartupProbe() {
+    _startupProbeEpoch++;
+    _startupProbeTimer?.cancel();
+    _startupProbeTimer = null;
+    _startupProbeRuntime = null;
+    _startupProbeScheduled = false;
+    startupProbeFailure.value = null;
+  }
+
+  static bool _hasPreparedAppleTime(ConnectionRuntime runtime) {
+    if (runtime.platform != ConnectionPlatform.ios) return false;
+    final metadata = runtime.request.metadataJson;
+    if (metadata == null) return false;
+    try {
+      return (jsonDecode(metadata) as Map<String, dynamic>)['startedAt'] ==
+          runtime.startedAt.microsecondsSinceEpoch;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static bool _sameStartupProbeSession(
+    ConnectionRuntime previous,
+    ConnectionRuntime current,
+  ) {
+    if (previous.identity == current.identity) return true;
+    // NE's connected time replaces preparation time without starting a new
+    // session. A later different native time still identifies a saved restart.
+    return previous.platform == ConnectionPlatform.ios &&
+        current.platform == ConnectionPlatform.ios &&
+        previous.request.metadataJson == current.request.metadataJson &&
+        previous.request.metricsPort == current.request.metricsPort &&
+        previous.xrayJson == current.xrayJson &&
+        (_hasPreparedAppleTime(previous) || _hasPreparedAppleTime(current));
+  }
+
+  bool _isCurrentStartupProbe(int epoch) =>
+      !_closed &&
+      epoch == _startupProbeEpoch &&
+      _startupProbeRuntime != null &&
+      state.value.phase == ConnectionPhase.connected &&
+      state.value.runtime != null &&
+      _sameStartupProbeSession(_startupProbeRuntime!, state.value.runtime!) &&
+      (_pendingStatus == null || _pendingStatus == VpnStatus.connected);
+
+  void _syncStartupProbe() {
+    if (_closed) return;
+    final view = state.value;
+    final runtime = view.runtime;
+    if (view.phase != ConnectionPhase.connected || runtime == null) {
+      if (_startupProbeRuntime != null) _invalidateStartupProbe();
+      return;
+    }
+    final previous = _startupProbeRuntime;
+    if (previous == null || !_sameStartupProbeSession(previous, runtime)) {
+      _invalidateStartupProbe();
+      _startupProbeRuntime = runtime;
+    } else if (previous.identity != runtime.identity &&
+        !_hasPreparedAppleTime(runtime)) {
+      // Keep a known native timestamp if a later read only has saved metadata.
+      _startupProbeRuntime = runtime;
+    }
+    if (_startupProbeScheduled ||
+        !_ready ||
+        !_appVisible ||
+        _commands.isPaused ||
+        _commandActive ||
+        _refreshing ||
+        _pendingStatus != null) {
+      return;
+    }
+    final epoch = _startupProbeEpoch;
+    _startupProbeScheduled = true;
+    _startupProbeTimer = Timer(startupProbeDelay, () {
+      _startupProbeTimer = null;
+      if (!_isCurrentStartupProbe(epoch)) return;
+      if (!_appVisible || _commandActive || _refreshing || _commands.isPaused) {
+        _startupProbeScheduled = false;
+        return;
+      }
+      unawaited(_runStartupProbe(runtime, epoch));
+    });
+  }
+
+  Future<void> _runStartupProbe(ConnectionRuntime runtime, int epoch) async {
+    try {
+      final reachable = await _probe(runtime);
+      if (reachable == false && _appVisible && _isCurrentStartupProbe(epoch)) {
+        startupProbeFailure.value = epoch;
+      }
+    } catch (error) {
+      // A reference probe is never a connection command or a startup failure.
+      ygLogger('Startup node probe unavailable (${error.runtimeType})');
+    }
+  }
+
+  /// Foreground UI consumes a current failure once, independently of VPN state.
+  bool consumeStartupProbeFailure(int session) {
+    if (_closed ||
+        !_appVisible ||
+        startupProbeFailure.value != session ||
+        !_isCurrentStartupProbe(session)) {
+      return false;
+    }
+    startupProbeFailure.value = null;
+    return true;
   }
 
   static bool _permissionRequired(PlatformPermissionResult? permission) =>
@@ -922,6 +1052,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
       permission?.state == PlatformPermissionState.denied;
 
   void clearTrafficView() {
+    _invalidateStartupProbe();
     _commandGeneration++;
     _trafficGeneration++;
     _pendingStatus = null;
@@ -933,12 +1064,14 @@ class ConnectionCoordinator with WidgetsBindingObserver {
 
   void dispose() {
     _closed = true;
+    _invalidateStartupProbe();
     _visibleTrafficPages.clear();
     if (_observingLifecycle) WidgetsBinding.instance.removeObserver(this);
     cancel();
     unawaited(_statusSubscription?.cancel());
     _disposeStatus();
     _trafficPoll?.cancel();
+    startupProbeFailure.dispose();
     state.dispose();
   }
 }

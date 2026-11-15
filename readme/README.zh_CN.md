@@ -21,11 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="#系统要求">系统要求</a> · <a href="#linux">Linux</a> · <a href="#onexrayse">OneXraySE</a> · <a href="#其他下载">其他下载</a>
-</p>
-
-<p align="center">
-  如果 OneXray 对你有帮助，请为本仓库点亮 ⭐ <strong>Star</strong>，支持项目持续开发。
+  <a href="https://onexray.com/zh/docs/">使用文档</a> · <a href="https://onexray.com/zh/docs/install/">安装指南</a> · <a href="https://onexray.com/zh/docs/system-requirements/">系统要求</a>
 </p>
 
 <p align="center">
@@ -37,103 +33,31 @@
 
 [![Mac、iPad 与 iPhone 上的 OneXray](https://onexray.com/images/screenshots/devices-zh.png?v=20261113)](https://onexray.com/images/screenshots/devices-zh.png?v=20261113)
 
-## 为什么选择 OneXray
+## 功能
 
-- **跨设备使用。** 支持 iPhone、iPad、Mac、Android、Windows 和 Linux，提供浅色 / 深色主题及五种界面语言。
-- **有序管理服务器。** 导入分享链接、Xray JSON 和订阅；将手动节点整理为分组，并通过拖动调整顺序。
-- **自主控制路由。** 使用智能路由或自定义路由，也可使用完整 Raw 配置和服务商配置，包括 Remnawave 订阅。
-- **开源，保护隐私。** 源码采用 GPL-3.0 许可，并附 [VPN 服务商豁免](#许可证)，无需账户，不含广告、分析或跟踪。[隐私政策](https://onexray.com/zh/docs/privacy/)。
-
-## 系统要求
-
-当前官方安装包要求以下操作系统和处理器架构：
-
-| 平台 | 最低操作系统要求 | 支持的架构 |
-| --- | --- | --- |
-| iPhone / iPad | iOS / iPadOS 16+ | arm64 |
-| macOS（Mac App Store） | macOS 13 | Apple silicon（arm64）、Intel（x86_64） |
-| macOS（OneXraySE） | macOS 13 | Apple silicon（arm64）、Intel（x86_64） |
-| Android | Android 10（API 29） | arm64-v8a、x86_64；不支持 32 位设备 |
-| Windows x64 | Windows 10 20H2（内部版本 19042） | x64（x86_64） |
-| Windows ARM64 | Windows 11 | ARM64 |
-| Linux（DEB / ZIP） | Ubuntu 24.04 LTS 或兼容发行版，需具备 Linux 内核 5.3+、glibc 2.39+、GLib 2.80+ 和 GTK 3 运行库 | x86_64、arm64 |
-
-Ubuntu 22.04 自带的 GLib 2.72 不满足当前官方 DEB / ZIP 安装包的要求。请使用 Ubuntu 24.04 LTS 或满足上述全部要求的其他发行版。
-
-详细说明见[系统要求指南](https://onexray.com/zh/docs/system-requirements/)。
-
-## 快速开始
-
-1. 从官方商店安装，完成初始化并授予所需的系统权限。Windows 和 Linux 还需要选择出口网卡。
-2. 打开“**服务器**”，添加订阅、分享链接或 Xray JSON。导入订阅时会自动识别服务商的完整配置。
-3. 在“**连接**”页选择服务器或完整配置，然后启动 VPN。App 管理的节点可先使用智能路由；服务商配置使用自身的路由和 DNS。
-
-[首次连接指南](https://onexray.com/zh/docs/getting-started/) · [导入指南](https://onexray.com/zh/docs/servers/import/) · [Remnawave 指南](https://onexray.com/zh/docs/servers/remnawave/)
+- 支持 iPhone、iPad、Mac、Android、Windows 和 Linux，提供浅色 / 深色主题及五种界面语言。
+- 导入分享链接、Xray JSON 和订阅，支持手动分组与服务器测速。
+- 智能路由、自定义路由、Raw JSON 和服务商完整配置，包括 Remnawave 订阅。
+- 无需账户，不含广告、分析或跟踪。[隐私政策](https://onexray.com/zh/docs/privacy/)。
 
 ## 下载
 
-请先确认[系统要求](#系统要求)，再选择适合设备的官方商店：
+官方商店入口见上方。支持的设备、独立安装包与更新方法见[系统要求](https://onexray.com/zh/docs/system-requirements/)和[安装指南](https://onexray.com/zh/docs/install/)。
 
-- **iPhone / iPad：** [App Store](https://apps.apple.com/us/app/onexray/id6745748773)。
-- **macOS：** [Mac App Store](https://apps.apple.com/us/app/onexray/id6745748773)。
-- **Android 手机 / 平板：** [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray)。
-- **Windows：** [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D)。
+- **Linux：** [DEB 与 ZIP](https://onexray.com/zh/docs/install/#linux) · [Fedora ZIP](https://onexray.com/zh/docs/install/#linux-zip-fedora) · [Arch Linux ZIP](https://onexray.com/zh/docs/install/#linux-zip-arch)。
+- **macOS OneXraySE：** [Homebrew](https://formulae.brew.sh/cask/onexrayse) · [System Extension 授权](https://onexray.com/zh/docs/install/#macos)。
+- **APK、IPA 与 Windows 安装包：** [安装指南](https://onexray.com/zh/docs/install/) · [所有发布版本](https://github.com/YuanDevTeam/OneXray/releases)。
 
-### Linux
+## 文档与支持
 
-[DEB · x86_64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.deb) · [DEB · arm64](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.deb)。请确认 [Linux 系统要求](#系统要求)，依赖与权限要求见 [Linux 安装指南](https://onexray.com/zh/docs/install/#linux)。
+[首次连接](https://onexray.com/zh/docs/getting-started/) · [导入服务器](https://onexray.com/zh/docs/servers/import/) · [路由配置](https://onexray.com/zh/docs/connect/smart-routing/) · [使用 AI 配置](https://onexray.com/zh/docs/ai/) · [完整文档](https://onexray.com/zh/docs/)
 
-### OneXraySE
+[反馈问题或提出功能建议](https://github.com/YuanDevTeam/OneXray/issues)时，请附上 App / Core 版本和复现步骤，并移除配置与日志中的凭据。也可加入 [Telegram 社区](https://t.me/YuanDevTeam)。
 
-macOS System Extension 版本可通过 [Homebrew](https://formulae.brew.sh/cask/onexrayse) 或 [Universal ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-macos-universal.zip) 安装。请确认[系统要求](#系统要求)，扩展授权与更新步骤见 [macOS 安装指南](https://onexray.com/zh/docs/install/#macos)。
-
-### 其他下载
-
-<details>
-<summary>直接下载安装包与安装说明</summary>
-
-| 平台 | 安装包 |
-| --- | --- |
-| iPhone / iPad | [IPA](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-ios.ipa) |
-| Android | [通用 APK](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-android-universal.apk) |
-| Windows x64 | [通过 winget 安装 EXE](https://onexray.com/zh/docs/install/#windows) · [ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-windows-amd64.zip) |
-| Windows ARM64 | [通过 winget 安装 EXE](https://onexray.com/zh/docs/install/#windows) · [ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-windows-arm64.zip) |
-| Linux x86_64 | [ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-x86_64.zip) |
-| Linux arm64 | [ZIP](https://github.com/YuanDevTeam/OneXray/releases/latest/download/OneXray-linux-aarch64.zip) |
-
-[安装指南](https://onexray.com/zh/docs/install/)涵盖 IPA 签名、Windows 版本与独立数据目录、ZIP 权限及更新方式。[查看所有版本](https://github.com/YuanDevTeam/OneXray/releases)。
-
-</details>
-
-## 配置与帮助
-
-- [使用文档](https://onexray.com/zh/docs/) — 初始化、路由、订阅与平台功能。
-- [使用 AI 配置](https://onexray.com/zh/docs/ai/) — 将指南中的提示词复制给你信任的 AI 助手，或附上[完整指南](https://onexray.com/zh/llms-full.txt)。OneXray 不内置 AI 服务，也不会向助手发送配置；连接前请在 App 中检查生成的 JSON。
-- [反馈问题或提出功能建议](https://github.com/YuanDevTeam/OneXray/issues) — 请附上平台、App / Core 版本和复现步骤。分享配置、订阅链接和日志前，请移除凭据。
-- [Telegram 社区](https://t.me/YuanDevTeam)。
-
-## 支持 OneXray
-
-喜欢 OneXray？请为本仓库点亮 ⭐ **Star**，支持项目持续开发。
-
-[App Store](https://apps.apple.com/us/app/onexray/id6745748773) · [Google Play](https://play.google.com/store/apps/details?id=net.yuandev.onexray) · [Microsoft Store](https://apps.microsoft.com/detail/9NJ0MVHW215D)
-
-欢迎贡献代码、翻译和文档。请从[开发环境配置](./FIRST_RUN.zh_CN.md)、[构建指南](../build_scripts/README.md)和 [App 行为约定](../docs/README.md)开始。
+欢迎贡献代码、翻译和文档：[开发环境](./FIRST_RUN.zh_CN.md) · [构建指南](../build_scripts/README.md) · [App 行为约定](../docs/README.md)。
 
 ## 许可证
 
-OneXray 采用 [GNU General Public License v3.0](../LICENSE)，并附 [OneXray VPN 服务商豁免条款](../LICENSE-EXCEPTION)。
+[GPL-3.0](../LICENSE)，附 [VPN 服务商豁免](../LICENSE-EXCEPTION)。豁免仅允许服务商为自有 VPN 服务分发专用闭源客户端，不得保留通用第三方配置或订阅能力，并须在界面可见位置注明基于 OneXray 及提供项目链接。完整条件和第三方许可义务见豁免原文。
 
-VPN 服务提供商为自己的 VPN 服务打造并分发专用定制客户端，且该客户端只能接入该服务商自有的 VPN 服务时，可以保持闭源，无需对豁免所覆盖的代码遵循本仓库的 GPL 要求。
-
-符合豁免条件的客户端不得包含通用自定义配置或通用订阅功能，包括导入或使用任意第三方 VPN、代理配置或订阅地址的能力。服务商提供的、仅用于接入其自有 VPN 服务的配置和订阅可以保留。若客户端仍可接入第三方服务，仅更换品牌、仅向自家订阅用户分发，或将自家服务设为默认，并不足以获得豁免。
-
-依此豁免分发的每个闭源客户端，必须在客户端界面中易于找到的位置（如“关于”“致谢”或“开源声明”页面）明确说明其基于 OneXray 项目，并提供 [OneXray 项目链接](https://github.com/YuanDevTeam/OneXray)。
-
-以上条件仅用于确定是否适用豁免。其他用途仍须遵循 GPL 或另行适用的授权。
-
-Yuan Dev Team 保证不引入要求符合豁免条件的自定义客户端整体按 GPL 授权或按 GPL 公开源码的直接第三方依赖。第三方许可证及其针对相应组件的义务仍然适用；豁免仅覆盖 Yuan Dev Team 拥有或有权授权的权利。
-
-## 商务合作
-
-如有任何商务合作意向，请发送邮件至 [yuan@yuandev.net](mailto:yuan@yuandev.net)。
+商务合作：[yuan@yuandev.net](mailto:yuan@yuandev.net)。

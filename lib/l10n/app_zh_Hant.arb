@@ -1023,5 +1023,6 @@
   "geodataCategoriesAndReferences": "分類與引用",
   "xrayRecordDnsHint": "日誌可能包含造訪的網域。",
   "importPreviewIncomplete": "匯入未完成",
-  "importPreviewResultSummary": "已匯入 {completed} 項，失敗 {failed} 項。"
+  "importPreviewResultSummary": "已匯入 {completed} 項，失敗 {failed} 項。",
+  "connectionStartupProbeFailed": "本次節點探測未成功，VPN 仍保持連線。"
 }

@@ -1023,5 +1023,6 @@
   "geodataCategoriesAndReferences": "Категории и ссылки",
   "xrayRecordDnsHint": "Журналы могут содержать посещённые домены.",
   "importPreviewIncomplete": "Импорт завершён не полностью",
-  "importPreviewResultSummary": "Импортировано: {completed}. Не импортировано: {failed}."
+  "importPreviewResultSummary": "Импортировано: {completed}. Не импортировано: {failed}.",
+  "connectionStartupProbeFailed": "Проверка узла не удалась. VPN остаётся подключённым."
 }
