@@ -58,6 +58,6 @@ Contributions are welcome: [development setup](./readme/FIRST_RUN.md) · [build 
 
 ## License
 
-Starting with version 26.11.5, all OneXray code is released under [GPL-3.0](./LICENSE), without any licensing exceptions. This change was made in response to [issue #277](https://github.com/YuanDevTeam/OneXray/issues/277).
+[GPL-3.0](./LICENSE), with the [VPN Provider Exception](./LICENSE-EXCEPTION). The exception permits dedicated closed-source clients only for the provider's own VPN service, without general-purpose third-party configuration or subscription support, and requires visible in-app OneXray attribution and a project link. See the full exception for all conditions and third-party obligations.
 
 Business inquiries: [yuan@yuandev.net](mailto:yuan@yuandev.net).
