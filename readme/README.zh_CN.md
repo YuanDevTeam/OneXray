@@ -58,6 +58,6 @@
 
 ## 许可证
 
-[GPL-3.0](../LICENSE)，附 [VPN 服务商豁免](../LICENSE-EXCEPTION)。豁免仅允许服务商为自有 VPN 服务分发专用闭源客户端，不得保留通用第三方配置或订阅能力，并须在界面可见位置注明基于 OneXray 及提供项目链接。完整条件和第三方许可义务见豁免原文。
+从 26.11.5 版本开始，OneXray 的所有代码均在 [GPL-3.0](../LICENSE) 下发布，不再提供任何例外授权。此次许可证调整源于 [issue #277](https://github.com/YuanDevTeam/OneXray/issues/277)。
 
 商务合作：[yuan@yuandev.net](mailto:yuan@yuandev.net)。
