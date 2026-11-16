@@ -61,13 +61,11 @@ final class DesktopProxyHost {
   bool get _desktop =>
       _desktopOverride ??
       (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
-  static Future<String> _directory() async =>
+  static Future<String> _journalDirectory() async =>
       (await getApplicationSupportDirectory()).path;
   late final _core =
       _coreOverride ??
-      (Platform.isMacOS
-          ? MacProxyCoreSession()
-          : ProcessProxyCoreSession(directory: _directory));
+      (Platform.isMacOS ? MacProxyCoreSession() : ProcessProxyCoreSession());
   late final _adapter =
       _adapterOverride ??
       (Platform.isWindows
@@ -77,7 +75,8 @@ final class DesktopProxyHost {
           : const UnsupportedSystemProxyAdapter(
               'Configure the HTTP/SOCKS endpoint in macOS or your app.',
             ));
-  late final _store = _storeOverride ?? FileProxyJournalStore(_directory);
+  late final _store =
+      _storeOverride ?? FileProxyJournalStore(_journalDirectory);
   Future<void> _tail = Future.value();
   bool _loaded = false;
   bool _watching = false;

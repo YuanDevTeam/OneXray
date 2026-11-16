@@ -7,6 +7,7 @@ import 'package:ffi/ffi.dart';
 import 'package:onexray/core/ffi/base_ffi_api.dart';
 import 'package:onexray/core/ffi/linux_ffi_api.dart';
 import 'package:onexray/core/pigeon/desktop_proxy_api.dart';
+import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/proxy/system_proxy.dart';
@@ -90,11 +91,12 @@ final class MacProxyCoreSession implements ProxyCoreSession {
 /// system DNS setter, VPN provider, TUN or named-process cleanup is involved.
 final class ProcessProxyCoreSession implements ProxyCoreSession {
   ProcessProxyCoreSession({
-    required this.directory,
+    Future<String> Function()? directory,
     String? executable,
     Future<Process> Function(String, List<String>)? startProcess,
     Future<Map<String, dynamic>?> Function(int)? readProcessIdentity,
-  }) : executable =
+  }) : directory = directory ?? _runtimeDataDirectory,
+       executable =
            executable ??
            (Platform.isWindows
                ? p.join(
@@ -104,6 +106,14 @@ final class ProcessProxyCoreSession implements ProxyCoreSession {
                : LinuxFfiApi().corePath),
        _startProcess = startProcess ?? Process.start,
        _readProcessIdentityOverride = readProcessIdentity;
+
+  static Future<String> _runtimeDataDirectory() async {
+    final directory = AppHostApi().tunFilesDir;
+    if (directory.isEmpty || !p.isAbsolute(directory)) {
+      throw StateError('The proxy runtime data directory is unavailable.');
+    }
+    return directory;
+  }
 
   final Future<String> Function() directory;
   final String executable;
