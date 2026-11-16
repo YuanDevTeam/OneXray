@@ -408,12 +408,15 @@ WireGuard 在代理运行副本使用 `noKernelTun: true`，防止已有 NET_ADM
 代理只覆盖显式使用入口或遵从系统代理的应用，不承诺全部 UDP、DNS 或任意应用均被接管。
 
 macOS 普通版与 SE 使用同一套 Swift helper 源码，通过私有 socketpair 控制现有 libXray API；Runner 的测速/构造校验使用自身 libXray，不与长驻 Core 同进程重叠。
+TUN 的 `run/start.json` 与代理的 `run/proxy-start.json` 独立保存，互不覆盖；代理结束后保留的系统 VPN profile 仍使用上一次有效 TUN 输入。
+隧道 provider 与原生 VPN 启动入口在任何网络设置变更前拒绝代理或未知模式；旧请求未携带模式字段时仍按 TUN 读取，不迁移或重写缓存。
 普通版 helper 为 `net.yuandev.onexray.helper` / `OneXraymacOSHelper`，SE 为 `net.yuandev.onexray.se.helper` / `OneXraySEmacOSHelper`。
 helper 继承沙盒，代理方式不安装或激活 NE/SE。切换前仅查找本 App 已有 VPN profile，取消其 on-demand 并等待停止，不触碰其他 VPN。
 Windows EXE/MSIX 与 Linux 代理使用自身普通用户 Core 子进程及 `-set-dns=false`，不走旧提权、Vole/TUN、网卡或 capabilities 检查；已有安装包的 Core file capabilities 保留。
 
 自动系统代理仅在 Windows 当前用户策略允许、或 GNOME 所需 schema/session/逐键写权限可用时启用；macOS、KDE 和其他环境提供手动端点。
 Core 与本地入口就绪后，先保存本设备私有恢复记录，再写入并读回系统设置；真实接管状态与保存偏好分开显示。
+恢复记录读写共用 65,536 字节上限；以实际 UTF-8 编码大小判定，超限时在触碰临时文件或系统代理设置前拒绝。
 停止/失败/异常退出先条件还原仍归本次持有的设置，再释放 Core。外部修改保留；若仍指向本端点但无法安全还原，报告失败并保留可重试的运行及端点。
 已知代理会话的显式断开、退出与确认重连不因锁存的状态查询错误失去清理重试机会；仍须实际还原并确认停止后才能重连或保存。
 自动模式只读观察系统代理设置变化，不把 metrics 不可用或外部改代理当作 Core 已停止。
@@ -492,7 +495,10 @@ Lua 不属于 JSON 编辑提示、普通模型或资源管理范围。
 ## 运行协调与统计
 
 `ConnectionCoordinator` 串行停止并确认旧运行，再准备/启动/确认新运行，最后提交设置。
-run/start.json 是唯一原生启动请求：coreInvokeText 为实际输入，metadataJson 仅还原运行描述、资产保护和起始时间。
+TUN 启动请求使用 `run/start.json`，桌面代理快照使用 `run/proxy-start.json`；各自的 coreInvokeText 为实际输入，metadataJson 仅还原运行描述、资产保护和起始时间。
+状态检查与停止以实际活跃的 backend 为准，并从对应文件恢复身份；保存偏好或另一模式的旧快照不能冒充正在运行的会话。
+显式停止须分别确认两个受管 backend 均已断开，覆盖从系统设置额外启动保留 VPN 的情况；任一端停止失败仍保留重试机会。
+macOS 上即使 TUN 已断开，仍须执行原生停止以禁用按需重连。
 旧 metadata 缺 profile 仍能恢复；提供方 profile 字段与 nodeIds 保护完整配置，不因 entries 为空而丢失身份。
 不另存 App 计划、快照或跨进程提交日志。文件队列在连接命令取得执行权后进入；只读状态/metrics 不入队。
 停止失败不继续准备；启停已开始后的失败尽力停止本次运行并进入 failed，不恢复旧连接/输入。
@@ -523,7 +529,7 @@ Geodata 始终使用唯一平铺 datDir，启动不复制文件；SE 跨容器�
 Apple 使用 NE 状态通知，Android 使用资源查询/生命周期广播/进程退出通知；EXE 用进程句柄退出，
 Linux 用自身 exitCode 或接管 pidfd（不支持时报错，不降级轮询）。
 仅 MSIX 内部每 5 秒检查系统 VPN，启停有界快速确认，不随隐藏/失焦停止。
-startVpn/stopVpn 成功返回已确认状态，不仅是“提交命令”；只读返回不通过回调绕行，每次同步只读一次 start.json。
+startVpn/stopVpn 成功返回已确认状态，不仅是“提交命令”；只读返回不通过回调绕行，运行描述来自已确认 backend 的对应启动快照。
 
 Android 每次原生启动使用内部单调 request ID，启动 Intent、Binder 查询和状态广播携带相同身份，
 不关联订阅或配置记录。App 在交付启动前绑定本次身份，旧运行迟到的成功、断开和错误广播不完成或拒绝新命令。

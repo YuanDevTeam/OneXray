@@ -178,6 +178,8 @@ void main() {
     await db.connectionConfigDao.commit(configurationJson: original.encode());
     final run = await Directory('${root.path}/run').create();
     await File('${run.path}/start.json').writeAsString('old runtime');
+    await File('${run.path}/proxy-start.json')
+        .writeAsString('old proxy runtime');
     expect(await resources(native).clearConnectionResources(), isTrue);
     expect(await db.select(db.coreConfig).get(), isEmpty);
     expect(await db.subscriptionDao.allRows, isEmpty);
@@ -204,6 +206,7 @@ void main() {
     expect(fresh.connection.smart.finalExitId, isNull);
     expect(fresh.connection.rememberedOrdinarySelection, isNull);
     expect(await File('${run.path}/start.json').exists(), isFalse);
+    expect(await File('${run.path}/proxy-start.json').exists(), isFalse);
     expect(await preferences.readLocalApi(), api);
     expect(await preferences.readBackup(), backup);
     expect(await external.readAsString(), 'same backup');
@@ -309,6 +312,8 @@ void main() {
     );
     final run = await Directory('${root.path}/run').create();
     await File('${run.path}/start.json').writeAsString('same runtime');
+    await File('${run.path}/proxy-start.json')
+        .writeAsString('same proxy runtime');
     await db.customStatement(
       "CREATE TRIGGER prevent_clear BEFORE DELETE ON core_config BEGIN SELECT RAISE(ABORT, 'blocked'); END;",
     );
@@ -327,6 +332,10 @@ void main() {
       );
     }
     expect(await File('${run.path}/start.json').readAsString(), 'same runtime');
+    expect(
+      await File('${run.path}/proxy-start.json').readAsString(),
+      'same proxy runtime',
+    );
     expect(native.blocked, isFalse);
     expect(native.clears, 0);
   });

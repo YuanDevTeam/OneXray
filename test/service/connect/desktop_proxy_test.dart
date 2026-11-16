@@ -322,6 +322,8 @@ void main() {
       final host = ConnectionRuntimeHost(
         writeStartFile: (_) async => calls.add('write'),
         prefersProxy: () async => true,
+        readStatus: () async => VpnStatus.disconnected,
+        stopVpn: () async => _success(VpnStatus.disconnected),
         startProxy: (value) async {
           calls.add('proxy-start');
           expect(value.request.autoSetSystemProxy, isTrue);

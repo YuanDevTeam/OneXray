@@ -140,7 +140,7 @@ class RuntimeSelectionFallback {
 }
 
 /// The prepared or active runtime input. It is never stored separately.
-/// start.json retains only the small metadata required to restore the UI and
+/// Each backend's startup input retains the metadata required to restore the UI and
 /// protect active nodes; the Xray JSON remains solely in coreInvokeText.
 class ConnectionRuntime {
   final ConnectionConfiguration configuration;

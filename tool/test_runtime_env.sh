@@ -10,6 +10,7 @@ xcrun swiftc \
   -L "$platform/Developer/usr/lib" \
   -Xlinker -rpath -Xlinker "$platform/Developer/Library/Frameworks" \
   -Xlinker -rpath -Xlinker "$platform/Developer/usr/lib" \
-  swift/All/RuntimeEnv.swift test/native/RuntimeEnvTests.swift \
+  swift/All/Constants.swift swift/All/RuntimeEnv.swift \
+  test/native/RuntimeEnvTests.swift test/native/StartRequestStorageTests.swift \
   -o "$evidence/runtime-env-tests"
 "$evidence/runtime-env-tests"

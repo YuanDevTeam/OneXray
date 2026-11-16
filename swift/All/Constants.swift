@@ -4,6 +4,49 @@ public let ProxyHost = "127.0.0.1"
 public let TunMtu: NSNumber = 1500
 
 public let StartModelFile = "run/start.json"
+public let ProxyStartModelFile = "run/proxy-start.json"
+
+enum StartRequestKind {
+    case tunnel
+    case proxy
+
+    init(captureMode: String?) throws {
+        switch captureMode {
+        case nil, "tun": self = .tunnel
+        case "proxy": self = .proxy
+        default: throw StartRequestKindError.unsupportedMode
+        }
+    }
+
+    var relativePath: String {
+        switch self {
+        case .tunnel: return StartModelFile
+        case .proxy: return ProxyStartModelFile
+        }
+    }
+
+    func requireTunnel() throws {
+        guard self == .tunnel else { throw StartRequestKindError.notTunnel }
+    }
+
+    func writeSnapshot(_ data: Data, in container: URL) throws {
+        let file = container.appendingPathComponent(relativePath)
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try data.write(to: file, options: .atomic)
+    }
+}
+
+enum StartRequestKindError: LocalizedError {
+    case unsupportedMode
+    case notTunnel
+
+    var errorDescription: String? {
+        switch self {
+        case .unsupportedMode: return "Unsupported connection capture mode."
+        case .notTunnel: return "A local proxy configuration cannot start a VPN tunnel."
+        }
+    }
+}
 
 public enum Constants {
     #if SYSTEM_EXTENSION

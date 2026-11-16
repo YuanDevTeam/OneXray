@@ -514,15 +514,14 @@ class VPNManager {
             try requireStartAllowed()
             guard stopTask == nil else { throw CancellationError() }
             request = try JsonTool.decode(StartVpnRequest.self, from: requestJson)
+            try request.requireTunnel()
             guard request.coreInvokeText?.isEmpty == false else {
                 return NativeVpnCommandResult(state: .failed, message: "Missing Xray run configuration.")
             }
             guard let group = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) else {
                 throw VPNError.noGroupContainer
             }
-            let file = group.appending(path: StartModelFile)
-            try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try Data(requestJson.utf8).write(to: file, options: .atomic)
+            try StartRequestKind.tunnel.writeSnapshot(Data(requestJson.utf8), in: group)
             // No await separates token consumption, publication, and native admission.
             generation = startAdmission.begin()
         } catch is CancellationError {
@@ -721,6 +720,8 @@ class VPNManager {
             if activeStartGeneration == generation { activeStartGeneration = nil }
             #endif
         }
+        do { try request?.requireTunnel() }
+        catch { return NativeVpnCommandResult(state: .failed, message: error.localizedDescription) }
         let mutation: UUID
         do {
             try requireProfileMutationAllowed()
@@ -894,6 +895,7 @@ class VPNManager {
     }
 
     private func saveVpn(vpn: NETunnelProviderManager, tun: TunJson, request: StartVpnRequest? = nil) async throws {
+        try request?.requireTunnel()
         try requireProfileMutationAllowed()
         vpn.isEnabled = true
         if let conf = vpn.protocolConfiguration as? NETunnelProviderProtocol {

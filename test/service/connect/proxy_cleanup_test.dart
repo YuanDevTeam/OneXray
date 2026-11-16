@@ -149,6 +149,11 @@ final class _Fixture {
       cached = runtime;
     },
     prefersProxy: () async => true,
+    readStatus: () async => VpnStatus.disconnected,
+    stopVpn: () async => NativeVpnCommandResult(
+      state: NativeVpnCommandState.success,
+      status: VpnStatus.disconnected,
+    ),
     startProxy: (runtime) => proxy.start(
       runtime.request,
       autoSetSystemProxy: runtime.request.autoSetSystemProxy,

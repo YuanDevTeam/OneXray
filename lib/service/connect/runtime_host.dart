@@ -140,18 +140,24 @@ class ConnectionRuntimeHost {
   }
 
   String get _directory => _runDirectory ?? VpnConstants.runDir;
+  bool get _selectDesktopBackend =>
+      AppPlatform.isDesktop && _prefersProxy != null;
 
-  Future<
-    ({VpnStatus status, PlatformPermissionResult? permission, String? message})
-  >
-  _status({bool proxy = false}) async {
+  Future<NativeVpnCommandResult> _nativeStatus({required bool proxy}) async {
     final readStatus = _readStatus;
     if (readStatus != null && !proxy) {
-      return (status: await readStatus(), permission: null, message: null);
+      return NativeVpnCommandResult(
+        state: NativeVpnCommandState.success,
+        status: await readStatus(),
+      );
     }
-    final result = proxy
+    return proxy
         ? await (_readProxyStatus?.call() ?? DesktopProxyHost().readStatus())
         : await _host.readVpnStatus();
+  }
+
+  ({VpnStatus status, PlatformPermissionResult? permission, String? message})
+  _confirmedStatus(NativeVpnCommandResult result) {
     if (result.state != NativeVpnCommandState.success ||
         result.status == null) {
       throw ConnectionHostException(
@@ -167,6 +173,32 @@ class ConnectionRuntimeHost {
     );
   }
 
+  Future<({bool proxy, NativeVpnCommandResult result})> _backend(
+    ConnectionRuntime? runtime,
+  ) async {
+    final preferred = await _prefersProxy!();
+    final firstProxy = _runningProxy ?? runtime?.isProxy ?? preferred;
+    final first = await _nativeStatus(proxy: firstProxy);
+    if (!_disconnected(first)) return (proxy: firstProxy, result: first);
+    final second = await _nativeStatus(proxy: !firstProxy);
+    if (!_disconnected(second) || preferred != firstProxy) {
+      return (proxy: !firstProxy, result: second);
+    }
+    return (proxy: firstProxy, result: first);
+  }
+
+  static bool _disconnected(NativeVpnCommandResult result) =>
+      result.state == NativeVpnCommandState.success &&
+      result.status == VpnStatus.disconnected;
+
+  static bool _requiresStop({
+    required bool proxy,
+    required NativeVpnCommandResult result,
+  }) =>
+      !_disconnected(result) ||
+      // macOS Stop also disables on-demand rules on an idle TUN profile.
+      (AppPlatform.isMacOS && !proxy);
+
   static Map<String, dynamic> _jsonObject(String text) {
     final json = jsonDecode(text);
     if (json is! Map<String, dynamic>) {
@@ -176,16 +208,30 @@ class ConnectionRuntimeHost {
   }
 
   Future<ConnectionRuntime?> readRuntime() async {
+    if (!_selectDesktopBackend) return _readSnapshot(proxy: false);
+    final proxy = _runningProxy ?? await _prefersProxy!();
+    return _readSnapshot(proxy: proxy);
+  }
+
+  Future<ConnectionRuntime?> _readSnapshot({required bool proxy}) async {
     try {
-      final file = File(p.join(_directory, 'start.json'));
+      final file = File(
+        p.join(
+          _directory,
+          proxy ? VpnConstants.proxyStartFileName : VpnConstants.startFileName,
+        ),
+      );
       if (await FileSystemEntity.type(file.path, followLinks: false) !=
               FileSystemEntityType.file ||
           await file.length() > 16 * 1024 * 1024) {
         return null;
       }
-      return ConnectionRuntime.fromRequest(
-        StartVpnRequest.fromJson(_jsonObject(await file.readAsString())),
+      final request = StartVpnRequest.fromJson(
+        _jsonObject(await file.readAsString()),
       );
+      if (request.captureMode != (proxy ? 'proxy' : 'tun')) return null;
+      final runtime = ConnectionRuntime.fromRequest(request);
+      return runtime.isProxy == proxy ? runtime : null;
     } on Exception {
       return null;
     } on ArgumentError {
@@ -278,18 +324,30 @@ class ConnectionRuntimeHost {
     ConnectionRuntime? runtime, {
     VpnStatus? observedStatus,
   }) async {
-    final preferredProxy = await _prefersProxy?.call() ?? false;
-    var proxy = _runningProxy ?? runtime?.isProxy ?? preferredProxy;
-    var platform = observedStatus == null || proxy
-        ? await _status(proxy: proxy)
-        : (status: observedStatus, permission: null, message: null);
-    // The cached request describes the last session, not a new preference.
-    if (platform.status == VpnStatus.disconnected && proxy != preferredProxy) {
-      proxy = preferredProxy;
-      platform = await _status(proxy: proxy);
-      runtime = null;
+    final bool proxy;
+    final ({
+      VpnStatus status,
+      PlatformPermissionResult? permission,
+      String? message,
+    })
+    platform;
+    if (_selectDesktopBackend) {
+      // A saved mode or an NE notification cannot identify the active backend.
+      final selected = await _backend(runtime);
+      proxy = selected.proxy;
+      platform = _confirmedStatus(selected.result);
+      if (platform.status != VpnStatus.disconnected &&
+          (runtime == null || runtime.isProxy != proxy)) {
+        runtime = await _readSnapshot(proxy: proxy);
+      }
+    } else {
+      proxy =
+          AppPlatform.isDesktop && (_runningProxy ?? runtime?.isProxy ?? false);
+      platform = observedStatus == null || proxy
+          ? _confirmedStatus(await _nativeStatus(proxy: proxy))
+          : (status: observedStatus, permission: null, message: null);
     }
-    if (platform.status == VpnStatus.connected) _runningProxy = proxy;
+    _runningProxy = platform.status == VpnStatus.disconnected ? null : proxy;
     if (platform.status == VpnStatus.connected &&
         runtime?.platform == ConnectionPlatform.ios) {
       final readConnectedAt =
@@ -424,22 +482,49 @@ class ConnectionRuntimeHost {
   }
 
   Future<HostConnection> stop() async {
+    if (_selectDesktopBackend) {
+      final selected = await _backend(
+        _runningProxy == null ? await readRuntime() : null,
+      );
+      _runningProxy = selected.proxy;
+      var result = selected.result;
+      if (_requiresStop(proxy: selected.proxy, result: result)) {
+        result = await _stopBackend(proxy: selected.proxy);
+      }
+      // A retained system TUN can also be started outside the App while its
+      // proxy Core is running. Global Stop is complete only after both owned
+      // backends have confirmed idle; failed reads still permit owned cleanup.
+      _runningProxy = !selected.proxy;
+      final other = await _nativeStatus(proxy: !selected.proxy);
+      if (_requiresStop(proxy: !selected.proxy, result: other)) {
+        result = await _stopBackend(proxy: !selected.proxy);
+      }
+      _runningProxy = null;
+      return HostConnection(
+        VpnStatus.disconnected,
+        permission: result.permission,
+      );
+    }
     final proxy =
-        _runningProxy ??
-        (await readRuntime())?.isProxy ??
-        (await _prefersProxy?.call() ?? false);
-    final result =
-        await (_stopVpn?.call() ??
-            (proxy
-                ? (_stopProxy?.call() ?? DesktopProxyHost().stop())
-                : _host.stopVpn()));
+        AppPlatform.isDesktop &&
+        (_runningProxy ?? (await readRuntime())?.isProxy ?? false);
+    final result = await _stopBackend(proxy: proxy);
+    _runningProxy = null;
+    return HostConnection(result.status!, permission: result.permission);
+  }
+
+  Future<NativeVpnCommandResult> _stopBackend({required bool proxy}) async {
+    // Selection retains failed results so an owned proxy cleanup remains
+    // reachable even when its previous restoration error blocks inspection.
+    final result = proxy
+        ? await (_stopProxy?.call() ?? DesktopProxyHost().stop())
+        : await (_stopVpn?.call() ?? _host.stopVpn());
     if (result.state != NativeVpnCommandState.success) {
       throw ConnectionHostException('stopFailed', cause: result.message);
     }
     if (result.status != VpnStatus.disconnected) {
       throw ConnectionHostException('stopNotConfirmed', cause: result.message);
     }
-    _runningProxy = null;
-    return HostConnection(result.status!, permission: result.permission);
+    return result;
   }
 }

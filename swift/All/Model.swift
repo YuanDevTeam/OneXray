@@ -92,9 +92,14 @@ struct StartVpnRequest: Codable {
     var captureMode: String?
     var autoSetSystemProxy: Bool?
 
+    func requireTunnel() throws {
+        try StartRequestKind(captureMode: captureMode).requireTunnel()
+    }
+
     private static func fromUrl(_ url: URL) throws -> Self {
         let data = try Data(contentsOf: url)
         let request = try JsonTool.decode(self, from: data)
+        try request.requireTunnel()
         return request
     }
 

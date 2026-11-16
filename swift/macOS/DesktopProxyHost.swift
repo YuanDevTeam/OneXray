@@ -55,7 +55,7 @@ final class DesktopProxyHost {
             let run = group.appendingPathComponent("run", isDirectory: true)
             try FileManager.default.createDirectory(at: run, withIntermediateDirectories: true)
             try clearXrayRuntimeLogs(in: run)
-            try Data(requestJson.utf8).write(to: group.appendingPathComponent(StartModelFile), options: .atomic)
+            try StartRequestKind.proxy.writeSnapshot(Data(requestJson.utf8), in: group)
             let child = try DesktopProxyProcess(executable: helper) { [weak self] in
                 Task { @MainActor in self?.didExit(generation: token) }
             }

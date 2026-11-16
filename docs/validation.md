@@ -301,6 +301,8 @@ Pigeon schema 或生成器版本更新时，用 `tool/generate_pigeon.dart` 同�
 - 启动日志清理：Dart FFI 与 `bash tool/test_runtime_env.sh`、Android `RuntimeLogFilesTest` 覆盖两份托管文件、
   缺失幂等、符号链接/目录拒绝及旁侧文件保留；启动回归检查停止失败、旧 Core 残留和进程查询失败均保留旧日志。
   文件测试不替代各平台真实启动与原生 saved-start 验收。
+  同一 Swift 脚本及 `test/core/pigeon/start_request_storage_test.dart` 验证 TUN/代理快照互不覆盖、旧 TUN 输入保留及代理/未知模式拒绝；
+  backend 恢复测试还须覆盖保存意图与实际运行不同时的身份、停止对象及元数据缺失保护。它们不替代从系统设置启动真实 NE 的验收。
   日志查看器另覆盖同路径新文件大小等于或大于旧偏移、旧在途数据/错误回包、新连接边沿、同会话追加以及断开保留诊断。
 - Android Manifest/网络 XML 变更补跑 `./gradlew :app:lintVitalRelease`；
   发布相关修复还需本地 Release AAB 构建，不调用会上传商店的部署脚本。
