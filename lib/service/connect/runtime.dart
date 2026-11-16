@@ -140,7 +140,7 @@ class RuntimeSelectionFallback {
 }
 
 /// The prepared or active runtime input. It is never stored separately.
-/// start.json retains only the small metadata required to restore the UI and
+/// Each backend's startup input retains the metadata required to restore the UI and
 /// protect active nodes; the Xray JSON remains solely in coreInvokeText.
 class ConnectionRuntime {
   final ConnectionConfiguration configuration;
@@ -232,6 +232,8 @@ class ConnectionRuntime {
       request.coreInvokeText,
       snapshotToken: request.snapshotToken,
       metadataJson: metadataJson,
+      captureMode: request.captureMode,
+      autoSetSystemProxy: request.autoSetSystemProxy,
     );
     return ConnectionRuntime._(
       configuration: configuration,
@@ -315,6 +317,13 @@ class ConnectionRuntime {
 
   String get identity =>
       '${startedAt.microsecondsSinceEpoch}:${request.metricsPort}';
+  bool get isProxy =>
+      request.captureMode == 'proxy' &&
+      const {
+        ConnectionPlatform.macos,
+        ConnectionPlatform.windows,
+        ConnectionPlatform.linux,
+      }.contains(platform);
   Set<int> get nodeIds => {
     for (final entry in entries) entry.id,
     if (finalExit != null) finalExit!.id,

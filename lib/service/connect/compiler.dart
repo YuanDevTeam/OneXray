@@ -99,6 +99,7 @@ class ResolvedServer {
 class RuntimeOptions {
   final ConnectionPlatform platform;
   final WindowsMode windowsMode;
+  final bool proxyMode;
   final String sessionDirectory;
   final int metricsPort;
   final int socksPort;
@@ -118,6 +119,7 @@ class RuntimeOptions {
   RuntimeOptions({
     required this.platform,
     WindowsMode? windowsMode,
+    this.proxyMode = false,
     required this.sessionDirectory,
     required this.metricsPort,
     required this.socksPort,
@@ -134,6 +136,17 @@ class RuntimeOptions {
     this.dnsLog = true,
     this.maskAddress = '',
   }) : windowsMode = windowsMode ?? windowsBuildMode {
+    if (proxyMode &&
+        !const {
+          ConnectionPlatform.macos,
+          ConnectionPlatform.windows,
+          ConnectionPlatform.linux,
+        }.contains(platform)) {
+      throw const FormatException('Local proxy mode requires a desktop');
+    }
+    if (proxyMode && (socksPort < 1024 || socksPort > 65535)) {
+      throw const FormatException('Proxy port must be within 1024–65535');
+    }
     if (metricsPort == socksPort) {
       throw const FormatException('Runtime ports are invalid');
     }
@@ -146,7 +159,8 @@ class RuntimeOptions {
         'LAN proxy port conflicts with a runtime port',
       );
     }
-    if ((platform == ConnectionPlatform.windows ||
+    if (!proxyMode &&
+        (platform == ConnectionPlatform.windows ||
             platform == ConnectionPlatform.linux) &&
         interfaceName.isEmpty) {
       throw const FormatException('Network interface is required');
@@ -154,7 +168,10 @@ class RuntimeOptions {
   }
 
   bool get usesWindowsSystemVpn =>
-      platform == ConnectionPlatform.windows && windowsMode == WindowsMode.msix;
+      !proxyMode &&
+      platform == ConnectionPlatform.windows &&
+      windowsMode == WindowsMode.msix;
+  bool get usesSocksInbound => proxyMode || usesWindowsSystemVpn;
 }
 
 class CompiledConnection {
@@ -403,8 +420,9 @@ class ConnectionCompiler {
         outbounds: outbounds,
         settings: options.dialing.effective(ipv6: options.ipv6),
         interfaceName:
-            options.platform == ConnectionPlatform.windows ||
-                options.platform == ConnectionPlatform.linux
+            !options.proxyMode &&
+                (options.platform == ConnectionPlatform.windows ||
+                    options.platform == ConnectionPlatform.linux)
             ? options.interfaceName
             : null,
       );
@@ -412,8 +430,9 @@ class ConnectionCompiler {
         createFreedomOutbound(
           tag: 'direct',
           interfaceName:
-              options.platform == ConnectionPlatform.windows ||
-                  options.platform == ConnectionPlatform.linux
+              !options.proxyMode &&
+                  (options.platform == ConnectionPlatform.windows ||
+                      options.platform == ConnectionPlatform.linux)
               ? options.interfaceName
               : null,
         ).toJson(),
@@ -589,7 +608,7 @@ class ConnectionCompiler {
     bool fakeDns = false,
     RoutingSniffingSettings sniffing = const RoutingSniffingSettings(),
   }) {
-    if (options.usesWindowsSystemVpn) {
+    if (options.usesSocksInbound) {
       return createSocksInbound(
         '${options.socksPort}',
         fakeDns: fakeDns,
@@ -660,8 +679,9 @@ class ConnectionCompiler {
     validateLocalDnsNetworkPolicy(
       config,
       requiresInterface:
-          options.platform == ConnectionPlatform.windows ||
-          options.platform == ConnectionPlatform.linux,
+          !options.proxyMode &&
+          (options.platform == ConnectionPlatform.windows ||
+              options.platform == ConnectionPlatform.linux),
     );
     final outbounds = _objects(config, 'outbounds');
     final inbounds = _objects(config, 'inbounds');
@@ -675,7 +695,7 @@ class ConnectionCompiler {
         throw const FormatException('Use the App-managed tunIn tunnel');
       }
       if (portIncludes(inbound['port'], options.metricsPort) ||
-          (options.usesWindowsSystemVpn &&
+          (options.usesSocksInbound &&
               portIncludes(inbound['port'], options.socksPort))) {
         throw const FormatException(
           'Raw inbound conflicts with an App-managed port',
@@ -694,7 +714,7 @@ class ConnectionCompiler {
       inbounds.insert(0, generated);
     } else {
       final inbound = managed.single;
-      if (options.usesWindowsSystemVpn) {
+      if (options.usesSocksInbound) {
         final settings = inbound['protocol'] == 'socks'
             ? _object(inbound, 'settings')
             : <String, dynamic>{};
@@ -786,6 +806,17 @@ class ConnectionCompiler {
     required bool raw,
   }) {
     for (final outbound in outbounds) {
+      if (options.proxyMode && outbound['protocol'] == 'wireguard') {
+        final settings = _object(outbound, 'settings');
+        if (raw && settings['noKernelTun'] == false) {
+          throw const FormatException(
+            'WireGuard kernel TUN is incompatible with local proxy mode; use noKernelTun: true',
+          );
+        }
+        // Linux installations retain NET_ADMIN for VPN mode. A proxy graph
+        // must use WireGuard's userspace stack even when that capability exists.
+        settings['noKernelTun'] = true;
+      }
       if (['blackhole', 'loopback', 'dns'].contains(outbound['protocol'])) {
         continue;
       }
@@ -808,8 +839,9 @@ class ConnectionCompiler {
     Map<String, dynamic> sockopt,
     RuntimeOptions options,
   ) {
-    if (options.platform == ConnectionPlatform.windows ||
-        options.platform == ConnectionPlatform.linux) {
+    if (!options.proxyMode &&
+        (options.platform == ConnectionPlatform.windows ||
+            options.platform == ConnectionPlatform.linux)) {
       sockopt['interface'] = options.interfaceName;
     } else {
       sockopt.remove('interface');

@@ -7,6 +7,7 @@ import 'package:onexray/pages/launch/setup/selectors.dart';
 import 'package:onexray/pages/main/url.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/service/launch/setup.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/shared/failure.dart';
 
 enum SetupAction {
@@ -15,6 +16,8 @@ enum SetupAction {
   back,
   chooseInterface,
   chooseRegion,
+  useTunnel,
+  useProxy,
   finish,
   retry,
 }
@@ -27,6 +30,7 @@ class SetupPageState {
   final String interfaceName;
   final List<String>? regions;
   final SetupFailure? failure;
+  final CaptureMode captureMode;
 
   const SetupPageState({
     this.step = SetupStep.welcome,
@@ -36,6 +40,7 @@ class SetupPageState {
     this.interfaceName = '',
     this.regions,
     this.failure,
+    this.captureMode = CaptureMode.tun,
   });
 
   bool ready({required bool requiresInterface}) =>
@@ -51,6 +56,7 @@ class SetupPageState {
     List<String>? regions,
     SetupFailure? failure,
     bool clearFailure = false,
+    CaptureMode? captureMode,
   }) => SetupPageState(
     step: step ?? this.step,
     busy: busy ?? this.busy,
@@ -59,11 +65,13 @@ class SetupPageState {
     interfaceName: interfaceName ?? this.interfaceName,
     regions: regions == null ? this.regions : List.unmodifiable(regions),
     failure: clearFailure ? null : failure ?? this.failure,
+    captureMode: captureMode ?? this.captureMode,
   );
 }
 
 class SetupController extends PageCubit<SetupPageState> {
   final SetupService service;
+  bool _modeLoaded = false;
 
   SetupController({SetupService? service})
     : service = service ?? SetupService(),
@@ -82,6 +90,19 @@ class SetupController extends PageCubit<SetupPageState> {
       return;
     }
     if (state.busy) return;
+    if (action == SetupAction.useTunnel || action == SetupAction.useProxy) {
+      if (service.supportsProxy) {
+        emit(
+          state.copyWith(
+            captureMode: action == SetupAction.useProxy
+                ? CaptureMode.proxy
+                : CaptureMode.tun,
+            clearFailure: true,
+          ),
+        );
+      }
+      return;
+    }
     if (action == SetupAction.back) {
       showWelcome();
       return;
@@ -91,6 +112,8 @@ class SetupController extends PageCubit<SetupPageState> {
       case SetupAction.acceptPrivacy:
         unawaited(acceptPrivacy());
       case SetupAction.privacy || SetupAction.back:
+        break;
+      case SetupAction.useTunnel || SetupAction.useProxy:
         break;
       case SetupAction.chooseInterface:
         unawaited(chooseInterface(context));
@@ -112,11 +135,15 @@ class SetupController extends PageCubit<SetupPageState> {
     emit(
       state.copyWith(
         localReady: true,
+        captureMode: _modeLoaded
+            ? state.captureMode
+            : configuration.policy.captureMode,
         interfaceName: state.interfaceName.isEmpty
             ? configuration.policy.xrayOutboundInterfaceName
             : state.interfaceName,
       ),
     );
+    _modeLoaded = true;
     if (state.regions == null) {
       final region = await service.suggestRegion();
       if (region != null && codes.contains(region)) {
@@ -158,6 +185,7 @@ class SetupController extends PageCubit<SetupPageState> {
     await service.finish(
       interfaceName: state.interfaceName,
       regions: state.regions,
+      captureMode: state.captureMode,
     );
     emit(state.copyWith(step: SetupStep.complete));
   });

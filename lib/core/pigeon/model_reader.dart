@@ -10,6 +10,9 @@ extension StartVpnRequestReader on StartVpnRequest {
     final data = await File(filePath).readAsString();
     final requestMap = JsonTool.decoder.convert(data);
     final request = StartVpnRequest.fromJson(requestMap);
+    if (request.captureMode != 'tun') {
+      throw const FormatException('VPN startup input requires tunnel mode');
+    }
     return request;
   }
 }

@@ -16,6 +16,7 @@ import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/details.dart';
 import 'package:onexray/pages/servers/view.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
+import 'package:onexray/pages/shared/widgets/app_favorite.dart';
 import 'package:onexray/pages/theme/theme.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
@@ -234,6 +235,15 @@ void main() {
       expect(find.text('Personal Raw'), findsOneWidget);
       expect(find.byTooltip(l.prototypeRemoveFavorite), findsOneWidget);
       expect(find.byTooltip(l.prototypeAddFavorite), findsOneWidget);
+      AppFavoriteButton favoriteButton(int id) =>
+          tester.widget<AppFavoriteButton>(
+            find.descendant(
+              of: find.byKey(ValueKey(('server', id))),
+              matching: find.byType(AppFavoriteButton),
+            ),
+          );
+      expect(favoriteButton(oldFavoriteId).selected, isTrue);
+      expect(favoriteButton(newFavoriteId).selected, isFalse);
       await tester.tap(find.byKey(const ValueKey('server-favorites-filter')));
       await tester.pumpAndSettle();
       expect(find.text('Existing favorite'), findsOneWidget);
@@ -263,9 +273,18 @@ void main() {
             state.servers.firstWhere((row) => row.id == newFavoriteId).favorite,
       );
       await tester.pumpAndSettle();
+      expect(favoriteButton(newFavoriteId).selected, isTrue);
       await tester.tap(find.text('Another profile'));
       await tester.pumpAndSettle();
       expect(find.byType(ServerResourcePage), findsOneWidget);
+      final detailFavoriteIcon = find.descendant(
+        of: find.byType(ServerResourcePage),
+        matching: find.byType(AppFavoriteIcon),
+      );
+      expect(
+        tester.widget<AppFavoriteIcon>(detailFavoriteIcon).selected,
+        isTrue,
+      );
       final remove = find.text(l.prototypeRemoveFavorite);
       await tester.ensureVisible(remove);
       await tester.tap(remove);
@@ -277,6 +296,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text(l.prototypeAddFavorite), findsOneWidget);
+      expect(
+        tester.widget<AppFavoriteIcon>(detailFavoriteIcon).selected,
+        isFalse,
+      );
       final rows = await tester.runAsync(
         () async => [
           await db.coreConfigDao.searchRow(oldFavoriteId),

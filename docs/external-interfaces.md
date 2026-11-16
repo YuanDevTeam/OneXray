@@ -44,7 +44,9 @@ POST 为 `application/json`，请求体上限 16 MiB；`text` 是原文字符串
 
 `validate` 不接受 `options/outbounds`；模板使用 freedom 占位，不要求真实节点或证明其运行组合。
 `compile` 必须给 `options`：`platform`（ios/macos/android/windows/linux）、
-`sessionDirectory/metricsPort/socksPort/ipv6`；Windows 另需 `windowsMode: exe|msix`，Windows/Linux 需 `interfaceName`。
+`sessionDirectory/metricsPort/socksPort/ipv6`；Windows 另需 `windowsMode: exe|msix`。
+可选 `proxyMode: true` 仅用于桌面，使用指定的 socksPort 作为 loopback HTTP/SOCKS 混合入口；未指定时保持 TUN 编译。
+Windows/Linux 仅在 TUN 预览中要求 `interfaceName`。预览不会启动 Core 或修改系统代理。
 目录必须非空，两个预览端口为 1–65535 且不同；这些是输入检查，不证明端口/网卡在目标系统可用。
 可选 `tunDnsIpv4Address/tunDnsIpv6Address/logEnabled/logFilesSupported/logLevel/dnsLog/maskAddress/lanProxyEnabled/lanProxyPort`
 使用 `RuntimeOptions` 默认值，不读当前用户策略。

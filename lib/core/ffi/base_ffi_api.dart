@@ -19,7 +19,8 @@ List<String> desktopCoreRunArguments({
   String? errorFile,
   bool? setDns,
 }) {
-  if (dns.isEmpty || interfaceName.isEmpty || configPath.isEmpty) {
+  if (configPath.isEmpty ||
+      (setDns != false && (dns.isEmpty || interfaceName.isEmpty))) {
     throw const FormatException(
       'Desktop Core DNS, interface, or config path is missing',
     );
@@ -27,10 +28,8 @@ List<String> desktopCoreRunArguments({
   return <String>[
     'run',
     if (setDns != null) '-set-dns=$setDns',
-    '-dns',
-    '$dns:53',
-    '-interface',
-    interfaceName,
+    if (dns.isNotEmpty) ...['-dns', '$dns:53'],
+    if (interfaceName.isNotEmpty) ...['-interface', interfaceName],
     '-config',
     configPath,
     if (errorFile != null) ...['-error-file', errorFile],

@@ -36,6 +36,9 @@ abstract class BridgeHostApi {
   @asyncCallback
   PlatformPermissionResult requestPlatformPermission();
 
+  @asyncCallback
+  AppleVpnRemovalResult removeAppleVpn();
+
   //android=======================
 
   @asyncCallback
@@ -69,6 +72,19 @@ abstract class BridgeHostApi {
 }
 
 enum VpnStatus { disconnecting, disconnected, connecting, connected }
+
+/// macOS local proxy runtime; this does not create a VPN configuration.
+@HostApi()
+abstract class BridgeDesktopProxyApi {
+  @asyncCallback
+  NativeVpnCommandResult startProxy(String requestJson);
+
+  @asyncCallback
+  NativeVpnCommandResult stopProxy();
+
+  @asyncCallback
+  NativeVpnCommandResult readProxyStatus();
+}
 
 @HostApi()
 abstract class AppleWidgetHostApi {
@@ -181,6 +197,8 @@ enum PlatformPermissionState {
 }
 
 enum NativeVpnCommandState { success, waitingForPlatformPermission, failed }
+
+enum AppleVpnRemovalResult { removed, restartRequired }
 
 enum NativeLaunchAtLoginState {
   enabled,

@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'package:onexray/core/network/client.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/tools/logger.dart';
+import 'package:onexray/core/proxy/host.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/launch/app_startup.dart';
 import 'package:onexray/service/settings/app_update/service.dart';
 import 'package:onexray/service/advanced/xray/data_update/scheduler.dart';
@@ -66,11 +68,16 @@ abstract final class ServiceManager {
     await GeoDataService().ensureInstalled(
       resetOrphanedFiles: databaseWasMissing,
     );
-    await ConnectionPlatformRequirements().ensureRuntime();
+    final configuration = await ConnectionCoordinator.instance.configuration;
+    final proxyMode = configuration.policy.usesProxy(connectionPlatform);
+    await DesktopProxyHost().recover();
+    await ConnectionPlatformRequirements().ensureRuntime(proxyMode: proxyMode);
     // Recovery must succeed before external commands or automatic connection
     // are enabled. The legacy Profile runtime must not initialize alongside it.
     await ConnectionCoordinator.instance.initialize(
-      requestPermission: AppHostApi().requestPlatformPermission,
+      requestPermission: proxyMode
+          ? null
+          : AppHostApi().requestPlatformPermission,
     );
     // Recover only the admission marker after storage and runtime are ready.
     await AndroidAutomationService().setStartBlocked(false);

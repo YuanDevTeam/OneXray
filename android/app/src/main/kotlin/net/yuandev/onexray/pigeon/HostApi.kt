@@ -133,6 +133,10 @@ class AppHostApi(
         }
     }
 
+    override fun removeAppleVpn(callback: (Result<AppleVpnRemovalResult>) -> Unit) {
+        callback(Result.failure(UnsupportedOperationException("Apple VPN removal is unavailable on Android.")))
+    }
+
     override fun invoke(requestJson: String, callback: (Result<String>) -> Unit) {
         scope.launch {
             // Temporary cores share process-global Xray state. The VPN runs in :native.

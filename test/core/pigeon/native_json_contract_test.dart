@@ -71,6 +71,8 @@ void main() {
       'coreInvokeText',
       'snapshotToken',
       'metadataJson',
+      'captureMode',
+      'autoSetSystemProxy',
     });
   });
 

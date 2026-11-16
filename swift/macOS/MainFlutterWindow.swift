@@ -16,6 +16,10 @@ class MainFlutterWindow: NSWindow {
             let flutterApi = AppFlutterApi(binaryMessenger: binaryMessenger)
             self.flutterApi = flutterApi
             BridgeHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: AppHostApi(flutterApi: flutterApi))
+            BridgeDesktopProxyApiSetup.setUp(binaryMessenger: binaryMessenger, api: DesktopProxyHostApi())
+            DesktopProxyHost.shared.onStatus = { [weak flutterApi] status in
+                flutterApi?.desktopProxyStatusChanged(status)
+            }
             let backupApi = AppleBackupApi()
             BackupHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: backupApi)
             AppleBackupHostApiSetup.setUp(binaryMessenger: binaryMessenger, api: backupApi)

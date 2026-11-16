@@ -57,17 +57,20 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         options: [String: NSObject]? = nil,
         completionHandler: @escaping @Sendable (Error?) -> Void
     ) {
+        let request: StartVpnRequest
+        do { request = try loadTunnelRequest() }
+        catch {
+            completionHandler(error)
+            return
+        }
         let generation = lifecycle.beginStart()
         #if os(iOS)
         AppleWidgetPublisher.publish(.connecting)
         #endif
         let startedByApp = options != nil
-        let systemExtensionRequest: StartVpnRequest?
         do {
             if Constants.useSystemExtension {
-                systemExtensionRequest = try prepareSystemExtensionRequest()
-            } else {
-                systemExtensionRequest = nil
+                try prepareSystemExtensionRuntime()
             }
         } catch {
             #if os(iOS)
@@ -78,10 +81,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         }
         Task {
             do {
-                if let systemExtensionRequest {
-                    try await startTunnelSE(request: systemExtensionRequest, startedByApp: startedByApp, generation: generation)
+                if Constants.useSystemExtension {
+                    try await startTunnelSE(request: request, startedByApp: startedByApp, generation: generation)
                 } else {
-                    try await startTunnelLegacy(generation: generation)
+                    try await startTunnelLegacy(request: request, generation: generation)
                 }
                 try lifecycle.check(generation)
                 completionHandler(nil)
@@ -94,12 +97,8 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         }
     }
 
-    private func startTunnelLegacy(generation: UInt64) async throws {
+    private func startTunnelLegacy(request: StartVpnRequest, generation: UInt64) async throws {
         try lifecycle.check(generation)
-        guard let request = StartVpnRequest.startModel else {
-            YGLog("startTunnel noStartModel")
-            throw TunnelError.noStartModel
-        }
         let settings = try buildSettings(request: request)
         try await setTunnelNetworkSettings(settings)
         try lifecycle.check(generation)
@@ -109,22 +108,31 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         YGLog("startTunnel finished")
     }
 
+    /// Validate once before admitting a start or changing network/runtime state.
+    /// Legacy starts retain the validated value instead of re-reading the file.
+    private func loadTunnelRequest() throws -> StartVpnRequest {
+        let request: StartVpnRequest
+        if Constants.useSystemExtension {
+            guard let providerConfig = (self.protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration,
+                  let requestData = providerConfig["request"] as? Data,
+                  let decoded = try? JsonTool.decode(StartVpnRequest.self, from: requestData) else {
+                throw TunnelError.noStartModel
+            }
+            request = decoded
+        } else {
+            guard let saved = StartVpnRequest.startModel else { throw TunnelError.noStartModel }
+            request = saved
+        }
+        try request.requireTunnel()
+        if Constants.useSystemExtension, request.coreInvokeText?.isEmpty != false {
+            throw TunnelError.noStartModel
+        }
+        return request
+    }
+
     // Set up before the asynchronous start task so provider messages can use
     // the shared runtime directories immediately.
-    private func prepareSystemExtensionRequest() throws -> StartVpnRequest {
-        guard let providerConfig = (self.protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration else {
-            YGLog("startTunnel no providerConfiguration")
-            throw TunnelError.noStartModel
-        }
-        guard let requestData = providerConfig["request"] as? Data,
-              let request = try? JsonTool.decode(StartVpnRequest.self, from: requestData) else {
-            YGLog("startTunnel decode request failed")
-            throw TunnelError.noStartModel
-        }
-        guard request.coreInvokeText?.isEmpty == false else {
-            throw TunnelError.noStartModel
-        }
-
+    private func prepareSystemExtensionRuntime() throws {
         guard let extGroupURL = extensionGroupContainerURL() else {
             YGLog("startTunnel noGroupContainer")
             throw TunnelError.noGroupContainer
@@ -140,7 +148,6 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         Self.stateQueue.sync {
             self.pendingStartSignal = false
         }
-        return request
     }
 
     private func startTunnelSE(request: StartVpnRequest, startedByApp: Bool, generation: UInt64) async throws {

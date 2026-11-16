@@ -47,6 +47,10 @@ class SetupService {
   }) : platform = platform ?? connectionPlatform;
 
   AppDatabase get _db => _database ?? AppDatabase();
+  bool get supportsProxy =>
+      platform == ConnectionPlatform.macos ||
+      platform == ConnectionPlatform.windows ||
+      platform == ConnectionPlatform.linux;
   bool get requiresInterface =>
       platform == ConnectionPlatform.windows ||
       platform == ConnectionPlatform.linux;
@@ -88,9 +92,15 @@ class SetupService {
   Future<void> finish({
     required String interfaceName,
     List<String>? regions,
+    CaptureMode? captureMode,
   }) async {
     await prepareLocal();
-    if (requiresInterface &&
+    final previous = await configuration();
+    final mode = supportsProxy
+        ? captureMode ?? previous.policy.captureMode
+        : CaptureMode.tun;
+    final needsInterface = requiresInterface && mode != CaptureMode.proxy;
+    if (needsInterface &&
         !(await interfaces()).any((item) => item.name == interfaceName)) {
       throw const SetupFailure('interface');
     }
@@ -103,9 +113,9 @@ class SetupService {
         );
       }
     }
-    final previous = await configuration();
     final policy = previous.policy.toJson();
-    if (requiresInterface) policy['xrayOutboundInterfaceName'] = interfaceName;
+    if (supportsProxy) policy['captureMode'] = mode.name;
+    if (needsInterface) policy['xrayOutboundInterfaceName'] = interfaceName;
     final connection = previous.connection.toJson();
     if (regions != null) {
       connection['smart'] = {

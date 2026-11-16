@@ -16,6 +16,7 @@ import 'package:onexray/service/connect/routing/custom/configuration.dart';
 import 'package:onexray/service/connect/routing/custom/editor.dart';
 import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/shared/failure.dart';
 
 class RoutingPageState {
@@ -45,6 +46,10 @@ class RoutingPageState {
 const _unchanged = Object();
 
 class RoutingPageController extends PageCubit<RoutingPageState> {
+  bool get proxyMode =>
+      coordinator.state.value.runtime?.isProxy ??
+      state.configuration?.policy.usesProxy(connectionPlatform) ??
+      false;
   final AppDatabase db;
   final ConnectionCoordinator coordinator;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
@@ -259,7 +264,9 @@ class RoutingPageController extends PageCubit<RoutingPageState> {
         label: (settings) {
           final l = AppLocalizations.of(context)!;
           if (mode == TrafficMode.smart) return l.prototypeSmartRouting;
-          if (mode == TrafficMode.allVpn) return l.prototypeAllViaVpn;
+          if (mode == TrafficMode.allVpn) {
+            return proxyMode ? l.desktopAllViaProxy : l.prototypeAllViaVpn;
+          }
           return state.profiles.firstWhere((row) => row.id == id).name;
         },
       );

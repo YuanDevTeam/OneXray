@@ -281,6 +281,22 @@ Pigeon schema 或生成器版本更新时，用 `tool/generate_pigeon.dart` 同�
 - macOS SE 激活：`bash tool/test_system_extension_activation.sh` 编译生产 Swift，
   验证待批准时重试、已安装时跳过、强制替换及并发请求合并；使用可控系统回复，不申请真实扩展授权或启动 VPN。
   页面测试核对授权未完成时不连接、批准说明持续显示、取消与打开设置，以及设置打开失败的反馈。
+- 桌面代理：`test/core/proxy/` 覆盖所属 Core 生命周期、入口就绪、设置写入/读回、第三方修改、回滚与恢复；
+  `test/service/connect/desktop_proxy_test.dart` 覆盖普通/高级/Raw/Provider 运行图与后端切换，
+  `test/service/advanced/desktop_proxy_policy_test.dart` 覆盖设备偏好与备份边界。
+  `bash tool/test_desktop_proxy_helper.sh` 编译生产 Swift，验证协议帧、进程内 socketpair 的 EOF 处理、真实 helper 的
+  启动/状态/显式停止、SOCKS 端口监听及启动失败回收，并以可控回调验证退出协调；不启动 VPN。
+  该脚本不验证真实 HTTP/SOCKS 转发，也不验证父通道关闭后 helper 与 Core 的退出和端口释放。
+  这些场景须在独立签名沙盒验收中检查；无签名测试不代替继承沙盒的实际 helper。分别构建普通版与 SE，
+  检查嵌入、App ID、profile 和签名，验证真实 HTTP/SOCKS 请求往返、父通道 EOF 后进程回收与端口释放，
+  并在保持代理流量时并发执行 Runner 的 `pingBatch/testXray`。普通版 Release 的运行验收使用受支持的商店分发渠道，
+  本地 Debug 与 SE Developer ID 结果分别记录。Windows/MSIX 与 Linux/GNOME 系统代理还须在对应宿主验证真实写入、
+  PAC/bypass/缺省值恢复、组织策略、端口冲突、异常退出和第三方修改；替身通过不代表这些原生场景已验收。
+- Apple VPN 删除：`bash tool/test_apple_vpn_removal.sh` 使用可控系统边界执行生产删除协调器，
+  验证所属配置筛选、全部停止后再删除、并发准入、系统失败和待重启结果。
+  `test/service/advanced/tunnel/apple/removal_test.dart` 核对连接队列、停止失败及数据保留；
+  `test/pages/advanced/tunnel/apple/removal_test.dart` 核对平台入口、确认取消、繁忙、失败与待重启提示。
+  替身测试不替代真实 NetworkExtension 配置删除、管理员确认及系统扩展卸载验收。
 - Android 原生：在 `android/` 执行 `./gradlew :app:testDebugUnitTest`，
   Robolectric 调用正式 Receiver、保存配置、Widget 资源与 VPN 状态桥；
   状态桥回归使用真实 command/changed 与可控 Binder 重演停止确认后旧事件迟到，
@@ -288,6 +304,8 @@ Pigeon schema 或生成器版本更新时，用 `tool/generate_pigeon.dart` 同�
 - 启动日志清理：Dart FFI 与 `bash tool/test_runtime_env.sh`、Android `RuntimeLogFilesTest` 覆盖两份托管文件、
   缺失幂等、符号链接/目录拒绝及旁侧文件保留；启动回归检查停止失败、旧 Core 残留和进程查询失败均保留旧日志。
   文件测试不替代各平台真实启动与原生 saved-start 验收。
+  同一 Swift 脚本及 `test/core/pigeon/start_request_storage_test.dart` 验证 TUN/代理快照互不覆盖、旧 TUN 输入保留及代理/未知模式拒绝；
+  backend 恢复测试还须覆盖保存意图与实际运行不同时的身份、停止对象及元数据缺失保护。它们不替代从系统设置启动真实 NE 的验收。
   日志查看器另覆盖同路径新文件大小等于或大于旧偏移、旧在途数据/错误回包、新连接边沿、同会话追加以及断开保留诊断。
 - Android Manifest/网络 XML 变更补跑 `./gradlew :app:lintVitalRelease`；
   发布相关修复还需本地 Release AAB 构建，不调用会上传商店的部署脚本。

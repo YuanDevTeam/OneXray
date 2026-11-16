@@ -113,7 +113,8 @@ Core 在发送 UDP 前使用 WireGuard 自身的 socket 策略本地解析 peer�
 其 UDP 连接不应用仅适用于 TCP 的 HE 竞速，共享 Fragment 的 TCP 连接仍可使用 HE。
 
 显式拨号需要解析域名时，App 从实际物理端点收集去重后的精确域名，前置专用 bootstrap resolver，
-以隧道 DNS 的 IPv4 地址和启用时的 IPv6 地址生成 TCP resolver，并用独立 tag 的前置规则固定直连。
+TUN 使用隧道 DNS 的 IPv4 地址和启用时的 IPv6 地址生成 TCP resolver；桌面代理使用 App 默认 resolver，
+不读取停用的 TUN DNS 草稿。引导解析用独立 tag 的前置规则固定直连。
 TCP URL 的 IPv6 host 使用方括号；系统隧道 DNS 字段继续保存 IP 字面量，不写入 `tcp://`，原生 DoT 设置独立生效。
 这些精确匹配不成为通用备用，最后一个引导 resolver 截止普通代理/FakeDNS 回退，
 避免连接代理前又经该代理解析其地址。匹配按域名而非请求调用者区分，App 查询恰好相同域名时也使用引导 DNS；
@@ -270,7 +271,8 @@ Raw 新建 DNS 出站使用 `app-vpn-dns`，提供方沿用 `app-remna-dns`；�
 这些补充不增加通用代理、DoT 或 TUN catch-all 规则。
 
 运行编译时，`dns` 缺失或为 `null`，以及 `dns.servers` 缺失、为 `null` 或空列表时，
-使用本次隧道 IPv4 DNS 和启用 IPv6 时的隧道 IPv6 DNS 补齐服务器，保留同一对象的 hosts、缓存及其它字段。
+TUN 使用本次隧道 IPv4 DNS 和启用 IPv6 时的隧道 IPv6 DNS 补齐服务器；桌面代理使用 App 默认 IPv4/IPv6 resolver。
+启动准备、Raw 语义比较与有效设置比较共用该投影，保留同一对象的 hosts、缓存及其它字段。
 补齐的 Core resolver 使用对应 IP 的 TCP URL，系统隧道 DNS 字段仍为 IP 字面量。
 新增服务器使用 `app-vpn-default-dns` tag，并用限定该 tag 的前置规则直连 `app-vpn-dns-direct`，
 避免连接域名代理前又通过该代理解析地址。仅 App 新增的缺省 DNS 采用此出口；
@@ -394,6 +396,34 @@ Cross-device connectivity, UDP, firewalls, lock screen and signed channels requi
 
 ## 隧道与平台策略
 
+桌面运行方式为 `captureMode: tun|proxy`，缺省 `tun`，独立于 Windows EXE/MSIX 与 macOS 普通版/SE 发行形式。
+`proxyPort` 缺省 10808，固定为可配置的 1024–65535 loopback 端口；占用或与运行、Raw 入站、LAN 共享及本地 API 冲突时明确失败，不自动换端口。
+`autoSetSystemProxy` 缺省关闭。三项均为本机偏好，备份不导出、恢复保留目标设备值；移动端始终使用 TUN。
+新启动请求显式携带实际运行方式，旧请求缺字段仍解释为 TUN，不根据 socksPort 或当前偏好改写旧输入。
+
+代理方式以私有 HTTP/SOCKS5 混合入站替代托管 `tunIn`，保留其 tag、路由、节点、metrics 与统计；不生成托管 TUN/WFP/系统路由/系统 DNS 接管或强制出口网卡。
+LAN 共享保持独立入口。高级模板、Raw 与提供方完整图只适配运行副本，额外 TUN 或端口冲突明确拒绝，存储原文不变。
+代理的 App 缺省 DNS 与节点域名引导解析独立于 TUN 草稿，使用既有默认 resolver；显式 Raw/提供方 DNS 保留原值。
+WireGuard 在代理运行副本使用 `noKernelTun: true`，防止已有 NET_ADMIN 触发内核 TUN；Raw/完整图显式要求 kernel TUN 时报告不兼容，不改写原文。
+代理只覆盖显式使用入口或遵从系统代理的应用，不承诺全部 UDP、DNS 或任意应用均被接管。
+
+macOS 普通版与 SE 使用同一套 Swift helper 源码，通过私有 socketpair 控制现有 libXray API；Runner 的测速/构造校验使用自身 libXray，不与长驻 Core 同进程重叠。
+TUN 的 `run/start.json` 与代理的 `run/proxy-start.json` 独立保存，互不覆盖；代理结束后保留的系统 VPN profile 仍使用上一次有效 TUN 输入。
+隧道 provider 与原生 VPN 启动入口在任何网络设置变更前拒绝代理或未知模式；旧请求未携带模式字段时仍按 TUN 读取，不迁移或重写缓存。
+普通版 helper 为 `net.yuandev.onexray.helper` / `OneXraymacOSHelper`，SE 为 `net.yuandev.onexray.se.helper` / `OneXraySEmacOSHelper`。
+helper 继承沙盒，代理方式不安装或激活 NE/SE。切换前仅查找本 App 已有 VPN profile，取消其 on-demand 并等待停止，不触碰其他 VPN。
+Windows EXE/MSIX 与 Linux 代理使用自身普通用户 Core 子进程及 `-set-dns=false`，不走旧提权、Vole/TUN、网卡或 capabilities 检查；已有安装包的 Core file capabilities 保留。
+
+自动系统代理仅在 Windows 当前用户策略允许、或 GNOME 所需 schema/session/逐键写权限可用时启用；macOS、KDE 和其他环境提供手动端点。
+Core 与本地入口就绪后，先保存本设备私有恢复记录，再写入并读回系统设置；真实接管状态与保存偏好分开显示。
+恢复记录读写共用 65,536 字节上限；以实际 UTF-8 编码大小判定，超限时在触碰临时文件或系统代理设置前拒绝。
+停止/失败/异常退出先条件还原仍归本次持有的设置，再释放 Core。外部修改保留；若仍指向本端点但无法安全还原，报告失败并保留可重试的运行及端点。
+已知代理会话的显式断开、退出与确认重连不因锁存的状态查询错误失去清理重试机会；仍须实际还原并确认停止后才能重连或保存。
+自动模式只读观察系统代理设置变化，不把 metrics 不可用或外部改代理当作 Core 已停止。
+崩溃/掉电后的记录在下次同用户启动时恢复，不能承诺即时清理；手动填写的系统/浏览器代理不由 App 自动还原。
+
+以下网卡、隧道 DNS 与原生平台选项适用于 TUN；代理保留相应草稿供切回时使用。
+
 TUN 地址只读，隧道 IPv4/IPv6 DNS 与 Apple DoT 域名可编辑，独立于路由 DNS，保存在平台策略 JSON。
 原生 DNS 必须是对应地址族 IP；DoT 域名不是搜索域，需与服务器证书匹配。
 有效设置变化按已连接确认重连；停用的域名/IPv6 设置保留，不因其变化重连。
@@ -465,7 +495,10 @@ Lua 不属于 JSON 编辑提示、普通模型或资源管理范围。
 ## 运行协调与统计
 
 `ConnectionCoordinator` 串行停止并确认旧运行，再准备/启动/确认新运行，最后提交设置。
-run/start.json 是唯一原生启动请求：coreInvokeText 为实际输入，metadataJson 仅还原运行描述、资产保护和起始时间。
+TUN 启动请求使用 `run/start.json`，桌面代理快照使用 `run/proxy-start.json`；各自的 coreInvokeText 为实际输入，metadataJson 仅还原运行描述、资产保护和起始时间。
+状态检查与停止以实际活跃的 backend 为准，并从对应文件恢复身份；保存偏好或另一模式的旧快照不能冒充正在运行的会话。
+显式停止须分别确认两个受管 backend 均已断开，覆盖从系统设置额外启动保留 VPN 的情况；任一端停止失败仍保留重试机会。
+macOS 上即使 TUN 已断开，仍须执行原生停止以禁用按需重连。
 旧 metadata 缺 profile 仍能恢复；提供方 profile 字段与 nodeIds 保护完整配置，不因 entries 为空而丢失身份。
 不另存 App 计划、快照或跨进程提交日志。文件队列在连接命令取得执行权后进入；只读状态/metrics 不入队。
 停止失败不继续准备；启停已开始后的失败尽力停止本次运行并进入 failed，不恢复旧连接/输入。
@@ -473,6 +506,7 @@ run/start.json 是唯一原生启动请求：coreInvokeText 为实际输入，me
 
 每次实际启动新的 Core 前，运行拥有者在旧 Core 已停止、输入准备完成后清空固定 `run/access.log` 和 `run/error.log`，
 日志关闭时也处理旧文件；文件不存在可继续，目录或符号链接占位及删除失败会阻止本次启动。
+代理进程使用与编译配置相同的原生数据根目录，MSIX 对应包内数据目录；系统代理恢复记录仍单独保存在本机应用支持目录。
 只处理这两个托管日志，不清理节点、路由、运行请求、Geodata、用户导出或启动诊断 `.error`。
 普通 Apple NE、SE 扩展容器、模拟器、Android 原生 saved-start 和桌面 App 启动分别在实际 Core 启动入口处理；
 MSIX 先停止系统会话并确认旧 Core 进程退出，外部宿主自主恢复仍由宿主负责。
@@ -495,7 +529,7 @@ Geodata 始终使用唯一平铺 datDir，启动不复制文件；SE 跨容器�
 Apple 使用 NE 状态通知，Android 使用资源查询/生命周期广播/进程退出通知；EXE 用进程句柄退出，
 Linux 用自身 exitCode 或接管 pidfd（不支持时报错，不降级轮询）。
 仅 MSIX 内部每 5 秒检查系统 VPN，启停有界快速确认，不随隐藏/失焦停止。
-startVpn/stopVpn 成功返回已确认状态，不仅是“提交命令”；只读返回不通过回调绕行，每次同步只读一次 start.json。
+startVpn/stopVpn 成功返回已确认状态，不仅是“提交命令”；只读返回不通过回调绕行，运行描述来自已确认 backend 的对应启动快照。
 
 Android 每次原生启动使用内部单调 request ID，启动 Intent、Binder 查询和状态广播携带相同身份，
 不关联订阅或配置记录。App 在交付启动前绑定本次身份，旧运行迟到的成功、断开和错误广播不完成或拒绝新命令。

@@ -7,6 +7,7 @@ import 'package:onexray/pages/servers/resource_json.dart';
 import 'package:onexray/pages/servers/subscription/user_info.dart';
 import 'package:onexray/pages/shared/share/params.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
+import 'package:onexray/pages/shared/widgets/app_favorite.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/responsive_content.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
@@ -220,7 +221,11 @@ class ServerResourcePage extends StatelessWidget {
                           title: row.favorite
                               ? l.prototypeRemoveFavorite
                               : l.prototypeAddFavorite,
-                          leading: const Icon(LucideIcons.star, size: 18),
+                          leading: AppFavoriteIcon(
+                            selected: row.favorite,
+                            enabled: !busy,
+                            busy: controller.favoritingIds.contains(row.id),
+                          ),
                           enabled: !busy,
                           onTap: () => controller.toggleFavorite(context, row),
                         ),

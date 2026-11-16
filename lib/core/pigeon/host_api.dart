@@ -16,6 +16,13 @@ import 'package:path/path.dart' as p;
 import 'package:permission_handler/permission_handler.dart';
 
 class AppHostApi {
+  Future<AppleVpnRemovalResult> removeAppleVpn() {
+    if (!AppPlatform.isIOS && !AppPlatform.isMacOS) {
+      throw UnsupportedError('Apple VPN removal is unavailable');
+    }
+    return _api.removeAppleVpn();
+  }
+
   Future<AppleVpnCapabilities> appleVpnCapabilities() =>
       _api.appleVpnCapabilities();
   final _api = BridgeHostApi();

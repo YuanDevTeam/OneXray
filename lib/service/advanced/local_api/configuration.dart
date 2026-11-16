@@ -270,6 +270,7 @@ RuntimeOptions _runtimeOptions(
   return RuntimeOptions(
     platform: platform,
     windowsMode: mode,
+    proxyMode: _optional<bool>(values, 'proxyMode') ?? false,
     sessionDirectory: directory,
     metricsPort: metrics,
     socksPort: socks,

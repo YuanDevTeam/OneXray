@@ -26,7 +26,10 @@ final class BackupPlatformSettings {
 
   Map<String, dynamic> get _schema {
     final schema = PlatformPolicy.defaults().toJson()
-      ..remove('xrayOutboundInterfaceName');
+      ..remove('xrayOutboundInterfaceName')
+      ..remove('captureMode')
+      ..remove('autoSetSystemProxy')
+      ..remove('proxyPort');
     final section = switch (platform) {
       ConnectionPlatform.android => 'android',
       ConnectionPlatform.ios || ConnectionPlatform.macos => 'apple',

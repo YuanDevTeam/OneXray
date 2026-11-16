@@ -10,5 +10,9 @@ class VpnConstants {
 
   static String get runDir => p.join(AppHostApi().tunFilesDir, "run");
 
-  static String get startPath => p.join(runDir, "start.json");
+  static const startFileName = 'start.json';
+  static const proxyStartFileName = 'proxy-start.json';
+
+  static String get startPath => p.join(runDir, startFileName);
+  static String get proxyStartPath => p.join(runDir, proxyStartFileName);
 }

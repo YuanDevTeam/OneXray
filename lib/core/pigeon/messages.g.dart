@@ -132,6 +132,8 @@ enum PlatformPermissionState {
 
 enum NativeVpnCommandState { success, waitingForPlatformPermission, failed }
 
+enum AppleVpnRemovalResult { removed, restartRequired }
+
 enum NativeLaunchAtLoginState {
   enabled,
   disabled,
@@ -508,29 +510,32 @@ class _PigeonCodec extends StandardMessageCodec {
     } else if (value is NativeVpnCommandState) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    } else if (value is NativeLaunchAtLoginState) {
+    } else if (value is AppleVpnRemovalResult) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    } else if (value is AndroidAutomationSettings) {
+    } else if (value is NativeLaunchAtLoginState) {
       buffer.putUint8(134);
-      writeValue(buffer, value.encode());
-    } else if (value is BackupLocation) {
+      writeValue(buffer, value.index);
+    } else if (value is AndroidAutomationSettings) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    } else if (value is AppleVpnCapabilities) {
+    } else if (value is BackupLocation) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    } else if (value is NativeLaunchAtLoginResult) {
+    } else if (value is AppleVpnCapabilities) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    } else if (value is PlatformPermissionResult) {
+    } else if (value is NativeLaunchAtLoginResult) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    } else if (value is NativeVpnCommandResult) {
+    } else if (value is PlatformPermissionResult) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    } else if (value is AndroidAppInfo) {
+    } else if (value is NativeVpnCommandResult) {
       buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    } else if (value is AndroidAppInfo) {
+      buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -554,20 +559,23 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : NativeVpnCommandState.values[value];
       case 133:
         final value = readValue(buffer) as int?;
-        return value == null ? null : NativeLaunchAtLoginState.values[value];
+        return value == null ? null : AppleVpnRemovalResult.values[value];
       case 134:
-        return AndroidAutomationSettings.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : NativeLaunchAtLoginState.values[value];
       case 135:
-        return BackupLocation.decode(readValue(buffer)!);
+        return AndroidAutomationSettings.decode(readValue(buffer)!);
       case 136:
-        return AppleVpnCapabilities.decode(readValue(buffer)!);
+        return BackupLocation.decode(readValue(buffer)!);
       case 137:
-        return NativeLaunchAtLoginResult.decode(readValue(buffer)!);
+        return AppleVpnCapabilities.decode(readValue(buffer)!);
       case 138:
-        return PlatformPermissionResult.decode(readValue(buffer)!);
+        return NativeLaunchAtLoginResult.decode(readValue(buffer)!);
       case 139:
-        return NativeVpnCommandResult.decode(readValue(buffer)!);
+        return PlatformPermissionResult.decode(readValue(buffer)!);
       case 140:
+        return NativeVpnCommandResult.decode(readValue(buffer)!);
+      case 141:
         return AndroidAppInfo.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -718,6 +726,24 @@ class BridgeHostApi {
       isNullValid: false,
     );
     return pigeonVar_replyValue! as PlatformPermissionResult;
+  }
+
+  Future<AppleVpnRemovalResult> removeAppleVpn() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.onexray.BridgeHostApi.removeAppleVpn$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as AppleVpnRemovalResult;
   }
 
   Future<List<AndroidAppInfo>> getInstalledApps() async {
@@ -886,6 +912,81 @@ class BridgeHostApi {
       isNullValid: false,
     );
     return pigeonVar_replyValue! as String;
+  }
+}
+
+/// macOS local proxy runtime; this does not create a VPN configuration.
+class BridgeDesktopProxyApi {
+  /// Constructor for [BridgeDesktopProxyApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  BridgeDesktopProxyApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
+
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  Future<NativeVpnCommandResult> startProxy(String requestJson) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.startProxy$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[requestJson],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as NativeVpnCommandResult;
+  }
+
+  Future<NativeVpnCommandResult> stopProxy() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.stopProxy$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as NativeVpnCommandResult;
+  }
+
+  Future<NativeVpnCommandResult> readProxyStatus() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.readProxyStatus$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as NativeVpnCommandResult;
   }
 }
 

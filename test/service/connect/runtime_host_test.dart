@@ -228,7 +228,7 @@ void main() {
     );
   }
 
-  test('start.json is the only persisted runtime descriptor', () async {
+  test('start.json persists the TUN runtime descriptor', () async {
     final runtime = _runtime();
     final originalPath = runtime.request.coreInvokeText;
     await File(p.join(directory.path, 'start.json'))

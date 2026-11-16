@@ -12,6 +12,8 @@ class StartVpnRequest {
   String? coreInvokeText;
   String? snapshotToken;
   String? metadataJson;
+  String captureMode;
+  bool autoSetSystemProxy;
 
   StartVpnRequest(
     this.tun,
@@ -20,10 +22,17 @@ class StartVpnRequest {
     this.coreInvokeText, {
     this.snapshotToken,
     this.metadataJson,
+    this.captureMode = 'tun',
+    this.autoSetSystemProxy = false,
   });
 
-  factory StartVpnRequest.fromJson(Map<String, dynamic> json) =>
-      _$StartVpnRequestFromJson(json);
+  factory StartVpnRequest.fromJson(Map<String, dynamic> json) {
+    final request = _$StartVpnRequestFromJson(json);
+    if (!const {'tun', 'proxy'}.contains(request.captureMode)) {
+      throw const FormatException('Invalid capture mode');
+    }
+    return request;
+  }
 
   Map<String, dynamic> toJson() => _$StartVpnRequestToJson(this);
 }

@@ -16,6 +16,8 @@ StartVpnRequest _$StartVpnRequestFromJson(Map<String, dynamic> json) =>
       json['coreInvokeText'] as String?,
       snapshotToken: json['snapshotToken'] as String?,
       metadataJson: json['metadataJson'] as String?,
+      captureMode: json['captureMode'] as String? ?? 'tun',
+      autoSetSystemProxy: json['autoSetSystemProxy'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$StartVpnRequestToJson(StartVpnRequest instance) =>
@@ -26,6 +28,8 @@ Map<String, dynamic> _$StartVpnRequestToJson(StartVpnRequest instance) =>
       'coreInvokeText': ?instance.coreInvokeText,
       'snapshotToken': ?instance.snapshotToken,
       'metadataJson': ?instance.metadataJson,
+      'captureMode': instance.captureMode,
+      'autoSetSystemProxy': instance.autoSetSystemProxy,
     };
 
 LibXrayInvokeResponse _$LibXrayInvokeResponseFromJson(

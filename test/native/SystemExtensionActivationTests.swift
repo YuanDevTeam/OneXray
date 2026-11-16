@@ -1,9 +1,17 @@
 import Foundation
+import SystemExtensions
 import XCTest
 
 // Link the production file without submitting requests to the operating system.
 func packetTunnelId() -> String { "net.yuandev.onexray.test.tun" }
 func YGLog(_ message: String) {}
+
+// The request is accessed only on its delegate queue. No request is submitted
+// to OSSystemExtensionManager in these driver tests.
+private final class TestExtensionRequest: @unchecked Sendable {
+    let request: OSSystemExtensionRequest
+    init(_ request: OSSystemExtensionRequest) { self.request = request }
+}
 
 final class SystemExtensionActivationTests: XCTestCase {
     @MainActor
@@ -91,6 +99,69 @@ final class SystemExtensionActivationTests: XCTestCase {
         XCTAssertEqual(secondResult, .installed)
         let retry = await activation.request(query: { .notInstalled }) { .notInstalled }
         XCTAssertEqual(retry, .notInstalled)
+    }
+
+    @MainActor
+    func testDeactivationKeepsApprovalPendingUntilDelayedRestartResult() async {
+        let finished = expectation(description: "Terminal deactivation result")
+        var observed: OSSystemExtensionRequest.Result?
+        Task {
+            do {
+                observed = try await ExtensionRequestDriver(
+                    waitForTerminalResult: true,
+                    submitRequest: { request, queue in
+                        request.delegate?.requestNeedsUserApproval(request)
+                        let pending = TestExtensionRequest(request)
+                        queue.asyncAfter(deadline: .now() + .milliseconds(30)) {
+                            pending.request.delegate?.request(pending.request, didFinishWithResult: .willCompleteAfterReboot)
+                        }
+                    }
+                ).runResult(timeout: nil) { queue in
+                    OSSystemExtensionRequest.deactivationRequest(forExtensionWithIdentifier: packetTunnelId(), queue: queue)
+                }
+            } catch { XCTFail("Unexpected deactivation error: \(error)") }
+            finished.fulfill()
+        }
+        await fulfillment(of: [finished], timeout: 2)
+        XCTAssertEqual(observed, .willCompleteAfterReboot)
+    }
+
+    @MainActor
+    func testDeactivationKeepsApprovalPendingUntilDelayedDenial() async {
+        let finished = expectation(description: "Terminal deactivation failure")
+        var observedError: NSError?
+        Task {
+            do {
+                _ = try await ExtensionRequestDriver(
+                    waitForTerminalResult: true,
+                    submitRequest: { request, queue in
+                        request.delegate?.requestNeedsUserApproval(request)
+                        let pending = TestExtensionRequest(request)
+                        queue.asyncAfter(deadline: .now() + .milliseconds(30)) {
+                            let denied = NSError(domain: OSSystemExtensionErrorDomain, code: OSSystemExtensionError.requestCanceled.rawValue)
+                            pending.request.delegate?.request(pending.request, didFailWithError: denied)
+                        }
+                    }
+                ).runResult(timeout: nil) { queue in
+                    OSSystemExtensionRequest.deactivationRequest(forExtensionWithIdentifier: packetTunnelId(), queue: queue)
+                }
+                XCTFail("Approval notification must not finish deactivation before denial")
+            } catch { observedError = error as NSError }
+            finished.fulfill()
+        }
+        await fulfillment(of: [finished], timeout: 2)
+        XCTAssertEqual(observedError?.domain, OSSystemExtensionErrorDomain)
+        XCTAssertEqual(observedError?.code, OSSystemExtensionError.requestCanceled.rawValue)
+    }
+
+    @MainActor
+    func testActivationDriverStillTimesOutWithoutAReply() async {
+        do {
+            _ = try await ExtensionRequestDriver(submitRequest: { _, _ in }).runResult(timeout: .milliseconds(20)) { queue in
+                OSSystemExtensionRequest.activationRequest(forExtensionWithIdentifier: packetTunnelId(), queue: queue)
+            }
+            XCTFail("Activation must retain its timeout")
+        } catch {}
     }
 }
 

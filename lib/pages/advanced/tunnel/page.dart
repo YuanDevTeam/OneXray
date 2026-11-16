@@ -1,11 +1,13 @@
 import 'package:collection/collection.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/shared/alert.dart';
+import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
 import 'package:onexray/pages/theme/color.dart';
@@ -26,6 +28,8 @@ class VpnTunnelPane extends StatelessWidget {
     create: (context) {
       final controller = createController?.call() ?? PolicyEditorController();
       if (controller.draft == null) controller.load(context);
+      controller.loadAppleVpnRemoval(context);
+      controller.loadProxyCapability();
       return controller;
     },
     child: BlocBuilder<PolicyEditorController, PolicyEditorPageState>(
@@ -65,6 +69,80 @@ class VpnTunnelPane extends StatelessWidget {
                 spacing: 20,
                 children: [
                   SettingSection(
+                    key: const ValueKey('tunnel-connection-parameters'),
+                    title: l.tunnelConnectionParameters,
+                    padding: EdgeInsets.zero,
+                    children: [
+                      if (controller.supportsProxy)
+                        _proxySettings(context, controller, l),
+                      if (!controller.proxyMode)
+                        _entry(
+                          context,
+                          controller,
+                          destination: TunnelDestination.dns,
+                          title: l.prototypeTunnelDns,
+                          subtitle: [
+                            controller.value['dnsIpv4Address'],
+                            if (ipv6) controller.value['dnsIpv6Address'],
+                          ].join(' · '),
+                          icon: LucideIcons.network,
+                        ),
+                      _entry(
+                        context,
+                        controller,
+                        destination: TunnelDestination.network,
+                        title: 'IPv6',
+                        subtitle: ipv6
+                            ? l.tunnelIpv6Enabled
+                            : l.tunnelIpv6Disabled,
+                        icon: LucideIcons.globe2,
+                      ),
+                      if (!controller.proxyMode &&
+                          (controller.platform == ConnectionPlatform.ios ||
+                              controller.platform == ConnectionPlatform.macos))
+                        _entry(
+                          context,
+                          controller,
+                          destination: TunnelDestination.apple,
+                          title: l.prototypeAppleSystemVpn,
+                          icon: LucideIcons.apple,
+                        ),
+                      if (controller.platform == ConnectionPlatform.android)
+                        _entry(
+                          context,
+                          controller,
+                          destination: TunnelDestination.android,
+                          title: l.prototypeAndroidSystemVpn,
+                          icon: LucideIcons.appWindow,
+                        ),
+                      if (!controller.proxyMode &&
+                          controller.supportsWindowsSystemVpn)
+                        _entry(
+                          context,
+                          controller,
+                          destination: TunnelDestination.windows,
+                          title: l.prototypeWindowsSystemVpn,
+                          icon: LucideIcons.monitor,
+                        ),
+                      if (!controller.proxyMode &&
+                          controller.service.requiresInterface)
+                        _entry(
+                          context,
+                          controller,
+                          destination: TunnelDestination.interface,
+                          title: l.prototypeXrayOutboundInterface,
+                          subtitle:
+                              (controller.value['xrayOutboundInterfaceName']
+                                      as String)
+                                  .isEmpty
+                              ? l.prototypeChooseInterface
+                              : controller.value['xrayOutboundInterfaceName']
+                                    as String,
+                          icon: LucideIcons.network,
+                        ),
+                    ],
+                  ),
+                  SettingSection(
                     key: const ValueKey('tunnel-system-capture'),
                     icon: LucideIcons.shield,
                     title: l.tunnelSystemCapture,
@@ -81,7 +159,9 @@ class VpnTunnelPane extends StatelessWidget {
                         },
                       ),
                       PolicyValueRow(
-                        title: l.prototypeSystemVpn,
+                        title: controller.activeProxy
+                            ? l.desktopLocalProxy
+                            : l.prototypeSystemVpn,
                         leading: Icon(
                           LucideIcons.shield,
                           color: palette.mutedStrong,
@@ -104,85 +184,21 @@ class VpnTunnelPane extends StatelessWidget {
                         value: _status(controller, l),
                         valueTextDirection: null,
                       ),
-                      PolicyValueRow(
-                        title: l.prototypeIpv4TunAddress,
-                        value: '${PlatformPolicy.tunIpv4Address}/15',
-                      ),
-                      PolicyValueRow(
-                        title: l.prototypeIpv6TunAddress,
-                        value: ipv6
-                            ? '${PlatformPolicy.tunIpv6Address}/64'
-                            : l.tunnelIpv6Disabled,
-                        valueTextDirection: ipv6 ? TextDirection.ltr : null,
-                      ),
-                    ],
-                  ),
-                  SettingSection(
-                    key: const ValueKey('tunnel-connection-parameters'),
-                    title: l.tunnelConnectionParameters,
-                    padding: EdgeInsets.zero,
-                    children: [
-                      _entry(
-                        context,
-                        controller,
-                        destination: TunnelDestination.dns,
-                        title: l.prototypeTunnelDns,
-                        subtitle: [
-                          controller.value['dnsIpv4Address'],
-                          if (ipv6) controller.value['dnsIpv6Address'],
-                        ].join(' · '),
-                        icon: LucideIcons.network,
-                      ),
-                      _entry(
-                        context,
-                        controller,
-                        destination: TunnelDestination.network,
-                        title: 'IPv6',
-                        subtitle: ipv6
-                            ? l.tunnelIpv6Enabled
-                            : l.tunnelIpv6Disabled,
-                        icon: LucideIcons.globe2,
-                      ),
-                      if (controller.platform == ConnectionPlatform.ios ||
-                          controller.platform == ConnectionPlatform.macos)
-                        _entry(
-                          context,
-                          controller,
-                          destination: TunnelDestination.apple,
-                          title: l.prototypeAppleSystemVpn,
-                          icon: LucideIcons.apple,
+                      if (!controller.proxyMode)
+                        PolicyValueRow(
+                          title: l.prototypeIpv4TunAddress,
+                          value: '${PlatformPolicy.tunIpv4Address}/15',
                         ),
-                      if (controller.platform == ConnectionPlatform.android)
-                        _entry(
-                          context,
-                          controller,
-                          destination: TunnelDestination.android,
-                          title: l.prototypeAndroidSystemVpn,
-                          icon: LucideIcons.appWindow,
+                      if (!controller.proxyMode)
+                        PolicyValueRow(
+                          title: l.prototypeIpv6TunAddress,
+                          value: ipv6
+                              ? '${PlatformPolicy.tunIpv6Address}/64'
+                              : l.tunnelIpv6Disabled,
+                          valueTextDirection: ipv6 ? TextDirection.ltr : null,
                         ),
-                      if (controller.supportsWindowsSystemVpn)
-                        _entry(
-                          context,
-                          controller,
-                          destination: TunnelDestination.windows,
-                          title: l.prototypeWindowsSystemVpn,
-                          icon: LucideIcons.monitor,
-                        ),
-                      if (controller.service.requiresInterface)
-                        _entry(
-                          context,
-                          controller,
-                          destination: TunnelDestination.interface,
-                          title: l.prototypeXrayOutboundInterface,
-                          subtitle:
-                              (controller.value['xrayOutboundInterfaceName']
-                                      as String)
-                                  .isEmpty
-                              ? l.prototypeChooseInterface
-                              : controller.value['xrayOutboundInterfaceName']
-                                    as String,
-                          icon: LucideIcons.network,
-                        ),
+                      if (controller.supportsAppleVpnRemoval)
+                        _removalContent(context, controller, l),
                     ],
                   ),
                   Align(
@@ -219,6 +235,190 @@ class VpnTunnelPane extends StatelessWidget {
     ),
   );
 
+  Widget _proxySettings(
+    BuildContext context,
+    PolicyEditorController controller,
+    AppLocalizations l,
+  ) {
+    final proxy = controller.proxyMode;
+    final supported = controller.state.systemProxySupported;
+    return Column(
+      key: const ValueKey('desktop-proxy-settings'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SettingRow(
+          title: l.desktopCaptureMode,
+          trailing: SettingSelect<CaptureMode>(
+            value: CaptureMode.values.byName(
+              controller.value['captureMode'] as String,
+            ),
+            entries: {
+              CaptureMode.tun: l.desktopVpnTunnel,
+              CaptureMode.proxy: l.desktopLocalProxy,
+            },
+            onChanged: controller.blocked
+                ? null
+                : (mode) {
+                    if (mode != null) {
+                      controller.update('captureMode', mode.name);
+                    }
+                  },
+          ),
+        ),
+        if (proxy) ...[
+          SettingRow(
+            title: l.desktopProxyPort,
+            trailing: SizedBox(
+              width: 132,
+              child: _ProxyPortField(
+                key: const ValueKey('desktop-proxy-port'),
+                value: controller.value['proxyPort'] as int,
+                enabled: !controller.blocked,
+                label: l.desktopProxyPort,
+                onChanged: (value) => controller.update('proxyPort', value),
+              ),
+            ),
+          ),
+          if (supported == true ||
+              controller.value['autoSetSystemProxy'] == true)
+            PolicyToggle(
+              controller: controller,
+              field: 'autoSetSystemProxy',
+              title: l.desktopAutoSystemProxy,
+              // A saved unsupported preference may always be turned off.
+              supported:
+                  supported == true ||
+                  controller.value['autoSetSystemProxy'] == true,
+            ),
+          if (controller.state.systemProxyLoading)
+            SettingRow(
+              title: l.prototypePleaseWait,
+              trailing: const ButtonProgressIndicator(),
+            )
+          else if (supported == false)
+            PolicyValueRow(
+              title: l.desktopAutoSystemProxy,
+              value: l.desktopSystemProxyUnavailable,
+              valueTextDirection: null,
+            ),
+          PolicyValueRow(
+            title: l.desktopProxyHttp,
+            value: 'http://127.0.0.1:${controller.value['proxyPort']}',
+          ),
+          PolicyValueRow(
+            title: l.desktopProxySocks,
+            value: 'socks5://127.0.0.1:${controller.value['proxyPort']}',
+          ),
+          if (controller.value['autoSetSystemProxy'] != true)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                l.desktopProxyManualHint,
+                style: AppTypography.supporting.copyWith(
+                  color: ColorManager.secondaryText(context),
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _removalContent(
+    BuildContext context,
+    PolicyEditorController controller,
+    AppLocalizations l,
+  ) {
+    final state = controller.state;
+    final palette = ColorManager.palette(context);
+    final systemExtension = state.appleSystemExtension;
+    final enabled =
+        !controller.blocked &&
+        !controller.runtimeBusy &&
+        !state.appleVpnRemovalRestartRequired;
+    return Column(
+      key: const ValueKey('tunnel-apple-vpn-removal'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (systemExtension == null)
+          SettingRow(
+            key: const ValueKey('tunnel-apple-vpn-removal-edition'),
+            title: state.appleVpnRemovalLoading
+                ? l.tunnelVpnRemovalChecking
+                : l.prototypeRetry,
+            leading: const Icon(LucideIcons.refreshCw),
+            enabled: !state.appleVpnRemovalLoading && !controller.blocked,
+            onTap: state.appleVpnRemovalLoading || controller.blocked
+                ? null
+                : () => controller.loadAppleVpnRemoval(context),
+            trailing: state.appleVpnRemovalLoading
+                ? const ButtonProgressIndicator()
+                : null,
+          )
+        else
+          SettingRow(
+            key: const ValueKey('tunnel-remove-apple-vpn'),
+            title: systemExtension
+                ? l.tunnelUninstallSystemExtension
+                : l.tunnelDeleteVpnConfiguration,
+            titleMaxLines: 4,
+            leading: Icon(
+              systemExtension ? LucideIcons.packageMinus : LucideIcons.trash2,
+              color: palette.destructive,
+            ),
+            titleStyle: AppTypography.rowTitle.copyWith(
+              color: palette.destructive,
+            ),
+            enabled: enabled,
+            onTap: enabled ? () => controller.removeAppleVpn(context) : null,
+            trailing: state.appleVpnRemovalBusy
+                ? const ButtonProgressIndicator()
+                : null,
+          ),
+        if (state.appleVpnRemovalRestartRequired)
+          _removalNotice(
+            text: l.tunnelSystemExtensionRestartRequired,
+            color: palette.restartingText,
+            icon: LucideIcons.rotateCw,
+            key: const ValueKey('tunnel-apple-vpn-restart-required'),
+          ),
+        if (state.appleVpnRemovalError != null)
+          _removalNotice(
+            text: state.appleVpnRemovalError!,
+            color: palette.destructive,
+            icon: LucideIcons.circleAlert,
+            key: const ValueKey('tunnel-apple-vpn-removal-error'),
+          ),
+      ],
+    );
+  }
+
+  Widget _removalNotice({
+    required Key key,
+    required String text,
+    required Color color,
+    required IconData icon,
+  }) => Semantics(
+    key: key,
+    liveRegion: true,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SelectableText(
+              text,
+              style: AppTypography.supporting.copyWith(color: color),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
   Widget _entry(
     BuildContext context,
     PolicyEditorController controller, {
@@ -241,11 +441,67 @@ class VpnTunnelPane extends StatelessWidget {
 
   String _status(PolicyEditorController controller, AppLocalizations l) =>
       switch (controller.state.connection.phase) {
-        ConnectionPhase.disconnected => l.prototypeDisconnected,
+        ConnectionPhase.disconnected =>
+          controller.activeProxy
+              ? l.desktopProxyStopped
+              : l.prototypeDisconnected,
         ConnectionPhase.preparing ||
         ConnectionPhase.connecting => l.prototypeConnecting,
-        ConnectionPhase.connected => l.prototypeConnected,
+        ConnectionPhase.connected =>
+          controller.activeProxy ? l.desktopProxyRunning : l.prototypeConnected,
         ConnectionPhase.disconnecting => l.prototypeDisconnecting,
         ConnectionPhase.failed => l.prototypeConnectionFailed,
       };
+}
+
+class _ProxyPortField extends StatefulWidget {
+  const _ProxyPortField({
+    super.key,
+    required this.value,
+    required this.enabled,
+    required this.label,
+    required this.onChanged,
+  });
+  final int value;
+  final bool enabled;
+  final String label;
+  final ValueChanged<int> onChanged;
+
+  @override
+  State<_ProxyPortField> createState() => _ProxyPortFieldState();
+}
+
+class _ProxyPortFieldState extends State<_ProxyPortField> {
+  late final TextEditingController controller = TextEditingController(
+    text: '${widget.value}',
+  );
+
+  @override
+  void didUpdateWidget(covariant _ProxyPortField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != oldWidget.value &&
+        (int.tryParse(controller.text) ?? 0) != widget.value) {
+      controller.text = '${widget.value}';
+    }
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: controller,
+    enabled: widget.enabled,
+    keyboardType: TextInputType.number,
+    inputFormatters: [
+      FilteringTextInputFormatter.digitsOnly,
+      LengthLimitingTextInputFormatter(5),
+    ],
+    textAlign: TextAlign.end,
+    decoration: InputDecoration(labelText: widget.label),
+    onChanged: (value) => widget.onChanged(int.tryParse(value) ?? 0),
+  );
 }

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:onexray/core/ffi/linux_ffi_api.dart';
 import 'package:onexray/core/ffi/windows/ffi_api.dart';
+import 'package:onexray/core/proxy/host.dart';
 import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/advanced/tunnel/interface.dart';
@@ -39,7 +40,11 @@ final class ConnectionPlatformRequirements {
     for (final value in await queryXrayOutboundInterfaceList()) value.name,
   };
 
-  Future<void> ensureOutboundInterface(String name) async {
+  Future<void> ensureOutboundInterface(
+    String name, {
+    bool proxyMode = false,
+  }) async {
+    if (proxyMode) return;
     if (platform != ConnectionPlatform.windows &&
         platform != ConnectionPlatform.linux) {
       return;
@@ -56,7 +61,13 @@ final class ConnectionPlatformRequirements {
     }
   }
 
-  Future<void> ensureRuntime() async {
+  Future<void> ensureRuntime({bool proxyMode = false}) async {
+    if (proxyMode) {
+      // Availability is checked by the proxy host without invoking the old
+      // TUN/package-provider/capabilities startup path.
+      await DesktopProxyHost().ensureRuntime();
+      return;
+    }
     if (platform == ConnectionPlatform.windows) {
       await WindowsFfiApi().ensureRuntime();
       return;

@@ -65,6 +65,8 @@ const _contracts = [
       'coreInvokeText',
       'snapshotToken',
       'metadataJson',
+      'captureMode',
+      'autoSetSystemProxy',
     },
     {
       'tun',
@@ -73,6 +75,8 @@ const _contracts = [
       'coreInvokeText',
       'snapshotToken',
       'metadataJson',
+      'captureMode',
+      'autoSetSystemProxy',
     },
   ),
   _Contract(

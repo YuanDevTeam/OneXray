@@ -21,6 +21,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		EBAA00000000000000000002 /* AppleVpnRemoval.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBAA00000000000000000001 /* AppleVpnRemoval.swift */; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
 		33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F22044A3C60003C045 /* Assets.xcassets */; };
 		33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 33CC10F42044A3C60003C045 /* MainMenu.xib */; };
@@ -56,6 +57,14 @@
 		EBEAD88A2B9578F000A8D27B /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = EBEAD8882B9578E000A8D27B /* libresolv.tbd */; };
 		ADB14595A0B540B7AAF4D47E /* BackupApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A7C8DA6AD347F7B6E7962A /* BackupApi.swift */; };
 		1AFFFEFF74F6482E8A52014C /* BackupFileStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A672D00C35344F190C8163D /* BackupFileStore.swift */; };
+		EBC000000000000000000007 /* ProxyHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC000000000000000000001 /* ProxyHelperProtocol.swift */; };
+		EBC000000000000000000008 /* DesktopProxyHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC000000000000000000003 /* DesktopProxyHost.swift */; };
+		EBC000000000000000000009 /* ProxyHelperProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC000000000000000000001 /* ProxyHelperProtocol.swift */; };
+		EBC00000000000000000000A /* ProxyHelperMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC000000000000000000002 /* ProxyHelperMain.swift */; };
+		EBC00000000000000000000B /* LibXray.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = EBE36B3E2F9683E000686880 /* LibXray.xcframework */; };
+		EBC00000000000000000000C /* libresolv.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = EBEAD8882B9578E000A8D27B /* libresolv.tbd */; };
+		EBC00000000000000000000D /* OneXrayProxyHelper.app in Embed Proxy Helper */ = {isa = PBXBuildFile; fileRef = EBC000000000000000000006 /* OneXrayProxyHelper.app */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		EBC00000000000000000001B /* ProxyHelperProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBC00000000000000000001A /* ProxyHelperProcess.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +81,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = EBEAD8582B95749600A8D27B;
 			remoteInfo = tunnel;
+		};
+		EBC00000000000000000000F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33CC10E52044A3C60003C045 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EBC000000000000000000010;
+			remoteInfo = ProxyHelper;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -97,9 +113,21 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EBC000000000000000000015 /* Embed Proxy Helper */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = Contents/Helpers;
+			dstSubfolderSpec = 1;
+			files = (
+				EBC00000000000000000000D /* OneXrayProxyHelper.app in Embed Proxy Helper */,
+			);
+			name = "Embed Proxy Helper";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		EBAA00000000000000000001 /* AppleVpnRemoval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleVpnRemoval.swift; sourceTree = "<group>"; };
 		333000ED22D3DE5D00554162 /* Warnings.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Warnings.xcconfig; sourceTree = "<group>"; };
 		335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = GeneratedPluginRegistrant.swift; sourceTree = "<group>"; };
 		33CC10ED2044A3C60003C045 /* OneXray.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OneXray.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -146,6 +174,13 @@
 		EBEAD8882B9578E000A8D27B /* libresolv.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libresolv.tbd; path = usr/lib/libresolv.tbd; sourceTree = SDKROOT; };
 		B6A7C8DA6AD347F7B6E7962A /* BackupApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupApi.swift; sourceTree = "<group>"; };
 		6A672D00C35344F190C8163D /* BackupFileStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupFileStore.swift; sourceTree = "<group>"; };
+		EBC000000000000000000001 /* ProxyHelperProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProxyHelperProtocol.swift; path = ../swift/macOS/ProxyHelper/ProxyHelperProtocol.swift; sourceTree = SOURCE_ROOT; };
+		EBC000000000000000000002 /* ProxyHelperMain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProxyHelperMain.swift; path = ../swift/macOS/ProxyHelper/ProxyHelperMain.swift; sourceTree = SOURCE_ROOT; };
+		EBC000000000000000000003 /* DesktopProxyHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DesktopProxyHost.swift; path = ../swift/macOS/DesktopProxyHost.swift; sourceTree = SOURCE_ROOT; };
+		EBC000000000000000000004 /* ProxyHelper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; name = ProxyHelper.entitlements; path = ../swift/macOS/ProxyHelper/ProxyHelper.entitlements; sourceTree = SOURCE_ROOT; };
+		EBC000000000000000000005 /* ProxyHelper-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = ProxyHelper-Info.plist; path = ../swift/macOS/ProxyHelper/Info.plist; sourceTree = SOURCE_ROOT; };
+		EBC000000000000000000006 /* OneXrayProxyHelper.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OneXrayProxyHelper.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EBC00000000000000000001A /* ProxyHelperProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../swift/macOS/ProxyHelper/ProxyHelperProcess.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -169,6 +204,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EBC000000000000000000013 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EBC00000000000000000000B /* LibXray.xcframework in Frameworks */,
+				EBC00000000000000000000C /* libresolv.tbd in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -186,6 +230,7 @@
 		33CC10E42044A3C60003C045 = {
 			isa = PBXGroup;
 			children = (
+				EBC00000000000000000000E /* Proxy Helper */,
 				EBE36B432F9683E000686880 /* All */,
 				33FAB671232836740065AC1E /* Runner */,
 				33CEB47122A05771004F2AC0 /* Flutter */,
@@ -198,6 +243,7 @@
 		33CC10EE2044A3C60003C045 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				EBC000000000000000000006 /* OneXrayProxyHelper.app */,
 				33CC10ED2044A3C60003C045 /* OneXray.app */,
 				EBEAD8592B95749600A8D27B /* tunnel.appex */,
 			);
@@ -266,6 +312,7 @@
 			children = (
 				EB68C7222F95200E007C293A /* pigeon */,
 				EB68C7232F95200E007C293A /* Vpn.swift */,
+				EBAA00000000000000000001 /* AppleVpnRemoval.swift */,
 				6A672D00C35344F190C8163D /* BackupFileStore.swift */,
 			);
 			name = App;
@@ -321,6 +368,19 @@
 			path = tunnel;
 			sourceTree = "<group>";
 		};
+		EBC00000000000000000000E /* Proxy Helper */ = {
+			isa = PBXGroup;
+			children = (
+				EBC00000000000000000001A /* ProxyHelperProcess.swift */,
+				EBC000000000000000000001 /* ProxyHelperProtocol.swift */,
+				EBC000000000000000000002 /* ProxyHelperMain.swift */,
+				EBC000000000000000000003 /* DesktopProxyHost.swift */,
+				EBC000000000000000000004 /* ProxyHelper.entitlements */,
+				EBC000000000000000000005 /* ProxyHelper-Info.plist */,
+			);
+			name = "Proxy Helper";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -328,6 +388,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 33CC10FB2044A3C60003C045 /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
+				EBC000000000000000000015 /* Embed Proxy Helper */,
 				33CC10E92044A3C60003C045 /* Sources */,
 				33CC10EA2044A3C60003C045 /* Frameworks */,
 				33CC10EB2044A3C60003C045 /* Resources */,
@@ -338,6 +399,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				EBC000000000000000000016 /* PBXTargetDependency */,
 				33CC11202044C79F0003C045 /* PBXTargetDependency */,
 				EBEAD8622B95749600A8D27B /* PBXTargetDependency */,
 			);
@@ -365,6 +427,21 @@
 			productName = tunnel;
 			productReference = EBEAD8592B95749600A8D27B /* tunnel.appex */;
 			productType = "com.apple.product-type.app-extension";
+		};
+		EBC000000000000000000010 /* ProxyHelper */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EBC000000000000000000011 /* Build configuration list for PBXNativeTarget ProxyHelper */;
+			buildPhases = (
+				EBC000000000000000000012 /* Sources */,
+				EBC000000000000000000013 /* Frameworks */,
+				EBC000000000000000000014 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = ProxyHelper;
+			productName = OneXrayProxyHelper;
+			productReference = EBC000000000000000000006 /* OneXrayProxyHelper.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -415,6 +492,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				EBC000000000000000000010 /* ProxyHelper */,
 				33CC10EC2044A3C60003C045 /* Runner */,
 				33CC111A2044C6BA0003C045 /* Flutter Assemble */,
 				EBEAD8582B95749600A8D27B /* tunnel */,
@@ -438,6 +516,12 @@
 			buildActionMask = 2147483647;
 			files = (
 			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EBC000000000000000000014 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
@@ -488,6 +572,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EBC00000000000000000001B /* ProxyHelperProcess.swift in Sources */,
+				EBC000000000000000000007 /* ProxyHelperProtocol.swift in Sources */,
+				EBC000000000000000000008 /* DesktopProxyHost.swift in Sources */,
 				EB68C72D2F95200E007C293A /* Messages.g.swift in Sources */,
 				EBE36B4A2F9683E000686880 /* Logger.swift in Sources */,
 				EBE36B4B2F9683E000686880 /* Constants.swift in Sources */,
@@ -500,6 +587,7 @@
 				EB68C7302F95200E007C293A /* FlutterApi.swift in Sources */,
 				EB68C7312F95200E007C293A /* SystemExtensionManager.swift in Sources */,
 				EB68C7322F95200E007C293A /* Vpn.swift in Sources */,
+				EBAA00000000000000000002 /* AppleVpnRemoval.swift in Sources */,
 				EB68C7332F95200E007C293A /* HostApi.swift in Sources */,
 				1AFFFEFF74F6482E8A52014C /* BackupFileStore.swift in Sources */,
 				ADB14595A0B540B7AAF4D47E /* BackupApi.swift in Sources */,
@@ -523,6 +611,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EBC000000000000000000012 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EBC000000000000000000009 /* ProxyHelperProtocol.swift in Sources */,
+				EBC00000000000000000000A /* ProxyHelperMain.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -535,6 +632,11 @@
 			isa = PBXTargetDependency;
 			target = EBEAD8582B95749600A8D27B /* tunnel */;
 			targetProxy = EBEAD8612B95749600A8D27B /* PBXContainerItemProxy */;
+		};
+		EBC000000000000000000016 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EBC000000000000000000010 /* ProxyHelper */;
+			targetProxy = EBC00000000000000000000F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -976,6 +1078,75 @@
 			};
 			name = Profile;
 		};
+		EBC000000000000000000017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/../swift/macOS/ProxyHelper/ProxyHelper.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 2CKAULFA9J;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/../swift/macOS/ProxyHelper/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = net.yuandev.onexray.helper;
+				PRODUCT_NAME = OneXrayProxyHelper;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		EBC000000000000000000018 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/../swift/macOS/ProxyHelper/ProxyHelper.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Distribution";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 2CKAULFA9J;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/../swift/macOS/ProxyHelper/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = net.yuandev.onexray.helper;
+				PRODUCT_NAME = OneXrayProxyHelper;
+				PROVISIONING_PROFILE_SPECIFIER = OneXraymacOSHelper;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		EBC000000000000000000019 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "$(SRCROOT)/../swift/macOS/ProxyHelper/ProxyHelper.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = 2CKAULFA9J;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = "$(SRCROOT)/../swift/macOS/ProxyHelper/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = net.yuandev.onexray.helper;
+				PRODUCT_NAME = OneXrayProxyHelper;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1015,6 +1186,16 @@
 				EBEAD8652B95749600A8D27B /* Debug */,
 				EBEAD8662B95749600A8D27B /* Release */,
 				EBEAD8672B95749600A8D27B /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EBC000000000000000000011 /* Build configuration list for PBXNativeTarget ProxyHelper */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EBC000000000000000000017 /* Debug */,
+				EBC000000000000000000018 /* Release */,
+				EBC000000000000000000019 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

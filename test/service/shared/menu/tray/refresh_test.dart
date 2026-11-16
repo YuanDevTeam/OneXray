@@ -6,7 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
 import 'package:onexray/core/tools/platform.dart';
+import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/connect/coordinator.dart';
+import 'package:onexray/service/connect/compiler.dart';
+import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
+import 'package:onexray/service/settings/language/service.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:onexray/service/shared/menu/tray/service.dart';
 import 'package:onexray/service/shared/menu/tray/entry.dart';
@@ -146,6 +152,67 @@ void main() {
     await pumpEventQueue();
     await tray.refreshTrayManager();
   });
+
+  test(
+    'proxy tray uses generic connection actions while retaining menu keys',
+    () async {
+      final l = appLocalizationsNoContext();
+      await db.connectionConfigDao.commit(
+        configurationJson: ConnectionConfiguration(
+          policy: PlatformPolicy.fromJson({'captureMode': 'proxy'}),
+        ).encode(),
+      );
+      await pumpEventQueue();
+      await tray.refreshTrayManager();
+      final start = _items(menus.last)
+          .singleWhere((item) => item.key == 'startVpn');
+      expect(start.label, l.prototypeConnect);
+      expect(
+        _items(menus.last).singleWhere((item) => item.key == 'quitApp').label,
+        l.menuBarQuitApp,
+      );
+      expect(
+        _items(menus.last).any((item) => item.key == 'quitAndStopVpn'),
+        false,
+      );
+      expect(
+        _items(menus.last)
+            .singleWhere((item) => item.key == 'traffic:allVpn')
+            .label,
+        l.desktopAllViaProxy,
+      );
+      await click(start);
+      expect(connections, 1);
+
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.failed,
+        runtime: _captureRuntime(true),
+        issue: 'stopFailed',
+      );
+      await pumpEventQueue();
+      await tray.refreshTrayManager();
+      expect(
+        _items(menus.last).singleWhere((item) => item.key == 'stopVpn').label,
+        l.prototypeDisconnect,
+      );
+      expect(
+        _items(menus.last).any((item) => item.key == 'quitAndStopVpn'),
+        false,
+      );
+
+      // The actual TUN snapshot takes priority over a later proxy preference.
+      coordinator.state.value = ConnectionView(
+        phase: ConnectionPhase.connected,
+        runtime: _captureRuntime(false),
+      );
+      await pumpEventQueue();
+      await tray.refreshTrayManager();
+      expect(
+        _items(menus.last).singleWhere((item) => item.key == 'stopVpn').label,
+        l.menuBarStopVpn,
+      );
+    },
+  );
 
   test('tray stays icon-only and ignores traffic-only updates', () async {
     final keys = _items(menus.last).map((item) => item.key).toSet();
@@ -355,3 +422,23 @@ void main() {
     expect(menus, hasLength(published));
   });
 }
+
+ConnectionRuntime _captureRuntime(bool proxy) => ConnectionRuntime.create(
+  configuration: ConnectionConfiguration(
+    policy: PlatformPolicy.fromJson({'captureMode': proxy ? 'proxy' : 'tun'}),
+  ),
+  compiled: CompiledConnection(
+    xrayJson: '{}',
+    entries: [],
+    finalExit: null,
+    nodeTags: {},
+  ),
+  platform: ConnectionPlatform.macos,
+  request: StartVpnRequest(
+    null,
+    proxy ? '10808' : null,
+    null,
+    '{}',
+    captureMode: proxy ? 'proxy' : 'tun',
+  ),
+);

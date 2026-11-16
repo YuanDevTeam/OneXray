@@ -257,6 +257,19 @@ enum class NativeVpnCommandState(val raw: Int) {
   }
 }
 
+enum class AppleVpnRemovalResult(val raw: Int) {
+  REMOVED(0),
+  RESTART_REQUIRED(1);
+
+  companion object {
+    private val pigeonValues = values()
+
+    fun ofRaw(raw: Int): AppleVpnRemovalResult? {
+      return pigeonValues.getOrNull(raw)
+    }
+  }
+}
+
 enum class NativeLaunchAtLoginState(val raw: Int) {
   ENABLED(0),
   DISABLED(1),
@@ -596,40 +609,45 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
       }
       133.toByte() -> {
         (readValue(buffer) as Long?)?.let {
-          NativeLaunchAtLoginState.ofRaw(it.toInt())
+          AppleVpnRemovalResult.ofRaw(it.toInt())
         }
       }
       134.toByte() -> {
-        (readValue(buffer) as? List<Any?>)?.let {
-          AndroidAutomationSettings.fromList(it)
+        (readValue(buffer) as Long?)?.let {
+          NativeLaunchAtLoginState.ofRaw(it.toInt())
         }
       }
       135.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          BackupLocation.fromList(it)
+          AndroidAutomationSettings.fromList(it)
         }
       }
       136.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          AppleVpnCapabilities.fromList(it)
+          BackupLocation.fromList(it)
         }
       }
       137.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          NativeLaunchAtLoginResult.fromList(it)
+          AppleVpnCapabilities.fromList(it)
         }
       }
       138.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          PlatformPermissionResult.fromList(it)
+          NativeLaunchAtLoginResult.fromList(it)
         }
       }
       139.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
-          NativeVpnCommandResult.fromList(it)
+          PlatformPermissionResult.fromList(it)
         }
       }
       140.toByte() -> {
+        (readValue(buffer) as? List<Any?>)?.let {
+          NativeVpnCommandResult.fromList(it)
+        }
+      }
+      141.toByte() -> {
         (readValue(buffer) as? List<Any?>)?.let {
           AndroidAppInfo.fromList(it)
         }
@@ -655,36 +673,40 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is NativeLaunchAtLoginState -> {
+      is AppleVpnRemovalResult -> {
         stream.write(133)
         writeValue(stream, value.raw.toLong())
       }
-      is AndroidAutomationSettings -> {
+      is NativeLaunchAtLoginState -> {
         stream.write(134)
-        writeValue(stream, value.toList())
+        writeValue(stream, value.raw.toLong())
       }
-      is BackupLocation -> {
+      is AndroidAutomationSettings -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is AppleVpnCapabilities -> {
+      is BackupLocation -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is NativeLaunchAtLoginResult -> {
+      is AppleVpnCapabilities -> {
         stream.write(137)
         writeValue(stream, value.toList())
       }
-      is PlatformPermissionResult -> {
+      is NativeLaunchAtLoginResult -> {
         stream.write(138)
         writeValue(stream, value.toList())
       }
-      is NativeVpnCommandResult -> {
+      is PlatformPermissionResult -> {
         stream.write(139)
         writeValue(stream, value.toList())
       }
-      is AndroidAppInfo -> {
+      is NativeVpnCommandResult -> {
         stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is AndroidAppInfo -> {
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -702,6 +724,7 @@ interface BridgeHostApi {
   fun invoke(requestJson: String, callback: (Result<String>) -> Unit)
   fun queryPlatformPermission(callback: (Result<PlatformPermissionResult>) -> Unit)
   fun requestPlatformPermission(callback: (Result<PlatformPermissionResult>) -> Unit)
+  fun removeAppleVpn(callback: (Result<AppleVpnRemovalResult>) -> Unit)
   fun getInstalledApps(callback: (Result<List<AndroidAppInfo>>) -> Unit)
   fun getAppIcon(packageName: String, callback: (Result<ByteArray?>) -> Unit)
   fun useSystemExtension(callback: (Result<Boolean>) -> Unit)
@@ -836,6 +859,24 @@ interface BridgeHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.requestPlatformPermission{ result: Result<PlatformPermissionResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.BridgeHostApi.removeAppleVpn$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.removeAppleVpn{ result: Result<AppleVpnRemovalResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))
@@ -1004,6 +1045,84 @@ interface BridgeHostApi {
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.getCurrentAppIcon{ result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+    }
+  }
+}
+/**
+ * macOS local proxy runtime; this does not create a VPN configuration.
+ *
+ * Generated interface from Pigeon that represents a handler of messages from Flutter.
+ */
+interface BridgeDesktopProxyApi {
+  fun startProxy(requestJson: String, callback: (Result<NativeVpnCommandResult>) -> Unit)
+  fun stopProxy(callback: (Result<NativeVpnCommandResult>) -> Unit)
+  fun readProxyStatus(callback: (Result<NativeVpnCommandResult>) -> Unit)
+
+  companion object {
+    /** The codec used by BridgeDesktopProxyApi. */
+    val codec: MessageCodec<Any?> by lazy {
+      MessagesPigeonCodec()
+    }
+    /** Sets up an instance of `BridgeDesktopProxyApi` to handle messages through the `binaryMessenger`. */
+    @JvmOverloads
+    fun setUp(binaryMessenger: BinaryMessenger, api: BridgeDesktopProxyApi?, messageChannelSuffix: String = "") {
+      val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.startProxy$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val requestJsonArg = args[0] as String
+            api.startProxy(requestJsonArg) { result: Result<NativeVpnCommandResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.stopProxy$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.stopProxy{ result: Result<NativeVpnCommandResult> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(MessagesPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(MessagesPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.onexray.BridgeDesktopProxyApi.readProxyStatus$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.readProxyStatus{ result: Result<NativeVpnCommandResult> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(MessagesPigeonUtils.wrapError(error))

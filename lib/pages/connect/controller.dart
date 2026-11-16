@@ -21,6 +21,7 @@ import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
 
@@ -98,7 +99,9 @@ class ConnectPageState {
       connectionView.runtime == other.connectionView.runtime &&
       connectionView.issue == other.connectionView.issue &&
       connectionView.error == other.connectionView.error &&
-      connectionView.permission == other.connectionView.permission;
+      connectionView.permission == other.connectionView.permission &&
+      connectionView.systemProxyActive ==
+          other.connectionView.systemProxyActive;
 }
 
 class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
@@ -129,6 +132,9 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
       emit(state.copyWith(configuration: value));
 
   ConnectionView get connectionView => state.connectionView;
+  bool get proxyMode =>
+      connectionView.runtime?.isProxy ??
+      configuration.policy.usesProxy(connectionPlatform);
   List<CoreConfigData> get servers => state.servers;
   set servers(List<CoreConfigData> value) =>
       emit(state.copyWith(catalog: catalog.copyWith(servers: value)));
@@ -341,7 +347,9 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
       case TrafficMode.smart:
         return l10n.prototypeSmartRoutingDescription;
       case TrafficMode.allVpn:
-        return l10n.prototypeAllViaVpnDescription;
+        return proxyMode
+            ? l10n.desktopAllViaProxyDescription
+            : l10n.prototypeAllViaVpnDescription;
       case TrafficMode.custom:
         final row = customRoutes
             .where((row) => row.id == configuration.connection.customId)
@@ -378,7 +386,8 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
       ? l10n.providerConfigurationTitle
       : switch (configuration.connection.trafficMode) {
           TrafficMode.smart => l10n.prototypeSmartRouting,
-          TrafficMode.allVpn => l10n.prototypeAllViaVpn,
+          TrafficMode.allVpn =>
+            proxyMode ? l10n.desktopAllViaProxy : l10n.prototypeAllViaVpn,
           TrafficMode.custom =>
             customRoutes
                     .where((row) => row.id == configuration.connection.customId)
@@ -504,7 +513,8 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     }
     return switch (next.trafficMode) {
       TrafficMode.smart => l.prototypeSmartRoutingRecommended,
-      TrafficMode.allVpn => l.prototypeAllViaVpn,
+      TrafficMode.allVpn =>
+        proxyMode ? l.desktopAllViaProxy : l.prototypeAllViaVpn,
       TrafficMode.custom =>
         customRoutes
                 .where((row) => row.id == next.customId)

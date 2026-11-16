@@ -231,7 +231,9 @@ private final class FailingLogRemoval: FileManager, @unchecked Sendable {
 @main
 enum RuntimeEnvTestRunner {
     static func main() {
-        let suite = RuntimeEnvTests.defaultTestSuite
+        let suite = XCTestSuite(name: "Apple runtime inputs")
+        suite.addTest(RuntimeEnvTests.defaultTestSuite)
+        suite.addTest(StartRequestStorageTests.defaultTestSuite)
         suite.run()
         guard let result = suite.testRun, result.executionCount > 0,
               result.totalFailureCount == 0 else { exit(1) }

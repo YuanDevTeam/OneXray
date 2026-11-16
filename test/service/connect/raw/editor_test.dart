@@ -276,6 +276,79 @@ void main() {
     },
   );
 
+  for (final ipv6 in [false, true]) {
+    test(
+      'running proxy Raw compares generated DNS independently of TUN drafts IPv6 $ipv6',
+      () async {
+        final rawId = await db.coreConfigDao.insertAssetRow(
+          XrayRawDb.configCompanion('original', _text),
+        );
+        final configuration = ConnectionConfiguration(
+          connection: ConnectionSettings(expert: true, rawId: rawId),
+          policy: PlatformPolicy.fromJson({
+            'captureMode': 'proxy',
+            'ipv6Enabled': ipv6,
+            'dnsIpv4Address': '',
+            'dnsIpv6Address': 'invalid',
+          }),
+        );
+        await db.connectionConfigDao.commit(
+          configurationJson: configuration.encode(),
+        );
+        final coordinator = await _initialize(
+          ConnectionCoordinator(
+            database: db,
+            inspect: (_, {observedStatus}) async => HostConnection(
+              VpnStatus.connected,
+              runtime: _runtime(
+                'raw',
+                configuration,
+                _text,
+                platform: ConnectionPlatform.macos,
+              ),
+            ),
+            start: (_) async =>
+                throw StateError('Equivalent edit must not start'),
+            stop: () async => throw StateError('Equivalent edit must not stop'),
+          ),
+        );
+        final service = RawEditorService(
+          database: db,
+          coordinator: coordinator,
+          validate: (_) async {},
+        );
+        final draft = await service.load(rawId);
+        final equivalent = VpnConfigAdapter.withDefaultDns(
+          VpnConfigAdapter.adapt(jsonDecode(_text) as Map<String, dynamic>),
+          ipv4Address: '8.8.8.8',
+          ipv6Address: ipv6 ? '2001:4860:4860::8888' : null,
+        );
+        expect(
+          await service.save(
+            RawEditorDraft(
+              original: draft.original,
+              name: draft.name,
+              text: jsonEncode(equivalent),
+            ),
+            confirmReconnect: () async =>
+                throw StateError('Equivalent edit must not confirm'),
+          ),
+          rawId,
+        );
+        expect(
+          (await coordinator.configuration).encode(),
+          configuration.encode(),
+        );
+        expect(coordinator.state.value.runtime!.isProxy, true);
+        expect(coordinator.state.value.phase, ConnectionPhase.connected);
+        expect(
+          XrayRawDb.readFromDbData((await db.coreConfigDao.searchRow(rawId))!),
+          jsonEncode(equivalent),
+        );
+      },
+    );
+  }
+
   test('running Raw rename does not reconnect; cancel and failed start keep the asset', () async {
     final rawId = await db.coreConfigDao.insertAssetRow(
       XrayRawDb.configCompanion('original', _text),
@@ -656,8 +729,10 @@ Future<ConnectionCoordinator> _initialize(
 ConnectionRuntime _runtime(
   String digit,
   ConnectionConfiguration configuration,
-  String text,
-) {
+  String text, {
+  ConnectionPlatform platform = ConnectionPlatform.android,
+}) {
+  final proxyMode = configuration.policy.usesProxy(platform);
   final invoke = LibXrayInvokeRequest(
     method: LibXrayMethod.runXray,
     payload: RunXrayRequest(text).toJson(),
@@ -670,12 +745,13 @@ ConnectionRuntime _runtime(
       finalExit: null,
       nodeTags: {},
     ),
-    platform: ConnectionPlatform.android,
+    platform: platform,
     request: StartVpnRequest(
-      configuration.policy.toTun(ConnectionPlatform.android),
-      null,
+      configuration.policy.toTun(platform),
+      proxyMode ? '${configuration.policy.proxyPort}' : null,
       '18003',
       jsonEncode(invoke.toJson()),
+      captureMode: proxyMode ? 'proxy' : 'tun',
     ),
   );
 }

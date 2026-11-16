@@ -117,6 +117,35 @@ void main() {
     });
   }
 
+  for (final platform in [
+    ConnectionPlatform.macos,
+    ConnectionPlatform.windows,
+    ConnectionPlatform.linux,
+  ]) {
+    test(
+      '$platform proxy Setup preserves interface draft without querying it',
+      () async {
+        final service = _ProxySetup(database: db, platform: platform);
+        final previous = ConnectionConfiguration(
+          connection: ConnectionSettings(),
+          policy: PlatformPolicy.fromJson({
+            'xrayOutboundInterfaceName': 'saved-interface',
+          }),
+        );
+        await db.connectionConfigDao.commit(
+          configurationJson: previous.encode(),
+        );
+        await service.acceptPrivacy();
+        await service.finish(interfaceName: '', captureMode: CaptureMode.proxy);
+        final saved = await service.configuration();
+        expect(saved.policy.captureMode, CaptureMode.proxy);
+        expect(saved.policy.proxyPort, 10808);
+        expect(saved.policy.xrayOutboundInterfaceName, 'saved-interface');
+        expect(await service.currentStep(), SetupStep.complete);
+      },
+    );
+  }
+
   for (final platform in ConnectionPlatform.values) {
     test(
       '$platform saves interface and region together without permissions',
@@ -183,6 +212,18 @@ class _InterfaceSetup extends SetupService {
   Future<List<OutboundInterfaceOption>> interfaces() async => [
     const OutboundInterfaceOption('Ethernet', ['192.0.2.2'], true),
   ];
+}
+
+class _ProxySetup extends SetupService {
+  _ProxySetup({required super.database, required super.platform})
+    : super(
+        prepareLocal: () async {},
+        readRegionCodes: () async => ['CN', 'RU'],
+      );
+
+  @override
+  Future<List<OutboundInterfaceOption>> interfaces() =>
+      throw StateError('Proxy must not query interfaces');
 }
 
 class _FailingHttpClient implements HttpClient {
