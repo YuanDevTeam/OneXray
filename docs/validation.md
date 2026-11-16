@@ -284,9 +284,12 @@ Pigeon schema 或生成器版本更新时，用 `tool/generate_pigeon.dart` 同�
 - 桌面代理：`test/core/proxy/` 覆盖所属 Core 生命周期、入口就绪、设置写入/读回、第三方修改、回滚与恢复；
   `test/service/connect/desktop_proxy_test.dart` 覆盖普通/高级/Raw/Provider 运行图与后端切换，
   `test/service/advanced/desktop_proxy_policy_test.dart` 覆盖设备偏好与备份边界。
-  `bash tool/test_desktop_proxy_helper.sh` 编译生产 Swift，执行协议与真实 loopback HTTP/SOCKS、停止/EOF 回收测试，
-  不启动 VPN。无签名测试不代替继承沙盒的实际 helper；分别构建普通版与 SE，检查嵌入、App ID、profile 和签名，
-  在签名沙盒中保持代理流量并发执行 Runner 的 `pingBatch/testXray`。普通版 Release 的运行验收使用受支持的商店分发渠道，
+  `bash tool/test_desktop_proxy_helper.sh` 编译生产 Swift，验证协议帧、进程内 socketpair 的 EOF 处理、真实 helper 的
+  启动/状态/显式停止、SOCKS 端口监听及启动失败回收，并以可控回调验证退出协调；不启动 VPN。
+  该脚本不验证真实 HTTP/SOCKS 转发，也不验证父通道关闭后 helper 与 Core 的退出和端口释放。
+  这些场景须在独立签名沙盒验收中检查；无签名测试不代替继承沙盒的实际 helper。分别构建普通版与 SE，
+  检查嵌入、App ID、profile 和签名，验证真实 HTTP/SOCKS 请求往返、父通道 EOF 后进程回收与端口释放，
+  并在保持代理流量时并发执行 Runner 的 `pingBatch/testXray`。普通版 Release 的运行验收使用受支持的商店分发渠道，
   本地 Debug 与 SE Developer ID 结果分别记录。Windows/MSIX 与 Linux/GNOME 系统代理还须在对应宿主验证真实写入、
   PAC/bypass/缺省值恢复、组织策略、端口冲突、异常退出和第三方修改；替身通过不代表这些原生场景已验收。
 - Apple VPN 删除：`bash tool/test_apple_vpn_removal.sh` 使用可控系统边界执行生产删除协调器，
