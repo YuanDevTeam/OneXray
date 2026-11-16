@@ -113,7 +113,8 @@ Core 在发送 UDP 前使用 WireGuard 自身的 socket 策略本地解析 peer�
 其 UDP 连接不应用仅适用于 TCP 的 HE 竞速，共享 Fragment 的 TCP 连接仍可使用 HE。
 
 显式拨号需要解析域名时，App 从实际物理端点收集去重后的精确域名，前置专用 bootstrap resolver，
-以隧道 DNS 的 IPv4 地址和启用时的 IPv6 地址生成 TCP resolver，并用独立 tag 的前置规则固定直连。
+TUN 使用隧道 DNS 的 IPv4 地址和启用时的 IPv6 地址生成 TCP resolver；桌面代理使用 App 默认 resolver，
+不读取停用的 TUN DNS 草稿。引导解析用独立 tag 的前置规则固定直连。
 TCP URL 的 IPv6 host 使用方括号；系统隧道 DNS 字段继续保存 IP 字面量，不写入 `tcp://`，原生 DoT 设置独立生效。
 这些精确匹配不成为通用备用，最后一个引导 resolver 截止普通代理/FakeDNS 回退，
 避免连接代理前又经该代理解析其地址。匹配按域名而非请求调用者区分，App 查询恰好相同域名时也使用引导 DNS；
@@ -270,7 +271,8 @@ Raw 新建 DNS 出站使用 `app-vpn-dns`，提供方沿用 `app-remna-dns`；�
 这些补充不增加通用代理、DoT 或 TUN catch-all 规则。
 
 运行编译时，`dns` 缺失或为 `null`，以及 `dns.servers` 缺失、为 `null` 或空列表时，
-使用本次隧道 IPv4 DNS 和启用 IPv6 时的隧道 IPv6 DNS 补齐服务器，保留同一对象的 hosts、缓存及其它字段。
+TUN 使用本次隧道 IPv4 DNS 和启用 IPv6 时的隧道 IPv6 DNS 补齐服务器；桌面代理使用 App 默认 IPv4/IPv6 resolver。
+启动准备、Raw 语义比较与有效设置比较共用该投影，保留同一对象的 hosts、缓存及其它字段。
 补齐的 Core resolver 使用对应 IP 的 TCP URL，系统隧道 DNS 字段仍为 IP 字面量。
 新增服务器使用 `app-vpn-default-dns` tag，并用限定该 tag 的前置规则直连 `app-vpn-dns-direct`，
 避免连接域名代理前又通过该代理解析地址。仅 App 新增的缺省 DNS 采用此出口；
@@ -401,6 +403,7 @@ Cross-device connectivity, UDP, firewalls, lock screen and signed channels requi
 
 代理方式以私有 HTTP/SOCKS5 混合入站替代托管 `tunIn`，保留其 tag、路由、节点、metrics 与统计；不生成托管 TUN/WFP/系统路由/系统 DNS 接管或强制出口网卡。
 LAN 共享保持独立入口。高级模板、Raw 与提供方完整图只适配运行副本，额外 TUN 或端口冲突明确拒绝，存储原文不变。
+代理的 App 缺省 DNS 与节点域名引导解析独立于 TUN 草稿，使用既有默认 resolver；显式 Raw/提供方 DNS 保留原值。
 WireGuard 在代理运行副本使用 `noKernelTun: true`，防止已有 NET_ADMIN 触发内核 TUN；Raw/完整图显式要求 kernel TUN 时报告不兼容，不改写原文。
 代理只覆盖显式使用入口或遵从系统代理的应用，不承诺全部 UDP、DNS 或任意应用均被接管。
 
@@ -412,6 +415,7 @@ Windows EXE/MSIX 与 Linux 代理使用自身普通用户 Core 子进程及 `-se
 自动系统代理仅在 Windows 当前用户策略允许、或 GNOME 所需 schema/session/逐键写权限可用时启用；macOS、KDE 和其他环境提供手动端点。
 Core 与本地入口就绪后，先保存本设备私有恢复记录，再写入并读回系统设置；真实接管状态与保存偏好分开显示。
 停止/失败/异常退出先条件还原仍归本次持有的设置，再释放 Core。外部修改保留；若仍指向本端点但无法安全还原，报告失败并保留可重试的运行及端点。
+已知代理会话的显式断开、退出与确认重连不因锁存的状态查询错误失去清理重试机会；仍须实际还原并确认停止后才能重连或保存。
 自动模式只读观察系统代理设置变化，不把 metrics 不可用或外部改代理当作 Core 已停止。
 崩溃/掉电后的记录在下次同用户启动时恢复，不能承诺即时清理；手动填写的系统/浏览器代理不由 App 自动还原。
 
@@ -496,6 +500,7 @@ run/start.json 是唯一原生启动请求：coreInvokeText 为实际输入，me
 
 每次实际启动新的 Core 前，运行拥有者在旧 Core 已停止、输入准备完成后清空固定 `run/access.log` 和 `run/error.log`，
 日志关闭时也处理旧文件；文件不存在可继续，目录或符号链接占位及删除失败会阻止本次启动。
+代理进程使用与编译配置相同的原生数据根目录，MSIX 对应包内数据目录；系统代理恢复记录仍单独保存在本机应用支持目录。
 只处理这两个托管日志，不清理节点、路由、运行请求、Geodata、用户导出或启动诊断 `.error`。
 普通 Apple NE、SE 扩展容器、模拟器、Android 原生 saved-start 和桌面 App 启动分别在实际 Core 启动入口处理；
 MSIX 先停止系统会话并确认旧 Core 进程退出，外部宿主自主恢复仍由宿主负责。
