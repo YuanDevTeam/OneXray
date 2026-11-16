@@ -124,3 +124,27 @@ final class DesktopProxyProcess: @unchecked Sendable {
         }
     }
 }
+
+/// Keeps repeated AppKit quit requests on the same owned helper shutdown.
+@MainActor
+final class DesktopProxyTermination {
+    private var pending = false
+
+    /// Returns whether AppKit must wait for `reply`. Confirmation concerns the
+    /// actual process state, including a successful reap after a command error.
+    func deferIfNeeded(
+        isProxyActive: Bool,
+        stopAndConfirmStopped: @escaping @MainActor () async -> Bool,
+        reply: @escaping @MainActor (Bool) -> Void
+    ) -> Bool {
+        guard !pending else { return true }
+        guard isProxyActive else { return false }
+        pending = true
+        Task {
+            let stopped = await stopAndConfirmStopped()
+            pending = false
+            reply(stopped)
+        }
+        return true
+    }
+}

@@ -87,7 +87,9 @@ final class ProxyHelperProcessTests: XCTestCase {
 enum ProxyHelperProcessTestRunner {
     static func main() {
         guard CommandLine.arguments.count == 2 else { exit(1) }
-        let suite = ProxyHelperProcessTests.defaultTestSuite
+        let suite = XCTestSuite(name: "Desktop proxy lifecycle")
+        suite.addTest(ProxyHelperProcessTests.defaultTestSuite)
+        suite.addTest(DesktopProxyTerminationTests.defaultTestSuite)
         suite.run()
         guard let run = suite.testRun, run.executionCount > 0, run.totalFailureCount == 0 else { exit(1) }
     }

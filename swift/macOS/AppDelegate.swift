@@ -4,17 +4,19 @@ import FlutterMacOS
 @main
 @MainActor
 class AppDelegate: FlutterAppDelegate {
-    private var terminatingProxy = false
+    private let proxyTermination = DesktopProxyTermination()
 
     override func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard DesktopProxyHost.shared.isActive else { return .terminateNow }
-        guard !terminatingProxy else { return .terminateLater }
-        terminatingProxy = true
-        Task {
-            _ = await DesktopProxyHost.shared.stop()
-            NSApp.reply(toApplicationShouldTerminate: true)
-        }
-        return .terminateLater
+        let deferred = proxyTermination.deferIfNeeded(
+            isProxyActive: DesktopProxyHost.shared.isActive,
+            stopAndConfirmStopped: {
+                _ = await DesktopProxyHost.shared.stop()
+                let actual = await DesktopProxyHost.shared.readStatus()
+                return actual.status == .disconnected
+            },
+            reply: { NSApp.reply(toApplicationShouldTerminate: $0) }
+        )
+        return deferred ? .terminateLater : .terminateNow
     }
 
     override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

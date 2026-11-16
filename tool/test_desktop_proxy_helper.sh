@@ -28,6 +28,6 @@ xcrun swiftc \
   -Xlinker -rpath -Xlinker "$platform/Developer/Library/Frameworks" \
   -Xlinker -rpath -Xlinker "$platform/Developer/usr/lib" \
   swift/macOS/ProxyHelper/ProxyHelperProtocol.swift swift/macOS/ProxyHelper/ProxyHelperProcess.swift \
-  test/native/ProxyHelperProcessTests.swift \
+  test/native/ProxyHelperProcessTests.swift test/native/DesktopProxyTerminationTests.swift \
   -o "$evidence/desktop-proxy-process-tests"
 "$evidence/desktop-proxy-process-tests" "$evidence/OneXrayProxyHelper"
