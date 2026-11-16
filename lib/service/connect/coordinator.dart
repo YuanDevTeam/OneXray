@@ -579,9 +579,30 @@ class ConnectionCoordinator with WidgetsBindingObserver {
         throw const ConnectionHostException('configurationChanged');
       }
       next = await OrdinaryPlanService(db).retain(stored, next);
-      final current = await _inspect(await _currentRuntime());
+      final knownRuntime = await _currentRuntime();
+      late final HostConnection current;
+      var reconnectAfterCleanup = false;
+      try {
+        current = await _inspect(knownRuntime);
+      } catch (error, stack) {
+        if (knownRuntime?.isProxy != true ||
+            !(connect || disconnect || affectsRuntime)) {
+          Error.throwWithStackTrace(error, stack);
+        }
+        // A failed proxy read is not a confirmed disconnected state. Explicit
+        // cleanup may still reach the owned host, which rechecks restoration.
+        if (!disconnect && !allowReconnect) {
+          throw ConnectionHostException('reconnectRequired', cause: error);
+        }
+        if (!disconnect) _checkConnectionRequest(generation);
+        current = await _stopKnownProxy(knownRuntime!);
+        _publish(current);
+        reconnectAfterCleanup = affectsRuntime;
+      }
       final shouldStart =
-          !disconnect && (connect || (affectsRuntime && current.connected));
+          !disconnect &&
+          (connect ||
+              (affectsRuntime && (current.connected || reconnectAfterCleanup)));
       final shouldStop = disconnect && current.status != VpnStatus.disconnected;
       if (shouldStart) _checkConnectionRequest(generation);
       // Recheck after preceding commands finish: a disconnected editor may have
@@ -855,7 +876,12 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   Future<void> _stopForMaintenance() async {
     _invalidateStartupProbe();
     try {
-      final current = await _inspect(await _currentRuntime());
+      final knownRuntime = await _currentRuntime();
+      if (knownRuntime?.isProxy == true) {
+        _publish(await _stopKnownProxy(knownRuntime!));
+        return;
+      }
+      final current = await _inspect(knownRuntime);
       state.value = ConnectionView(
         phase: ConnectionPhase.disconnecting,
         runtime: current.runtime,
@@ -863,6 +889,29 @@ class ConnectionCoordinator with WidgetsBindingObserver {
         systemProxyActive: current.systemProxyActive ?? false,
       );
       _publish(await _stop());
+    } catch (error) {
+      await _publishHostFailure('stopFailed', error: error);
+      rethrow;
+    }
+  }
+
+  Future<HostConnection> _stopKnownProxy(ConnectionRuntime runtime) async {
+    final previous = state.value;
+    state.value = ConnectionView(
+      phase: ConnectionPhase.disconnecting,
+      runtime: runtime,
+      traffic: previous.traffic,
+      systemProxyActive: previous.systemProxyActive,
+      issue: previous.issue,
+      error: previous.error,
+      permission: previous.permission,
+    );
+    try {
+      final stopped = await _stop();
+      if (stopped.status != VpnStatus.disconnected) {
+        throw const ConnectionHostException('stopNotConfirmed');
+      }
+      return stopped;
     } catch (error) {
       await _publishHostFailure('stopFailed', error: error);
       rethrow;
