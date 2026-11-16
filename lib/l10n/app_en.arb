@@ -16,7 +16,6 @@
   "desktopProxyStopped": "Stopped",
   "desktopCopyProxyAddress": "Copy proxy address",
   "desktopProxyPortConflict": "The local proxy port conflicts with LAN sharing.",
-  "tunnelSystemManagement": "System management",
   "tunnelDeleteVpnConfiguration": "Delete VPN configuration",
   "tunnelUninstallSystemExtension": "Uninstall system extension",
   "tunnelVpnRemovalChecking": "Checking VPN configuration…",

@@ -16,7 +16,6 @@
   "desktopProxyStopped": "已停止",
   "desktopCopyProxyAddress": "複製代理位址",
   "desktopProxyPortConflict": "本機代理連接埠與區域網路分享衝突。",
-  "tunnelSystemManagement": "系統管理",
   "tunnelDeleteVpnConfiguration": "刪除 VPN 設定",
   "tunnelUninstallSystemExtension": "解除安裝系統擴充功能",
   "tunnelVpnRemovalChecking": "正在檢查 VPN 設定…",

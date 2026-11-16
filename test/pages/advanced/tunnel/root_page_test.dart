@@ -176,7 +176,7 @@ void main() {
         final l = AppLocalizations.of(
           tester.element(find.byType(VpnTunnelPane)),
         )!;
-        expect(find.byType(SettingSection), findsNWidgets(3));
+        expect(find.byType(SettingSection), findsNWidgets(2));
         expect(find.byType(TextField), findsNothing);
         expect(find.byType(PolicyActions), findsNothing);
         expect(find.text('iOS'), findsOneWidget);

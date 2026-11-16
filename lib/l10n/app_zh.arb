@@ -16,7 +16,6 @@
   "desktopProxyStopped": "已停止",
   "desktopCopyProxyAddress": "复制代理地址",
   "desktopProxyPortConflict": "本地代理端口与局域网共享冲突。",
-  "tunnelSystemManagement": "系统管理",
   "tunnelDeleteVpnConfiguration": "删除 VPN 配置",
   "tunnelUninstallSystemExtension": "卸载系统扩展",
   "tunnelVpnRemovalChecking": "正在检查 VPN 配置…",

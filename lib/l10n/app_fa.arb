@@ -16,7 +16,6 @@
   "desktopProxyStopped": "متوقف شده",
   "desktopCopyProxyAddress": "کپی نشانی پروکسی",
   "desktopProxyPortConflict": "درگاه پروکسی محلی با اشتراک‌گذاری شبکهٔ محلی تداخل دارد.",
-  "tunnelSystemManagement": "مدیریت سیستم",
   "tunnelDeleteVpnConfiguration": "حذف پیکربندی VPN",
   "tunnelUninstallSystemExtension": "حذف افزونهٔ سیستم",
   "tunnelVpnRemovalChecking": "در حال بررسی پیکربندی VPN…",

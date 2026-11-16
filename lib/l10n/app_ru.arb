@@ -16,7 +16,6 @@
   "desktopProxyStopped": "Остановлен",
   "desktopCopyProxyAddress": "Копировать адрес прокси",
   "desktopProxyPortConflict": "Порт локального прокси совпадает с портом доступа по локальной сети.",
-  "tunnelSystemManagement": "Управление системой",
   "tunnelDeleteVpnConfiguration": "Удалить конфигурацию VPN",
   "tunnelUninstallSystemExtension": "Удалить системное расширение",
   "tunnelVpnRemovalChecking": "Проверка конфигурации VPN…",
