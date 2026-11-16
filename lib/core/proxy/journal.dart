@@ -14,6 +14,8 @@ abstract interface class ProxyJournalStore {
 final class FileProxyJournalStore implements ProxyJournalStore {
   FileProxyJournalStore(this.directory);
 
+  static const _maximumRecordBytes = 65536;
+
   final Future<String> Function() directory;
   RandomAccessFile? _lock;
   Directory? _root;
@@ -72,7 +74,8 @@ final class FileProxyJournalStore implements ProxyJournalStore {
     final file = await _file();
     final type = await FileSystemEntity.type(file.path, followLinks: false);
     if (type == FileSystemEntityType.notFound) return null;
-    if (type != FileSystemEntityType.file || await file.length() > 65536) {
+    if (type != FileSystemEntityType.file ||
+        await file.length() > _maximumRecordBytes) {
       throw const FormatException('Invalid local proxy recovery record');
     }
     final value = jsonDecode(await file.readAsString());
@@ -84,6 +87,12 @@ final class FileProxyJournalStore implements ProxyJournalStore {
 
   @override
   Future<void> write(Map<String, dynamic> value) async {
+    final bytes = utf8.encode(jsonEncode(value));
+    if (bytes.length > _maximumRecordBytes) {
+      throw const FormatException(
+        'Local proxy recovery record exceeds 65536 bytes',
+      );
+    }
     final file = await _file();
     final temporary = File('${file.path}.pending');
     final type = await FileSystemEntity.type(
@@ -97,7 +106,7 @@ final class FileProxyJournalStore implements ProxyJournalStore {
         temporary.path,
       );
     }
-    await temporary.writeAsString(jsonEncode(value), flush: true);
+    await temporary.writeAsBytes(bytes, flush: true);
     if (!Platform.isWindows) await _restrict(temporary.path, '600');
     // Dart's rename replaces the existing file on supported desktop platforms.
     await temporary.rename(file.path);

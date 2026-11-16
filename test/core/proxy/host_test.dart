@@ -11,6 +11,9 @@ import 'package:onexray/core/proxy/journal.dart';
 import 'package:onexray/core/proxy/system_proxy.dart';
 import 'package:onexray/core/proxy/windows_proxy.dart';
 import 'package:onexray/core/proxy/gnome_proxy.dart';
+import 'package:path/path.dart' as p;
+
+import '../../support/test_directory.dart';
 
 Map<String, dynamic> _copy(Map<String, dynamic> value) =>
     jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
@@ -249,6 +252,47 @@ void main() {
     expect(host.systemProxyActive, isFalse);
     expect((await host.stop()).state, NativeVpnCommandState.success);
     expect(events.where((event) => event.startsWith('settings-')), isEmpty);
+  });
+
+  test('an oversized prepared file journal stops the owned Core before any system proxy write', () async {
+    final directory = await createTestDirectory('onexray-proxy-large-start-');
+    final store = FileProxyJournalStore(() async => directory.path);
+    addTearDown(() async {
+      await store.close();
+      await directory.delete(recursive: true);
+    });
+    adapter.value['bypass'] = List<String>.filled(
+      2180,
+      '*.example.test;',
+    ).join();
+    final before = _copy(adapter.value);
+    host = DesktopProxyHost.forTesting(
+      core: core,
+      adapter: adapter,
+      store: store,
+      checkPort: (_) async {},
+      waitReady: (_, _) async => events.add('listener-ready'),
+      notify: (_) async {},
+    );
+
+    final result = await host.start(_request(), autoSetSystemProxy: true);
+
+    expect(result.state, NativeVpnCommandState.failed);
+    expect(result.message, contains('65536 bytes'));
+    expect(core.starts, 1);
+    expect(core.stops, 1);
+    expect(core.running, isFalse);
+    expect(adapter.writes, 0);
+    expect(adapter.value, before);
+    expect(events, isNot(contains('listener-ready')));
+    expect(host.systemProxyActive, isFalse);
+    expect(await store.read(), isNull);
+    expect(
+      await File(p.join(directory.path, 'proxy-state', 'session.json.pending'))
+          .exists(),
+      isFalse,
+    );
+    expect((await host.readStatus()).status, VpnStatus.disconnected);
   });
 
   test('an unsupported automatic mode fails before starting a Core or writing state', () async {
