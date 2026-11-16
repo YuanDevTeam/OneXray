@@ -128,6 +128,16 @@ final class PlatformPolicy {
   String get dnsIpv6Address => toJson()['dnsIpv6Address'] as String;
   String get dnsServerName => toJson()['dnsServerName'] as String;
 
+  /// Core-generated DNS supplements do not consume inactive TUN drafts.
+  ({String ipv4Address, String ipv6Address}) runtimeDns(
+    ConnectionPlatform platform,
+  ) => usesProxy(platform)
+      ? (
+          ipv4Address: _defaults['dnsIpv4Address'] as String,
+          ipv6Address: _defaults['dnsIpv6Address'] as String,
+        )
+      : (ipv4Address: dnsIpv4Address, ipv6Address: dnsIpv6Address);
+
   /// Native DNS setters require IP literals; Xray DNS syntax is independent.
   void validateDns(ConnectionPlatform platform, {WindowsMode? windowsMode}) {
     if (usesProxy(platform)) return;

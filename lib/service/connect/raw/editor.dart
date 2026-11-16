@@ -246,6 +246,9 @@ class RawEditorService {
     ConnectionRuntime? runtime,
   ) {
     final policy = configuration.policy;
+    final platform = runtime?.platform ?? connectionPlatform;
+    final proxyMode = policy.usesProxy(platform);
+    final runtimeDns = policy.runtimeDns(platform);
     final request = runtime?.request;
     final metricsPort = int.tryParse(request?.metricsPort ?? '');
     final socksPort = int.tryParse(request?.socksPort ?? '');
@@ -256,19 +259,17 @@ class RawEditorService {
         if (!occupied.contains(port)) port,
     ];
     return RuntimeOptions(
-      platform: runtime?.platform ?? connectionPlatform,
-      proxyMode: policy.usesProxy(runtime?.platform ?? connectionPlatform),
+      platform: platform,
+      proxyMode: proxyMode,
       sessionDirectory: VpnConstants.runDir,
       metricsPort: metricsPort ?? comparisonPorts.removeAt(0),
-      socksPort: policy.usesProxy(runtime?.platform ?? connectionPlatform)
+      socksPort: proxyMode
           ? policy.proxyPort
           : socksPort ?? comparisonPorts.removeAt(0),
       ipv6: policy.ipv6Enabled,
-      tunDnsIpv4Address: policy.dnsIpv4Address,
-      tunDnsIpv6Address: policy.dnsIpv6Address,
-      interfaceName: policy.usesProxy(runtime?.platform ?? connectionPlatform)
-          ? ''
-          : policy.xrayOutboundInterfaceName,
+      tunDnsIpv4Address: runtimeDns.ipv4Address,
+      tunDnsIpv6Address: runtimeDns.ipv6Address,
+      interfaceName: proxyMode ? '' : policy.xrayOutboundInterfaceName,
       logEnabled: policy.logEnabled,
       logLevel: policy.logLevel,
       dnsLog: policy.recordDns,

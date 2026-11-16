@@ -260,15 +260,16 @@ class PolicyEditorService {
     bool applyServerDialing = true,
   }) {
     final json = policy.toJson();
+    final runtimeDns = policy.runtimeDns(platform);
     final result = <String, dynamic>{
       'ipv6': policy.ipv6Enabled,
       if (applyServerDialing)
         'dialing': policy.dialing.effective(ipv6: policy.ipv6Enabled).toJson(),
-      'dnsIpv4Address': policy.dnsIpv4Address,
+      'dnsIpv4Address': runtimeDns.ipv4Address,
       if (policy.ipv6Enabled ||
           (platform == ConnectionPlatform.windows &&
               (windowsMode ?? windowsBuildMode) == WindowsMode.msix))
-        'dnsIpv6Address': policy.dnsIpv6Address,
+        'dnsIpv6Address': runtimeDns.ipv6Address,
       'log': json['log'],
     };
     if (platform == ConnectionPlatform.macos ||

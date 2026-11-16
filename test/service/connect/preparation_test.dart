@@ -15,6 +15,8 @@ import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/service/advanced/local_api/service.dart';
 import 'package:onexray/service/advanced/local_api/settings.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
+import 'package:onexray/service/connect/dialing.dart';
 import 'package:onexray/service/connect/preparation.dart';
 import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
@@ -167,6 +169,166 @@ void main() {
         ),
       );
       profile = (await db.coreConfigDao.searchRow(id))!;
+    });
+
+    for (final kind in ['Raw', 'provider']) {
+      for (final explicitDns in [false, true]) {
+        test(
+          'proxy $kind uses independent fallback DNS and preserves explicit DNS $explicitDns',
+          () async {
+            final config = {
+              ..._providerConfig,
+              'dns': {
+                'hosts': {'example.net': '192.0.2.1'},
+                if (explicitDns) 'servers': ['https://dns.example/dns-query'],
+              },
+            };
+            final encoded = base64Encode(utf8.encode(jsonEncode(config)));
+            final id = kind == 'Raw'
+                ? await db.coreConfigDao.insertRow(
+                    CoreConfigCompanion.insert(
+                      name: 'Personal Raw',
+                      type: 'raw',
+                      tags: '',
+                      delay: PingDelayConstants.unknown,
+                      subId: 0,
+                      data: Value(encoded),
+                    ),
+                  )
+                : profile.id;
+            if (kind == 'provider') {
+              await db.coreConfigDao.updateRow(
+                profile.copyWith(data: Value(encoded)),
+              );
+            }
+            final policy = PlatformPolicy.fromJson({
+              'captureMode': 'proxy',
+              'dnsIpv4Address': '',
+              'dnsIpv6Address': 'invalid',
+            });
+            final input = ConnectionConfiguration(
+              policy: policy,
+              connection: kind == 'Raw'
+                  ? ConnectionSettings(expert: true, rawId: id)
+                  : ConnectionSettings(selection: ServerSelection.server(id)),
+            );
+            final runtime = await _providerPreparation(db).prepare(input);
+            final compiled = jsonDecode(runtime.xrayJson);
+            expect(runtime.isProxy, true);
+            if (explicitDns) {
+              expect(compiled['dns']['servers'], [
+                'https://dns.example/dns-query',
+              ]);
+            } else {
+              expect(
+                (compiled['dns']['servers'] as List).map(
+                  (server) => server['address'],
+                ),
+                ['tcp://8.8.8.8', 'tcp://[2001:4860:4860::8888]'],
+              );
+            }
+            expect(compiled['dns']['hosts'], {'example.net': '192.0.2.1'});
+            expect(runtime.configuration.encode(), input.encode());
+            expect((await db.coreConfigDao.searchRow(id))!.data, encoded);
+            expect(policy.dnsIpv4Address, '');
+            expect(policy.dnsIpv6Address, 'invalid');
+          },
+        );
+      }
+    }
+
+    test(
+      'proxy managed dialing ignores hidden TUN DNS drafts for bootstrap',
+      () async {
+        final id = await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: 'Domain node',
+            type: 'outbound',
+            tags: '',
+            delay: PingDelayConstants.unknown,
+            subId: 0,
+            data: Value(
+              base64Encode(
+                utf8.encode(
+                  jsonEncode({
+                    'outbounds': [
+                      {
+                        'protocol': 'socks',
+                        'settings': {'address': 'entry.example', 'port': 1080},
+                      },
+                    ],
+                  }),
+                ),
+              ),
+            ),
+          ),
+        );
+        for (final dialing in [
+          const ServerDialingSettings(
+            domainStrategy: ServerDomainStrategy.useIp,
+          ),
+          const ServerDialingSettings(happyEyeballs: true),
+        ]) {
+          final policy = PlatformPolicy.fromJson({
+            'captureMode': 'proxy',
+            'dnsIpv4Address': '',
+            'dnsIpv6Address': 'invalid',
+            'dialing': dialing.toJson(),
+          });
+          final input = ConnectionConfiguration(
+            policy: policy,
+            connection: ConnectionSettings(
+              selection: ServerSelection.server(id),
+              trafficMode: TrafficMode.allVpn,
+            ),
+          );
+          final runtime = await ConnectionPreparation(
+            db: db,
+            getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+            requireDependencies: (_) async {},
+          ).prepare(input);
+          final compiled = jsonDecode(runtime.xrayJson);
+          final servers = (compiled['dns']['servers'] as List).where(
+            (server) => server is Map && server['tag'] == 'app-dns-bootstrap',
+          );
+          expect(servers.map((server) => server['address']), [
+            'tcp://8.8.8.8',
+            'tcp://[2001:4860:4860::8888]',
+          ]);
+          expect(
+            servers.every(
+              (server) =>
+                  (server['domains'] as List).contains('full:entry.example'),
+            ),
+            true,
+          );
+          expect(runtime.configuration.encode(), input.encode());
+        }
+      },
+    );
+
+    test('TUN fallback DNS continues to use custom tunnel resolvers', () async {
+      final config = {..._providerConfig}..remove('dns');
+      final encoded = base64Encode(utf8.encode(jsonEncode(config)));
+      await db.coreConfigDao.updateRow(profile.copyWith(data: Value(encoded)));
+      final input = ConnectionConfiguration(
+        policy: PlatformPolicy.fromJson({
+          'dnsIpv4Address': '1.1.1.1',
+          'dnsIpv6Address': '2606:4700:4700::1111',
+          'xrayOutboundInterfaceName': 'Ethernet',
+        }),
+        connection: ConnectionSettings(
+          selection: ServerSelection.server(profile.id),
+        ),
+      );
+      final runtime = await _providerPreparation(db).prepare(input);
+      final compiled = jsonDecode(runtime.xrayJson);
+      expect(
+        (compiled['dns']['servers'] as List).map((server) => server['address']),
+        ['tcp://1.1.1.1', 'tcp://[2606:4700:4700::1111]'],
+      );
+      expect(runtime.configuration.encode(), input.encode());
+      expect((await db.coreConfigDao.searchRow(profile.id))!.data, encoded);
     });
 
     Future<void> saveInbound(Map<String, dynamic> inbound) async {
