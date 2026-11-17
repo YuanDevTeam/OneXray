@@ -262,6 +262,13 @@ class ConnectionCompiler {
           domain: ['geosite:GITHUB'],
           balancerTag: 'proxy',
         ),
+      // Keep Play traffic and its derived DNS ahead of broad CN direct rules.
+      if (smart.directRegions.any((code) => code.toUpperCase() == 'CN'))
+        XrayRoutingRule(
+          ruleTag: 'app-smart-google-play',
+          domain: ['full:services.googleapis.cn', 'domain:xn--ngstr-lra8j.com'],
+          balancerTag: 'proxy',
+        ),
       if (domains.isNotEmpty)
         XrayRoutingRule(
           ruleTag: 'app-smart-direct-domain',
