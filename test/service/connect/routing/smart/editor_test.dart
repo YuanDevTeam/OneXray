@@ -719,6 +719,32 @@ void main() {
     expect(host.runtime?.identity, old.identity);
   });
 
+  test(
+    'CN changes Smart runtime even without an installed region category',
+    () {
+      final original = ConnectionSettings(
+        smart: SmartRoutingSettings(directRegions: []),
+      );
+      final withCn = SmartRoutingSettings(directRegions: ['cn']);
+      expect(
+        SmartRoutingEditorService.sameRuntime(
+          original,
+          withCn,
+          const RegionCatalog.empty(),
+        ),
+        false,
+      );
+      expect(
+        SmartRoutingEditorService.sameRuntime(
+          ConnectionSettings(smart: withCn),
+          original.smart,
+          const RegionCatalog.empty(),
+        ),
+        false,
+      );
+    },
+  );
+
   test('Smart preview shares native rules and ignores non-semantic region/count changes', () {
     final regions = _regions();
     final smart = SmartRoutingSettings(
@@ -729,6 +755,7 @@ void main() {
     expect(rules.map((rule) => rule.ruleTag), [
       'app-smart-ads',
       'app-smart-github',
+      'app-smart-google-play',
       'app-smart-direct-domain',
       'app-smart-direct-ip',
     ]);
@@ -739,6 +766,11 @@ void main() {
       'balancerTag': 'proxy',
     });
     expect(rules[2].toJson(), {
+      'ruleTag': 'app-smart-google-play',
+      'domain': ['full:services.googleapis.cn', 'domain:xn--ngstr-lra8j.com'],
+      'balancerTag': 'proxy',
+    });
+    expect(rules[3].toJson(), {
       'ruleTag': 'app-smart-direct-domain',
       'domain': [
         'geosite:PRIVATE',
@@ -750,7 +782,7 @@ void main() {
       ],
       'outboundTag': 'direct',
     });
-    expect(rules[3].toJson(), {
+    expect(rules[4].toJson(), {
       'ruleTag': 'app-smart-direct-ip',
       'ip': ['geoip:PRIVATE', 'geoip:RU', 'geoip:CN'],
       'outboundTag': 'direct',
