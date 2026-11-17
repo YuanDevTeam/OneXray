@@ -68,6 +68,13 @@ class VpnTunnelPane extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 spacing: 20,
                 children: [
+                  if (!pending && state.error != null)
+                    SelectableText(
+                      state.error!,
+                      style: AppTypography.supporting.copyWith(
+                        color: palette.destructive,
+                      ),
+                    ),
                   SettingSection(
                     key: const ValueKey('tunnel-connection-parameters'),
                     title: l.tunnelConnectionParameters,

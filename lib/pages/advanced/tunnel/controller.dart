@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
@@ -562,6 +563,18 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   ) async {
     if (blocked || draft == null) {
       return;
+    }
+    // The root stays mounted while other branches change the connection plan.
+    if (const DeepCollectionEquality().equals(
+      draft!.policy,
+      draft!.original.policy.toJson(),
+    )) {
+      await load(context);
+      if (!context.mounted || !isPageActive || error != null) return;
+      if (!TickerMode.valuesOf(context).enabled ||
+          !(ModalRoute.of(context)?.isCurrent ?? true)) {
+        return;
+      }
     }
     final saved = await open(context, destination, draft!.copy());
     if (saved == true && context.mounted && isPageActive) {
