@@ -35,6 +35,7 @@ runs:
           core.addPath(path.join(flutterRoot, 'bin'));
           core.addPath(path.join(pubCache, 'bin'));
 
-    - name: Initialize Flutter
+    - name: Bootstrap the Flutter checkout for ARM64
+      if: runner.os != 'macOS' && runner.arch == 'ARM64'
       shell: bash
       run: flutter --version

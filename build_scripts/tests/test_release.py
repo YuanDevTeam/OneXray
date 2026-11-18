@@ -117,7 +117,7 @@ class ReleaseTest(unittest.TestCase):
                 with self.subTest(target=target, package=name):
                     with self.assertRaises(FileNotFoundError) as raised:
                         verify_release(self.artifacts, self.run)
-                    self.assertIn(name, str(raised.exception))
+                    self.assertIn(str(Path(name)), str(raised.exception))
                     if target == "all":
                         self.assertEqual(
                             verify_release(self.artifacts, self.run, windows_only=True),
@@ -136,7 +136,7 @@ class ReleaseTest(unittest.TestCase):
                 with self.subTest(target=target, package=name):
                     with self.assertRaises(FileNotFoundError) as raised:
                         verify_release(self.artifacts, self.run)
-                    self.assertIn(name, str(raised.exception))
+                    self.assertIn(str(Path(name)), str(raised.exception))
             for target, names in PUBLIC_PACKAGES.items():
                 if target == "linux":
                     continue

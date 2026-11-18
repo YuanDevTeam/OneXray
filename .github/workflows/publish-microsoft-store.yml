@@ -26,10 +26,9 @@ permissions:
   contents: read
 
 jobs:
-  inspect:
-    runs-on: ubuntu-26.04
-    outputs:
-      run_id: ${{ steps.build.outputs.run_id }}
+  publish:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
@@ -46,7 +45,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.run_id }}
 
-      - name: Download Microsoft Store packages for inspection
+      - name: Download Microsoft Store packages
         uses: actions/download-artifact@v8
         with:
           pattern: windows-store-*
@@ -54,68 +53,39 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.run_id }}
 
-      - name: Inspect Build run
-        id: build
+      - name: Select Microsoft Store packages from the Build run
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           BUILD_RUN_ID: ${{ inputs.run_id }}
         run: |
-          echo "run_id=$BUILD_RUN_ID" >> "$GITHUB_OUTPUT"
-
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" > build-run.json
+          tag_args=()
           if [ -f artifacts/release-metadata/tag.txt ]; then
             metadata_tag="$(cat artifacts/release-metadata/tag.txt)"
-            tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$metadata_tag" --jq '.sha')"
-            python3 build_scripts/verify_release.py artifacts build-run.json \
-              --windows-only --tag "$metadata_tag" --tag-sha "$tag_sha"
-          else
-            python3 build_scripts/verify_release.py artifacts build-run.json --windows-only
+            tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/refs/tags/$metadata_tag" --jq '.sha')"
+            tag_args=(--tag "$metadata_tag" --tag-sha "$tag_sha")
           fi
-
-  publish:
-    needs: inspect
-    runs-on: windows-2025-vs2026
-    timeout-minutes: 30
-    steps:
-      - name: Download Microsoft Store packages
-        uses: actions/download-artifact@v8
-        with:
-          pattern: windows-store-*
-          path: store-packages/input
-          merge-multiple: true
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ needs.inspect.outputs.run_id }}
+          python build_scripts/verify_release.py artifacts build-run.json \
+            --windows-only "${tag_args[@]}" > store-files.txt
 
       - name: Create multi-architecture MSIX bundle
-        id: bundle
         shell: pwsh
         run: |
-          $inputDirectory = Join-Path $PWD "store-packages/input"
-          $packages = @(Get-ChildItem $inputDirectory -Filter "*.msix" -File)
-          if ($packages.Count -ne 2) {
-            throw "Expected x64 and arm64 MSIX packages, found $($packages.Count)."
+          $inputDirectory = New-Item -ItemType Directory -Path "bundle-input"
+          Get-Content -LiteralPath "store-files.txt" | ForEach-Object {
+            Move-Item -LiteralPath $_ -Destination $inputDirectory.FullName
           }
-
           $windowsSdkBin = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
           $makeAppx = Get-ChildItem $windowsSdkBin -Filter "MakeAppx.exe" -Recurse -File |
             Where-Object { $_.Directory.Name -eq "x64" } |
             Sort-Object FullName |
-            Select-Object -Last 1
-          if ($null -eq $makeAppx) {
-            throw "MakeAppx.exe was not found in the Windows SDK."
-          }
-
-          $bundlePath = Join-Path $PWD "store-packages/OneXray.msixbundle"
-          & $makeAppx.FullName bundle /d $inputDirectory /p $bundlePath /o
-          if ($LASTEXITCODE -ne 0) {
-            throw "MakeAppx failed with exit code $LASTEXITCODE."
-          }
-          "bundle_path=$bundlePath" >> $env:GITHUB_OUTPUT
+            Select-Object -Last 1 -ExpandProperty FullName
+          & $makeAppx bundle /d $inputDirectory.FullName /p OneXray.msixbundle /o
 
       - name: Upload Microsoft Store bundle artifact
         uses: actions/upload-artifact@v7
         with:
           name: windows-store-bundle
-          path: ${{ steps.bundle.outputs.bundle_path }}
+          path: OneXray.msixbundle
           if-no-files-found: error

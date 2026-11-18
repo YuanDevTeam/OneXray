@@ -17,11 +17,9 @@ class LinuxBuilder(Builder):
             arguments=("--skip-build", *arguments),
             executable=os.environ.get("ONEXRAY_FASTFORGE_PACMAN") or "fastforge-native",
         )
+        dist = Path(self.root_dir) / "dist" / self.read_version()
         packages = [
-            Path(self.root_dir)
-            / "dist"
-            / self.read_version()
-            / f"{self.project}-{self.package_suffix}.{extension}"
+            dist / f"{self.project}-{self.package_suffix}.{extension}"
             for extension in ("zip", "deb", "rpm", "pkg.tar.zst")
         ]
         for package in packages:

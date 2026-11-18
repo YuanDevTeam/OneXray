@@ -35,8 +35,6 @@ jobs:
     permissions:
       actions: read
       contents: write
-    outputs:
-      tag: ${{ steps.release.outputs.tag }}
     steps:
       - uses: actions/checkout@v7
 
@@ -52,25 +50,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.run_id }}
 
-      - name: Resolve release tag
-        id: release
-        env:
-          RELEASE_TAG: ${{ inputs.tag_name }}
-        run: |
-          tag="$RELEASE_TAG"
-
-          case "$tag" in
-            v*) ;;
-            *)
-              echo "Release tag must start with v: $tag" >&2
-              exit 1
-              ;;
-          esac
-
-          git check-ref-format "refs/tags/$tag"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
-      - name: Verify build metadata
+      - name: Select release files from the tagged Build run
         id: verify
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,22 +58,20 @@ jobs:
           RELEASE_TAG: ${{ inputs.tag_name }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" > build-run.json
-          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq '.sha')"
-          python3 build_scripts/verify_release.py artifacts build-run.json \
-            --tag "$RELEASE_TAG" --tag-sha "$tag_sha" > release-files.txt
+          git check-ref-format "refs/tags/$RELEASE_TAG"
+          tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/refs/tags/$RELEASE_TAG" --jq '.sha')"
+          files="$(python3 build_scripts/verify_release.py artifacts build-run.json \
+            --tag "$RELEASE_TAG" --tag-sha "$tag_sha")"
           {
             echo 'files<<EOF'
-            cat release-files.txt
+            printf '%s\n' "$files"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
-
-      - name: List release files
-        run: cat release-files.txt
 
       - name: Publish GitHub pre-release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.release.outputs.tag }}
+          tag_name: ${{ inputs.tag_name }}
           prerelease: true
           make_latest: false
           files: ${{ steps.verify.outputs.files }}

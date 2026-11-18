@@ -65,9 +65,9 @@ project's compatibility limits; the current Gradle wrapper supports Java 27.
 | Workload | Runner image |
 | --- | --- |
 | iOS, Mac App Store and macOS Developer ID | `xcode-27`: macOS 27 ARM64, currently public preview; select the latest stable installed Xcode. |
-| Windows x64 builds and Microsoft Store bundling | `windows-2025-vs2026` |
+| Windows x64 builds, native command tests and Microsoft Store bundling | `windows-2025-vs2026` |
 | Windows ARM64 builds | `windows-11-vs2026-arm` |
-| Android, validation, metadata, release publishing and WinGet | `ubuntu-26.04` |
+| Android, Dart validation, metadata, GitHub publishing and WinGet | `ubuntu-26.04` |
 | Linux x64 / ARM64 packages | `ubuntu-24.04` / `ubuntu-24.04-arm`, preserving the glibc 2.39 build baseline. |
 
 GitHub's [macOS 27 image](https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md)
@@ -77,9 +77,9 @@ uses the `xcode-27` label; `macos-27` is not an available runner label.
 | --- | --- |
 | [Build](../.github/workflows/build.yml): `release_metadata` | Checkout outputs supply dependency commits; a short script writes the shared run metadata. |
 | Build: `ios`, `macos`, `macos_se`, `android`, `windows`, `linux` | Setup Actions provide SDKs and uv; Apple Actions import certificates; release-downloader fetches LLVM-MinGW and Inno Setup; upload-artifact stores packages. Build scripts retain signing, packaging and store uploads. |
-| [Validate](../.github/workflows/validate.yml): `dart` | Setup Actions provide Python, uv and Flutter; commands run generation, analysis and project checks. |
+| [Validate](../.github/workflows/validate.yml) | Ubuntu runs the build-script suite and Flutter checks. One Windows x64 job exercises Pub executable lookup with a real batch file. |
 | [Publish](../.github/workflows/publish.yml): `pre_release` | download-artifact retrieves the selected run; action-gh-release replaces matching assets. The release verifier selects channel files and checks source metadata. |
-| [Microsoft Store](../.github/workflows/publish-microsoft-store.yml): `inspect`, `publish` | Artifact Actions transfer metadata, MSIX packages and the bundle. The verifier checks the Build run; MakeAppx creates the multi-architecture bundle. |
+| [Microsoft Store](../.github/workflows/publish-microsoft-store.yml) | One Windows job downloads the Build metadata and Store packages, then bundles the two MSIX files selected by the verifier. |
 | [WinGet](../.github/workflows/update-winget.yml): `winget` | Rust, uv and cargo-install Actions provide tooling; Komac and the manifest helper retain release checks, generation and submission. |
 
 The shared [Flutter Action](../.github/actions/setup-flutter/action.yml) uses
@@ -287,8 +287,8 @@ build jobs together.
   YAML files by manifest type and locale; dry-run returns before handling `--output`.
   [winget_manifest.py](winget_manifest.py) retains identity, release URL and user
   installation policy checks and validates each file against Microsoft's JSON
-  schema for its declared `ManifestVersion`. Komac supplies the schema-required `InstallerSha256`;
-  no extra comparison with GitHub asset digests is performed. Before submission,
+  schema for its declared `ManifestVersion`. Files of the same type and schema version
+  share one schema download. Komac supplies `InstallerSha256`. Before submission,
   `komac sync-fork` updates the organization fork using the same PAT and
   `KOMAC_FORK_OWNER` as the final submit. Fork synchronization changes GitHub;
   the final Komac submit opens an external PR. Use `--dry-run` for local validation.
