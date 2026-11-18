@@ -104,12 +104,21 @@ struct StartVpnRequest: Codable {
     }
 
     static var startModel: StartVpnRequest? {
+        loadStartModel()
+    }
+
+    static func loadStartModel(preparedToken: String? = nil) -> StartVpnRequest? {
         YGLog("tunnel appGroupId=\(appGroupId())")
         if let groupURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) {
             YGLog("tunnel groupURL=\(groupURL)")
             let requestUrl = groupURL.appending(path: StartModelFile)
             do {
                 let request = try fromUrl(requestUrl)
+                #if os(iOS)
+                guard try ApnsPresetStartGate.permitsSnapshot(
+                    in: groupURL, snapshotToken: request.snapshotToken, preparedToken: preparedToken
+                ) else { return nil }
+                #endif
                 return request
             } catch {}
         }

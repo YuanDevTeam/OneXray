@@ -146,6 +146,7 @@ class PolicyToggle extends StatelessWidget {
   final String title;
   final String? subtitle;
   final bool supported;
+  final bool? effectiveValue;
   const PolicyToggle({
     super.key,
     required this.controller,
@@ -154,6 +155,7 @@ class PolicyToggle extends StatelessWidget {
     this.section,
     this.subtitle,
     this.supported = true,
+    this.effectiveValue,
   });
 
   @override
@@ -169,16 +171,34 @@ class PolicyToggle extends StatelessWidget {
       contentPadding: const EdgeInsets.symmetric(vertical: 12),
       trailing: AppSwitch(
         value:
+            effectiveValue ??
             (section == null
                     ? controller.value
                     : controller.group(section!))[field]
                 as bool,
-        onChanged: controller.blocked || !supported
+        onChanged: controller.blocked || !supported || effectiveValue != null
             ? null
             : (value) => controller.update(field, value, section: section),
       ),
     );
   }
+}
+
+class TurnOffApnsPresetButton extends StatelessWidget {
+  const TurnOffApnsPresetButton({super.key, required this.controller});
+
+  final PolicyEditorController controller;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: AlignmentDirectional.centerStart,
+    child: TextButton(
+      onPressed: controller.blocked || controller.runtimeBusy
+          ? null
+          : () => controller.toggleApnsProxyPreset(context, false),
+      child: Text(AppLocalizations.of(context)!.tunnelApnsPresetTurnOff),
+    ),
+  );
 }
 
 class PolicyValueRow extends StatelessWidget {

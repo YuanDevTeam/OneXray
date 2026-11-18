@@ -30,6 +30,7 @@ final class BackupPlatformSettings {
       ..remove('captureMode')
       ..remove('autoSetSystemProxy')
       ..remove('proxyPort');
+    (schema['apple'] as Map<String, dynamic>).remove('apnsProxyPreset');
     final section = switch (platform) {
       ConnectionPlatform.android => 'android',
       ConnectionPlatform.ios || ConnectionPlatform.macos => 'apple',

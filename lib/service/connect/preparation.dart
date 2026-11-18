@@ -20,6 +20,7 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/custom/service.dart';
 import 'package:onexray/service/connect/routing/region_catalog.dart';
 import 'package:onexray/service/connect/routing/custom/configuration.dart';
+import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:path/path.dart' as p;
 
 Future<List<int>> allocateRuntimePorts(
@@ -125,21 +126,28 @@ bool _inboundConflictsWithHttpApi(Map<String, dynamic> inbound, int port) {
 class ConnectionPreparation {
   final AppDatabase db;
   final ConnectionResolver resolver;
+  final ConnectionPlatform platform;
   final Future<List<int>> Function(int count, {List<int>? excludePorts})?
   getFreePorts;
   final LocalApiService _localApi;
   final Future<void> Function(Map<String, GeoDataType>) _requireDependencies;
+  final Future<bool> Function() _supportsApnsProxyPreset;
 
   ConnectionPreparation({
     AppDatabase? db,
     ConnectionResolver? resolver,
+    ConnectionPlatform? platform,
     this.getFreePorts,
     LocalApiService? localApi,
     Future<void> Function(Map<String, GeoDataType>)? requireDependencies,
+    Future<bool> Function()? supportsApnsProxyPreset,
   }) : db = db ?? AppDatabase(),
+       platform = platform ?? connectionPlatform,
        _localApi = localApi ?? LocalApiService.instance,
        _requireDependencies =
            requireDependencies ?? GeoDataService().requireDependencies,
+       _supportsApnsProxyPreset =
+           supportsApnsProxyPreset ?? _supportsNativeApnsProxyPreset,
        resolver =
            resolver ??
            ConnectionResolver(
@@ -148,6 +156,16 @@ class ConnectionPreparation {
                return database.coreConfigDao.watchServers();
              },
            );
+
+  static Future<bool> _supportsNativeApnsProxyPreset() async {
+    try {
+      return (await AppHostApi().appleVpnCapabilities()).serviceExclusions;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
 
   Future<ConnectionRuntime> prepare(
     ConnectionConfiguration input, {
@@ -160,7 +178,6 @@ class ConnectionPreparation {
     var configuration = input;
     var settings = input.connection;
     final policy = input.policy;
-    final platform = connectionPlatform;
     ResolvedProfile? profile;
     CoreConfigData? profileRow;
     String? sourceMode;
@@ -201,7 +218,6 @@ class ConnectionPreparation {
       policy.xrayOutboundInterfaceName,
       proxyMode: proxyMode,
     );
-    final tun = policy.toTun(platform);
     String? raw = rawDraft;
     String? rawName;
     RoutingConfiguration? custom = customDraft;
@@ -300,6 +316,19 @@ class ConnectionPreparation {
       profile = target.profile;
       profileRow = target.profileRow;
     }
+    // Decide after resolution as automatic selection may use a complete profile.
+    final apnsProxyPresetApplied =
+        platform == ConnectionPlatform.ios &&
+        policy.appleApnsProxyPreset &&
+        profile == null &&
+        !settings.expert &&
+        (settings.trafficMode != TrafficMode.custom ||
+            custom is RoutingProfileState) &&
+        await _supportsApnsProxyPreset();
+    final effectivePolicy = apnsProxyPresetApplied
+        ? policy.withApnsProxyPresetApplied()
+        : policy;
+    final tun = effectivePolicy.toTun(platform);
     entries = [for (final entry in entries) serverDrafts[entry.id] ?? entry];
     onResolved?.call({
       for (final entry in entries) entry.id,
@@ -376,7 +405,7 @@ class ConnectionPreparation {
       ],
       getFreePorts: getFreePorts,
     );
-    final runtimeDns = policy.runtimeDns(platform);
+    final runtimeDns = effectivePolicy.runtimeDns(platform);
     final compiled = ConnectionCompiler.compile(
       settings: settings,
       entries: entries,
@@ -393,8 +422,9 @@ class ConnectionPreparation {
         metricsPort: ports[1],
         lanProxyEnabled: shareLanProxy,
         lanProxyPort: policy.lanProxyPort,
-        ipv6: policy.ipv6Enabled,
-        dialing: policy.dialing,
+        ipv6: effectivePolicy.ipv6Enabled,
+        apnsProxyPreset: apnsProxyPresetApplied,
+        dialing: effectivePolicy.dialing,
         tunDnsIpv4Address: runtimeDns.ipv4Address,
         tunDnsIpv6Address: runtimeDns.ipv6Address,
         interfaceName: proxyMode ? '' : policy.xrayOutboundInterfaceName,
@@ -458,6 +488,7 @@ class ConnectionPreparation {
       notice: notice,
       rawName: rawName,
       selectionFallback: selectionFallback,
+      apnsProxyPresetApplied: apnsProxyPresetApplied,
     );
   }
 }

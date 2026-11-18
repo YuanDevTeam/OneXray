@@ -106,6 +106,7 @@ class RuntimeOptions {
   final bool lanProxyEnabled;
   final int lanProxyPort;
   final bool ipv6;
+  final bool apnsProxyPreset;
   final ServerDialingSettings dialing;
   final String tunDnsIpv4Address;
   final String tunDnsIpv6Address;
@@ -126,6 +127,7 @@ class RuntimeOptions {
     this.lanProxyEnabled = false,
     this.lanProxyPort = defaultLanProxyPort,
     this.ipv6 = true,
+    this.apnsProxyPreset = false,
     this.dialing = const ServerDialingSettings(),
     this.tunDnsIpv4Address = '8.8.8.8',
     this.tunDnsIpv6Address = '2001:4860:4860::8888',
@@ -197,6 +199,23 @@ class CompiledConnection {
 /// Pure value compilation. Never opens a database, edits an asset, allocates a
 /// port or starts Xray. Runtime files and commits belong to the coordinator.
 class ConnectionCompiler {
+  static const _apnsDomains = ['domain:push.apple.com'];
+
+  // https://support.apple.com/102266
+  static const _apnsIpv4Networks = [
+    '17.249.0.0/16',
+    '17.252.0.0/16',
+    '17.57.144.0/22',
+    '17.188.128.0/18',
+    '17.188.20.0/23',
+  ];
+  static const _apnsIpv6Networks = [
+    '2620:149:a44::/48',
+    '2403:300:a42::/48',
+    '2403:300:a51::/48',
+    '2a01:b740:a42::/48',
+  ];
+
   static Map<String, dynamic> parseRawJson(String text) {
     final value = jsonDecode(text);
     if (value is! Map<String, dynamic>) {
@@ -379,6 +398,10 @@ class ConnectionCompiler {
       }
       final ordinary = custom is RoutingProfileState ? custom : null;
       final allVpn = settings.trafficMode == TrafficMode.allVpn;
+      final routeApns =
+          options.platform == ConnectionPlatform.ios &&
+          options.apnsProxyPreset &&
+          !allVpn;
       final rules = <XrayRoutingRule>[];
       if (settings.trafficMode == TrafficMode.smart) {
         rules.addAll(smartRules(settings.smart, regions));
@@ -478,7 +501,12 @@ class ConnectionCompiler {
       sniffing.validate(fakeDns: fakeDns);
       final dns = RoutingDns.compile(
         settings: dnsSettings,
-        rules: allVpn ? const [] : rules,
+        rules: [
+          // The DNS compiler matches the queried name, independent of inbound.
+          if (routeApns)
+            XrayRoutingRule(domain: _apnsDomains, balancerTag: 'proxy'),
+          ...rules,
+        ],
         directEnabled:
             !allVpn && (ordinary != null || settings.smart.directDns),
         fakeDns: fakeDns,
@@ -553,6 +581,26 @@ class ConnectionCompiler {
               port: '853',
               balancerTag: 'proxy',
             ),
+            if (routeApns) ...[
+              XrayRoutingRule(
+                ruleTag: 'app-apns-proxy-domain',
+                domain: _apnsDomains,
+                inboundTag: ['tunIn'],
+                balancerTag: 'proxy',
+              ),
+              XrayRoutingRule(
+                ruleTag: 'app-apns-proxy-ipv4',
+                ip: _apnsIpv4Networks,
+                inboundTag: ['tunIn'],
+                balancerTag: 'proxy',
+              ),
+              XrayRoutingRule(
+                ruleTag: 'app-apns-proxy-ipv6',
+                ip: _apnsIpv6Networks,
+                inboundTag: ['tunIn'],
+                balancerTag: 'proxy',
+              ),
+            ],
             ...rules,
             if (selection.automatic)
               XrayRoutingRule(

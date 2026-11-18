@@ -171,6 +171,91 @@ void main() {
       profile = (await db.coreConfigDao.searchRow(id))!;
     });
 
+    test(
+      'iOS APNs preset pairs the native policy and compiled route',
+      () async {
+        final node = await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: 'Ordinary node',
+            type: 'outbound',
+            tags: '',
+            subId: 0,
+            delay: PingDelayConstants.unknown,
+            data: Value(
+              base64Encode(
+                utf8.encode('{"outbounds":[{"protocol":"freedom"}]}'),
+              ),
+            ),
+          ),
+        );
+        final input = ConnectionConfiguration(
+          policy: PlatformPolicy.fromJson({
+            'ipv6Enabled': false,
+            'apple': {
+              'apnsProxyPreset': true,
+              'excludedCidrs': ['192.0.2.0/24'],
+              'allowLocalNetwork': false,
+            },
+          }),
+          connection: ConnectionSettings(
+            selection: ServerSelection.server(node),
+            smart: SmartRoutingSettings(directRegions: const []),
+          ),
+        );
+        for (final supported in [true, false]) {
+          final runtime = await ConnectionPreparation(
+            db: db,
+            platform: ConnectionPlatform.ios,
+            getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+            requireDependencies: (_) async {},
+            supportsApnsProxyPreset: () async => supported,
+          ).prepare(input);
+          final restored = ConnectionRuntime.fromRequest(runtime.request);
+          final tun = restored.request.tun!;
+          final rules =
+              jsonDecode(restored.xrayJson)['routing']['rules'] as List;
+          expect(restored.apnsProxyPresetApplied, supported);
+          expect(tun.includeAllNetworks, supported);
+          expect(tun.excludeAPNs, !supported);
+          expect(tun.enableIPv6, supported);
+          expect(tun.excludeLocalNetworks, false);
+          expect(tun.excludedRoutes, supported ? isNull : ['192.0.2.0/24']);
+          expect(
+            rules.any((rule) => rule['ruleTag'] == 'app-apns-proxy-domain'),
+            supported,
+          );
+          expect(restored.configuration.encode(), input.encode());
+        }
+      },
+    );
+
+    test(
+      'automatic provider fallback applies neither leg of the iOS APNs preset',
+      () async {
+        final input = ConnectionConfiguration(
+          policy: PlatformPolicy.fromJson({
+            'ipv6Enabled': false,
+            'apple': {'apnsProxyPreset': true},
+          }),
+        );
+        final runtime = await ConnectionPreparation(
+          db: db,
+          platform: ConnectionPlatform.ios,
+          getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+          requireDependencies: (_) async {},
+          supportsApnsProxyPreset: () async =>
+              throw StateError('The provider graph is ineligible'),
+        ).prepare(input);
+        expect(runtime.profile?.id, profile.id);
+        expect(runtime.apnsProxyPresetApplied, false);
+        expect(runtime.request.tun?.includeAllNetworks, false);
+        expect(runtime.request.tun?.excludeAPNs, true);
+        expect(runtime.request.tun?.enableIPv6, false);
+        expect(runtime.xrayJson, isNot(contains('app-apns-proxy-domain')));
+        expect(runtime.configuration.encode(), input.encode());
+      },
+    );
+
     for (final kind in ['Raw', 'provider']) {
       for (final explicitDns in [false, true]) {
         test(

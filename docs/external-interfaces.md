@@ -150,6 +150,9 @@ Runner-only 的 `ForegroundContinuableIntent` conformance 提供主 App 进程�
 过期提交使用 `apple-preparation-cancelled` 类型化错误返回；Dart 不重复停止已由原生处理的连接，也不影响之后的新启动。
 清理/恢复复用现有维护入口建立原生持久 START 阻断，失败不进入数据替换；正常启动就绪后解除异常遗留标记。
 
+APNs 预设变更待应用时，旧快照暂不可供 Widget、控制中心或系统按需启动。App 准备的启动从原生传入
+与候选快照匹配的令牌。成功连接且保存设置后解除阻断；尚未应用的 Widget 或控制中心启动沿用打开 App 的路径。
+
 原生到 Dart 的 `takeAction` 返回消费一次的 JSON envelope：`version:1`、`suppressAutoConnect:bool`、
 `openConnect:bool`、`invalidatedPreparations:[String]`。它只累积启动抑制、导航和旧准备失效信息，
 不重送 start/stop，不形成持久命令队列。Dart 先抑制本次偏好自动连接，再仅取消匹配当前 token 的旧任务，

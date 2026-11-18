@@ -1680,6 +1680,52 @@ void main() {
     );
   });
 
+  test(
+    'APNs preset guards saved starts until a confirmed connection commits',
+    () async {
+      final next = _runtime(
+        'b',
+        policy: PlatformPolicy.fromJson({
+          'apple': {'apnsProxyPreset': true},
+        }),
+      );
+      final guards = <bool>[];
+      var failStart = true;
+      var host = const HostConnection(VpnStatus.disconnected);
+      final coordinator = await _initialize(
+        ConnectionCoordinator(
+          database: db,
+          readRuntime: () async => host.runtime,
+          inspect: (_, {observedStatus}) async => host,
+          setApnsPresetPending: (pending) async => guards.add(pending),
+          prepare: (_, _) async => next,
+          start: (runtime) async {
+            expect(guards.last, isTrue);
+            if (failStart) throw const ConnectionHostException('startFailed');
+            return host = HostConnection(VpnStatus.connected, runtime: runtime);
+          },
+          stop: () async => host = const HostConnection(VpnStatus.disconnected),
+        ),
+      );
+
+      await coordinator.apply(next.configuration);
+      expect(
+        (await coordinator.configuration).policy.appleApnsProxyPreset,
+        isTrue,
+      );
+      expect(guards, [true]);
+      await expectLater(
+        coordinator.apply(next.configuration, connect: true),
+        throwsA(isA<ConnectionHostException>()),
+      );
+      expect(guards, [true, true]);
+
+      failStart = false;
+      await coordinator.apply(next.configuration, connect: true);
+      expect(guards, [true, true, true, false]);
+    },
+  );
+
   test('reconnect validates and prepares only after stopping', () async {
     final old = _runtime('a');
     final next = _runtime('b', entryIds: const [2]);

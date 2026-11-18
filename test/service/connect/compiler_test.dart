@@ -40,6 +40,7 @@ RuntimeOptions options({
   String tunDnsIpv6Address = '2001:4860:4860::8888',
   bool lanProxyEnabled = false,
   int lanProxyPort = defaultLanProxyPort,
+  bool apnsProxyPreset = false,
 }) => RuntimeOptions(
   platform: platform,
   windowsMode: windowsMode,
@@ -52,6 +53,7 @@ RuntimeOptions options({
   tunDnsIpv6Address: tunDnsIpv6Address,
   lanProxyEnabled: lanProxyEnabled,
   lanProxyPort: lanProxyPort,
+  apnsProxyPreset: apnsProxyPreset,
 );
 
 ResolvedServer node(int id, {String? address}) => ResolvedServer(
@@ -65,6 +67,104 @@ ResolvedServer node(int id, {String? address}) => ResolvedServer(
 );
 
 void main() {
+  test(
+    'APNs preset prioritizes TUN traffic and proxy DNS in ordinary routes',
+    () {
+      final custom = RoutingProfileState(
+        name: 'Custom',
+        fakeDns: true,
+        rules: [
+          RoutingRuleState(
+            domain: ['geosite:APPLE'],
+            action: RoutingRuleAction.direct,
+          ),
+        ],
+      );
+      final originalCustom = jsonEncode(custom.toJson());
+      for (final mode in [TrafficMode.smart, TrafficMode.custom]) {
+        final settings = ConnectionSettings(
+          trafficMode: mode,
+          smart: SmartRoutingSettings(finalExitId: 2),
+        );
+        Map<String, dynamic> compile({required bool enabled}) =>
+            ConnectionCompiler.compile(
+              settings: settings,
+              entries: [node(1)],
+              finalExit: mode == TrafficMode.smart ? node(2) : null,
+              custom: mode == TrafficMode.custom ? custom : null,
+              regions: catalog,
+              options: options(
+                platform: ConnectionPlatform.ios,
+                lanProxyEnabled: true,
+                apnsProxyPreset: enabled,
+              ),
+            ).config;
+
+        final baseline = compile(enabled: false);
+        final config = compile(enabled: true);
+        final rules = (config['routing']['rules'] as List).cast<Map>();
+        final first = rules.indexWhere(
+          (rule) => rule['ruleTag'] == 'app-apns-proxy-domain',
+        );
+        expect(rules[first - 1]['ruleTag'], 'app-tunnel-dot');
+        expect(rules[first + 3]['ruleTag'], startsWith('app-${mode.name}-'));
+        expect(rules[first]['domain'], ['domain:push.apple.com']);
+        expect(rules[first + 1]['ip'], contains('17.57.144.0/22'));
+        expect(rules[first + 2]['ip'], contains('2403:300:a42::/48'));
+        for (final rule in rules.skip(first).take(3)) {
+          expect(rule['inboundTag'], ['tunIn']);
+          expect(rule['balancerTag'], 'proxy');
+        }
+        expect([
+          ...rules.take(first),
+          ...rules.skip(first + 3),
+        ], baseline['routing']['rules']);
+        expect(
+          config['routing']['balancers'],
+          baseline['routing']['balancers'],
+        );
+        expect(config['inbounds'], baseline['inbounds']);
+
+        final resolvers = (config['dns']['servers'] as List).cast<Map>();
+        final proxy = resolvers.indexWhere(
+          (server) =>
+              server['tag'] == 'app-dns-proxy' &&
+              (server['domains'] as List?)?.contains('domain:push.apple.com') ==
+                  true,
+        );
+        expect(proxy, greaterThanOrEqualTo(0));
+        expect(resolvers[proxy]['finalQuery'], true);
+        expect(
+          proxy,
+          lessThan(
+            resolvers.indexWhere((server) => server['tag'] == 'app-dns-direct'),
+          ),
+        );
+        if (mode == TrafficMode.custom) {
+          expect(resolvers[proxy - 1]['address'], 'fakedns');
+          expect(resolvers[proxy - 1]['domains'], ['domain:push.apple.com']);
+        }
+      }
+      expect(jsonEncode(custom.toJson()), originalCustom);
+    },
+  );
+
+  test('APNs preset does not alter All VPN or non-iOS routing', () {
+    for (final (platform, mode) in [
+      (ConnectionPlatform.ios, TrafficMode.allVpn),
+      (ConnectionPlatform.android, TrafficMode.smart),
+    ]) {
+      Map<String, dynamic> compile({required bool enabled}) =>
+          ConnectionCompiler.compile(
+            settings: ConnectionSettings(trafficMode: mode),
+            entries: [node(1)],
+            regions: catalog,
+            options: options(platform: platform, apnsProxyPreset: enabled),
+          ).config;
+      expect(compile(enabled: true), compile(enabled: false));
+    }
+  });
+
   test('copying a provider profile into personal Raw retains its tunnel routing semantics', () {
     final source = <String, dynamic>{
       'inbounds': [

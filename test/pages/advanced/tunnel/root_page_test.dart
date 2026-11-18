@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:drift/native.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
-import 'package:onexray/core/pigeon/messages.g.dart' show VpnStatus;
+import 'package:onexray/core/pigeon/messages.g.dart'
+    show AppleVpnCapabilities, BridgeHostApi, VpnStatus;
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/details.dart';
@@ -15,6 +17,7 @@ import 'package:onexray/pages/advanced/tunnel/page.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
 import 'package:onexray/pages/main/adaptive_shell.dart';
 import 'package:onexray/pages/main/navigation.dart';
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
@@ -70,6 +73,102 @@ _UiService _service({ConnectionPlatform platform = ConnectionPlatform.ios}) {
 }
 
 void main() {
+  testWidgets('APNs preset saves offline and keeps manual settings', (
+    tester,
+  ) async {
+    _viewport(tester, const Size(390, 844));
+    _stubApnsCapability();
+    final service = _service();
+    final base = service.configuration.policy.toJson();
+    base['ipv6Enabled'] = false;
+    service.configuration = ConnectionConfiguration(
+      policy: PlatformPolicy.fromJson(base),
+    );
+    final root = PolicyEditorController(
+      draft: PolicyEditorDraft(service.configuration),
+      service: service,
+    );
+    addTearDown(root.close);
+    await tester.pumpWidget(
+      _app(VpnTunnelPane(createController: () => root), 390),
+    );
+    await tester.pumpAndSettle();
+    final toggle = find.descendant(
+      of: find.byKey(const ValueKey('tunnel-apns-preset')),
+      matching: find.byType(AppSwitch),
+    );
+
+    await _tap(tester, toggle);
+
+    expect(service.saves, 1);
+    expect(service.configuration.policy.appleApnsProxyPreset, isTrue);
+    expect(service.configuration.policy.ipv6Enabled, isFalse);
+    expect(
+      service.configuration.policy.toJson()['apple']['captureAllTraffic'],
+      isFalse,
+    );
+    expect(root.effectiveIpv6, isTrue);
+    expect(
+      find.text('Applies the next time you start VPN from OneXray.'),
+      findsOneWidget,
+    );
+    expect(find.byType(PolicyActions), findsNothing);
+
+    await tester.pump(const Duration(seconds: 3));
+    await _tap(tester, toggle);
+
+    expect(service.saves, 2);
+    expect(service.configuration.policy.toJson(), base);
+    expect(root.effectiveIpv6, isFalse);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('cancelling an APNs preset reconnect restores its switch', (
+    tester,
+  ) async {
+    _viewport(tester, const Size(390, 844));
+    _stubApnsCapability();
+    final service = _service()..confirmApnsPresetSave = true;
+    service.coordinator.state.value = const ConnectionView(
+      phase: ConnectionPhase.connected,
+    );
+    final root = PolicyEditorController(
+      draft: PolicyEditorDraft(service.configuration),
+      service: service,
+    );
+    addTearDown(root.close);
+    await tester.pumpWidget(
+      _app(VpnTunnelPane(createController: () => root), 390),
+    );
+    await tester.pumpAndSettle();
+    final toggle = find.descendant(
+      of: find.byKey(const ValueKey('tunnel-apns-preset')),
+      matching: find.byType(AppSwitch),
+    );
+
+    await tester.tap(toggle);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Enable and reconnect'), findsOneWidget);
+    await tester.tap(
+      find.descendant(
+        of: find.byType(ShadDialog),
+        matching: find.text('Cancel'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(root.apnsPresetEnabled, isFalse);
+    expect(service.configuration.policy.appleApnsProxyPreset, isFalse);
+    expect(service.saves, 0);
+    expect(find.byType(PolicyActions), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
   for (final scope in ['included', 'excluded']) {
     testWidgets(
       'Android $scope apps save after an offline configuration switch with the tunnel root mounted',
@@ -283,7 +382,7 @@ void main() {
         final l = AppLocalizations.of(
           tester.element(find.byType(VpnTunnelPane)),
         )!;
-        expect(find.byType(SettingSection), findsNWidgets(2));
+        expect(find.byType(SettingSection), findsNWidgets(3));
         expect(find.byType(TextField), findsNothing);
         expect(find.byType(PolicyActions), findsNothing);
         expect(find.text('iOS'), findsOneWidget);
@@ -291,6 +390,7 @@ void main() {
           'tunnel-system-capture',
           'tunnel-connection-parameters',
           'tunnel-apple-vpn-removal',
+          'tunnel-presets',
         ]) {
           final rect = tester.getRect(find.byKey(ValueKey(key)));
           expect(rect.left, greaterThanOrEqualTo(size.width <= 720 ? 16 : 28));
@@ -796,6 +896,11 @@ class _UiService extends PolicyEditorService {
   Object? loadFailure;
   Future<void>? loadGate;
   int saves = 0;
+  bool confirmApnsPresetSave = false;
+  @override
+  Future<bool> apnsProxyPresetApplicable(
+    ConnectionConfiguration configuration,
+  ) async => true;
   @override
   Future<({bool supported, String? reason})> proxyCapability() async =>
       (supported: false, reason: null);
@@ -812,6 +917,7 @@ class _UiService extends PolicyEditorService {
     required PolicyEditorDraft draft,
     required Future<bool> Function(bool disconnect) confirm,
   }) async {
+    if (confirmApnsPresetSave && !await confirm(false)) return false;
     final prepared = prepare(draft);
     configuration = ConnectionConfiguration(
       connection: draft.original.connection,
@@ -820,4 +926,20 @@ class _UiService extends PolicyEditorService {
     saves++;
     return true;
   }
+}
+
+void _stubApnsCapability() {
+  const channel = BasicMessageChannel<Object?>(
+    'dev.flutter.pigeon.onexray.BridgeHostApi.appleVpnCapabilities',
+    BridgeHostApi.pigeonChannelCodec,
+  );
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  messenger.setMockDecodedMessageHandler(
+    channel,
+    (_) async => [
+      AppleVpnCapabilities(serviceExclusions: true, deviceCommunication: true),
+    ],
+  );
+  addTearDown(() => messenger.setMockDecodedMessageHandler(channel, null));
 }

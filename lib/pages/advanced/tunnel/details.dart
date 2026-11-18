@@ -18,8 +18,12 @@ class TunnelDnsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-    create: (_) =>
-        createController?.call() ?? PolicyEditorController(draft: draft),
+    create: (_) {
+      final controller =
+          createController?.call() ?? PolicyEditorController(draft: draft);
+      if (controller.apnsPresetEnabled) controller.readAppleCapabilities();
+      return controller;
+    },
     child: BlocBuilder<PolicyEditorController, PolicyEditorPageState>(
       builder: (context, state) {
         final controller = context.read<PolicyEditorController>();
@@ -62,7 +66,7 @@ class TunnelDnsPage extends StatelessWidget {
                   l.prototypeIpv4Dns,
                   'ipv4',
                 ),
-                if (controller.value['ipv6Enabled'] == true ||
+                if (controller.effectiveIpv6 ||
                     controller.supportsWindowsSystemVpn) ...[
                   const SizedBox(height: 16),
                   field(
@@ -112,12 +116,20 @@ class TunnelNetworkPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => BlocProvider(
-    create: (_) =>
-        createController?.call() ?? PolicyEditorController(draft: draft),
+    create: (_) {
+      final controller =
+          createController?.call() ?? PolicyEditorController(draft: draft);
+      if (controller.apnsPresetEnabled) controller.readAppleCapabilities();
+      return controller;
+    },
     child: BlocBuilder<PolicyEditorController, PolicyEditorPageState>(
       builder: (context, state) {
         final controller = context.read<PolicyEditorController>();
         final l = AppLocalizations.of(context)!;
+        final managed = controller.apnsPresetManagesSettings;
+        final checking =
+            controller.apnsPresetEnabled &&
+            (state.appleCapabilitiesLoading || state.apnsPresetChecking);
         return PolicyDetailScaffold(
           title: 'IPv6',
           controller: controller,
@@ -138,7 +150,11 @@ class TunnelNetworkPage extends StatelessWidget {
                   controller: controller,
                   field: 'ipv6Enabled',
                   title: l.prototypeUseIpv6,
+                  subtitle: managed ? l.tunnelApnsPresetManaged : null,
+                  effectiveValue: managed ? true : null,
+                  supported: !checking,
                 ),
+                if (managed) TurnOffApnsPresetButton(controller: controller),
               ],
             ),
           ),

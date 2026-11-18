@@ -58,7 +58,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         completionHandler: @escaping @Sendable (Error?) -> Void
     ) {
         let request: StartVpnRequest
-        do { request = try loadTunnelRequest() }
+        do { request = try loadTunnelRequest(options: options) }
         catch {
             completionHandler(error)
             return
@@ -110,7 +110,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
 
     /// Validate once before admitting a start or changing network/runtime state.
     /// Legacy starts retain the validated value instead of re-reading the file.
-    private func loadTunnelRequest() throws -> StartVpnRequest {
+    private func loadTunnelRequest(options: [String: NSObject]?) throws -> StartVpnRequest {
         let request: StartVpnRequest
         if Constants.useSystemExtension {
             guard let providerConfig = (self.protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration,
@@ -120,7 +120,10 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
             }
             request = decoded
         } else {
-            guard let saved = StartVpnRequest.startModel else { throw TunnelError.noStartModel }
+            let preparedToken = options?[ApnsPresetStartGate.preparedTokenOption] as? String
+            guard let saved = StartVpnRequest.loadStartModel(preparedToken: preparedToken) else {
+                throw TunnelError.noStartModel
+            }
             request = saved
         }
         try request.requireTunnel()

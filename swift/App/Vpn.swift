@@ -509,19 +509,24 @@ class VPNManager {
     func startPreparedVpn(token: String, requestJson: String) async throws -> NativeVpnCommandResult {
         guard startAdmission.consumeDartPreparation(token: token) else { throw CancellationError() }
         let request: StartVpnRequest
+        let preparedApnsToken: String?
         let generation: UInt64
         do {
             try requireStartAllowed()
             guard stopTask == nil else { throw CancellationError() }
-            request = try JsonTool.decode(StartVpnRequest.self, from: requestJson)
-            try request.requireTunnel()
-            guard request.coreInvokeText?.isEmpty == false else {
+            var preparedRequest = try JsonTool.decode(StartVpnRequest.self, from: requestJson)
+            try preparedRequest.requireTunnel()
+            guard preparedRequest.coreInvokeText?.isEmpty == false else {
                 return NativeVpnCommandResult(state: .failed, message: "Missing Xray run configuration.")
             }
             guard let group = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupId()) else {
                 throw VPNError.noGroupContainer
             }
-            try StartRequestKind.tunnel.writeSnapshot(Data(requestJson.utf8), in: group)
+            preparedApnsToken = try ApnsPresetStartGate.isPending(in: group) ? UUID().uuidString : nil
+            if let preparedApnsToken { preparedRequest.snapshotToken = preparedApnsToken }
+            request = preparedRequest
+            let snapshot = preparedApnsToken == nil ? Data(requestJson.utf8) : try JsonTool.encode(request)
+            try StartRequestKind.tunnel.writeSnapshot(snapshot, in: group)
             // No await separates token consumption, publication, and native admission.
             generation = startAdmission.begin()
         } catch is CancellationError {
@@ -529,7 +534,7 @@ class VPNManager {
         } catch {
             return NativeVpnCommandResult(state: .failed, message: error.localizedDescription)
         }
-        let result = await startVpn(request: request, generation: generation)
+        let result = await startVpn(request: request, generation: generation, preparedApnsToken: preparedApnsToken)
         try startAdmission.check(generation)
         return result
     }
@@ -710,7 +715,9 @@ class VPNManager {
         return await startVpn(request: StartVpnRequest.startModel, generation: generation)
     }
 
-    private func startVpn(request: StartVpnRequest?, generation: UInt64?) async -> NativeVpnCommandResult {
+    private func startVpn(
+        request: StartVpnRequest?, generation: UInt64?, preparedApnsToken: String? = nil
+    ) async -> NativeVpnCommandResult {
         #if os(iOS)
         activeStartGeneration = generation
         #endif
@@ -791,7 +798,13 @@ class VPNManager {
                     } else {
                         try await waitForStatus(session: session, accepted: [.connected], timeout: 30) {
                             try self.checkStartAdmission(generation)
-                            try session.startTunnel()
+                            if let preparedApnsToken {
+                                try session.startTunnel(options: [
+                                    ApnsPresetStartGate.preparedTokenOption: preparedApnsToken as NSString,
+                                ])
+                            } else {
+                                try session.startTunnel()
+                            }
                             self.finishStartPreparation(generation)
                         }
                     }
