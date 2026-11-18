@@ -23,6 +23,9 @@ class PolicyEditorDraft {
         jsonEncode(policy ?? original.policy.toJson()),
       ) as Map<String, dynamic>;
 
+  bool get hasChanges =>
+      !const DeepCollectionEquality().equals(policy, original.policy.toJson());
+
   PolicyEditorDraft copy() => PolicyEditorDraft(original, policy);
 }
 

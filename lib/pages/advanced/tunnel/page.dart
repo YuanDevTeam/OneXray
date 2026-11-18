@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -54,10 +53,7 @@ class VpnTunnelPane extends StatelessWidget {
           );
         }
         final ipv6 = controller.value['ipv6Enabled'] == true;
-        final pending = !const DeepCollectionEquality().equals(
-          draft.original.policy.toJson(),
-          draft.policy,
-        );
+        final pending = draft.hasChanges;
         return Scaffold(
           body: SettingsPageScroll(
             desktopMaxWidth: AppLayout.advancedMaxWidth,
@@ -68,6 +64,13 @@ class VpnTunnelPane extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 spacing: 20,
                 children: [
+                  if (!pending && state.error != null)
+                    SelectableText(
+                      state.error!,
+                      style: AppTypography.supporting.copyWith(
+                        color: palette.destructive,
+                      ),
+                    ),
                   SettingSection(
                     key: const ValueKey('tunnel-connection-parameters'),
                     title: l.tunnelConnectionParameters,
@@ -432,6 +435,9 @@ class VpnTunnelPane extends StatelessWidget {
     subtitle: subtitle,
     leading: Icon(icon),
     showChevron: true,
+    trailing: controller.state.loadingDestination == destination
+        ? const ButtonProgressIndicator()
+        : null,
     enabled: !controller.blocked && openTunnel != null,
     onTap: () {
       final open = openTunnel;

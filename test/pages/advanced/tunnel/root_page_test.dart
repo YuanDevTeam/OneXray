@@ -1,13 +1,21 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
+import 'package:onexray/core/pigeon/messages.g.dart' show VpnStatus;
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/details.dart';
 import 'package:onexray/pages/advanced/tunnel/page.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
+import 'package:onexray/pages/main/adaptive_shell.dart';
+import 'package:onexray/pages/main/navigation.dart';
+import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
@@ -16,8 +24,10 @@ import 'package:onexray/service/advanced/policy_editor.dart';
 import 'package:onexray/service/advanced/tunnel/apple/removal.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
+import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/settings/language/locale.dart';
+import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 Widget _app(Widget child, double width) => MaterialApp(
@@ -60,6 +70,103 @@ _UiService _service({ConnectionPlatform platform = ConnectionPlatform.ios}) {
 }
 
 void main() {
+  for (final scope in ['included', 'excluded']) {
+    testWidgets(
+      'Android $scope apps save after an offline configuration switch with the tunnel root mounted',
+      (tester) async {
+        _viewport(tester, const Size(390, 844));
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        final coordinator = ConnectionCoordinator(
+          database: db,
+          statusEvents: const Stream.empty(),
+          readRuntime: () async => null,
+          inspect: (_, {observedStatus}) async =>
+              const HostConnection(VpnStatus.disconnected),
+          prepare: (_, _) async => fail('Must not prepare while disconnected'),
+          start: (_) async => fail('Must not start while disconnected'),
+          stop: () async => fail('Must not stop while disconnected'),
+        );
+        addTearDown(
+          () => tester.runAsync(() async {
+            coordinator.dispose();
+            await db.close();
+          }),
+        );
+        final service = PolicyEditorService(
+          coordinator: coordinator,
+          platform: ConnectionPlatform.android,
+        );
+        late PolicyEditorController root;
+        await tester.runAsync(() async {
+          await coordinator.initialize(
+            observe: false,
+            registerReferences: false,
+          );
+          root = PolicyEditorController(
+            draft: await service.load(),
+            service: service,
+          );
+        });
+        addTearDown(root.close);
+        final opened = Completer<PolicyEditorDraft>();
+        await tester.pumpWidget(
+          _app(
+            VpnTunnelPane(
+              createController: () => root,
+              openTunnel: (_, destination, draft) async {
+                expect(destination, TunnelDestination.android);
+                opened.complete(draft);
+                return false;
+              },
+            ),
+            390,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final next = ConnectionConfiguration(
+          connection: ConnectionSettings(trafficMode: TrafficMode.allVpn),
+          policy: root.draft!.original.policy,
+        );
+        await tester.runAsync(() => coordinator.apply(next));
+        await tester.pumpAndSettle();
+        final android = find.byKey(const ValueKey('tunnel-open-android'));
+        await tester.ensureVisible(android);
+        await tester.pumpAndSettle();
+        await tester.runAsync(() => tester.tap(android));
+        await tester.pumpAndSettle();
+        await tester.runAsync(() async {
+          final draft = await opened.future.timeout(const Duration(seconds: 5));
+          draft.policy['android']['appScope'] = scope;
+          draft.policy['android']['${scope}AppPackageNames'] = [
+            'com.example.browser',
+          ];
+          expect(
+            await service.save(
+              draft: draft,
+              confirm: (_) async => fail('Must not confirm while disconnected'),
+            ),
+            isTrue,
+          );
+          final saved = await coordinator.configuration;
+          expect(saved.connection.toJson(), next.connection.toJson());
+          expect(saved.policy.toJson()['android'], {
+            'appScope': scope,
+            'includedAppPackageNames': scope == 'included'
+                ? ['com.example.browser']
+                : [],
+            'excludedAppPackageNames': scope == 'excluded'
+                ? ['com.example.browser']
+                : [],
+          });
+          expect(coordinator.state.value.phase, ConnectionPhase.disconnected);
+        });
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      },
+    );
+  }
+
   testWidgets(
     'desktop proxy settings preserve the TUN draft and disable unsupported automatic settings',
     (tester) async {
@@ -118,7 +225,7 @@ void main() {
     Size(1160, 720),
   ]) {
     testWidgets(
-      'tunnel summaries open isolated drafts and refresh only after save at $size',
+      'tunnel summaries open isolated drafts and reflect saved values at $size',
       (tester) async {
         _viewport(tester, size);
         final service = _service();
@@ -209,7 +316,6 @@ void main() {
         );
         expect(root.value['dnsIpv4Address'], '1.1.1.1');
         expect(service.saves, 0);
-        expect(service.loads, 0);
         await _tap(tester, dns);
         await tester.enterText(ipv4, '2.2.2.2');
         await tester.pumpAndSettle();
@@ -217,7 +323,6 @@ void main() {
         expect(find.byType(TunnelDnsPage), findsNothing);
         expect(root.value['dnsIpv4Address'], '2.2.2.2');
         expect(service.saves, 1);
-        expect(service.loads, 1);
         expect(find.textContaining('2.2.2.2'), findsOneWidget);
         expect(find.byType(PolicyActions), findsNothing);
 
@@ -240,7 +345,6 @@ void main() {
         await _tap(tester, find.widgetWithText(FilledButton, l.prototypeSave));
         expect(root.value['ipv6Enabled'], isFalse);
         expect(service.saves, 2);
-        expect(service.loads, 2);
         expect(find.text(l.tunnelIpv6Disabled), findsNWidgets(2));
         expect(opened, [
           TunnelDestination.dns,
@@ -255,6 +359,301 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'a detail refresh does not navigate after leaving the tunnel branch',
+    (tester) async {
+      _viewport(tester, const Size(390, 844));
+      final service = _service();
+      final gate = Completer<void>();
+      service.loadGate = gate.future;
+      final root = PolicyEditorController(
+        draft: PolicyEditorDraft(service.configuration),
+        service: service,
+      );
+      addTearDown(root.close);
+      final active = ValueNotifier(true);
+      addTearDown(active.dispose);
+      var opens = 0;
+      await tester.pumpWidget(
+        _app(
+          ValueListenableBuilder<bool>(
+            valueListenable: active,
+            builder: (_, enabled, child) =>
+                TickerMode(enabled: enabled, child: child!),
+            child: VpnTunnelPane(
+              createController: () => root,
+              openTunnel: (_, destination, draft) async {
+                opens++;
+                return false;
+              },
+            ),
+          ),
+          390,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final dns = find.byKey(const ValueKey('tunnel-open-dns'));
+      await tester.tap(dns);
+      await tester.pump();
+      expect(root.busy, isTrue);
+      final progress = find.byType(ButtonProgressIndicator);
+      expect(find.descendant(of: dns, matching: progress), findsOneWidget);
+      expect(progress, findsOneWidget);
+
+      active.value = false;
+      await tester.pumpAndSettle();
+      expect(opens, 0);
+      expect(root.busy, isFalse);
+
+      service.loadGate = null;
+      active.value = true;
+      await tester.pumpAndSettle();
+      await _tap(tester, dns);
+      expect(opens, 1);
+
+      // The first read can still fail after a fresh tap has succeeded.
+      service.loadFailure = StateError('Obsolete read');
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(root.error, isNull);
+      expect(opens, 1);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
+
+  for (final returnToTunnel in [false, true]) {
+    testWidgets(
+      returnToTunnel
+          ? 'returning to the tunnel does not replay a pending detail tap'
+          : 'switching tabs cancels a detail tap before the next frame',
+      (tester) async {
+        _viewport(tester, const Size(390, 844));
+        final service = _service(platform: ConnectionPlatform.android);
+        final read = Completer<void>();
+        service.loadGate = read.future;
+        final root = PolicyEditorController(
+          draft: PolicyEditorDraft(service.configuration),
+          service: service,
+        );
+        final events = AppEventBus();
+        addTearDown(events.close);
+        final router = GoRouter(
+          initialLocation: '/tunnel',
+          routes: [
+            StatefulShellRoute.indexedStack(
+              builder: (_, _, shell) => AdaptiveMainShell(
+                navigationShell: shell,
+                hasActiveModal: (_) => false,
+                initializeServices: (_) async {},
+              ),
+              branches: [
+                for (final primary in AppPrimaryDestination.values)
+                  StatefulShellBranch(
+                    routes: [
+                      GoRoute(
+                        path: primary.rootPath,
+                        builder: (_, _) =>
+                            primary == AppPrimaryDestination.tunnel
+                            ? VpnTunnelPane(
+                                createController: () => root,
+                                openTunnel: (context, _, draft) =>
+                                    context.pushScoped<bool>(
+                                      AppPageDestination.tunnelDns,
+                                      extra: draft,
+                                    ),
+                              )
+                            : Center(child: Text(primary.name)),
+                        routes: [
+                          GoRoute(
+                            path: AppPageDestination.tunnelDns.segment,
+                            builder: (_, _) => const Text('DNS detail'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          BlocProvider.value(
+            value: events,
+            child: MaterialApp.router(
+              routerConfig: router,
+              theme: AppTheme.material(Brightness.light, mobile: true),
+              localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (_, child) => ShadTheme(
+                data: AppTheme.shad(Brightness.light, mobile: true),
+                child: ShadToaster(child: child!),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final dns = find.byKey(const ValueKey('tunnel-open-dns'));
+        await tester.tap(dns);
+        await tester.pump();
+        await tester.tap(
+          find.byKey(const ValueKey('primary-navigation-servers')),
+        );
+        if (returnToTunnel) {
+          await tester.pumpAndSettle();
+          expect(find.text('servers'), findsOneWidget);
+          await tester.tap(
+            find.byKey(const ValueKey('primary-navigation-tunnel')),
+          );
+          await tester.pumpAndSettle();
+        }
+
+        read.complete();
+        await tester.pumpAndSettle();
+        expect(find.text('DNS detail'), findsNothing);
+        expect(returnToTunnel ? dns : find.text('servers'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      },
+    );
+  }
+
+  testWidgets('failed detail refresh keeps the root draft and can be retried', (
+    tester,
+  ) async {
+    _viewport(tester, const Size(390, 844));
+    final service = _service();
+    const reason = 'Cannot read saved tunnel configuration';
+    service.loadFailure = StateError(reason);
+    final original = service.configuration;
+    final root = PolicyEditorController(
+      draft: PolicyEditorDraft(original),
+      service: service,
+    );
+    addTearDown(root.close);
+    PolicyEditorController? child;
+    await tester.pumpWidget(
+      _app(
+        VpnTunnelPane(
+          createController: () => root,
+          openTunnel: (context, destination, draft) {
+            expect(destination, TunnelDestination.dns);
+            child = PolicyEditorController(draft: draft, service: service);
+            return Navigator.of(context).push<bool>(
+              MaterialPageRoute(
+                builder: (_) =>
+                    TunnelDnsPage(draft: draft, createController: () => child!),
+              ),
+            );
+          },
+        ),
+        390,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final dns = find.byKey(const ValueKey('tunnel-open-dns'));
+    await _tap(tester, dns);
+
+    expect(child, isNull);
+    expect(find.byType(TunnelDnsPage), findsNothing);
+    expect(root.draft!.original, same(original));
+    expect(root.value, original.policy.toJson());
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is SelectableText &&
+            (widget.data?.contains(reason) ?? false),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(PolicyActions), findsNothing);
+    expect(service.saves, 0);
+
+    service.loadFailure = null;
+    await _tap(tester, dns);
+    expect(find.byType(TunnelDnsPage), findsOneWidget);
+    expect(child!.value, original.policy.toJson());
+    expect(root.error, isNull);
+    expect(find.textContaining(reason, skipOffstage: false), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+    'opening and cancelling details preserves unsaved root defaults',
+    (tester) async {
+      _viewport(tester, const Size(390, 844));
+      final service = _service();
+      final original = service.configuration;
+      final root = PolicyEditorController(
+        draft: PolicyEditorDraft(original),
+        service: service,
+      );
+      addTearDown(root.close);
+      late PolicyEditorController child;
+      await tester.pumpWidget(
+        _app(
+          VpnTunnelPane(
+            createController: () => root,
+            openTunnel: (context, destination, draft) {
+              expect(destination, TunnelDestination.dns);
+              child = PolicyEditorController(draft: draft, service: service);
+              return Navigator.of(context).push<bool>(
+                MaterialPageRoute(
+                  builder: (_) => TunnelDnsPage(
+                    draft: draft,
+                    createController: () => child,
+                  ),
+                ),
+              );
+            },
+          ),
+          390,
+        ),
+      );
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(VpnTunnelPane)),
+      )!;
+      await _tap(tester, find.byKey(const ValueKey('tunnel-restore-defaults')));
+      final pending = root.draft!.copy();
+      expect(pending.original, same(original));
+      expect(pending.policy, PlatformPolicy.defaults().toJson());
+      expect(pending.policy['dnsIpv4Address'], '8.8.8.8');
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+
+      await _tap(tester, find.byKey(const ValueKey('tunnel-open-dns')));
+      expect(find.byType(TunnelDnsPage), findsOneWidget);
+      expect(child.draft!.original, same(original));
+      expect(child.value, pending.policy);
+      final ipv4 = find.descendant(
+        of: find.byKey(const ValueKey('tunnel-dns-ipv4')),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(ipv4, '2.2.2.2');
+      await _tap(
+        tester,
+        find.widgetWithText(OutlinedButton, l.prototypeCancel),
+      );
+
+      expect(find.byType(TunnelDnsPage), findsNothing);
+      expect(root.draft!.original, same(original));
+      expect(root.value, pending.policy);
+      expect(service.configuration.encode(), original.encode());
+      expect(service.configuration.policy.dnsIpv4Address, '1.1.1.1');
+      expect(service.saves, 0);
+      expect(find.byType(PolicyActions), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets(
     'restore keeps its complete scope as a draft until Save and Cancel reloads',
@@ -394,14 +793,17 @@ class _UiService extends PolicyEditorService {
     );
   }
   late ConnectionConfiguration configuration;
+  Object? loadFailure;
+  Future<void>? loadGate;
   int saves = 0;
-  int loads = 0;
   @override
   Future<({bool supported, String? reason})> proxyCapability() async =>
       (supported: false, reason: null);
   @override
   Future<PolicyEditorDraft> load() async {
-    loads++;
+    await loadGate;
+    final failure = loadFailure;
+    if (failure != null) throw failure;
     return PolicyEditorDraft(configuration);
   }
 

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/messages.g.dart';
@@ -37,6 +40,7 @@ const _notProvided = Object();
 class PolicyEditorPageState {
   final PolicyEditorDraft? draft;
   final bool busy;
+  final TunnelDestination? loadingDestination;
   final String? error;
   final TunnelDnsValidationException? dnsFailure;
   final Map<String, String> androidAppNames;
@@ -57,6 +61,7 @@ class PolicyEditorPageState {
   PolicyEditorPageState({
     this.draft,
     this.busy = false,
+    this.loadingDestination,
     this.error,
     this.dnsFailure,
     Map<String, String> androidAppNames = const {},
@@ -79,6 +84,7 @@ class PolicyEditorPageState {
   PolicyEditorPageState copyWith({
     Object? draft = _notProvided,
     bool? busy,
+    Object? loadingDestination = _notProvided,
     Object? error = _notProvided,
     Object? dnsFailure = _notProvided,
     Map<String, String>? androidAppNames,
@@ -100,6 +106,9 @@ class PolicyEditorPageState {
         ? this.draft
         : draft as PolicyEditorDraft?,
     busy: busy ?? this.busy,
+    loadingDestination: identical(loadingDestination, _notProvided)
+        ? this.loadingDestination
+        : loadingDestination as TunnelDestination?,
     error: identical(error, _notProvided) ? this.error : error as String?,
     dnsFailure: identical(dnsFailure, _notProvided)
         ? this.dnsFailure
@@ -279,14 +288,27 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
     }
   }
 
-  Future<void> load(BuildContext context) async {
+  Future<void> load(BuildContext context) => _loadDraft(context, service.load);
+
+  Future<void> _loadDraft(
+    BuildContext context,
+    Future<PolicyEditorDraft?> Function() read, {
+    TunnelDestination? destination,
+  }) async {
     if (state.appleVpnRemovalBusy) return;
     _dnsTouched.clear();
     _dnsSubmitted = false;
-    emit(state.copyWith(busy: true, error: null, dnsFailure: null));
+    emit(
+      state.copyWith(
+        busy: true,
+        error: null,
+        dnsFailure: null,
+        loadingDestination: destination,
+      ),
+    );
     try {
-      final loaded = await service.load();
-      emit(state.copyWith(draft: loaded));
+      final loaded = await read();
+      if (loaded != null) emit(state.copyWith(draft: loaded));
     } catch (error) {
       if (context.mounted) {
         emit(
@@ -296,7 +318,7 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
         );
       }
     } finally {
-      emit(state.copyWith(busy: false));
+      emit(state.copyWith(busy: false, loadingDestination: null));
     }
   }
 
@@ -560,8 +582,46 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
     TunnelDestination destination,
     OpenTunnelPage open,
   ) async {
-    if (blocked || draft == null) {
+    final current = draft;
+    if (blocked || current == null) {
       return;
+    }
+    // The root stays mounted while other branches change the connection plan.
+    if (!current.hasChanges) {
+      final navigation = GoRouter.maybeOf(context)?.routeInformationProvider;
+      final initialRequest = navigation?.value;
+      final visibility = TickerMode.getValuesNotifier(context);
+      final route = ModalRoute.of(context);
+      final cancelled = Completer<PolicyEditorDraft?>();
+      // A branch switch is announced before the old route becomes offstage.
+      void cancelIfLeft() {
+        if (!cancelled.isCompleted &&
+            (!visibility.value.enabled ||
+                !identical(navigation?.value, initialRequest))) {
+          cancelled.complete(null);
+        }
+      }
+
+      navigation?.addListener(cancelIfLeft);
+      visibility.addListener(cancelIfLeft);
+      try {
+        await _loadDraft(
+          context,
+          () => Future.any([service.load(), cancelled.future]),
+          destination: destination,
+        );
+        if (!context.mounted ||
+            !isPageActive ||
+            cancelled.isCompleted ||
+            error != null ||
+            !visibility.value.enabled ||
+            route?.isCurrent == false) {
+          return;
+        }
+      } finally {
+        visibility.removeListener(cancelIfLeft);
+        navigation?.removeListener(cancelIfLeft);
+      }
     }
     final saved = await open(context, destination, draft!.copy());
     if (saved == true && context.mounted && isPageActive) {
