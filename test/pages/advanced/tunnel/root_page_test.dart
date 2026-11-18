@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:drift/native.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
@@ -11,6 +13,9 @@ import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/details.dart';
 import 'package:onexray/pages/advanced/tunnel/page.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
+import 'package:onexray/pages/main/adaptive_shell.dart';
+import 'package:onexray/pages/main/navigation.dart';
+import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/page_app_bar.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/theme/theme.dart';
@@ -22,6 +27,7 @@ import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/settings/language/locale.dart';
+import 'package:onexray/service/shared/event_bus/service.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 Widget _app(Widget child, double width) => MaterialApp(
@@ -368,7 +374,7 @@ void main() {
       addTearDown(root.close);
       final active = ValueNotifier(true);
       addTearDown(active.dispose);
-      var opened = false;
+      var opens = 0;
       await tester.pumpWidget(
         _app(
           ValueListenableBuilder<bool>(
@@ -378,7 +384,7 @@ void main() {
             child: VpnTunnelPane(
               createController: () => root,
               openTunnel: (_, destination, draft) async {
-                opened = true;
+                opens++;
                 return false;
               },
             ),
@@ -391,24 +397,130 @@ void main() {
       await tester.tap(dns);
       await tester.pump();
       expect(root.busy, isTrue);
+      final progress = find.byType(ButtonProgressIndicator);
+      expect(find.descendant(of: dns, matching: progress), findsOneWidget);
+      expect(progress, findsOneWidget);
 
       active.value = false;
-      await tester.pump();
-      gate.complete();
       await tester.pumpAndSettle();
-      expect(opened, isFalse);
+      expect(opens, 0);
       expect(root.busy, isFalse);
 
       service.loadGate = null;
       active.value = true;
       await tester.pumpAndSettle();
       await _tap(tester, dns);
-      expect(opened, isTrue);
+      expect(opens, 1);
+
+      // The first read can still fail after a fresh tap has succeeded.
+      service.loadFailure = StateError('Obsolete read');
+      gate.complete();
+      await tester.pumpAndSettle();
+      expect(root.error, isNull);
+      expect(opens, 1);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpAndSettle();
     },
   );
+
+  for (final returnToTunnel in [false, true]) {
+    testWidgets(
+      returnToTunnel
+          ? 'returning to the tunnel does not replay a pending detail tap'
+          : 'switching tabs cancels a detail tap before the next frame',
+      (tester) async {
+        _viewport(tester, const Size(390, 844));
+        final service = _service(platform: ConnectionPlatform.android);
+        final read = Completer<void>();
+        service.loadGate = read.future;
+        final root = PolicyEditorController(
+          draft: PolicyEditorDraft(service.configuration),
+          service: service,
+        );
+        final events = AppEventBus();
+        addTearDown(events.close);
+        final router = GoRouter(
+          initialLocation: '/tunnel',
+          routes: [
+            StatefulShellRoute.indexedStack(
+              builder: (_, _, shell) => AdaptiveMainShell(
+                navigationShell: shell,
+                hasActiveModal: (_) => false,
+                initializeServices: (_) async {},
+              ),
+              branches: [
+                for (final primary in AppPrimaryDestination.values)
+                  StatefulShellBranch(
+                    routes: [
+                      GoRoute(
+                        path: primary.rootPath,
+                        builder: (_, _) =>
+                            primary == AppPrimaryDestination.tunnel
+                            ? VpnTunnelPane(
+                                createController: () => root,
+                                openTunnel: (context, _, draft) =>
+                                    context.pushScoped<bool>(
+                                      AppPageDestination.tunnelDns,
+                                      extra: draft,
+                                    ),
+                              )
+                            : Center(child: Text(primary.name)),
+                        routes: [
+                          GoRoute(
+                            path: AppPageDestination.tunnelDns.segment,
+                            builder: (_, _) => const Text('DNS detail'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          BlocProvider.value(
+            value: events,
+            child: MaterialApp.router(
+              routerConfig: router,
+              theme: AppTheme.material(Brightness.light, mobile: true),
+              localizationsDelegates: AppLocalePolicy.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              builder: (_, child) => ShadTheme(
+                data: AppTheme.shad(Brightness.light, mobile: true),
+                child: ShadToaster(child: child!),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final dns = find.byKey(const ValueKey('tunnel-open-dns'));
+        await tester.tap(dns);
+        await tester.pump();
+        await tester.tap(
+          find.byKey(const ValueKey('primary-navigation-servers')),
+        );
+        if (returnToTunnel) {
+          await tester.pumpAndSettle();
+          expect(find.text('servers'), findsOneWidget);
+          await tester.tap(
+            find.byKey(const ValueKey('primary-navigation-tunnel')),
+          );
+          await tester.pumpAndSettle();
+        }
+
+        read.complete();
+        await tester.pumpAndSettle();
+        expect(find.text('DNS detail'), findsNothing);
+        expect(returnToTunnel ? dns : find.text('servers'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      },
+    );
+  }
 
   testWidgets('failed detail refresh keeps the root draft and can be retried', (
     tester,
