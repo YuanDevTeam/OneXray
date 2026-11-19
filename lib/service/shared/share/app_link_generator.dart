@@ -49,6 +49,11 @@ abstract final class OneXrayAppLinkGenerator {
         return null;
       }
     } else if (config.type == CoreConfigType.Remnawave.name) {
+      if (config.providerGeoData != null) {
+        throw const FormatException(
+          'This Provider configuration uses subscription GeoData. Share the subscription instead.',
+        );
+      }
       try {
         final decoded =
             jsonDecode(utf8.decode(base64Decode(data))) as Map<String, dynamic>;

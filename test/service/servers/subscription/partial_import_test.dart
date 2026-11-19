@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
@@ -7,10 +8,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/network/client.dart';
+import 'package:onexray/service/advanced/xray/geodata/service.dart';
 import 'package:onexray/service/servers/subscription/model.dart';
 import 'package:onexray/service/servers/subscription/reader.dart';
 import 'package:onexray/service/servers/subscription/service.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
+import 'package:path/path.dart' as p;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -188,6 +192,147 @@ void main() {
       },
     );
   }
+
+  test('Happ GeoData keeps the last valid Provider profile and DAT', () async {
+    const datUrl = 'https://assets.example/provider-site.dat';
+    final fixtures = await Directory('../references/onexray-tests').absolute
+        .create(recursive: true);
+    final workspace = await fixtures.createTemp('provider-subscription-');
+    addTearDown(() => workspace.delete(recursive: true));
+    final datDir = await Directory(p.join(workspace.path, 'dat')).create();
+    final defaultSite = File(p.join(datDir.path, 'geosite.dat'));
+    await defaultSite.writeAsString('GLOBAL');
+    var category = 'INCLUDED';
+    final geoData = GeoDataService.forTesting(
+      database: database,
+      directory: datDir.path,
+      download: (url, file) async {
+        expect(url, datUrl);
+        await file.writeAsString(category);
+      },
+      count: (directory, name, _) async {
+        final code = await File(p.join(directory, '$name.dat')).readAsString();
+        await File(p.join(directory, '$name.json')).writeAsString(
+          jsonEncode({
+            'categoryCount': 1,
+            'ruleCount': 1,
+            'codes': [
+              {'code': code, 'ruleCount': 1},
+            ],
+          }),
+        );
+      },
+      copyBundled: (_) async => fail('Provider DAT used the global installer'),
+    );
+    final routing = base64Encode(
+      utf8.encode(jsonEncode({'Geositeurl': datUrl})),
+    );
+    final client = Dio()
+      ..httpClientAdapter = _SubscriptionResponse(
+        () => ResponseBody.fromString(
+          jsonEncode(response),
+          200,
+          headers: {
+            'routing': ['happ://routing/onadd/$routing'],
+            'subscription-userinfo': [userInfo],
+          },
+        ),
+      );
+    addTearDown(client.close);
+    final checkedFiles = <String>[];
+    int? protectedProfileId;
+    service = SubscriptionService.forTesting(
+      database: database,
+      client: NetClient.forTesting(client),
+      configurationReader: SubscriptionConfigurationReader(
+        geoData: geoData,
+        decode: (text, {ageSecretKey}) async => text,
+        validate: (text) async {
+          final config = jsonDecode(text) as Map<String, dynamic>;
+          final rules = config['routing']['rules'] as List;
+          final rule = rules.cast<Map>().singleWhere(
+            (rule) => rule.containsKey('domain'),
+          );
+          final reference = (rule['domain'] as List).single as String;
+          final [kind, file, code] = reference.split(':');
+          expect(kind, 'ext');
+          expect(isProviderGeoDataFileName(file), isTrue);
+          checkedFiles.add(file);
+          final installed = File(p.join(datDir.path, file));
+          return await installed.readAsString() == code.toUpperCase()
+              ? ''
+              : 'failed to check code ${code.toUpperCase()} from $file > EOF';
+        },
+      ),
+      schedulePing: pings.add,
+      readReferences: () =>
+          SubscriptionNodeReferences(fixedId: protectedProfileId),
+    );
+
+    final saved = _geoProfile('Saved', 'included');
+    response = [saved, _geoProfile('Missing category', 'missing')];
+    final inserted = await service.insertSubscription(
+      _input(SubscriptionMode.providerManaged),
+    );
+    expect(inserted.success, isTrue);
+    expect(inserted.count, 1);
+    expect(inserted.geoDataWarning?.message, contains('geosite:MISSING'));
+    final source = (await database.subscriptionDao.searchRow(inserted.subId))!;
+    final oldRows = await database.select(database.coreConfig).get();
+    _expectCaches(oldRows, [saved], ['Saved proxy'], source.id);
+    expect(
+      oldRows
+          .singleWhere((row) => row.type == CoreConfigType.outbound.name)
+          .providerGeoData,
+      isNull,
+    );
+    final profile = oldRows.singleWhere(
+      (row) => row.type == CoreConfigType.Remnawave.name,
+    );
+    final binding = ProviderGeoDataBinding.decode(profile.providerGeoData)!;
+    expect(binding.geoSiteUrl, datUrl);
+    expect(binding.geoIpFile, isNull);
+    final oldFile = binding.geoSiteFile!;
+    expect(checkedFiles, [oldFile, oldFile]);
+    expect(await File(p.join(datDir.path, oldFile)).readAsString(), 'INCLUDED');
+
+    response = [_geoProfile('Replacement', 'included')];
+    userInfo = 'download=999;total=9999';
+    category = 'DIFFERENT';
+    checkedFiles.clear();
+    final refreshed = await service.refreshSubscriptionResult(source);
+    expect(refreshed.status, SubscriptionUpdateResult.invalidContent);
+    expect(refreshed.error, isA<FormatException>());
+    expect(
+      (refreshed.error as FormatException).message,
+      contains('geosite:INCLUDED'),
+    );
+    final failedFile = checkedFiles.single;
+    expect(failedFile, isNot(oldFile));
+    expect(await File(p.join(datDir.path, failedFile)).exists(), isFalse);
+    expect(await File(p.join(datDir.path, oldFile)).readAsString(), 'INCLUDED');
+    expect(await defaultSite.readAsString(), 'GLOBAL');
+    expect(await database.subscriptionDao.searchRow(source.id), source);
+    expect(await database.select(database.coreConfig).get(), oldRows);
+
+    protectedProfileId = profile.id;
+    response = [_geoProfile('Replacement', 'different')];
+    final retried = await service.refreshSubscriptionResult(source);
+    expect(retried.success, isTrue);
+    final current = await database.select(database.coreConfig).get();
+    expect(current.singleWhere((row) => row.id == profile.id), profile);
+    final replacement = current.singleWhere((row) => row.name == 'Replacement');
+    expect(
+      ProviderGeoDataBinding.decode(replacement.providerGeoData)?.geoSiteFile,
+      failedFile,
+    );
+    expect(await File(p.join(datDir.path, oldFile)).readAsString(), 'INCLUDED');
+    expect(
+      await File(p.join(datDir.path, failedFile)).readAsString(),
+      'DIFFERENT',
+    );
+    expect(await defaultSite.readAsString(), 'GLOBAL');
+  });
 }
 
 SubscriptionInput _input(SubscriptionMode mode) => SubscriptionInput(
@@ -231,6 +376,12 @@ Map<String, dynamic> _rejectedProfile() {
     'protocol': 'unsupported-protocol',
   });
   return config;
+}
+
+Map<String, dynamic> _geoProfile(String name, String category) {
+  final profile = _profile(name, ['$name proxy']);
+  profile['routing']['rules'][0]['domain'] = ['geosite:$category'];
+  return profile;
 }
 
 Map<String, dynamic> _saved(CoreConfigData row) =>

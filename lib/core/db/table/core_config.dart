@@ -11,6 +11,8 @@ class CoreConfig extends Table {
 
   TextColumn get data => text().nullable()();
 
+  TextColumn get providerGeoData => text().nullable()();
+
   IntColumn get delay => integer()();
 
   IntColumn get subId => integer()();

@@ -103,13 +103,18 @@ class ServerImportPageState {
   String subscriptionImportSummary(
     AppLocalizations l10n,
     ServerSubscriptionImport item,
-  ) => switch (subscriptionImportModes[item.result.subId]) {
-    SubscriptionMode.providerManaged => l10n.providerConfigurationCount(
-      item.result.count,
-    ),
-    SubscriptionMode.appManaged => l10n.prototypeUsableNodes(item.result.count),
-    null => l10n.prototypeSubscriptionSaved,
-  };
+  ) => [
+    switch (subscriptionImportModes[item.result.subId]) {
+      SubscriptionMode.providerManaged => l10n.providerConfigurationCount(
+        item.result.count,
+      ),
+      SubscriptionMode.appManaged => l10n.prototypeUsableNodes(
+        item.result.count,
+      ),
+      null => l10n.prototypeSubscriptionSaved,
+    },
+    ?item.result.geoDataWarning?.message,
+  ].join('\n');
 
   ServerImportPageState copyWith({
     String? inputText,
@@ -1046,7 +1051,10 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         // a successful write into an "add failed" result.
       }
       if (!isPageActive || !context.mounted) return;
-      ContextAlert.showToast(context, message);
+      ContextAlert.showToast(
+        context,
+        [message, ?result.geoDataWarning?.message].join('\n'),
+      );
       Navigator.of(context).pop(
         ServerImportResult(count: result.count, subscriptionId: result.subId),
       );

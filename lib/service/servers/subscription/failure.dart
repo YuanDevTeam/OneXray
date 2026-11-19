@@ -55,9 +55,22 @@ String subscriptionRefreshMessage(
   Map<SubscriptionData, SubscriptionRefreshResult> results,
 ) {
   if (results.isEmpty) return l.prototypeNoMatchingSubscriptions;
-  return [
-    for (final entry in results.entries)
-      if (!entry.value.superseded && !failureCancelled(entry.value.error))
-        '${entry.key.name}: ${entry.value.success ? l.prototypeUsableNodes(entry.value.count) : subscriptionFailureMessage(l, entry.value.status, error: entry.value.error, updating: true)}',
-  ].join('\n');
+  final messages = <String>[];
+  for (final entry in results.entries) {
+    final result = entry.value;
+    if (result.superseded || failureCancelled(result.error)) continue;
+    final message = result.success
+        ? l.prototypeUsableNodes(result.count)
+        : subscriptionFailureMessage(
+            l,
+            result.status,
+            error: result.error,
+            updating: true,
+          );
+    messages.add('${entry.key.name}: $message');
+    if (result.geoDataWarning case final warning?) {
+      messages.add(warning.message);
+    }
+  }
+  return messages.join('\n');
 }

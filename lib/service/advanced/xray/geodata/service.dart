@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/services.dart';
 import 'package:onexray/core/db/database/database.dart';
@@ -18,6 +19,7 @@ import 'package:onexray/service/advanced/xray/geodata/model.dart';
 import 'package:onexray/service/advanced/xray/geodata/system_state.dart';
 import 'package:onexray/service/shared/in_flight_operations.dart';
 import 'package:onexray/service/shared/command_serial_executor.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 import 'package:path/path.dart' as p;
 
 /// Runs a confirmed save against staged dependencies. The callback includes
@@ -198,21 +200,33 @@ class GeoDataService {
 
   /// Only registered dependencies of the selected runtime are checked. This
   /// does not download, validate Xray semantics or block unrelated configs.
-  Future<void> requireDependencies(Map<String, GeoDataType> references) =>
-      withFiles(() async {
-        for (final file in references.keys) {
-          final row = await _db.geoDataDao.searchRowByName(
-            file.substring(0, file.length - 4),
+  Future<void> requireDependencies(
+    Map<String, GeoDataType> references,
+  ) => withFiles(() async {
+    for (final file in references.keys) {
+      if (isProviderGeoDataFileName(file)) {
+        try {
+          await _regularFile(File(p.join(_root, file)));
+        } on FormatException {
+          throw FileSystemException(
+            'Provider routing data is unavailable. Refresh the subscription.',
+            file,
           );
-          if (row != null &&
-              (!row.installed || !await File(p.join(_root, file)).exists())) {
-            throw FileSystemException(
-              'Routing data is not downloaded. Download it in Advanced > Xray > Routing data.',
-              file,
-            );
-          }
         }
-      });
+        continue;
+      }
+      final row = await _db.geoDataDao.searchRowByName(
+        file.substring(0, file.length - 4),
+      );
+      if (row != null &&
+          (!row.installed || !await File(p.join(_root, file)).exists())) {
+        throw FileSystemException(
+          'Routing data is not downloaded. Download it in Advanced > Xray > Routing data.',
+          file,
+        );
+      }
+    }
+  });
 
   Stream<List<GeoDataFile>> watchPublished() =>
       _db.geoDataDao.publishedRowsStream.asyncMap(
@@ -239,6 +253,7 @@ class GeoDataService {
     final reusable = <String, GeoDataData>{};
     final conflicts = <GeoDataData>[];
     for (final source in sources) {
+      _requireCustomFileName(GeoDataInput.canonicalFileName(source.fileName));
       final old = rows
           .where((row) => row.name.toLowerCase() == source.name.toLowerCase())
           .firstOrNull;
@@ -547,6 +562,113 @@ class GeoDataService {
     await change.complete();
   }
 
+  /// Validate new resources before exposing them under immutable names. The
+  /// action validates the Provider configs and commits them with this binding
+  /// while the file publication queue is held.
+  Future<T> withProviderAssets<T>(
+    ProviderGeoDataUrls urls, {
+    required String scope,
+    required Future<T> Function(ProviderGeoDataBinding binding) action,
+    required bool Function(T result) committed,
+  }) => _updates.track(() async {
+    final stage = await _newStage('provider-');
+    final stagePath = p.normalize(stage.path);
+    _activeImportStages.add(stagePath);
+    try {
+      final sources = [
+        if (urls.geoIpUrl case final url?)
+          (name: 'geoip', type: GeoDataType.ip, url: url),
+        if (urls.geoSiteUrl case final url?)
+          (name: 'geosite', type: GeoDataType.domain, url: url),
+      ];
+      final scopeDigest = sha256.convert(utf8.encode(scope));
+      final filenames = <String, String>{};
+      final stagedFiles = <String, ({File data, Digest digest})>{};
+      for (final source in sources) {
+        GeoDataInput.httpsUri(source.url);
+        final data = File(p.join(stage.path, '${source.name}.dat'));
+        await _download(source.url, data);
+        await _index(stage.path, source.name, source.type);
+        final digest = await sha256.bind(data.openRead()).first;
+        final version = sha256.convert([...scopeDigest.bytes, ...digest.bytes]);
+        final filename = 'onexray-provider-${source.name}-$version.dat';
+        filenames[source.name] = filename;
+        final namedData = await data.rename(p.join(stage.path, filename));
+        stagedFiles[filename] = (data: namedData, digest: digest);
+      }
+      final binding = ProviderGeoDataBinding(
+        geoIpFile: filenames['geoip'],
+        geoSiteFile: filenames['geosite'],
+        geoIpUrl: urls.geoIpUrl,
+        geoSiteUrl: urls.geoSiteUrl,
+      );
+      return await withFiles(() async {
+        final customNames = {
+          for (final row in await _db.geoDataDao.allRows)
+            '${row.name}.dat'.toLowerCase(),
+        };
+        final additions = <String, File>{};
+        for (final entry in stagedFiles.entries) {
+          final filename = entry.key;
+          if (customNames.contains(filename)) {
+            throw const FormatException(
+              'Provider routing data name is occupied',
+            );
+          }
+          final installed = File(p.join(_root, filename));
+          if (await FileSystemEntity.type(installed.path, followLinks: false) ==
+              FileSystemEntityType.notFound) {
+            additions[filename] = entry.value.data;
+            continue;
+          }
+          await _regularFile(installed);
+          if (await sha256.bind(installed.openRead()).first !=
+              entry.value.digest) {
+            throw const FormatException('Provider routing data is damaged');
+          }
+        }
+        final change = additions.isEmpty ? null : await _applyFiles(additions);
+        return _commitProviderAssets(change, () => action(binding), committed);
+      });
+    } finally {
+      try {
+        await _deleteStage(stage);
+      } on FileSystemException {
+        // A completed configuration/file transaction remains committed.
+        // Cold-start recovery removes an idle Provider staging directory.
+      } finally {
+        _activeImportStages.remove(stagePath);
+      }
+    }
+  });
+
+  Future<T> _commitProviderAssets<T>(
+    _FlatFileChange? change,
+    Future<T> Function() action,
+    bool Function(T result) committed,
+  ) async {
+    final T result;
+    final bool keep;
+    try {
+      result = await action();
+      keep = committed(result);
+    } catch (_) {
+      await change?.rollback();
+      rethrow;
+    }
+    if (keep) {
+      try {
+        await change?.complete();
+      } on FileSystemException {
+        // The new aliases were already published and their DB references
+        // committed. Never report a transaction failure for cleanup alone.
+      }
+    } else {
+      await change?.rollback();
+    }
+    return result;
+  }
+
   /// Prepare private staging files only. A later confirmed save publishes them
   /// while the caller commits metadata with its configuration.
   Future<GeoDataImport> prepareImports(List<GeoDataInput> inputs) async {
@@ -558,6 +680,7 @@ class GeoDataService {
       if (GeoDataInput.canonicalFileName(source.fileName) != source.fileName) {
         throw const FormatException('Geodata filename is not canonical');
       }
+      _requireCustomFileName(source.fileName);
       GeoDataInput.httpsUri(source.url);
     }
     await withFiles(() async {
@@ -620,12 +743,19 @@ class GeoDataService {
     await for (final entry in parent.list(followLinks: false)) {
       if (entry is! Directory) continue;
       final directoryName = p.basename(entry.path);
+      final stageIsActive = _activeImportStages.contains(
+        p.normalize(entry.path),
+      );
+      if (directoryName.startsWith('.onexray-geodata-provider-')) {
+        if (!stageIsActive) await _deleteStage(entry);
+        continue;
+      }
       if (directoryName.startsWith('.onexray-geodata-backup-')) {
         if ((await _flatNames(entry)).isEmpty) await _deleteStage(entry);
         continue;
       }
       if (!directoryName.startsWith('.onexray-geodata-import-') ||
-          _activeImportStages.contains(p.normalize(entry.path))) {
+          stageIsActive) {
         continue;
       }
       for (final name in await _flatNames(entry)) {
@@ -912,6 +1042,14 @@ class GeoDataService {
   }
 
   static void _checkName(String name) => _checkFileName(name);
+
+  static void _requireCustomFileName(String filename) {
+    if (isProviderGeoDataFileName(filename.toLowerCase())) {
+      throw const FormatException(
+        'Provider routing data filenames are reserved',
+      );
+    }
+  }
 
   static GeoDataType _type(String type) => GeoDataType.values.firstWhere(
     (value) => value.name == type,

@@ -10,6 +10,7 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/region_catalog.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/remnawave.dart';
 
@@ -1798,6 +1799,63 @@ void main() {
     }
   });
 
+  test(
+    'compiled configurations can use only their own Provider DAT aliases',
+    () {
+      final own = 'onexray-provider-geoip-${'a' * 64}.dat';
+      final foreign = 'onexray-provider-geoip-${'b' * 64}.dat';
+      Map<String, dynamic> graph(String file) => {
+        'remarks': 'Literal ext:$foreign:CN',
+        'outbounds': [
+          {
+            'tag': 'custom-direct',
+            'protocol': 'freedom',
+            'settings': {
+              'finalRules': [
+                {
+                  'ip': ['!!ext-ip:$file:CN'],
+                },
+              ],
+            },
+          },
+        ],
+      };
+      CompiledConnection raw(String file) => ConnectionCompiler.compile(
+        settings: ConnectionSettings(expert: true, rawId: 8),
+        entries: [],
+        raw: graph(file),
+        regions: catalog,
+        options: options(),
+      );
+      CompiledConnection provider(
+        String file, {
+        ProviderGeoDataBinding? binding,
+      }) => ConnectionCompiler.compile(
+        settings: ConnectionSettings(selection: ServerSelection.server(8)),
+        entries: [],
+        profile: ResolvedProfile(
+          id: 8,
+          sourceId: 7,
+          name: 'Provider',
+          config: graph(file),
+          geoData: binding,
+        ),
+        regions: catalog,
+        options: options(),
+      );
+      final binding = ProviderGeoDataBinding(geoIpFile: own);
+
+      expect(raw('geoip.dat').config['remarks'], 'Literal ext:$foreign:CN');
+      expect(() => raw(own.toUpperCase()), throwsFormatException);
+      expect(() => provider(own), throwsFormatException);
+      expect(() => provider(foreign, binding: binding), throwsFormatException);
+      expect(
+        provider(own, binding: binding).xrayJson,
+        contains('ext-ip:$own:CN'),
+      );
+    },
+  );
+
   test('Raw keeps source/additional inbound/policy/DNS/routing but overrides runtime fields', () {
     const source = ''' {"inbounds":[{"tag":"tunIn","protocol":"tun","settings":{"name":"ignored"}},
       {"tag":"extra","protocol":"socks","listen":"127.0.0.1","port":18185}],
@@ -1807,7 +1865,7 @@ void main() {
       "policy":{"levels":{"0":{"handshake":7,"statsUserUplink":true}},"system":{"statsOutboundUplink":true}},
       "log":{"error":"user-file","loglevel":"debug"},"metrics":{"listen":"0.0.0.0:8080"},
       "fakeDns":[{"ipPool":"198.18.0.0/15","poolSize":1024,"futureFakeDns":true}],
-      "api":{"tag":"user-api"},"geodata":{"assets":[]},
+      "api":{"tag":"user-api"},"geodata":{"assets":[]},"GeoData":{"assets":[]},
       "futureRoot":{"nested":{"keep":true}},
       "env":{"xray.location.asset":"bad"}}
     ''';
@@ -1833,6 +1891,7 @@ void main() {
     expect(runtime['futureRoot'], jsonDecode(source)['futureRoot']);
     expect(runtime['dns']['futureDns'], jsonDecode(source)['dns']['futureDns']);
     expect(runtime.containsKey('geodata'), false);
+    expect(runtime.containsKey('GeoData'), false);
     expect(runtime['routing']['domainStrategy'], 'IPOnDemand');
     expect(
       runtime['outbounds'].first['streamSettings']['sockopt']['domainStrategy'],

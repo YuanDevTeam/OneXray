@@ -16,6 +16,7 @@ import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/shared/share/configuration_transfer.dart';
 import 'package:onexray/service/connect/routing/custom/geodata_suggestions.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 import 'package:path/path.dart' as p;
 
 void main() {
@@ -112,6 +113,106 @@ void main() {
     fileName: name,
     type: GeoDataType.domain,
     url: 'https://example.com/$name',
+  );
+
+  final providerUrls = ProviderGeoDataUrls(
+    geoIpUrl: 'https://example.com/provider-ip.dat',
+    geoSiteUrl: 'https://example.com/provider-site.dat',
+  );
+
+  Future<ProviderGeoDataBinding> publishProvider(String scope) =>
+      service.withProviderAssets(
+        providerUrls,
+        scope: scope,
+        action: (binding) async => binding,
+        committed: (_) => true,
+      );
+
+  test('Provider DAT names isolate revisions and scopes without replacing defaults', () async {
+    await service.ensureInstalled();
+    final originalRoot = await rootBytes();
+    final first = await publishProvider('first');
+    final reused = await publishProvider('first');
+    final other = await publishProvider('other');
+    expect(first.files, hasLength(2));
+    expect(reused.files, unorderedEquals(first.files));
+    expect(other.files.toSet().intersection(first.files.toSet()), isEmpty);
+    revision = 'two';
+    final updated = await publishProvider('first');
+    expect(updated.files.toSet().intersection(first.files.toSet()), isEmpty);
+    for (final file in first.files) {
+      expect(await File(p.join(datRoot.path, file)).readAsString(), 'one');
+    }
+    for (final file in updated.files) {
+      expect(await File(p.join(datRoot.path, file)).readAsString(), 'two');
+    }
+    expect(
+      await rootBytes(),
+      containsPair('geoip.dat', originalRoot['geoip.dat']),
+    );
+    expect(
+      await rootBytes(),
+      containsPair('geosite.dat', originalRoot['geosite.dat']),
+    );
+    expect(await db.geoDataDao.allRows, isEmpty);
+    await db.geoDataDao.clear();
+    await service.resetAfterDataClear();
+    expect(await rootBytes(), originalRoot);
+  });
+
+  test('aborted Provider publication rolls back only new aliases', () async {
+    await service.ensureInstalled();
+    await publishProvider('first');
+    final committedRoot = await rootBytes();
+    revision = 'two';
+    final rejected = await service.withProviderAssets(
+      providerUrls,
+      scope: 'first',
+      action: (binding) async {
+        for (final file in binding.files) {
+          expect(await File(p.join(datRoot.path, file)).readAsString(), 'two');
+        }
+        return false;
+      },
+      committed: (result) => result,
+    );
+    expect(rejected, isFalse);
+    expect(await rootBytes(), committedRoot);
+    await expectLater(
+      service.withProviderAssets<bool>(
+        providerUrls,
+        scope: 'first',
+        action: (_) async => throw StateError('Fixture commit failed'),
+        committed: (result) => result,
+      ),
+      throwsStateError,
+    );
+    expect(await rootBytes(), committedRoot);
+    failDownload = 'geosite';
+    await expectLater(
+      publishProvider('first'),
+      throwsA(isA<SocketException>()),
+    );
+    expect(await rootBytes(), committedRoot);
+  });
+
+  test(
+    'Provider aliases cannot be imported or silently reused when damaged',
+    () async {
+      await service.ensureInstalled();
+      final binding = await publishProvider('first');
+      final file = binding.geoSiteFile!;
+      await expectLater(service.add(input(file)), throwsFormatException);
+      final target = File(p.join(datRoot.path, file));
+      await target.writeAsString('different bytes');
+      await expectLater(publishProvider('first'), throwsFormatException);
+      expect(await target.readAsString(), 'different bytes');
+      await target.delete();
+      await expectLater(
+        service.requireDependencies({file: GeoDataType.domain}),
+        throwsA(isA<FileSystemException>()),
+      );
+    },
   );
 
   test(

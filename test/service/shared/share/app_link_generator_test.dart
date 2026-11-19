@@ -149,6 +149,27 @@ void main() {
       },
     );
 
+    test('a Provider profile with scoped GeoData directs users to share the subscription', () async {
+      final row = _config(
+        type: CoreConfigType.Remnawave.name,
+        data: base64Encode(utf8.encode('{}')),
+      ).copyWith(subId: 7, providerGeoData: const Value('scoped'));
+      final service = OneXrayAppLinkShareService(
+        geoDataLookup: (_) async =>
+            throw StateError('Scoped data must stay with the subscription'),
+      );
+      await expectLater(
+        service.config(row),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('Share the subscription'),
+          ),
+        ),
+      );
+    });
+
     test(
       'preserved legacy outbound data cannot generate an invalid share link',
       () {

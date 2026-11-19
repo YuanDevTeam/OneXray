@@ -156,6 +156,11 @@ class ServerAssetService {
   /// A personal Raw is a separate asset, validated and limited by its editor.
   Future<int> copyAsRaw(int id, {String? name}) async {
     final draft = await loadComplete(id);
+    if (draft.original.providerGeoData != null) {
+      throw const FormatException(
+        'This Provider configuration uses subscription GeoData and cannot be copied as Raw.',
+      );
+    }
     final config = RemnawaveAdapter.adapt(
       jsonDecode(draft.text) as Map<String, dynamic>,
     );

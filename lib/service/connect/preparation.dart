@@ -434,9 +434,12 @@ class ConnectionPreparation {
         maskAddress: policy.maskAddress,
       ),
     );
-    await _requireDependencies(
-      geoDataReferences(jsonDecode(compiled.xrayJson) as Map<String, dynamic>),
-    );
+    await _requireDependencies({
+      ...geoDataReferences(
+        jsonDecode(compiled.xrayJson) as Map<String, dynamic>,
+      ),
+      if (profile != null) ...profile.geoDataDependencies,
+    });
     for (final server in [...entries, ?finalExit]) {
       final row = await db.coreConfigDao.searchActiveOutboundRow(server.id);
       if (row == null ||
@@ -457,6 +460,7 @@ class ConnectionPreparation {
           current.type != profileRow.type ||
           current.subId != profileRow.subId ||
           current.data != profileRow.data ||
+          current.providerGeoData != profileRow.providerGeoData ||
           current.name != profileRow.name) {
         throw const FormatException(
           'A selected provider configuration changed during preparation',

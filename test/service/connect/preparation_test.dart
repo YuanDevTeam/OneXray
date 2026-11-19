@@ -23,6 +23,7 @@ import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -925,6 +926,77 @@ void main() {
       );
     });
 
+    test(
+      'projects subscription GeoData into the selected runtime only',
+      () async {
+        final file = 'onexray-provider-geosite-${'a' * 64}.dat';
+        final binding = ProviderGeoDataBinding(
+          geoSiteFile: file,
+          geoSiteUrl: 'https://assets.example/geosite.dat',
+        );
+        final original = {
+          ..._providerConfig,
+          'routing': {
+            'rules': [
+              {
+                'type': 'field',
+                'domain': ['geosite:private@tag'],
+                'outboundTag': 'provider-proxy',
+              },
+            ],
+          },
+        };
+        final data = base64Encode(utf8.encode(jsonEncode(original)));
+        final bound = profile.copyWith(
+          data: Value(data),
+          providerGeoData: Value(binding.encode()),
+        );
+        await db.coreConfigDao.updateRow(bound);
+        final otherId = await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: 'Profile without scoped Geodata',
+            type: CoreConfigType.Remnawave.name,
+            tags: '',
+            delay: PingDelayConstants.unknown,
+            subId: source.id,
+            data: Value(data),
+          ),
+        );
+        final checks = <Map<String, GeoDataType>>[];
+        final preparation = _providerPreparation(
+          db,
+          requireDependencies: (dependencies) async => checks.add(dependencies),
+        );
+
+        final boundRuntime = await preparation.prepare(
+          _providerInput(profile.id),
+        );
+        final unboundRuntime = await preparation.prepare(
+          _providerInput(otherId),
+        );
+
+        List<dynamic> providerDomains(ConnectionRuntime runtime) =>
+            ((jsonDecode(runtime.xrayJson)['routing']['rules'] as List)
+                        .singleWhere(
+                          (rule) => rule['outboundTag'] == 'provider-proxy',
+                        )
+                    as Map)['domain']
+                as List;
+
+        expect(providerDomains(boundRuntime), ['ext:$file:private@tag']);
+        expect(
+          providerDomains(ConnectionRuntime.fromRequest(boundRuntime.request)),
+          ['ext:$file:private@tag'],
+        );
+        expect(providerDomains(unboundRuntime), ['geosite:private@tag']);
+        expect(checks, [
+          {file: GeoDataType.domain},
+          <String, GeoDataType>{},
+        ]);
+        expect(await db.coreConfigDao.searchRow(profile.id), bound);
+      },
+    );
+
     for (final mode in [TrafficMode.smart, TrafficMode.custom]) {
       test(
         'fixed provider bypasses $mode routing, probes and final exit',
@@ -1402,7 +1474,7 @@ void main() {
       },
     );
 
-    for (final change in ['mode', 'row']) {
+    for (final change in ['mode', 'row', 'GeoData binding']) {
       test(
         'rejects a provider $change change while dependencies are checked',
         () async {
@@ -1422,8 +1494,16 @@ void main() {
               await db.subscriptionDao.updateRow(
                 source.copyWith(mode: SubscriptionMode.appManaged.name),
               );
-            } else {
+            } else if (change == 'row') {
               await db.subscriptionDao.deleteRow(source.id);
+            } else {
+              final binding = ProviderGeoDataBinding(
+                geoSiteFile: 'onexray-provider-geosite-${'a' * 64}.dat',
+                geoSiteUrl: 'https://assets.example/geosite.dat',
+              );
+              await db.coreConfigDao.updateRow(
+                profile.copyWith(providerGeoData: Value(binding.encode())),
+              );
             }
           } finally {
             finish.complete();

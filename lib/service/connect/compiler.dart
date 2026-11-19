@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
+import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/core/pigeon/constants.dart';
 import 'package:onexray/core/tools/json.dart';
@@ -22,6 +23,7 @@ import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/runtime_outbounds.dart';
 import 'package:onexray/service/shared/xray/fake_dns.dart';
 import 'package:onexray/service/shared/xray/fragment.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 import 'package:onexray/service/shared/xray/remnawave.dart';
 import 'package:onexray/service/shared/xray/vpn_config.dart';
 import 'package:onexray/service/shared/xray/server_dialing.dart';
@@ -31,6 +33,7 @@ class ResolvedProfile {
   final int id;
   final int sourceId;
   final String name;
+  final ProviderGeoDataBinding? geoData;
   final Map<String, dynamic> _config;
 
   ResolvedProfile({
@@ -38,6 +41,7 @@ class ResolvedProfile {
     required this.sourceId,
     required this.name,
     required Map<String, dynamic> config,
+    this.geoData,
   }) : _config = JsonTool.copyMap(config) {
     if (id <= 0 || sourceId <= 0 || name.trim().isEmpty) {
       throw const FormatException('Invalid provider profile');
@@ -55,11 +59,20 @@ class ResolvedProfile {
       config: ConnectionCompiler.parseRawJson(
         utf8.decode(base64Decode(row.data!)),
       ),
+      geoData: ProviderGeoDataBinding.decode(row.providerGeoData),
     );
   }
 
   String get type => CoreConfigType.Remnawave.name;
   Map<String, dynamic> get config => JsonTool.copyMap(_config);
+
+  Map<String, dynamic> adaptedConfig() =>
+      RemnawaveAdapter.adapt(geoData?.apply(_config) ?? _config);
+
+  Map<String, GeoDataType> get geoDataDependencies => {
+    ?geoData?.geoIpFile: GeoDataType.ip,
+    ?geoData?.geoSiteFile: GeoDataType.domain,
+  };
 }
 
 class ResolvedServer {
@@ -329,8 +342,7 @@ class ConnectionCompiler {
           'Provider configuration requires one matching complete profile',
         );
       }
-      final adapted = RemnawaveAdapter.adapt(profile.config);
-      config = _fullRuntimeMap(adapted, options);
+      config = _fullRuntimeMap(profile.adaptedConfig(), options);
     } else if (settings.expert) {
       if (raw == null || entries.isNotEmpty || finalExit != null) {
         throw const FormatException(
@@ -384,7 +396,7 @@ class ConnectionCompiler {
         }
         template['inbounds'] = inbounds;
         return CompiledConnection(
-          xrayJson: jsonEncode(
+          xrayJson: _encodeRuntime(
             _rawRuntimeMap(
               template,
               options,
@@ -617,12 +629,21 @@ class ConnectionCompiler {
       config = normal.toJson();
     }
     return CompiledConnection(
-      xrayJson: jsonEncode(config),
+      xrayJson: _encodeRuntime(config, profile?.geoData),
       entries: entries,
       finalExit: finalExit,
       nodeTags: nodeTags,
       profile: profile,
     );
+  }
+
+  static String _encodeRuntime(
+    Map<String, dynamic> config, [
+    ProviderGeoDataBinding? geoData,
+  ]) {
+    final encoded = jsonEncode(config);
+    (geoData ?? const ProviderGeoDataBinding()).requireInScope(config, encoded);
+    return encoded;
   }
 
   static Map<String, dynamic> _node(ResolvedServer node, String tag) {
@@ -822,9 +843,8 @@ class ConnectionCompiler {
     env.remove('XRAY_TUN_FD');
     env['xray.location.asset'] = VpnConstants.datDir;
     env['xray.location.cert'] = VpnConstants.datDir;
-    config.remove(
-      'geodata',
-    ); // App controls installed files, never core-side remote downloads.
+    // App controls installed files, never core-side remote downloads.
+    config.removeWhere((key, _) => key.toLowerCase() == 'geodata');
     config['log'] = _runtimeLog(options).toJson();
     config['stats'] = <String, dynamic>{};
     config['metrics'] = {'listen': '127.0.0.1:${options.metricsPort}'};

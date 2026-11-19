@@ -54,7 +54,7 @@ abstract final class XrayValidation {
 
   static String raw(Map<String, dynamic> source) {
     final config = JsonTool.copyMap(source);
-    config.remove('geodata');
+    config.removeWhere((key, _) => key.toLowerCase() == 'geodata');
     config.remove('metrics');
     config['log'] = _log().toJson();
     // Keep the feature for user API services which may depend on it.
