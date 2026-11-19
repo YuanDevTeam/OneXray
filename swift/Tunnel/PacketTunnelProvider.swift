@@ -52,20 +52,37 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     private let lifecycle = XrayRuntimeLifecycle()
     private var startContinuation: (generation: UInt64, continuation: CheckedContinuation<Void, Error>)?
     private var pendingStartSignal = false
+    #if os(iOS)
+    // Read and written on stateQueue. Only an admitted request can fail on stop.
+    private var widgetTunnelAttempt: AppleWidgetControlAttempt?
+    #endif
 
     override func startTunnel(
         options: [String: NSObject]? = nil,
         completionHandler: @escaping @Sendable (Error?) -> Void
     ) {
+        #if os(iOS)
+        let widgetAttempt = AppleWidgetPublisher.beginTunnelStart(options: options)
+        #endif
         let request: StartVpnRequest
         do { request = try loadTunnelRequest(options: options) }
         catch {
+            #if os(iOS)
+            if isWidgetRequestFailure(error) {
+                AppleWidgetPublisher.publishFailure(.vpnService, for: widgetAttempt)
+            }
+            #endif
             completionHandler(error)
             return
         }
-        let generation = lifecycle.beginStart()
         #if os(iOS)
+        let generation = Self.stateQueue.sync {
+            widgetTunnelAttempt = widgetAttempt
+            return lifecycle.beginStart()
+        }
         AppleWidgetPublisher.publish(.connecting)
+        #else
+        let generation = lifecycle.beginStart()
         #endif
         let startedByApp = options != nil
         do {
@@ -74,7 +91,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
             }
         } catch {
             #if os(iOS)
-            if lifecycle.isCurrent(generation) { AppleWidgetPublisher.publish(.unknown) }
+            publishWidgetStartFailure(error, for: widgetAttempt, generation: generation)
             #endif
             completionHandler(error)
             return
@@ -87,15 +104,45 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
                     try await startTunnelLegacy(request: request, generation: generation)
                 }
                 try lifecycle.check(generation)
+                #if os(iOS)
+                AppleWidgetPublisher.finishTunnelStart(for: widgetAttempt)
+                #endif
                 completionHandler(nil)
             } catch {
                 #if os(iOS)
-                if lifecycle.isCurrent(generation) { AppleWidgetPublisher.publish(.unknown) }
+                publishWidgetStartFailure(error, for: widgetAttempt, generation: generation)
                 #endif
                 completionHandler(error)
             }
         }
     }
+
+    #if os(iOS)
+    private func isWidgetRequestFailure(_ error: Error) -> Bool {
+        guard !(error is CancellationError) else { return false }
+        guard case .noStartModel? = error as? TunnelError else { return true }
+        // An absent configuration or a snapshot waiting for the APNs settings
+        // commit requires App preparation. An unusable existing snapshot fails.
+        guard let group = extensionGroupContainerURL(),
+              FileManager.default.fileExists(atPath: group.appending(path: StartModelFile).path) else {
+            return false
+        }
+        return (try? ApnsPresetStartGate.isPending(in: group)) == false
+    }
+
+    private func publishWidgetStartFailure(
+        _ error: Error, for attempt: AppleWidgetControlAttempt, generation: UInt64
+    ) {
+        guard lifecycle.isCurrent(generation), !(error is CancellationError) else { return }
+        switch error as? TunnelError {
+        case .noXrayJson?, .startXrayFailed?:
+            AppleWidgetPublisher.publishFailure(.xray, for: attempt)
+        default:
+            AppleWidgetPublisher.publishFailure(.vpnService, for: attempt)
+        }
+        AppleWidgetPublisher.publish(.unknown)
+    }
+    #endif
 
     private func startTunnelLegacy(request: StartVpnRequest, generation: UInt64) async throws {
         try lifecycle.check(generation)
@@ -306,6 +353,11 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
     override func stopTunnel(with reason: NEProviderStopReason) async {
         #if os(iOS)
         AppleWidgetPublisher.publish(.disconnecting)
+        let widgetAttempt = Self.stateQueue.sync {
+            let attempt = widgetTunnelAttempt
+            widgetTunnelAttempt = nil
+            return attempt
+        }
         #endif
         let generation = await withCheckedContinuation { continuation in
             let token = lifecycle.stop(operation: { self.stopXray() }) { token in
@@ -321,6 +373,16 @@ final class PacketTunnelProvider: NEPacketTunnelProvider, @unchecked Sendable {
         }
         guard lifecycle.isCurrent(generation) else { return }
         #if os(iOS)
+        if let widgetAttempt {
+            switch reason {
+            case .providerFailed, .configurationFailed, .connectionFailed:
+                AppleWidgetPublisher.finishTunnelStop(for: widgetAttempt, failed: true)
+            case .userInitiated:
+                AppleWidgetPublisher.finishTunnelStop(for: widgetAttempt, failed: false)
+            default:
+                break
+            }
+        }
         // Core stopped, but NetworkExtension has not confirmed its final status.
         AppleWidgetPublisher.publish(.unknown)
         #endif

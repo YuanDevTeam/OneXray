@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 enum AppleWidgetCommand: Equatable, Sendable {
@@ -29,6 +30,27 @@ enum AppleWidgetStatus: String, Codable, Sendable {
     case connecting
     case connected
     case disconnecting
+}
+
+enum AppleWidgetControlStatus: String, Sendable {
+    case unknown, disconnected, connecting, connected, disconnecting, failed
+}
+
+enum AppleWidgetControlFailure: String, Codable, Sendable {
+    case vpnService, xray
+}
+
+typealias AppleWidgetControlAttempt = UUID
+
+private struct AppleWidgetControlObservation: Codable {
+    struct Failure: Codable {
+        let kind: AppleWidgetControlFailure
+        let observedAt: Date
+    }
+
+    let attempt: AppleWidgetControlAttempt
+    var didStart = false
+    var failure: Failure?
 }
 
 /// A display snapshot, never an input for starting or configuring a tunnel.
@@ -92,6 +114,82 @@ struct AppleWidgetStore: Sendable {
               let value = try? JSONDecoder().decode(AppleWidgetSnapshot.self, from: data),
               value.version == 1 else { return nil }
         return value
+    }
+
+    func displayedControlStatus(at date: Date = Date()) -> AppleWidgetControlStatus {
+        if let failure = controlObservation()?.failure {
+            let age = date.timeIntervalSince(failure.observedAt)
+            if age >= -60 && age < AppleWidgetSnapshot.maximumAge { return .failed }
+        }
+        let status = snapshot()?.displayedStatus(at: date) ?? .unknown
+        return AppleWidgetControlStatus(rawValue: status.rawValue) ?? .unknown
+    }
+
+    /// Record mutations from Runner and the Packet Tunnel in the same attempt order.
+    /// A late callback must neither revive a cleared warning nor replace a newer one.
+    func beginControlAttempt(_ attempt: AppleWidgetControlAttempt) throws -> Bool {
+        try withControlLock {
+            let clearedWarning = controlObservation()?.failure != nil
+            try writeControlObservation(AppleWidgetControlObservation(attempt: attempt))
+            return clearedWarning
+        }
+    }
+
+    func completeControlStart(_ attempt: AppleWidgetControlAttempt) throws -> Bool {
+        try withControlLock {
+            guard var current = controlObservation(), current.attempt == attempt,
+                  !current.didStart else { return false }
+            let clearedWarning = current.failure != nil
+            current.didStart = true
+            current.failure = nil
+            try writeControlObservation(current)
+            return clearedWarning
+        }
+    }
+
+    func writeControlFailure(
+        _ failure: AppleWidgetControlFailure, for attempt: AppleWidgetControlAttempt,
+        afterStart: Bool = false, at date: Date = Date()
+    ) throws -> Bool {
+        try withControlLock {
+            guard var current = controlObservation(), current.attempt == attempt,
+                  afterStart || !current.didStart else { return false }
+            if let previous = current.failure, previous.kind == failure || previous.kind == .xray {
+                return false
+            }
+            current.failure = .init(kind: failure, observedAt: date)
+            try writeControlObservation(current)
+            return true
+        }
+    }
+
+    func endControlAttempt(_ attempt: AppleWidgetControlAttempt? = nil) throws -> Bool {
+        try withControlLock {
+            guard let current = controlObservation(), attempt == nil || current.attempt == attempt else {
+                return false
+            }
+            try FileManager.default.removeItem(at: directory.appendingPathComponent("control-status.json"))
+            return current.failure != nil
+        }
+    }
+
+    private func controlObservation() -> AppleWidgetControlObservation? {
+        guard let data = read("control-status.json") else { return nil }
+        return try? JSONDecoder().decode(AppleWidgetControlObservation.self, from: data)
+    }
+
+    private func writeControlObservation(_ observation: AppleWidgetControlObservation) throws {
+        try write(JSONEncoder().encode(observation), name: "control-status.json")
+    }
+
+    private func withControlLock(_ change: () throws -> Bool) throws -> Bool {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let path = directory.appendingPathComponent("control-status.lock").path
+        let fd = open(path, O_WRONLY | O_CREAT | O_CLOEXEC | O_NOFOLLOW, mode_t(0o600))
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { close(fd) }
+        guard flock(fd, LOCK_EX) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        return try change()
     }
 
     func languageCode() -> String {

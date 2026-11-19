@@ -212,6 +212,7 @@ class VPNManager {
                 self.lastCommandError = nil
                 #if os(iOS)
                 self.activeStartGeneration = nil
+                AppleWidgetPublisher.clearControlFailure()
                 AppleWidgetPublisher.publish(.disconnected)
                 #endif
                 self.runStatusObserver()
@@ -764,11 +765,17 @@ class VPNManager {
         runStatusObserver()
         return await commandResult(state, startGeneration: generation)
         #else
+        #if os(iOS)
+        var controlAttempt: AppleWidgetControlAttempt?
+        #endif
         do {
             let permission = await queryPlatformPermission()
             try checkStartAdmission(generation)
             switch permission.state {
             case .granted, .notRequired:
+                #if os(iOS)
+                controlAttempt = AppleWidgetPublisher.beginControlStart()
+                #endif
                 break
             case .awaitingUserApproval:
                 return await commandResult(.waitingForPlatformPermission, startGeneration: generation)
@@ -798,33 +805,42 @@ class VPNManager {
                     } else {
                         try await waitForStatus(session: session, accepted: [.connected], timeout: 30) {
                             try self.checkStartAdmission(generation)
+                            var options: [String: NSObject] = [:]
                             if let preparedApnsToken {
-                                try session.startTunnel(options: [
-                                    ApnsPresetStartGate.preparedTokenOption: preparedApnsToken as NSString,
-                                ])
-                            } else {
-                                try session.startTunnel()
+                                options[ApnsPresetStartGate.preparedTokenOption] = preparedApnsToken as NSString
                             }
+                            #if os(iOS)
+                            if let controlAttempt {
+                                options[AppleWidgetPublisher.controlAttemptOption] = controlAttempt.uuidString as NSString
+                            }
+                            #endif
+                            try session.startTunnel(options: options.isEmpty ? nil : options)
                             self.finishStartPreparation(generation)
                         }
                     }
                     try checkStartAdmission(generation)
                     return await commandResult(.success, startGeneration: generation)
-                } else {
-                    lastCommandError = VPNError.sessionNotReady.localizedDescription
-                    return await commandResult(.failed, startGeneration: generation)
                 }
-            } else {
-                lastCommandError = VPNError.sessionNotReady.localizedDescription
-                return await commandResult(.failed, startGeneration: generation)
             }
+            throw VPNError.sessionNotReady
         } catch {
             guard startIsCurrent(generation) else { return cancelledStartResult }
             YGLog(error.localizedDescription)
             _ = try? await readStatus()
             guard startIsCurrent(generation) else { return cancelledStartResult }
             if lastCommandError == nil { lastCommandError = error.localizedDescription }
-            return await commandResult(.failed, startGeneration: generation)
+            let result = await commandResult(.failed, startGeneration: generation)
+            #if os(iOS)
+            if let controlAttempt, result.state == .failed, startIsCurrent(generation) {
+                switch error {
+                case is CancellationError, VPNError.statusTimeout:
+                    break
+                default:
+                    AppleWidgetPublisher.publishFailure(.vpnService, for: controlAttempt)
+                }
+            }
+            #endif
+            return result
         }
         #endif
     }
@@ -836,6 +852,7 @@ class VPNManager {
         #if os(iOS)
         let tokens = startAdmission.invalidate()
         AppleWidgetActionInbox.shared.recordNativeStop(invalidatedPreparations: tokens)
+        AppleWidgetPublisher.clearControlFailure()
         #endif
         if let stopTask { return await stopTask.value }
         let task = Task { @MainActor in await self.stopVpnCommand() }

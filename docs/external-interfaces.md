@@ -165,6 +165,8 @@ Widget 唯一公开 URL 为 `onexray://widget/connect`，只打开连接页，�
 
 状态与有效语言通过 App Group 中独立的原子快照传递，语言更新不覆盖原生状态。
 App/隧道扩展发布状态，Widget 只读取展示；快照不是启动输入，不含连接配置或凭据。
+控制中心另读取按启动尝试关联的失败记录，Runner 和隧道扩展同步更新，迟到结果不得覆盖新尝试。
+普通的已断开快照保留近期警告，详细错误仍由原生启动链返回给 App。
 快照写入或 Widget 刷新不可用不改变 VPN 操作结果。版本、family、过期及隐私边界见
 [iOS/iPadOS Widget](app.md#iosipados-widget)。
 
