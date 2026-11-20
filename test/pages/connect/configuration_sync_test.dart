@@ -314,13 +314,16 @@ void main() {
         find.widgetWithText(ChoiceChip, l.serverCompleteConfigurationsTab),
       );
       await tester.pumpAndSettle();
+      final raw = find.widgetWithText(ListTile, 'Personal Raw');
+      await tester.ensureVisible(raw);
+      await tester.pumpAndSettle();
       await tester.runAsync(() async {
         final selected = fixture.connect.stream.firstWhere(
           (state) =>
               state.configuration.connection.expert &&
               state.configuration.connection.rawId == 63,
         );
-        await tester.tap(find.widgetWithText(ListTile, 'Personal Raw'));
+        await tester.tap(raw.hitTestable());
         await selected.timeout(const Duration(seconds: 5));
         final saved = await fixture.coordinator.configuration;
         expect(saved.connection.expert, isTrue);

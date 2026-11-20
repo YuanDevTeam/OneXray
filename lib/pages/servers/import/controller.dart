@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/errors/json_diagnostic.dart';
 import 'package:onexray/core/db/database/database.dart';
@@ -7,6 +9,7 @@ import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
+import 'package:onexray/pages/connect/provider_picker.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/main/navigation.dart';
@@ -99,6 +102,13 @@ class ServerImportPageState {
   int get importedSubscriptionNodes => subscriptionImports
       .where((item) => item.result.success)
       .fold(0, (total, item) => total + item.result.count);
+
+  bool hasProviderConfigurations(ServerSubscriptionImport item) =>
+      item.result.success &&
+      item.result.subId > 0 &&
+      item.result.count > 0 &&
+      subscriptionImportModes[item.result.subId] ==
+          SubscriptionMode.providerManaged;
 
   String subscriptionImportSummary(
     AppLocalizations l10n,
@@ -197,6 +207,8 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
   _saveSubscriptionInput;
   final SubscriptionInsertOperation _insertSubscription;
   final Future<SubscriptionModeAvailability> Function(int) _modeAvailability;
+  final Future<void> Function(BuildContext, {int? sourceId})
+  _chooseProviderConfiguration;
   ServerImportController({
     ServerImportService? service,
     this.subscriptionId,
@@ -205,6 +217,7 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
     saveSubscriptionInput,
     SubscriptionInsertOperation? insertSubscription,
     Future<SubscriptionModeAvailability> Function(int)? modeAvailability,
+    Future<void> Function(BuildContext, {int? sourceId})? chooseConfiguration,
   }) : service = service ?? ServerImportService(),
        _loadSubscription =
            loadSubscription ?? AppDatabase().subscriptionDao.searchRow,
@@ -214,6 +227,8 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
            insertSubscription ?? SubscriptionService().insertSubscription,
        _modeAvailability =
            modeAvailability ?? SubscriptionService().modeAvailability,
+       _chooseProviderConfiguration =
+           chooseConfiguration ?? chooseProviderConfiguration,
        super(ServerImportPageState()) {
     jsonText.addListener(_changed);
     for (final field in [text, name, url, userAgent, secretKey, publicKey]) {
@@ -669,30 +684,70 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
       emit(state.copyWith(committedResult: result));
       return null;
     }
-    if (detection.localText.trim().isEmpty) {
-      if (state.subscriptionImports.any((item) => !item.result.success)) {
-        // Keep failures visible and the original input available for retry.
-        // Closing this input still reports subscriptions already imported.
-        emit(state.copyWith(committedResult: result));
-        return null;
-      }
-      if (context.mounted) {
-        ContextAlert.showToast(
-          context,
-          state.importedSubscriptionCount == 1
-              ? state.subscriptionImportSummary(
-                  AppLocalizations.of(context)!,
-                  state.subscriptionImports.firstWhere(
-                    (item) => item.result.success,
-                  ),
-                )
-              : AppLocalizations.of(context)!.prototypeSubscriptionsImported(
-                  state.importedSubscriptionCount,
+    final subscriptionsOnly = detection.localText.trim().isEmpty;
+    if (subscriptionsOnly &&
+        state.subscriptionImports.any((item) => !item.result.success)) {
+      // Keep failures visible and the original input available for retry.
+      // Closing this input still reports subscriptions already imported.
+      emit(state.copyWith(committedResult: result));
+      return null;
+    }
+    final providers = {
+      for (final item in state.subscriptionImports)
+        if (state.hasProviderConfigurations(item)) item.result.subId: item.name,
+    };
+    if (context.mounted &&
+        (subscriptionsOnly ||
+            providers.isNotEmpty && local?.writeFailureCount == 0)) {
+      final l = AppLocalizations.of(context)!;
+      _showSubscriptionSuccess(
+        context,
+        state.importedSubscriptionCount == 1
+            ? state.subscriptionImportSummary(
+                l,
+                state.subscriptionImports.firstWhere(
+                  (item) => item.result.success,
                 ),
-        );
-      }
+              )
+            : l.prototypeSubscriptionsImported(state.importedSubscriptionCount),
+        providers,
+      );
     }
     return result;
+  }
+
+  Future<void> openProviderConfigurations(BuildContext context, int sourceId) =>
+      _chooseProviderConfiguration(context, sourceId: sourceId);
+
+  void _showSubscriptionSuccess(
+    BuildContext context,
+    String message,
+    Map<int, String> providers,
+  ) {
+    if (providers.isEmpty) {
+      ContextAlert.showToast(context, message);
+      return;
+    }
+    // The root toaster outlives the import routes. Open from its navigator
+    // because the form and enclosing import flow have closed by then.
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final choose = _chooseProviderConfiguration;
+    final label = AppLocalizations.of(context)!.chooseProviderConfiguration;
+    ContextAlert.showToast(
+      context,
+      message,
+      actions: [
+        for (final entry in providers.entries)
+          (
+            label: providers.length == 1 ? label : '$label · ${entry.value}',
+            onPressed: () {
+              if (navigator.mounted) {
+                unawaited(choose(navigator.context, sourceId: entry.key));
+              }
+            },
+          ),
+      ],
+    );
   }
 
   Future<String?> _scan(BuildContext context) async {
@@ -1037,12 +1092,14 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         return;
       }
       var message = l10n.prototypeSubscriptionSaved;
+      var hasProviderConfigurations = false;
       try {
         // Automatic detection and conversion can change the requested mode.
         // Describe the committed resource type rather than the selected panel.
         final saved = await _loadSubscription(result.subId);
         if (saved?.mode == SubscriptionMode.providerManaged.name) {
           message = l10n.providerConfigurationCount(result.count);
+          hasProviderConfigurations = result.subId > 0 && result.count > 0;
         } else if (saved?.mode == SubscriptionMode.appManaged.name) {
           message = l10n.prototypeUsableNodes(result.count);
         }
@@ -1051,9 +1108,10 @@ class ServerImportController extends PageCubit<ServerImportPageState> {
         // a successful write into an "add failed" result.
       }
       if (!isPageActive || !context.mounted) return;
-      ContextAlert.showToast(
+      _showSubscriptionSuccess(
         context,
         [message, ?result.geoDataWarning?.message].join('\n'),
+        {if (hasProviderConfigurations) result.subId: input.name},
       );
       Navigator.of(context).pop(
         ServerImportResult(count: result.count, subscriptionId: result.subId),

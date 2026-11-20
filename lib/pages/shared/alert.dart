@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:go_router/go_router.dart';
@@ -184,14 +185,19 @@ class ContextAlert {
     if (closePage && ModalRoute.of(context)?.isCurrent == true) context.pop();
   }
 
-  static void showToast(BuildContext context, String message) {
+  static void showToast(
+    BuildContext context,
+    String message, {
+    List<({String label, VoidCallback onPressed})> actions = const [],
+  }) {
     final size = MediaQuery.sizeOf(context);
     final compact = size.width < 600;
     final availableWidth = math.max(0.0, size.width - 32);
     final maxWidth = compact ? availableWidth : math.min(420.0, availableWidth);
     final minWidth = compact ? maxWidth : math.min(320.0, maxWidth);
     final colors = ShadTheme.of(context).colorScheme;
-    ShadToaster.of(context).show(
+    final toaster = ShadToaster.of(context);
+    toaster.show(
       ShadToast(
         title: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,13 +207,44 @@ class ContextAlert {
             Expanded(child: Text(message)),
           ],
         ),
+        description: actions.isEmpty
+            ? null
+            : Padding(
+                padding: const EdgeInsetsDirectional.only(start: 28),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: size.height * .35),
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      children: [
+                        for (final action in actions)
+                          TextButton(
+                            style: TextButton.styleFrom(
+                              minimumSize: Size(
+                                0,
+                                AppLayout.touchExtent(
+                                  44,
+                                  platform: Theme.of(context).platform,
+                                ),
+                              ),
+                            ),
+                            onPressed: () {
+                              unawaited(toaster.hide(animate: false));
+                              action.onPressed();
+                            },
+                            child: Text(action.label),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
         alignment: compact ? Alignment.bottomCenter : Alignment.bottomRight,
         backgroundColor: colors.popover,
         constraints: BoxConstraints(minWidth: minWidth, maxWidth: maxWidth),
         padding: const EdgeInsetsDirectional.fromSTEB(16, 14, 36, 14),
         crossAxisAlignment: CrossAxisAlignment.start,
         showCloseIconOnlyWhenHovered: false,
-        duration: const Duration(seconds: 2),
+        duration: Duration(seconds: actions.isEmpty ? 2 : 10),
       ),
     );
   }

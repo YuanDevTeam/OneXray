@@ -894,6 +894,8 @@
   "pingVpnWarning": "测速请求可能经过当前 VPN 连接，延迟结果可能不准确。建议关闭 VPN 后再测速。",
   "pingContinueTest": "继续测速",
   "providerConfigurationTitle": "提供方配置",
+  "providerConfigurationsTitle": "提供方完整配置",
+  "chooseProviderConfiguration": "选择配置",
   "providerRoutingNotice": "使用提供方路由，切回普通节点后恢复 App 路由设置。",
   "providerConfigurationCount": "{count} 份配置",
   "providerChooseConfigurationHint": "请选择此订阅中的某一份配置进行连接。",

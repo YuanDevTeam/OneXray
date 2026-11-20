@@ -894,6 +894,8 @@
   "pingVpnWarning": "Запросы проверки могут проходить через текущее VPN-соединение, поэтому задержка может быть неточной. Рекомендуется отключить VPN перед проверкой.",
   "pingContinueTest": "Продолжить проверку",
   "providerConfigurationTitle": "Конфигурация провайдера",
+  "providerConfigurationsTitle": "Конфигурации провайдера",
+  "chooseProviderConfiguration": "Выбрать конфигурацию",
   "providerRoutingNotice": "Используется маршрутизация провайдера. Настройки приложения вернутся при выборе обычных узлов.",
   "providerConfigurationCount": "{count, plural, one {{count} конфигурация} few {{count} конфигурации} many {{count} конфигураций} other {{count} конфигурации}}",
   "providerChooseConfigurationHint": "Выберите одну конфигурацию этой подписки для подключения.",

@@ -894,6 +894,8 @@
     "pingVpnWarning": "درخواست‌های آزمایش ممکن است از اتصال VPN فعلی عبور کنند و نتیجهٔ تأخیر دقیق نباشد. توصیه می‌شود پیش از آزمایش VPN را قطع کنید.",
     "pingContinueTest": "ادامهٔ آزمایش",
   "providerConfigurationTitle": "پیکربندی ارائه‌دهنده",
+  "providerConfigurationsTitle": "پیکربندی‌های ارائه‌دهنده",
+  "chooseProviderConfiguration": "انتخاب پیکربندی",
   "providerRoutingNotice": "از مسیریابی ارائه‌دهنده استفاده می‌شود. با بازگشت به گره‌های عادی، تنظیمات برنامه دوباره اعمال می‌شوند.",
   "providerConfigurationCount": "{count} پیکربندی",
   "providerChooseConfigurationHint": "برای اتصال، یک پیکربندی از این اشتراک انتخاب کنید.",

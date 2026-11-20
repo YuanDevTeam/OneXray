@@ -14,6 +14,7 @@ import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/connect/dialogs.dart';
+import 'package:onexray/pages/connect/provider_picker.dart';
 import 'package:onexray/pages/connect/target_picker.dart';
 import 'package:onexray/service/connect/resolver.dart';
 import 'package:onexray/service/connect/raw/editor.dart';
@@ -308,7 +309,13 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
     final settings = configuration.connection;
     if (settings.expert) return l10n.xrayRawPageTitle;
     if (selectedProvider != null) return l10n.providerConfigurationTitle;
-    return '${l10n.connectionCandidates(candidateCount(settings.selection))} · ${l10n.connectionRequiredEntries(_configuredEntryCount(settings) ?? 1)}';
+    final count = candidateCount(settings.selection);
+    if (settings.selection.kind == SelectionKind.automatic &&
+        count == 0 &&
+        catalog.providerConfigurations.isNotEmpty) {
+      return null;
+    }
+    return '${l10n.connectionCandidates(count)} · ${l10n.connectionRequiredEntries(_configuredEntryCount(settings) ?? 1)}';
   }
 
   // The runtime chooses the node identity; the badge shows that node's latest
@@ -564,6 +571,22 @@ class ConnectController extends PageCubit<ConnectPageState> with ServerLabels {
 
   Future<void> addServers(BuildContext context) =>
       context.pushScoped(AppPageDestination.serversImport);
+
+  Future<void> chooseProviderConfigurations(BuildContext context) async {
+    if (connectionView.busy || pendingChange != null) return;
+    pendingChange = 'selection';
+    try {
+      await chooseProviderConfiguration(
+        context,
+        catalog: catalog,
+        database: db,
+        coordinator: coordinator,
+      );
+    } finally {
+      pendingChange = null;
+    }
+  }
+
   Future<void> chooseServer(BuildContext context) async {
     if (connectionView.busy || pendingChange != null) return;
     final l = AppLocalizations.of(context)!;

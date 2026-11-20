@@ -51,6 +51,8 @@ void main() {
     VoidCallback? onAddServers,
     VoidCallback? onServer,
     VoidCallback? onConnection,
+    int providerConfigurationCount = 0,
+    VoidCallback? onProviderConfigurations,
   }) => ConnectView(
     view: view,
     hasServers: hasServers,
@@ -69,6 +71,8 @@ void main() {
     onConnection: onConnection ?? () {},
     onAddServers: onAddServers ?? () {},
     onServer: onServer ?? () {},
+    providerConfigurationCount: providerConfigurationCount,
+    onProviderConfigurations: onProviderConfigurations,
     onMethod: onMethod ?? () {},
   );
 
@@ -96,6 +100,32 @@ void main() {
     ),
     home: Scaffold(body: child),
   );
+
+  testWidgets('the connection plan exposes the Provider list directly', (
+    tester,
+  ) async {
+    var providerOpens = 0;
+    var allTargetsOpens = 0;
+    await tester.pumpWidget(
+      app(
+        screen(
+          providerConfigurationCount: 3,
+          onProviderConfigurations: () => providerOpens++,
+          onServer: () => allTargetsOpens++,
+        ),
+      ),
+    );
+
+    final shortcut = find.text('Provider configurations');
+    expect(shortcut, findsOneWidget);
+    expect(find.text('3 configurations'), findsOneWidget);
+    await tester.ensureVisible(shortcut);
+    await tester.tap(shortcut);
+    expect(providerOpens, 1);
+    expect(allTargetsOpens, 0);
+    await tester.pumpWidget(app(screen()));
+    expect(shortcut, findsNothing);
+  });
 
   testWidgets(
     'proxy states distinguish local runtime and publish endpoints only when ready',

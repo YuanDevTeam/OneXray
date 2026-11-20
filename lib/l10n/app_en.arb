@@ -2864,6 +2864,8 @@
   "pingContinueTest": "Continue test",
   "@pingContinueTest": {"description": "Node latency test setting or VPN accuracy reminder."},
   "providerConfigurationTitle": "Provider configuration",
+  "providerConfigurationsTitle": "Provider configurations",
+  "chooseProviderConfiguration": "Choose configuration",
   "providerRoutingNotice": "Uses provider routing. App routing resumes when you switch back to managed nodes.",
   "providerConfigurationCount": "{count, plural, =1 {1 configuration} other {{count} configurations}}",
   "@providerConfigurationCount": {"placeholders": {"count": {"type": "int"}}},

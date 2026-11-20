@@ -113,6 +113,10 @@ class _ConnectPageState extends State<ConnectPage> {
                 onConnection: () => controller.connectionAction(context),
                 onAddServers: () => controller.addServers(context),
                 onServer: () => controller.chooseServer(context),
+                providerConfigurationCount:
+                    state.catalog.providerConfigurations.length,
+                onProviderConfigurations: () =>
+                    controller.chooseProviderConfigurations(context),
                 onMethod: () => controller.chooseTrafficMethod(context),
               );
             },
