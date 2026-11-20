@@ -16,7 +16,7 @@ Git, Python 3.12+, Go согласно `go.mod` libXray и LLVM/libclang для 
 | iOS / macOS | macOS, полный Xcode, SDK и среда нужного симулятора. |
 | Android | Android SDK/NDK из [настроек Gradle](../android/app/build.gradle.kts) и JDK, совместимый с [Gradle wrapper](../android/gradle/wrapper/gradle-wrapper.properties). Задайте `ANDROID_HOME` и `ANDROID_NDK_HOME`. |
 | Linux | Нативные инструменты Linux и пакеты GTK/плагинов ниже. |
-| Windows | Нативная Windows, инструменты Visual Studio C++, Windows SDK, Rust, `uv` и инструменты Go/C нужной архитектуры; см. [подготовку Windows](../build_scripts/README.md#windows). |
+| Windows | Нативная Windows, инструменты Visual Studio C++, Windows SDK, `uv` и инструменты Go/C нужной архитектуры; см. [подготовку Windows](../build_scripts/README.md#windows). |
 
 В рабочем каталоге клонируйте только отсутствующие репозитории:
 
@@ -26,7 +26,7 @@ git clone https://github.com/XTLS/libXray.git
 cd OneXray
 ```
 
-Репозитории должны быть соседними; для Windows нужен также Vole — см. [структуру каталогов](../build_scripts/README.md#prepare-the-workspace).
+Репозитории должны быть соседними.
 Все команды ниже выполняются из корня приложения. Совместимые версии зависимостей
 определены в [Build workflow](../.github/workflows/build.yml); отдельный Xray-core
 не нужен. Сначала проверьте `flutter doctor -v`. Выполняйте Flutter/Dart последовательно,

@@ -35,10 +35,9 @@
 # Layout:
 #   build_scripts/app/builder.py#build_core expects XTLS/libXray as a sibling
 #   of this repo. Every platform build job checks out this repo to `OneXray/`
-#   and libXray to `libXray/` at the workspace root. Windows also checks out
-#   Vole to `Vole/`.
+#   and libXray to `libXray/` at the workspace root.
 #   The standard libXray build provides the native library and the Windows/Linux
-#   OneXrayCore binary; Windows also builds architecture-matched Vole UWP hosts.
+#   OneXrayCore binary. Windows downloads architecture-matched Vole UWP binaries.
 #   Outputs remain under `<workspace>/output`.
 
 name: Build
@@ -70,20 +69,17 @@ concurrency:
 env:
   NDK_VERSION: r30
   LIBXRAY_REF: main
-  VOLE_REPOSITORY: YuanDevTeam/Vole
-  VOLE_REF: main
   BUILD_NUMBER: ${{ github.run_number }}
 
 jobs:
   # =================================================================
-  # Build metadata — records the source and dependency revisions for every
+  # Build metadata — records the App and libXray source revisions for every
   # build. Tag builds additionally include tag.txt for release validation.
   # =================================================================
   release_metadata:
     runs-on: ubuntu-26.04
     outputs:
       libxray_sha: ${{ steps.libxray.outputs.commit }}
-      vole_sha: ${{ steps.vole.outputs.commit }}
     steps:
       - uses: actions/checkout@v7
         id: libxray
@@ -92,23 +88,14 @@ jobs:
           ref: ${{ env.LIBXRAY_REF }}
           path: libXray
 
-      - uses: actions/checkout@v7
-        id: vole
-        with:
-          repository: ${{ env.VOLE_REPOSITORY }}
-          ref: ${{ env.VOLE_REF }}
-          path: Vole
-
       - name: Write build metadata
         env:
           BUILD_TARGET: ${{ inputs.target || 'all' }}
           LIBXRAY_SHA: ${{ steps.libxray.outputs.commit }}
-          VOLE_SHA: ${{ steps.vole.outputs.commit }}
         run: |
           mkdir -p release-metadata
           echo "${GITHUB_SHA}" > release-metadata/sha.txt
           echo "$LIBXRAY_SHA" > release-metadata/libxray-sha.txt
-          echo "$VOLE_SHA" > release-metadata/vole-sha.txt
           echo "$GITHUB_RUN_ID" > release-metadata/run-id.txt
           echo "$GITHUB_RUN_ATTEMPT" > release-metadata/run-attempt.txt
           echo "$GITHUB_REPOSITORY" > release-metadata/repository.txt
@@ -465,12 +452,10 @@ jobs:
         include:
           - arch: x64
             goarch: amd64
-            rust_target: x86_64-pc-windows-msvc
             package_suffix: windows-amd64
             runner: windows-2025-vs2026
           - arch: arm64
             goarch: arm64
-            rust_target: aarch64-pc-windows-msvc
             package_suffix: windows-arm64
             runner: windows-11-vs2026-arm
     runs-on: ${{ matrix.runner }}
@@ -496,26 +481,11 @@ jobs:
           ref: ${{ needs.release_metadata.outputs.libxray_sha }}
           path: libXray
 
-      - uses: actions/checkout@v7
-        with:
-          repository: ${{ env.VOLE_REPOSITORY }}
-          ref: ${{ needs.release_metadata.outputs.vole_sha }}
-          path: Vole
-
       - uses: actions/setup-go@v7
         with:
           go-version: stable
           check-latest: true
           cache-dependency-path: libXray/go.sum
-
-      - uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-          targets: ${{ matrix.rust_target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: Vole
 
       - uses: actions/setup-python@v7
         with:

@@ -16,7 +16,7 @@
 | iOS / macOS | macOS、完整 Xcode、目标 SDK／模拟器 runtime。 |
 | Android | [Gradle 配置](../android/app/build.gradle.kts)指定的 Android SDK/NDK，以及与 [Gradle wrapper](../android/gradle/wrapper/gradle-wrapper.properties)兼容的 JDK；设置 `ANDROID_HOME`、`ANDROID_NDK_HOME`。 |
 | Linux | Linux 原生工具链及下文的 GTK／插件依赖。 |
-| Windows | Windows 原生主机、Visual Studio C++ 工具、Windows SDK、Rust、`uv` 和架构匹配的 Go/C 编译工具；见 [Windows 准备](../build_scripts/README.md#windows)。 |
+| Windows | Windows 原生主机、Visual Studio C++ 工具、Windows SDK、`uv` 和架构匹配的 Go/C 编译工具；见 [Windows 准备](../build_scripts/README.md#windows)。 |
 
 在工作空间中只 clone 尚未准备的仓库：
 
@@ -26,8 +26,8 @@ git clone https://github.com/XTLS/libXray.git
 cd OneXray
 ```
 
-两个仓库放在同一级；Windows 另需 Vole，目录规则见[构建手册](../build_scripts/README.md#prepare-the-workspace)。下文命令均从 App 根目录
-执行。使用与 App 匹配的依赖，CI 引用见 [Build workflow](../.github/workflows/build.yml)，
+两个仓库放在同一级。下文命令均从 App 根目录执行。
+使用与 App 匹配的依赖，CI 引用见 [Build workflow](../.github/workflows/build.yml)，
 无需额外 clone Xray-core。先检查 `flutter doctor -v`。Flutter/Dart 命令跨终端也须
 串行；生成或检查前停止正在运行的 `flutter run`。
 

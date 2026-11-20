@@ -4,7 +4,6 @@ import 'dart:convert';
 import 'package:material_ui/material_ui.dart';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
-import 'package:onexray/core/tools/platform.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
 import 'package:onexray/pages/advanced/xray/config/params.dart';
@@ -94,6 +93,12 @@ class ServersPageState {
   final bool sortSaving;
   final Map<int, String> sourceErrors;
   final List<CoreConfigData> rawConfigurations;
+
+  bool get catalogIsEmpty =>
+      servers.isEmpty &&
+      sources.isEmpty &&
+      rawConfigurations.isEmpty &&
+      catalog.manualGroups.isEmpty;
 
   ServersPageState copyWith({
     ConnectionConfiguration? configuration,
@@ -989,16 +994,6 @@ class ServersController extends PageCubit<ServersPageState>
       ids: ids,
       sourceId: sourceId,
     );
-  }
-
-  Future<void> openServerHelp(BuildContext context) async {
-    final add = await showAppDialog<bool>(
-      context,
-      (_) => ServerHelpDialog(canScanQr: AppPlatform.isMobile),
-    );
-    if (add == true && context.mounted && isPageActive) {
-      await addServers(context);
-    }
   }
 
   Future<void> perform(

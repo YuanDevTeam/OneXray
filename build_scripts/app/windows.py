@@ -3,6 +3,7 @@ import re
 import shutil
 import zipfile
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from app.builder import Builder
 from app.command_line import (
@@ -21,6 +22,7 @@ _VOLE_ARTIFACTS = (
     "vole-windows-session-host.exe",
 )
 VOLE_HEADERS = ("vole.h", "vole_windows_uwp.h")
+_VOLE_RELEASE_URL = "https://github.com/YuanDevTeam/Vole/releases/latest/download"
 _WINTUN_VERSION = "0.14.1"
 
 
@@ -39,8 +41,8 @@ class WindowsBuilder(Builder):
         self.mode = mode
         self.local_development = mode == "msix" and os.environ.get("ONEXRAY_DEV_SIGN") == "1"
         self.target_architecture = self._target_architecture()
-        package_architecture = "amd64" if self.target_architecture == "x64" else "arm64"
-        self.package_suffix = f"windows-{package_architecture}"
+        self.package_architecture = "amd64" if self.target_architecture == "x64" else "arm64"
+        self.package_suffix = f"windows-{self.package_architecture}"
 
     @staticmethod
     def _target_architecture() -> str:
@@ -57,7 +59,7 @@ class WindowsBuilder(Builder):
 
     def before_build(self):
         super().before_build()
-        self.build_vole()
+        self.install_vole()
         self.install_wintun()
 
     def install_wintun(self):
@@ -66,53 +68,24 @@ class WindowsBuilder(Builder):
         archive = cache / f"wintun-{_WINTUN_VERSION}.zip"
         if not archive.is_file():
             download_file(f"https://www.wintun.net/builds/{archive.name}", str(archive))
-        architecture = "amd64" if self.target_architecture == "x64" else "arm64"
         destination = Path(self.project_dir) / "app" / "wintun.dll"
         destination.parent.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(archive) as package:
             # Only the official DLL is bundled; attribution lives on the docs site.
-            destination.write_bytes(package.read(f"wintun/bin/{architecture}/wintun.dll"))
+            destination.write_bytes(
+                package.read(f"wintun/bin/{self.package_architecture}/wintun.dll")
+            )
 
-    def build_vole(self):
-        vole_dir = self._vole_dir()
-        run_command(
-            [
-                "uv",
-                "run",
-                "--project",
-                os.path.join(vole_dir, "scripts"),
-                "--locked",
-                "vole-scripts",
-                "build",
-                "windows",
-                "--backend",
-                "uwp",
-            ],
-            cwd=vole_dir,
-        )
-        output = Path(vole_dir) / "dist/windows" / self.target_architecture / "uwp"
-        for source, destination, names in (
-            (output, Path(self.project_dir) / "app", _VOLE_ARTIFACTS),
-            (output / "include", Path(self.root_dir) / "c/include", VOLE_HEADERS),
-        ):
-            destination.mkdir(parents=True, exist_ok=True)
-            for name in names:
-                shutil.copy2(source / name, destination / name)
-
-    def _vole_dir(self) -> str:
-        configured = os.environ.get("VOLE_DIR")
-        candidates = (
-            [configured]
-            if configured
-            else [
-                os.path.join(self.workspace_dir, "Vole"),
-                os.path.join(self.workspace_dir, "references", "Vole"),
-            ]
-        )
-        for candidate in candidates:
-            if os.path.isfile(os.path.join(candidate, "Cargo.toml")):
-                return os.path.abspath(candidate)
-        raise FileNotFoundError("Vole checkout not found; set VOLE_DIR")
+    def install_vole(self):
+        name = f"vole-ffi-windows-uwp-{self.package_architecture}.zip"
+        with TemporaryDirectory() as directory:
+            archive = Path(directory) / name
+            download_file(f"{_VOLE_RELEASE_URL}/{name}", str(archive))
+            with zipfile.ZipFile(archive) as package:
+                for artifact in _VOLE_ARTIFACTS:
+                    package.extract(artifact, Path(self.project_dir) / "app")
+                for header in VOLE_HEADERS:
+                    package.extract(f"include/{header}", Path(self.root_dir) / "c")
 
     def build_app(self):
         if self.mode == "msix":

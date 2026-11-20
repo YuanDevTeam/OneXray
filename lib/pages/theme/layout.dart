@@ -39,7 +39,6 @@ abstract final class AppLayout {
   static const switchHeight = 26.0;
   static const switchThumbMargin = 3.0;
   static const emptyStateDesktopMinHeight = 280.0;
-  static const emptyStateTextMaxWidth = 420.0;
   static const connectStatusMinHeight = 158.0;
   static const connectDesktopStatusMinHeight = 256.0;
   static const connectDesktopButtonWidth = 228.0;

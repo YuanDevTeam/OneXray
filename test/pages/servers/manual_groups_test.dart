@@ -699,7 +699,13 @@ void main() {
         greaterThan(0),
       );
       expect(tester.takeException(), isNull);
-      await tester.tap(find.widgetWithText(TextButton, l.manualGroupsTitle));
+      expect(
+        find.widgetWithText(FilledButton, l.prototypeAddServers).hitTestable(),
+        findsOneWidget,
+      );
+      final groups = find.byTooltip(l.manualGroupsTitle);
+      expect(groups.hitTestable(), findsOneWidget);
+      await tester.tap(groups);
       await settle(tester);
       expect(find.byType(ServerManualGroupsPage), findsOneWidget);
       expect(

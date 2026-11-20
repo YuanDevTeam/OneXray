@@ -820,7 +820,7 @@ void main() {
     expect(switched, isTrue);
   });
 
-  testWidgets('connection empty state uses the server page layout', (
+  testWidgets('connection empty state fits the shared responsive layout', (
     tester,
   ) async {
     addTearDown(() => tester.binding.setSurfaceSize(null));

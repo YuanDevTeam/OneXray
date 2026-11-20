@@ -40,7 +40,6 @@ class WindowsPackagingTest(unittest.TestCase):
             {
                 "BUILD_NUMBER": "12",
                 "ONEXRAY_DEV_SIGN": "0",
-                "VOLE_DIR": "",
                 "ONEXRAY_DEV_CERT_THUMBPRINT": "a" * 40,
                 "ONEXRAY_DEV_PUBLISHER": "CN=Development Fixture",
             },
@@ -262,47 +261,36 @@ class WindowsPackagingTest(unittest.TestCase):
             with patch.dict(os.environ, settings), self.assertRaises(ValueError):
                 pack_msix("missing stage", "missing.msix", local_development=True)
 
-    def test_vole_build_copies_uwp_runtime_files_and_headers(self):
-        builder = self.builder()
-        source, checkout = self.vole_fixture(builder)
-        with patch("app.windows.run_command") as run:
-            builder.build_vole()
-        self.assertEqual(
-            run.call_args.args[0][-5:], ["vole-scripts", "build", "windows", "--backend", "uwp"]
-        )
-        self.assertEqual(Path(run.call_args.kwargs["cwd"]), checkout)
-        for name in (*_VOLE_ARTIFACTS, *(f"include/{header}" for header in VOLE_HEADERS)):
-            target = (
-                self.root / "c" / name
-                if name.startswith("include/")
-                else self.root / "windows/app" / name
-            )
-            self.assertEqual(target.read_bytes(), (source / name).read_bytes())
-        self.assertFalse((self.root / "windows/app/vole.dll.lib").exists())
-        with (
-            patch.dict(os.environ, {"VOLE_DIR": str(checkout / "missing")}),
-            self.assertRaises(FileNotFoundError),
-        ):
-            builder.build_vole()
+    def test_windows_builds_download_latest_vole_uwp_files(self):
+        files = {
+            **{name: self.root / "windows/app" / name for name in _VOLE_ARTIFACTS},
+            **{f"include/{name}": self.root / "c/include" / name for name in VOLE_HEADERS},
+        }
 
-    def vole_fixture(self, builder):
-        checkout = self.workspace / "references/Vole"
-        source = checkout / f"dist/windows/{builder.target_architecture}/uwp"
-        source.mkdir(parents=True, exist_ok=True)
-        (checkout / "Cargo.toml").write_text("[package]\n")
-        for name in _VOLE_ARTIFACTS:
-            (source / name).write_bytes(name.encode())
-        (source / "include").mkdir(exist_ok=True)
-        for name in VOLE_HEADERS:
-            (source / "include" / name).write_bytes(name.encode())
-        return source, checkout
+        def download(url, destination):
+            with zipfile.ZipFile(destination, "w") as package:
+                for name in files:
+                    package.writestr(name, url.encode())
+                package.writestr("vole.dll.lib", b"unused import library")
 
-    def test_missing_vole_output_stops_the_build(self):
-        builder = self.builder()
-        source, _ = self.vole_fixture(builder)
-        (source / "vole-windows-session-host.exe").unlink()
-        with patch("app.windows.run_command"), self.assertRaises(FileNotFoundError):
-            builder.build_vole()
+        for architecture, suffix, mode in (("x64", "amd64", "exe"), ("arm64", "arm64", "msix")):
+            with self.subTest(architecture=architecture, mode=mode):
+                builder = self.builder(architecture, mode)
+                with (
+                    patch("app.builder.Builder.before_build"),
+                    patch.object(builder, "install_wintun"),
+                    patch("app.windows.download_file", side_effect=download) as fetch,
+                ):
+                    builder.before_build()
+                    builder.before_build()
+                url = (
+                    "https://github.com/YuanDevTeam/Vole/releases/latest/download/"
+                    f"vole-ffi-windows-uwp-{suffix}.zip"
+                )
+                self.assertEqual([call.args[0] for call in fetch.call_args_list], [url, url])
+                for target in files.values():
+                    self.assertEqual(target.read_bytes(), url.encode())
+                self.assertFalse((self.root / "windows/app/vole.dll.lib").exists())
 
     def test_wintun_extracts_the_selected_architecture(self):
         archive = self.workspace / "references/windows-build" / f"wintun-{_WINTUN_VERSION}.zip"
