@@ -16,6 +16,7 @@
 "Start or stop VPN in the background using the last prepared configuration." = "Фоновый запуск или остановка VPN с последней подготовленной конфигурацией.";
 "Start or stop VPN" = "Запустить или остановить VPN";
 "Status pending" = "Состояние требует проверки";
+"VPN connection failed" = "Сбой подключения VPN";
 "Open OneXray to finish setup." = "Откройте OneXray для завершения настройки.";
 "This VPN action must run in OneXray." = "Это действие VPN должно выполняться в OneXray.";
 "OneXray cannot open from this system control right now." = "Сейчас невозможно открыть OneXray из этого системного элемента управления.";

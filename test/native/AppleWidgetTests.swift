@@ -34,6 +34,52 @@ final class AppleWidgetTests: XCTestCase {
         XCTAssertEqual(AppleWidgetSnapshot(status: .unknown, observedAt: now).displayedStatus(at: now), .unknown)
     }
 
+    func testControlWarningSurvivesNormalStatusReadsAndExpiresSeparately() throws {
+        let store = try temporaryStore()
+        let attempt = UUID()
+        let now = Date()
+        XCTAssertFalse(try store.beginControlAttempt(attempt))
+        XCTAssertTrue(try store.writeControlFailure(.xray, for: attempt, at: now))
+        XCTAssertFalse(try store.writeControlFailure(.vpnService, for: attempt, afterStart: true))
+        let lastRead = now.addingTimeInterval(2)
+        XCTAssertTrue(try store.writeStatus(.disconnected, at: lastRead))
+        XCTAssertEqual(store.snapshot()?.displayedStatus(at: lastRead), .disconnected)
+        XCTAssertEqual(store.displayedControlStatus(at: lastRead), .failed)
+        let expires = now.addingTimeInterval(AppleWidgetSnapshot.maximumAge)
+        XCTAssertEqual(store.displayedControlStatus(at: expires), .disconnected)
+    }
+
+    func testControlRetryAndStopRetireOlderCallbacksAcrossStoreInstances() throws {
+        let runner = try temporaryStore()
+        let tunnel = AppleWidgetStore(directory: runner.directory)
+        let first = UUID()
+        let retry = UUID()
+        XCTAssertFalse(try runner.beginControlAttempt(first))
+        XCTAssertTrue(try tunnel.writeControlFailure(.xray, for: first))
+        XCTAssertTrue(try runner.beginControlAttempt(retry))
+        XCTAssertFalse(try tunnel.writeControlFailure(.xray, for: first))
+        XCTAssertFalse(try tunnel.completeControlStart(first))
+        XCTAssertTrue(try runner.writeControlFailure(.vpnService, for: retry))
+        XCTAssertFalse(try tunnel.endControlAttempt(first))
+        XCTAssertEqual(runner.displayedControlStatus(), .failed)
+        XCTAssertTrue(try runner.endControlAttempt())
+        XCTAssertFalse(try tunnel.writeControlFailure(.xray, for: retry))
+        XCTAssertEqual(runner.displayedControlStatus(), .unknown)
+    }
+
+    func testControlSuccessfulStartClearsWarningAndOnlyAllowsConfirmedLaterFailure() throws {
+        let store = try temporaryStore()
+        let attempt = UUID()
+        XCTAssertFalse(try store.beginControlAttempt(attempt))
+        XCTAssertTrue(try store.writeControlFailure(.vpnService, for: attempt))
+        XCTAssertTrue(try store.completeControlStart(attempt))
+        XCTAssertFalse(try store.writeControlFailure(.vpnService, for: attempt))
+        XCTAssertTrue(try store.writeStatus(.connected))
+        XCTAssertEqual(store.displayedControlStatus(), .connected)
+        XCTAssertTrue(try store.writeControlFailure(.vpnService, for: attempt, afterStart: true))
+        XCTAssertEqual(store.displayedControlStatus(), .failed)
+    }
+
     func testMalformedLargeAndNewerSchemaSnapshotsAreUnavailable() throws {
         let store = try temporaryStore()
         let status = store.directory.appendingPathComponent("status.json")

@@ -1645,6 +1645,7 @@ void main() {
         (SubscriptionMode.appManaged, SubscriptionMode.appManaged),
       ]) {
         SubscriptionInput? submitted;
+        int? openedSourceId;
         final controller = ServerImportController(
           loadSubscription: (_) async => SubscriptionData(
             id: 8,
@@ -1662,6 +1663,11 @@ void main() {
               subId: 8,
               count: 3,
             );
+          },
+          chooseConfiguration: (context, {sourceId}) async {
+            expect(context.mounted, isTrue);
+            expect(Navigator.of(context).canPop(), isFalse);
+            openedSourceId = sourceId;
           },
         );
         controller.name.text = 'Provider';
@@ -1712,11 +1718,105 @@ void main() {
           ),
           findsNothing,
         );
+        expect(openedSourceId, isNull);
+        final choose = find.widgetWithText(
+          TextButton,
+          l.chooseProviderConfiguration,
+        );
+        if (savedMode == SubscriptionMode.providerManaged) {
+          expect(choose.hitTestable(), findsOneWidget);
+          await tester.tap(choose);
+          await tester.pumpAndSettle();
+          expect(openedSourceId, 8);
+        } else {
+          expect(choose, findsNothing);
+        }
         expect(tester.takeException(), isNull);
         await controller.close();
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pumpAndSettle();
       }
+    },
+  );
+
+  testWidgets(
+    'Provider app link offers its subscription picker after the wizard closes',
+    (tester) async {
+      _mobileViewport(tester);
+      const importLink =
+          'onexray://onexray.com/sub/add?url=https%3A%2F%2Fexample.test%2Fprofiles'
+          '&panel=remnawave&mode=providerManaged&userAgent=Example%2Ftest'
+          '#Provider';
+      ServerImportResult? imported;
+      int? openedSourceId;
+      final controller = ServerImportController(
+        insertSubscription: (input, {confirmOrdinary}) async {
+          expect(input.url, 'https://example.test/profiles');
+          expect(input.mode, SubscriptionMode.providerManaged);
+          return const SubscriptionInsertResult(
+            status: SubscriptionUpdateResult.success,
+            subId: 15,
+            count: 3,
+          );
+        },
+        loadSubscription: (id) async => SubscriptionData(
+          id: id,
+          name: 'Provider',
+          url: 'https://example.test/profiles',
+          timestamp: DateTime(2026),
+          panel: SubscriptionPanel.remnawave.name,
+          mode: SubscriptionMode.providerManaged.name,
+          hwidEnabled: false,
+        ),
+        chooseConfiguration: (context, {sourceId}) async {
+          expect(context.mounted, isTrue);
+          expect(Navigator.of(context).canPop(), isFalse);
+          openedSourceId = sourceId;
+        },
+      );
+      addTearDown(controller.close);
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                imported = await Navigator.of(context).push<ServerImportResult>(
+                  MaterialPageRoute(
+                    builder: (_) => ServersImportPage(
+                      initialText: importLink,
+                      controller: controller,
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Open link'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open link'));
+      await tester.pumpAndSettle();
+      final l = AppLocalizations.of(
+        tester.element(find.byType(ServerImportFormPage)),
+      )!;
+      await _tapVisible(
+        tester,
+        find.widgetWithText(FilledButton, l.prototypeAddSubscription).last,
+      );
+      await tester.pumpAndSettle();
+      expect(imported?.subscriptionId, 15);
+      expect(find.byType(ServersImportPage), findsNothing);
+      expect(find.byType(ServerImportFormPage), findsNothing);
+      expect(openedSourceId, isNull);
+      final choose = find.widgetWithText(
+        TextButton,
+        l.chooseProviderConfiguration,
+      );
+      expect(choose.hitTestable(), findsOneWidget);
+      await tester.tap(choose);
+      await tester.pumpAndSettle();
+      expect(openedSourceId, 15);
+      expect(tester.takeException(), isNull);
     },
   );
 

@@ -902,7 +902,10 @@ class ServersController extends PageCubit<ServersPageState>
             setSourceError(source.id, null);
             ContextAlert.showToast(
               context,
-              l.prototypeUsableNodes(result.count),
+              [
+                l.prototypeUsableNodes(result.count),
+                ?result.geoDataWarning?.message,
+              ].join('\n'),
             );
           } else {
             final reason = subscriptionFailureMessage(

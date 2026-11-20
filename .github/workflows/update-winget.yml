@@ -45,103 +45,52 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Resolve release tag
+      - name: Read stable release
         id: release
         env:
-          EVENT_TAG: ${{ github.event.release.tag_name }}
-          INPUT_TAG: ${{ inputs.tag_name }}
-        run: |
-          tag="${EVENT_TAG:-$INPUT_TAG}"
-
-          case "$tag" in
-            v*) ;;
-            *)
-              echo "Release tag must start with v: $tag" >&2
-              exit 1
-              ;;
-          esac
-
-          git check-ref-format "refs/tags/$tag"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
-      - name: Verify stable Windows release assets
-        id: verify
-        env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag_name }}
         run: |
-          echo "should_update=false" >> "$GITHUB_OUTPUT"
-
-          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")"
-
-          if [ "$(jq -r '.draft' <<<"$release_json")" != "false" ]; then
+          mkdir -p "$WINGET_OUTPUT"
+          release="$WINGET_OUTPUT/release.json"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$release"
+          if jq -e '.draft' "$release" >/dev/null; then
             echo "Release $RELEASE_TAG is still a draft." >&2
             exit 1
           fi
-
-          if [ "$(jq -r '.prerelease' <<<"$release_json")" != "false" ]; then
+          if jq -e '.prerelease' "$release" >/dev/null; then
             echo "Release $RELEASE_TAG is a pre-release; skipping winget update."
             exit 0
           fi
-
-          for asset in \
-            OneXray-windows-amd64.exe \
-            OneXray-windows-arm64.exe; do
-            if [ "$(jq --arg asset "$asset" '[.assets[] | select(.name == $asset)] | length' <<<"$release_json")" != "1" ]; then
-              echo "Release $RELEASE_TAG is missing required asset: $asset" >&2
-              exit 1
-            fi
+          tag="$(jq -er --arg tag "$RELEASE_TAG" '.tag_name | select(. == $tag and startswith("v") and length > 1)' "$release")"
+          for arch in amd64 arm64; do
+            url="$(jq -er --arg name "OneXray-windows-$arch.exe" \
+              'first(.assets[] | select(.name == $name) | .browser_download_url) // error("Missing release asset: \($name)")' "$release")"
+            echo "${arch}_url=$url" >> "$GITHUB_OUTPUT"
           done
-
-          mkdir -p "$WINGET_OUTPUT"
-          jq . <<<"$release_json" > "$WINGET_OUTPUT/release.json"
-          echo "should_update=true" >> "$GITHUB_OUTPUT"
-
-      - name: Validate winget fork and token
-        if: steps.verify.outputs.should_update == 'true'
-        env:
-          PACKAGE_MANAGER_GITHUB_TOKEN: ${{ secrets.PACKAGE_MANAGER_GITHUB_TOKEN }}
-          WINGET_FORK: ${{ github.repository_owner }}/winget-pkgs
-        run: |
-          if [ -z "${PACKAGE_MANAGER_GITHUB_TOKEN}" ]; then
-            echo "PACKAGE_MANAGER_GITHUB_TOKEN is required." >&2
-            exit 1
-          fi
-
-          export GH_TOKEN="${PACKAGE_MANAGER_GITHUB_TOKEN}"
-          fork_json="$(gh api "repos/${WINGET_FORK}")"
-
-          if [ "$(jq -r '.parent.full_name // empty' <<<"$fork_json")" != "microsoft/winget-pkgs" ]; then
-            echo "${WINGET_FORK} must be a fork of microsoft/winget-pkgs." >&2
-            exit 1
-          fi
-
-          if [ "$(jq -r '.permissions.push // false' <<<"$fork_json")" != "true" ]; then
-            echo "PACKAGE_MANAGER_GITHUB_TOKEN cannot push to ${WINGET_FORK}." >&2
-            exit 1
-          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v7
-        if: steps.verify.outputs.should_update == 'true'
+        if: steps.release.outputs.tag != ''
         with:
           python-version: "3.x"
           check-latest: true
 
       - name: Install uv
-        if: steps.verify.outputs.should_update == 'true'
+        if: steps.release.outputs.tag != ''
         uses: astral-sh/setup-uv@v10.3.3
         with:
           version: "0.x"
           enable-cache: false
 
       - name: Setup Rust
-        if: steps.verify.outputs.should_update == 'true'
+        if: steps.release.outputs.tag != ''
         uses: dtolnay/rust-toolchain@v1
         with:
           toolchain: stable
 
       - name: Install Komac from main
-        if: steps.verify.outputs.should_update == 'true'
+        if: steps.release.outputs.tag != ''
         # Track upstream main and build with its committed Cargo lockfile.
         uses: baptiste0928/cargo-install@v3
         with:
@@ -152,21 +101,22 @@ jobs:
 
       - name: Generate winget manifests
         id: generate
-        if: steps.verify.outputs.should_update == 'true'
+        if: steps.release.outputs.tag != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          AMD64_URL: ${{ steps.release.outputs.amd64_url }}
+          ARM64_URL: ${{ steps.release.outputs.arm64_url }}
           NO_COLOR: "1"
         run: |
           version="${RELEASE_TAG#v}"
-          mapfile -t urls < <(jq -r '.assets[] | select(.name == "OneXray-windows-amd64.exe" or .name == "OneXray-windows-arm64.exe") | .browser_download_url' "$WINGET_OUTPUT/release.json")
           manifest_dir="$WINGET_OUTPUT/generated/manifests/y/YuanDevLLC/OneXray/$version"
           mkdir -p "$manifest_dir"
 
           # Komac dry-run prints manifests but returns before handling --output.
           # Split at its generated headers and name each file from its metadata.
           komac update "$WINGET_IDENTIFIER" --version "$version" \
-            --dry-run --urls "${urls[@]}" \
+            --dry-run --urls "$AMD64_URL" "$ARM64_URL" \
             | awk -v dir="$manifest_dir" -v id="$WINGET_IDENTIFIER" '
                 function save() {
                   if (type == "") return
@@ -183,30 +133,19 @@ jobs:
                 END { save() }
               '
 
-          test -s "$manifest_dir/$WINGET_IDENTIFIER.installer.yaml"
           echo "manifest_dir=$manifest_dir" >> "$GITHUB_OUTPUT"
 
-      - name: Fix installer fields
-        if: steps.verify.outputs.should_update == 'true'
+      - name: Fix and validate winget manifests
+        if: steps.release.outputs.tag != ''
         env:
-          MANIFEST_DIR: ${{ steps.generate.outputs.manifest_dir }}
-        run: uv run --script build_scripts/winget_manifest.py fix "$MANIFEST_DIR"
-
-      - name: Validate winget manifests
-        if: steps.verify.outputs.should_update == 'true'
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
           MANIFEST_DIR: ${{ steps.generate.outputs.manifest_dir }}
         run: |
+          uv run --script build_scripts/winget_manifest.py fix "$MANIFEST_DIR"
           uv run --script build_scripts/winget_manifest.py validate "$MANIFEST_DIR" \
             --release "$WINGET_OUTPUT/release.json"
-          komac submit "$MANIFEST_DIR" --dry-run
-        # Komac's dry-run parses the saved files without opening a PR.
-        # Generation and validation use only the read-only token.
-        # JSON Schema validation does not replace Windows installation testing.
 
       - name: Upload validated manifests
-        if: steps.verify.outputs.should_update == 'true'
+        if: steps.release.outputs.tag != ''
         uses: actions/upload-artifact@v7
         with:
           name: winget-${{ steps.release.outputs.tag }}
@@ -214,7 +153,7 @@ jobs:
           if-no-files-found: error
 
       - name: Submit validated manifests
-        if: steps.verify.outputs.should_update == 'true'
+        if: steps.release.outputs.tag != ''
         env:
           GH_TOKEN: ${{ secrets.PACKAGE_MANAGER_GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.PACKAGE_MANAGER_GITHUB_TOKEN }}
@@ -222,6 +161,11 @@ jobs:
           MANIFEST_DIR: ${{ steps.generate.outputs.manifest_dir }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
+          fork="$KOMAC_FORK_OWNER/winget-pkgs"
+          if [[ "$(gh api "repos/$fork" --jq '.parent.full_name')" != "microsoft/winget-pkgs" ]]; then
+            echo "$fork must be a fork of microsoft/winget-pkgs." >&2
+            exit 1
+          fi
           title="New version: $WINGET_IDENTIFIER version ${RELEASE_TAG#v}"
           existing_pr="$(gh search prs --repo microsoft/winget-pkgs --state open \
             --match title "$title" --json title,url \

@@ -10,6 +10,7 @@ import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/connect/routing/region_catalog.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/routing/custom/advanced.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/remnawave.dart';
 
@@ -40,6 +41,7 @@ RuntimeOptions options({
   String tunDnsIpv6Address = '2001:4860:4860::8888',
   bool lanProxyEnabled = false,
   int lanProxyPort = defaultLanProxyPort,
+  bool apnsProxyPreset = false,
 }) => RuntimeOptions(
   platform: platform,
   windowsMode: windowsMode,
@@ -52,6 +54,7 @@ RuntimeOptions options({
   tunDnsIpv6Address: tunDnsIpv6Address,
   lanProxyEnabled: lanProxyEnabled,
   lanProxyPort: lanProxyPort,
+  apnsProxyPreset: apnsProxyPreset,
 );
 
 ResolvedServer node(int id, {String? address}) => ResolvedServer(
@@ -65,6 +68,104 @@ ResolvedServer node(int id, {String? address}) => ResolvedServer(
 );
 
 void main() {
+  test(
+    'APNs preset prioritizes TUN traffic and proxy DNS in ordinary routes',
+    () {
+      final custom = RoutingProfileState(
+        name: 'Custom',
+        fakeDns: true,
+        rules: [
+          RoutingRuleState(
+            domain: ['geosite:APPLE'],
+            action: RoutingRuleAction.direct,
+          ),
+        ],
+      );
+      final originalCustom = jsonEncode(custom.toJson());
+      for (final mode in [TrafficMode.smart, TrafficMode.custom]) {
+        final settings = ConnectionSettings(
+          trafficMode: mode,
+          smart: SmartRoutingSettings(finalExitId: 2),
+        );
+        Map<String, dynamic> compile({required bool enabled}) =>
+            ConnectionCompiler.compile(
+              settings: settings,
+              entries: [node(1)],
+              finalExit: mode == TrafficMode.smart ? node(2) : null,
+              custom: mode == TrafficMode.custom ? custom : null,
+              regions: catalog,
+              options: options(
+                platform: ConnectionPlatform.ios,
+                lanProxyEnabled: true,
+                apnsProxyPreset: enabled,
+              ),
+            ).config;
+
+        final baseline = compile(enabled: false);
+        final config = compile(enabled: true);
+        final rules = (config['routing']['rules'] as List).cast<Map>();
+        final first = rules.indexWhere(
+          (rule) => rule['ruleTag'] == 'app-apns-proxy-domain',
+        );
+        expect(rules[first - 1]['ruleTag'], 'app-tunnel-dot');
+        expect(rules[first + 3]['ruleTag'], startsWith('app-${mode.name}-'));
+        expect(rules[first]['domain'], ['domain:push.apple.com']);
+        expect(rules[first + 1]['ip'], contains('17.57.144.0/22'));
+        expect(rules[first + 2]['ip'], contains('2403:300:a42::/48'));
+        for (final rule in rules.skip(first).take(3)) {
+          expect(rule['inboundTag'], ['tunIn']);
+          expect(rule['balancerTag'], 'proxy');
+        }
+        expect([
+          ...rules.take(first),
+          ...rules.skip(first + 3),
+        ], baseline['routing']['rules']);
+        expect(
+          config['routing']['balancers'],
+          baseline['routing']['balancers'],
+        );
+        expect(config['inbounds'], baseline['inbounds']);
+
+        final resolvers = (config['dns']['servers'] as List).cast<Map>();
+        final proxy = resolvers.indexWhere(
+          (server) =>
+              server['tag'] == 'app-dns-proxy' &&
+              (server['domains'] as List?)?.contains('domain:push.apple.com') ==
+                  true,
+        );
+        expect(proxy, greaterThanOrEqualTo(0));
+        expect(resolvers[proxy]['finalQuery'], true);
+        expect(
+          proxy,
+          lessThan(
+            resolvers.indexWhere((server) => server['tag'] == 'app-dns-direct'),
+          ),
+        );
+        if (mode == TrafficMode.custom) {
+          expect(resolvers[proxy - 1]['address'], 'fakedns');
+          expect(resolvers[proxy - 1]['domains'], ['domain:push.apple.com']);
+        }
+      }
+      expect(jsonEncode(custom.toJson()), originalCustom);
+    },
+  );
+
+  test('APNs preset does not alter All VPN or non-iOS routing', () {
+    for (final (platform, mode) in [
+      (ConnectionPlatform.ios, TrafficMode.allVpn),
+      (ConnectionPlatform.android, TrafficMode.smart),
+    ]) {
+      Map<String, dynamic> compile({required bool enabled}) =>
+          ConnectionCompiler.compile(
+            settings: ConnectionSettings(trafficMode: mode),
+            entries: [node(1)],
+            regions: catalog,
+            options: options(platform: platform, apnsProxyPreset: enabled),
+          ).config;
+      expect(compile(enabled: true), compile(enabled: false));
+    }
+  });
+
   test('copying a provider profile into personal Raw retains its tunnel routing semantics', () {
     final source = <String, dynamic>{
       'inbounds': [
@@ -1698,6 +1799,63 @@ void main() {
     }
   });
 
+  test(
+    'compiled configurations can use only their own Provider DAT aliases',
+    () {
+      final own = 'onexray-provider-geoip-${'a' * 64}.dat';
+      final foreign = 'onexray-provider-geoip-${'b' * 64}.dat';
+      Map<String, dynamic> graph(String file) => {
+        'remarks': 'Literal ext:$foreign:CN',
+        'outbounds': [
+          {
+            'tag': 'custom-direct',
+            'protocol': 'freedom',
+            'settings': {
+              'finalRules': [
+                {
+                  'ip': ['!!ext-ip:$file:CN'],
+                },
+              ],
+            },
+          },
+        ],
+      };
+      CompiledConnection raw(String file) => ConnectionCompiler.compile(
+        settings: ConnectionSettings(expert: true, rawId: 8),
+        entries: [],
+        raw: graph(file),
+        regions: catalog,
+        options: options(),
+      );
+      CompiledConnection provider(
+        String file, {
+        ProviderGeoDataBinding? binding,
+      }) => ConnectionCompiler.compile(
+        settings: ConnectionSettings(selection: ServerSelection.server(8)),
+        entries: [],
+        profile: ResolvedProfile(
+          id: 8,
+          sourceId: 7,
+          name: 'Provider',
+          config: graph(file),
+          geoData: binding,
+        ),
+        regions: catalog,
+        options: options(),
+      );
+      final binding = ProviderGeoDataBinding(geoIpFile: own);
+
+      expect(raw('geoip.dat').config['remarks'], 'Literal ext:$foreign:CN');
+      expect(() => raw(own.toUpperCase()), throwsFormatException);
+      expect(() => provider(own), throwsFormatException);
+      expect(() => provider(foreign, binding: binding), throwsFormatException);
+      expect(
+        provider(own, binding: binding).xrayJson,
+        contains('ext-ip:$own:CN'),
+      );
+    },
+  );
+
   test('Raw keeps source/additional inbound/policy/DNS/routing but overrides runtime fields', () {
     const source = ''' {"inbounds":[{"tag":"tunIn","protocol":"tun","settings":{"name":"ignored"}},
       {"tag":"extra","protocol":"socks","listen":"127.0.0.1","port":18185}],
@@ -1707,7 +1865,7 @@ void main() {
       "policy":{"levels":{"0":{"handshake":7,"statsUserUplink":true}},"system":{"statsOutboundUplink":true}},
       "log":{"error":"user-file","loglevel":"debug"},"metrics":{"listen":"0.0.0.0:8080"},
       "fakeDns":[{"ipPool":"198.18.0.0/15","poolSize":1024,"futureFakeDns":true}],
-      "api":{"tag":"user-api"},"geodata":{"assets":[]},
+      "api":{"tag":"user-api"},"geodata":{"assets":[]},"GeoData":{"assets":[]},
       "futureRoot":{"nested":{"keep":true}},
       "env":{"xray.location.asset":"bad"}}
     ''';
@@ -1733,6 +1891,7 @@ void main() {
     expect(runtime['futureRoot'], jsonDecode(source)['futureRoot']);
     expect(runtime['dns']['futureDns'], jsonDecode(source)['dns']['futureDns']);
     expect(runtime.containsKey('geodata'), false);
+    expect(runtime.containsKey('GeoData'), false);
     expect(runtime['routing']['domainStrategy'], 'IPOnDemand');
     expect(
       runtime['outbounds'].first['streamSettings']['sockopt']['domainStrategy'],

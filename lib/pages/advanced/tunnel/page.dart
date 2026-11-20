@@ -5,7 +5,9 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/pages/advanced/tunnel/controller.dart';
 import 'package:onexray/pages/advanced/tunnel/widgets.dart';
+import 'package:onexray/pages/main/page_visibility.dart';
 import 'package:onexray/pages/shared/alert.dart';
+import 'package:onexray/pages/shared/widgets/app_switch.dart';
 import 'package:onexray/pages/shared/widgets/button_progress.dart';
 import 'package:onexray/pages/shared/widgets/setting_row.dart';
 import 'package:onexray/pages/shared/widgets/settings_page.dart';
@@ -52,9 +54,9 @@ class VpnTunnelPane extends StatelessWidget {
                   ),
           );
         }
-        final ipv6 = controller.value['ipv6Enabled'] == true;
+        final ipv6 = controller.effectiveIpv6;
         final pending = draft.hasChanges;
-        return Scaffold(
+        final pane = Scaffold(
           body: SettingsPageScroll(
             desktopMaxWidth: AppLayout.advancedMaxWidth,
             padding: EdgeInsets.zero,
@@ -71,6 +73,8 @@ class VpnTunnelPane extends StatelessWidget {
                         color: palette.destructive,
                       ),
                     ),
+                  if (controller.platform == ConnectionPlatform.ios)
+                    _apnsPreset(context, controller, l),
                   SettingSection(
                     key: const ValueKey('tunnel-connection-parameters'),
                     title: l.tunnelConnectionParameters,
@@ -234,9 +238,103 @@ class VpnTunnelPane extends StatelessWidget {
                 )
               : null,
         );
+        if (controller.platform != ConnectionPlatform.ios) return pane;
+        return PageVisibility(
+          onChanged: (visible) =>
+              controller.apnsPresetPageVisibilityChanged(context, visible),
+          child: pane,
+        );
       },
     ),
   );
+
+  Widget _apnsPreset(
+    BuildContext context,
+    PolicyEditorController controller,
+    AppLocalizations l,
+  ) {
+    final state = controller.state;
+    final enabled = controller.apnsPresetEnabled;
+    final checking = state.appleCapabilitiesLoading || state.apnsPresetChecking;
+    final capabilities = state.appleCapabilities;
+    final retry =
+        !checking &&
+        (capabilities == null ||
+            capabilities.serviceExclusions &&
+                state.apnsPresetApplicable == null);
+    final status =
+        enabled != controller.draft!.original.policy.appleApnsProxyPreset
+        ? l.tunnelApnsPresetPendingSave
+        : enabled && controller.apnsPresetApplied
+        ? l.tunnelApnsPresetApplied
+        : checking
+        ? l.prototypePleaseWait
+        : retry
+        ? l.prototypeTemporarilyUnavailable
+        : capabilities?.serviceExclusions != true
+        ? l.tunnelApnsPresetRequiresIos
+        : state.apnsPresetApplicable == false
+        ? l.tunnelApnsPresetUnavailableForConfiguration
+        : enabled
+        ? l.lanProxyNextStartNotice
+        : l.tunnelApnsPresetDescription;
+    return SettingSection(
+      key: const ValueKey('tunnel-presets'),
+      title: l.tunnelPresets,
+      padding: EdgeInsets.zero,
+      children: [
+        MergeSemantics(
+          child: SettingRow(
+            key: const ValueKey('tunnel-apns-preset'),
+            title: l.tunnelApnsPreset,
+            subtitleWidget: Text(
+              status,
+              style: AppTypography.supporting.copyWith(
+                color: ColorManager.secondaryText(context),
+              ),
+            ),
+            leading: const Icon(LucideIcons.bell),
+            trailing: AppSwitch(
+              value: enabled,
+              onChanged:
+                  controller.blocked ||
+                      controller.runtimeBusy ||
+                      (!enabled &&
+                          (checking || !controller.canEnableApnsPreset))
+                  ? null
+                  : (value) => controller.toggleApnsProxyPreset(
+                      context,
+                      value,
+                      saveImmediately: true,
+                    ),
+            ),
+          ),
+        ),
+        if (controller.apnsPresetDisconnectsOnCellular)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(bottom: 12),
+            child: Text(
+              l.tunnelApnsPresetCellularDisconnect,
+              style: AppTypography.supporting.copyWith(
+                color: ColorManager.secondaryText(context),
+              ),
+            ),
+          ),
+        if (retry)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              onPressed: controller.blocked
+                  ? null
+                  : capabilities == null
+                  ? controller.readAppleCapabilities
+                  : controller.refreshApnsPresetApplicability,
+              child: Text(l.prototypeRetry),
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _proxySettings(
     BuildContext context,

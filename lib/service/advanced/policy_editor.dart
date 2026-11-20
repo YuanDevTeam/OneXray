@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:collection/collection.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
+import 'package:onexray/core/pigeon/host_api.dart';
 import 'package:onexray/core/proxy/host.dart';
 import 'package:onexray/service/advanced/local_api/service.dart';
 import 'package:onexray/service/connect/coordinator.dart';
@@ -36,6 +37,7 @@ class PolicyEditorService {
   final bool validateInterface;
   final Future<int?> Function() _reservedApiPort;
   final Future<({bool supported, String? reason})> Function()? _proxyCapability;
+  final Future<bool> Function()? _supportsApnsProxyPreset;
 
   PolicyEditorService({
     ConnectionCoordinator? coordinator,
@@ -44,6 +46,7 @@ class PolicyEditorService {
     this.validateInterface = true,
     Future<int?> Function()? reservedApiPort,
     Future<({bool supported, String? reason})> Function()? proxyCapability,
+    Future<bool> Function()? supportsApnsProxyPreset,
   }) : coordinator = coordinator ?? ConnectionCoordinator.instance,
        platform = platform ?? connectionPlatform,
        windowsMode = windowsMode ?? windowsBuildMode,
@@ -51,7 +54,9 @@ class PolicyEditorService {
            reservedApiPort ?? LocalApiService.instance.reservedPort,
        // Keep the injectable named argument public while storing it privately.
        // ignore: prefer_initializing_formals
-       _proxyCapability = proxyCapability;
+       _proxyCapability = proxyCapability,
+       // ignore: prefer_initializing_formals
+       _supportsApnsProxyPreset = supportsApnsProxyPreset;
 
   bool get supportsWindowsSystemVpn =>
       platform == ConnectionPlatform.windows && windowsMode == WindowsMode.msix;
@@ -60,6 +65,18 @@ class PolicyEditorService {
     await coordinator.initialize();
     return PolicyEditorDraft(await coordinator.configuration);
   }
+
+  Future<bool> apnsProxyPresetApplicable(
+    ConnectionConfiguration configuration,
+  ) async =>
+      platform == ConnectionPlatform.ios &&
+      await _usesAppManagedOrdinaryRouting(configuration.connection);
+
+  Future<bool> _apnsProxyPresetSupported() async =>
+      await (_supportsApnsProxyPreset?.call() ??
+          AppHostApi().appleVpnCapabilities().then(
+            (value) => value.serviceExclusions,
+          ));
 
   bool get requiresInterface =>
       validateInterface &&
@@ -83,7 +100,10 @@ class PolicyEditorService {
         (android['includedAppPackageNames'] as List).isEmpty;
   }
 
-  ({PlatformPolicy policy, Object runtime}) prepare(PolicyEditorDraft draft) {
+  ({PlatformPolicy policy, Object runtime}) prepare(
+    PolicyEditorDraft draft, {
+    bool apnsPresetApplicable = false,
+  }) {
     final value = draft.copy().policy;
     final apple =
         platform == ConnectionPlatform.ios ||
@@ -103,14 +123,11 @@ class PolicyEditorService {
         policy.xrayOutboundInterfaceName.trim().isEmpty) {
       throw const FormatException('Network interface is required');
     }
-    Map<String, dynamic>? appleTun;
     if (policy.usesProxy(platform)) {
       // Tunnel-only drafts stay stored without becoming proxy requirements.
     } else if (supportsWindowsSystemVpn) {
       policy.toWindowsPolicy();
-    } else if (apple) {
-      appleTun = policy.toTun(platform).toJson();
-    } else {
+    } else if (!apple) {
       policy.validateDns(platform, windowsMode: windowsMode);
     }
     return (
@@ -119,7 +136,7 @@ class PolicyEditorService {
         policy,
         platform,
         windowsMode: windowsMode,
-        appleTun: appleTun,
+        apnsPresetApplicable: apnsPresetApplicable,
       ),
     );
   }
@@ -128,9 +145,26 @@ class PolicyEditorService {
     required PolicyEditorDraft draft,
     required Future<bool> Function(bool disconnect) confirm,
   }) async {
-    final prepared = prepare(draft);
-    final policy = prepared.policy;
+    final wantsApnsPreset =
+        platform == ConnectionPlatform.ios &&
+        draft.policy['apple']['apnsProxyPreset'] == true;
+    final basePolicy = wantsApnsPreset ? null : prepare(draft).policy;
     await coordinator.initialize();
+    await coordinator.refresh();
+    if ((await coordinator.configuration).encode() != draft.original.encode()) {
+      throw const ConnectionHostException('configurationChanged');
+    }
+    final applyServerDialing = await _usesAppManagedOrdinaryRouting(
+      draft.original.connection,
+    );
+    final apnsPresetApplicable =
+        platform == ConnectionPlatform.ios &&
+        applyServerDialing &&
+        (coordinator.state.value.runtime?.apnsProxyPresetApplied == true ||
+            (wantsApnsPreset && await _apnsProxyPresetSupported()));
+    final policy =
+        basePolicy ??
+        prepare(draft, apnsPresetApplicable: apnsPresetApplicable).policy;
     await _validateLanProxy(draft, policy);
     if (policy.usesProxy(platform) &&
         policy.proxyPort == await _reservedApiPort()) {
@@ -145,18 +179,13 @@ class PolicyEditorService {
         'Automatic system proxy settings are unavailable',
       );
     }
-    await coordinator.refresh();
-    if ((await coordinator.configuration).encode() != draft.original.encode()) {
-      throw const ConnectionHostException('configurationChanged');
-    }
     final changed = !sameRuntime(
       draft.original.policy,
       policy,
       platform,
       windowsMode: windowsMode,
-      applyServerDialing: await _usesManagedServerDialing(
-        draft.original.connection,
-      ),
+      applyServerDialing: applyServerDialing,
+      apnsPresetApplicable: apnsPresetApplicable,
     );
     final disconnect =
         platform == ConnectionPlatform.android && emptyAndroidScope(policy);
@@ -180,7 +209,9 @@ class PolicyEditorService {
     return true;
   }
 
-  Future<bool> _usesManagedServerDialing(ConnectionSettings settings) async {
+  Future<bool> _usesAppManagedOrdinaryRouting(
+    ConnectionSettings settings,
+  ) async {
     if (settings.expert ||
         await usesProviderConfiguration(
           coordinator.db,
@@ -240,18 +271,21 @@ class PolicyEditorService {
     ConnectionPlatform platform, {
     WindowsMode? windowsMode,
     bool applyServerDialing = true,
+    bool apnsPresetApplicable = false,
   }) => const DeepCollectionEquality().equals(
     _effectiveRuntime(
       a,
       platform,
       windowsMode: windowsMode,
       applyServerDialing: applyServerDialing,
+      apnsPresetApplicable: apnsPresetApplicable,
     ),
     _effectiveRuntime(
       b,
       platform,
       windowsMode: windowsMode,
       applyServerDialing: applyServerDialing,
+      apnsPresetApplicable: apnsPresetApplicable,
     ),
   );
 
@@ -259,12 +293,18 @@ class PolicyEditorService {
     PlatformPolicy policy,
     ConnectionPlatform platform, {
     WindowsMode? windowsMode,
-    Map<String, dynamic>? appleTun,
     bool applyServerDialing = true,
+    bool apnsPresetApplicable = false,
   }) {
+    final apnsPresetApplied =
+        platform == ConnectionPlatform.ios &&
+        apnsPresetApplicable &&
+        policy.appleApnsProxyPreset;
+    if (apnsPresetApplied) policy = policy.withApnsProxyPresetApplied();
     final json = policy.toJson();
     final runtimeDns = policy.runtimeDns(platform);
     final result = <String, dynamic>{
+      if (apnsPresetApplied) 'apnsProxyPresetApplied': true,
       'ipv6': policy.ipv6Enabled,
       if (applyServerDialing)
         'dialing': policy.dialing.effective(ipv6: policy.ipv6Enabled).toJson(),
@@ -296,7 +336,7 @@ class PolicyEditorService {
       result['android'] = {'scope': scope, 'packages': packages};
     } else if (platform == ConnectionPlatform.ios ||
         platform == ConnectionPlatform.macos) {
-      final tun = appleTun ?? policy.toTun(platform).toJson();
+      final tun = policy.toTun(platform).toJson();
       if (tun['enableDot'] != true) tun.remove('dnsServerName');
       result['apple'] = tun;
     } else {

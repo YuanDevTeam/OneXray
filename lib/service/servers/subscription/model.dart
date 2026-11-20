@@ -94,12 +94,14 @@ final class SubscriptionInsertResult {
     this.subId = 0,
     this.count = 0,
     this.error,
+    this.geoDataWarning,
   });
 
   final SubscriptionUpdateResult status;
   final int subId;
   final int count;
   final Object? error;
+  final FormatException? geoDataWarning;
 
   bool get success => status == SubscriptionUpdateResult.success && count > 0;
 }
@@ -128,12 +130,14 @@ final class SubscriptionRefreshResult {
     this.count = 0,
     this.superseded = false,
     this.error,
+    this.geoDataWarning,
   });
 
   final SubscriptionUpdateResult status;
   final int count;
   final bool superseded;
   final Object? error;
+  final FormatException? geoDataWarning;
 
   bool get success =>
       !superseded && status == SubscriptionUpdateResult.success && count > 0;

@@ -6,6 +6,32 @@ public let TunMtu: NSNumber = 1500
 public let StartModelFile = "run/start.json"
 public let ProxyStartModelFile = "run/proxy-start.json"
 
+enum ApnsPresetStartGate {
+    static let preparedTokenOption = "onexray-apns-prepared-token"
+    private static let markerPath = "run/apns-preset-pending"
+
+    static func isPending(in container: URL) throws -> Bool {
+        do {
+            _ = try FileManager.default.attributesOfItem(
+                atPath: container.appendingPathComponent(markerPath).path
+            )
+            return true
+        } catch let error as CocoaError where error.code == .fileNoSuchFile || error.code == .fileReadNoSuchFile {
+            return false
+        }
+    }
+
+    static func permitsSnapshot(
+        in container: URL, snapshotToken: String?, preparedToken: String?
+    ) throws -> Bool {
+        guard try isPending(in: container) else { return true }
+        // A prepared App start may try its candidate before the settings commit.
+        // Widget and system-initiated starts have no token and wait for the commit.
+        guard let preparedToken, !preparedToken.isEmpty else { return false }
+        return preparedToken == snapshotToken
+    }
+}
+
 enum StartRequestKind {
     case tunnel
     case proxy

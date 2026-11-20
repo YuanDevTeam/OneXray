@@ -140,6 +140,19 @@ class ConnectionRuntimeHost {
   }
 
   String get _directory => _runDirectory ?? VpnConstants.runDir;
+
+  Future<void> setApnsPresetPending(bool pending) async {
+    final marker = File(
+      p.join(_directory, VpnConstants.apnsPresetPendingFileName),
+    );
+    if (pending) {
+      await marker.parent.create(recursive: true);
+      await marker.create();
+    } else if (await marker.exists()) {
+      await marker.delete();
+    }
+  }
+
   bool get _selectDesktopBackend =>
       AppPlatform.isDesktop && _prefersProxy != null;
 

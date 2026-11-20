@@ -31,6 +31,8 @@
 		EB240000000000000000010A /* AppleWidgetApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000014 /* AppleWidgetApi.swift */; };
 		EB240000000000000000010B /* Widget.strings in Resources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000020 /* Widget.strings */; };
 		EB240000000000000000010C /* AppleVpnStartAdmission.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000016 /* AppleVpnStartAdmission.swift */; };
+		EB240000000000000000010D /* ControlSymbols.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000017 /* ControlSymbols.xcassets */; };
+		EB240000000000000000010E /* ControlSymbols.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EB2400000000000000000017 /* ControlSymbols.xcassets */; };
 		EB3100000000000000000001 /* FileExportApi.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB3100000000000000000002 /* FileExportApi.swift */; };
 		EB67F754308F0B400096B893 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB67F753308F0B400096B893 /* WidgetKit.framework */; };
 		EB67F756308F0B400096B893 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB67F755308F0B400096B893 /* SwiftUI.framework */; };
@@ -137,6 +139,7 @@
 		EB2400000000000000000013 /* AppleWidgetIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetIntents.swift; path = ../swift/iOS/AppleWidgetIntents.swift; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000014 /* AppleWidgetApi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleWidgetApi.swift; path = Runner/AppleWidgetApi.swift; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000016 /* AppleVpnStartAdmission.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleVpnStartAdmission.swift; path = ../swift/iOS/AppleVpnStartAdmission.swift; sourceTree = SOURCE_ROOT; };
+		EB2400000000000000000017 /* ControlSymbols.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ControlSymbols.xcassets; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000021 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = widget/en.lproj/Widget.strings; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000022 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "widget/zh-Hans.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
 		EB2400000000000000000023 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "widget/zh-Hant.lproj/Widget.strings"; sourceTree = SOURCE_ROOT; };
@@ -299,6 +302,7 @@
 				EB2401000000000000000001 /* AppleWidgetVpnActions.swift */,
 				EB2400000000000000000014 /* AppleWidgetApi.swift */,
 				EB2400000000000000000016 /* AppleVpnStartAdmission.swift */,
+				EB2400000000000000000017 /* ControlSymbols.xcassets */,
 				EB2400000000000000000020 /* Widget.strings */,
 			);
 			name = "iOS Widget";
@@ -499,6 +503,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				EB240000000000000000010B /* Widget.strings in Resources */,
+				EB240000000000000000010D /* ControlSymbols.xcassets in Resources */,
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
@@ -516,6 +521,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EB240000000000000000010E /* ControlSymbols.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

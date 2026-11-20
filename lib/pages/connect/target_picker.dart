@@ -25,6 +25,15 @@ class ConnectionTargetChoice {
   final bool restore, manage;
 }
 
+typedef _TargetOption = ({
+  String title,
+  String? detail,
+  String? heading,
+  bool active,
+  ConnectionTargetChoice choice,
+  IconData icon,
+});
+
 /// Tabs only browse. A resource click returns an intent for the coordinator.
 class ConnectionTargetPicker extends StatefulWidget {
   const ConnectionTargetPicker({
@@ -34,30 +43,66 @@ class ConnectionTargetPicker extends StatefulWidget {
     required this.raws,
     required this.candidateCount,
     required this.selectionName,
-  });
+  }) : _providerOnly = false,
+       _providerSourceId = null;
+
+  const ConnectionTargetPicker.providers({
+    super.key,
+    required this.settings,
+    required this.catalog,
+    int? sourceId,
+  }) : raws = const [],
+       candidateCount = null,
+       selectionName = null,
+       _providerOnly = true,
+       _providerSourceId = sourceId;
+
   final ConnectionSettings settings;
   final ServerCatalog catalog;
   final List<CoreConfigData> raws;
-  final int Function(ServerSelection) candidateCount;
-  final String Function(ServerSelection) selectionName;
+  final int Function(ServerSelection)? candidateCount;
+  final String Function(ServerSelection)? selectionName;
+  final bool _providerOnly;
+  final int? _providerSourceId;
   @override
   State<ConnectionTargetPicker> createState() => _ConnectionTargetPickerState();
 }
 
+enum _TargetTab { automatic, fixed, configurations }
+
 class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
-  late int tab =
-      widget.settings.expert ||
-          (widget.settings.selection.kind == SelectionKind.server &&
-              widget.catalog.servers.any(
-                (r) =>
-                    r.id == widget.settings.selection.id &&
-                    r.type == CoreConfigType.Remnawave.name,
-              ))
-      ? 2
-      : widget.settings.selection.kind == SelectionKind.server
-      ? 1
-      : 0;
+  Iterable<CoreConfigData> get _providers =>
+      widget.catalog.providerConfigurations.where(
+        (row) =>
+            widget._providerSourceId == null ||
+            row.subId == widget._providerSourceId,
+      );
+
+  late _TargetTab tab = _initialTab();
   String query = '';
+
+  _TargetTab _initialTab() {
+    if (widget._providerOnly || widget.settings.expert) {
+      return _TargetTab.configurations;
+    }
+    final selection = widget.settings.selection;
+    if (selection.kind == SelectionKind.server) {
+      return widget.catalog.servers.any(
+            (row) =>
+                row.id == selection.id &&
+                row.type == CoreConfigType.Remnawave.name,
+          )
+          ? _TargetTab.configurations
+          : _TargetTab.fixed;
+    }
+    if (selection.kind == SelectionKind.automatic &&
+        widget.candidateCount!(selection) == 0 &&
+        _providers.isNotEmpty) {
+      return _TargetTab.configurations;
+    }
+    return _TargetTab.automatic;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
@@ -71,9 +116,19 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
         Navigator.of(context).pop(choice);
     bool matches(String name) =>
         name.toLowerCase().contains(query.trim().toLowerCase());
+    Widget groupHeading(String title) => Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 12, 6),
+      child: Semantics(
+        header: true,
+        child: Text(
+          title,
+          style: AppTypography.control.copyWith(color: palette.foreground),
+        ),
+      ),
+    );
     Widget option(
       String title,
-      String detail,
+      String? detail,
       bool active,
       VoidCallback onTap,
       IconData icon,
@@ -114,12 +169,14 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                             : palette.foreground,
                       ),
             ),
-            subtitle: Text(
-              detail,
-              style: AppTypography.supporting.copyWith(
-                color: palette.mutedForeground,
-              ),
-            ),
+            subtitle: detail == null
+                ? null
+                : Text(
+                    detail,
+                    style: AppTypography.supporting.copyWith(
+                      color: palette.mutedForeground,
+                    ),
+                  ),
             trailing: active
                 ? Icon(
                     LucideIcons.circleCheck,
@@ -132,28 +189,26 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
         ),
       ),
     );
-    final rows = widget.catalog.servers
-        .where(
-          (r) =>
-              r.id > 0 &&
-              widget.catalog.selectable(r) &&
-              matches(widget.catalog.display(r).name),
-        )
-        .toList();
     final ordinarySettings = ConnectionSettings.fromJson({
       ...settings.toJson(),
       'expert': false,
     });
-    final ordinary = rows
-        .where(
-          (r) =>
-              r.type == CoreConfigType.outbound.name &&
-              r.id != ordinarySettings.finalExitId,
-        )
-        .toList();
-    final profiles = rows
-        .where((r) => r.type == CoreConfigType.Remnawave.name)
-        .toList();
+    final ordinary = widget.catalog.servers.where(
+      (row) =>
+          row.id > 0 &&
+          row.id != ordinarySettings.finalExitId &&
+          widget.catalog.outboundEligible(row) &&
+          matches(widget.catalog.display(row).name),
+    );
+    final profiles = <SubscriptionData, List<CoreConfigData>>{};
+    if (tab == _TargetTab.configurations) {
+      for (final row in _providers) {
+        final source = widget.catalog.sourcesById[row.subId];
+        if (source != null && (matches(row.name) || matches(source.name))) {
+          (profiles[source] ??= []).add(row);
+        }
+      }
+    }
     final rawRows = widget.raws.where((r) => matches(r.name)).toList();
     final scopeSelections = <ServerSelection>[
       const ServerSelection.automatic(),
@@ -163,64 +218,82 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
       ))
         ServerSelection.source(source.id),
     ];
-    final entries =
-        <
-          ({
-            String title,
-            String detail,
-            bool active,
-            ConnectionTargetChoice choice,
-            IconData icon,
-          })
-        >[
-          if (tab == 0)
-            for (final scope in scopeSelections.where(
-              (s) => matches(widget.selectionName(s)),
-            ))
-              (
-                title: widget.selectionName(scope),
-                detail: l.connectionCandidates(widget.candidateCount(scope)),
-                active: selected(scope),
-                choice: ConnectionTargetChoice(selection: scope),
-                icon: LucideIcons.layers3,
+    final rawEntries = <_TargetOption>[
+      if (tab == _TargetTab.configurations)
+        for (final (index, row) in rawRows.indexed)
+          (
+            title: row.name,
+            detail: l.xrayRawPageTitle,
+            heading: index == 0 ? l.xrayRawPageTitle : null,
+            active: settings.expert && settings.rawId == row.id,
+            choice: ConnectionTargetChoice(rawId: row.id),
+            icon: LucideIcons.fileJson,
+          ),
+    ];
+    final entries = <_TargetOption>[
+      if (tab == _TargetTab.automatic)
+        for (final scope in scopeSelections.where(
+          (s) => matches(widget.selectionName!(s)),
+        ))
+          (
+            title: widget.selectionName!(scope),
+            detail: l.connectionCandidates(widget.candidateCount!(scope)),
+            heading: null,
+            active: selected(scope),
+            choice: ConnectionTargetChoice(selection: scope),
+            icon: LucideIcons.layers3,
+          ),
+      if (tab == _TargetTab.fixed)
+        for (final row in ordinary)
+          (
+            title: widget.catalog.display(row).name,
+            detail: widget.catalog.display(row).protocol,
+            heading: null,
+            active: selected(ServerSelection.server(row.id)),
+            choice: ConnectionTargetChoice(
+              selection: ServerSelection.server(row.id),
+            ),
+            icon: LucideIcons.server,
+          ),
+      if (tab == _TargetTab.configurations) ...[
+        ...rawEntries,
+        for (final group in profiles.entries)
+          for (final (index, row) in group.value.indexed)
+            (
+              title: row.name,
+              detail: widget._providerOnly
+                  ? null
+                  : l.providerConfigurationTitle,
+              heading: index == 0 ? group.key.name : null,
+              active: selected(ServerSelection.server(row.id)),
+              choice: ConnectionTargetChoice(
+                selection: ServerSelection.server(row.id),
               ),
-          if (tab == 1)
-            for (final row in ordinary)
-              (
-                title: widget.catalog.display(row).name,
-                detail: widget.catalog.display(row).protocol,
-                active: selected(ServerSelection.server(row.id)),
-                choice: ConnectionTargetChoice(
-                  selection: ServerSelection.server(row.id),
-                ),
-                icon: LucideIcons.server,
-              ),
-          if (tab == 2) ...[
-            for (final row in rawRows)
-              (
-                title: row.name,
-                detail: l.xrayRawPageTitle,
-                active: settings.expert && settings.rawId == row.id,
-                choice: ConnectionTargetChoice(rawId: row.id),
-                icon: LucideIcons.fileJson,
-              ),
-            for (final row in profiles)
-              (
-                title: row.name,
-                detail: l.providerConfigurationTitle,
-                active: selected(ServerSelection.server(row.id)),
-                choice: ConnectionTargetChoice(
-                  selection: ServerSelection.server(row.id),
-                ),
-                icon: LucideIcons.fileJson,
-              ),
-          ],
-        ];
+              icon: LucideIcons.fileJson,
+            ),
+      ],
+    ];
     final footer = Padding(
       padding: const EdgeInsets.all(24),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final theme = Theme.of(context);
+          final minimumHeight = AppLayout.touchExtent(
+            MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
+                ? 48
+                : 42,
+            platform: theme.platform,
+          );
+          final cancel = ConstrainedBox(
+            constraints: BoxConstraints(minHeight: minimumHeight),
+            child: ShadButton.outline(
+              expands: true,
+              height: 0,
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(l.prototypeCancel),
+            ),
+          );
+          if (widget._providerOnly) return cancel;
           final cancelStyle =
               ShadTheme.of(context).outlineButtonTheme.textStyle ??
               theme.textTheme.labelLarge!;
@@ -242,12 +315,6 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
           final stacked =
               labelWidth(l.prototypeServers, manageStyle) + 48 > halfWidth ||
               labelWidth(l.prototypeCancel, cancelStyle) + 48 > halfWidth;
-          final minimumHeight = AppLayout.touchExtent(
-            MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint
-                ? 48
-                : 42,
-            platform: theme.platform,
-          );
           final manage = OutlinedButton(
             style: OutlinedButton.styleFrom(
               minimumSize: Size(0, minimumHeight),
@@ -255,15 +322,6 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
             ),
             onPressed: () => choose(const ConnectionTargetChoice(manage: true)),
             child: Text(l.prototypeServers),
-          );
-          final cancel = ConstrainedBox(
-            constraints: BoxConstraints(minHeight: minimumHeight),
-            child: ShadButton.outline(
-              expands: true,
-              height: 0,
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(l.prototypeCancel),
-            ),
           );
           return stacked
               ? Column(
@@ -300,11 +358,14 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                     children: [
                       Expanded(
                         child: Text(
-                          l.prototypeServers,
+                          widget._providerOnly
+                              ? l.providerConfigurationsTitle
+                              : l.prototypeServers,
                           style: AppTypography.dialogTitle,
                         ),
                       ),
-                      if (tab == 2)
+                      if (!widget._providerOnly &&
+                          tab == _TargetTab.configurations)
                         PageHelpButton(
                           title: l.serverCompleteConfigurationsTab,
                           messages: [l.completeConfigurationDefinition],
@@ -321,60 +382,70 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                   child: CustomScrollView(
                     key: const ValueKey('connection-target-options'),
                     slivers: [
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: LayoutBuilder(
-                            builder: (context, tabConstraints) => ChipTheme(
-                              data: AppTheme.choiceChips(context),
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: [
-                                  for (final entry in [
-                                    l.serverSelectionAutomaticScope,
-                                    l.serverSelectionFixedNode,
-                                    l.serverCompleteConfigurationsTab,
-                                  ].indexed)
-                                    ChoiceChip(
-                                      label: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          minHeight: 36,
-                                          maxWidth: math.max(
-                                            1.0,
-                                            tabConstraints.maxWidth - 24,
+                      if (!widget._providerOnly)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: LayoutBuilder(
+                              builder: (context, tabConstraints) => ChipTheme(
+                                data: AppTheme.choiceChips(context),
+                                child: Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    for (final (kind, label) in [
+                                      (
+                                        _TargetTab.automatic,
+                                        l.serverSelectionAutomaticScope,
+                                      ),
+                                      (
+                                        _TargetTab.fixed,
+                                        l.serverSelectionFixedNode,
+                                      ),
+                                      (
+                                        _TargetTab.configurations,
+                                        l.serverCompleteConfigurationsTab,
+                                      ),
+                                    ])
+                                      ChoiceChip(
+                                        label: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            minHeight: 36,
+                                            maxWidth: math.max(
+                                              1.0,
+                                              tabConstraints.maxWidth - 24,
+                                            ),
+                                          ),
+                                          child: Align(
+                                            widthFactor: 1,
+                                            heightFactor: 1,
+                                            child: Text(
+                                              label,
+                                              textAlign: TextAlign.center,
+                                            ),
                                           ),
                                         ),
-                                        child: Align(
-                                          widthFactor: 1,
-                                          heightFactor: 1,
-                                          child: Text(
-                                            entry.$2,
-                                            textAlign: TextAlign.center,
+                                        labelPadding: EdgeInsets.zero,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 6,
+                                        ),
+                                        showCheckmark: false,
+                                        shape: const RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(4),
                                           ),
                                         ),
+                                        selected: tab == kind,
+                                        onSelected: (_) =>
+                                            setState(() => tab = kind),
                                       ),
-                                      labelPadding: EdgeInsets.zero,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      showCheckmark: false,
-                                      shape: const RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(4),
-                                        ),
-                                      ),
-                                      selected: tab == entry.$1,
-                                      onSelected: (_) =>
-                                          setState(() => tab = entry.$1),
-                                    ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.all(24),
@@ -392,7 +463,7 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                           ),
                         ),
                       ),
-                      if (tab == 0 &&
+                      if (tab == _TargetTab.automatic &&
                           (settings.expert ||
                               widget.catalog.servers.any(
                                 (r) =>
@@ -415,9 +486,11 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                           child: Padding(
                             padding: const EdgeInsets.all(24),
                             child: Text(
-                              query.trim().isEmpty
-                                  ? l.prototypeNoServersYet
-                                  : l.serverNoMatchingResources,
+                              query.trim().isNotEmpty
+                                  ? l.serverNoMatchingResources
+                                  : widget._providerOnly
+                                  ? l.prototypeTemporarilyUnavailable
+                                  : l.prototypeNoServersYet,
                             ),
                           ),
                         ),
@@ -427,12 +500,18 @@ class _ConnectionTargetPickerState extends State<ConnectionTargetPicker> {
                           itemCount: entries.length,
                           itemBuilder: (context, index) {
                             final e = entries[index];
-                            return option(
+                            final tile = option(
                               e.title,
                               e.detail,
                               e.active,
                               () => choose(e.choice),
                               e.icon,
+                            );
+                            final heading = e.heading;
+                            if (heading == null) return tile;
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [groupHeading(heading), tile],
                             );
                           },
                         ),

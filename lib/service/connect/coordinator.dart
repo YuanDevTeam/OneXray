@@ -97,6 +97,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
   _start;
   late final Future<String?> Function() _beginPreparation;
   late final Future<void> Function(String) _finishPreparation;
+  late final Future<void> Function(bool)? _setApnsPresetPending;
   late final Future<HostConnection> Function() _stop;
   late final InspectConnection _inspect;
   late final Future<ConnectionTraffic> Function(ConnectionRuntime) _readTraffic;
@@ -152,6 +153,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
     void Function()? disposeStatus,
     Future<String?> Function()? beginPreparation,
     Future<void> Function(String)? finishPreparation,
+    Future<void> Function(bool)? setApnsPresetPending,
   }) : db = database ?? AppDatabase(),
        _statusEvents =
            statusEvents ?? AppFlutterApi().vpnStatusController.stream,
@@ -165,6 +167,11 @@ class ConnectionCoordinator with WidgetsBindingObserver {
         beginPreparation ??
         (start == null ? host.beginPreparation : () async => null);
     _finishPreparation = finishPreparation ?? host.finishPreparation;
+    _setApnsPresetPending =
+        setApnsPresetPending ??
+        (start == null && connectionPlatform == ConnectionPlatform.ios
+            ? host.setApnsPresetPending
+            : null);
     _start = start == null
         ? (runtime, cancelled, token) =>
               host.start(runtime, cancelled: cancelled, preparationToken: token)
@@ -610,6 +617,10 @@ class ConnectionCoordinator with WidgetsBindingObserver {
       if ((shouldStart || shouldStop) && current.connected && !allowReconnect) {
         throw const ConnectionHostException('reconnectRequired');
       }
+      final pendingApnsPreset = _setApnsPresetPending;
+      final apnsPresetChanged =
+          stored.policy.appleApnsProxyPreset !=
+          next.policy.appleApnsProxyPreset;
       Future<void> save(Future<void> Function() writeMetadata) async {
         Future<void> write() async {
           await writeMetadata();
@@ -618,6 +629,7 @@ class ConnectionCoordinator with WidgetsBindingObserver {
 
         if (!shouldStart && !shouldStop) {
           await validateAssets?.call();
+          if (apnsPresetChanged) await pendingApnsPreset?.call(true);
           await db.connectionConfigDao.commit(
             configurationJson: next.encode(),
             writeAssets: write,
@@ -638,6 +650,11 @@ class ConnectionCoordinator with WidgetsBindingObserver {
         _nativePreparation = preparation;
         try {
           _preparingNodeIds = {...?old?.nodeIds};
+          _checkCancelled(cancellation);
+          if (apnsPresetChanged ||
+              (shouldStart && next.policy.appleApnsProxyPreset)) {
+            await pendingApnsPreset?.call(true);
+          }
           _checkCancelled(cancellation);
           var running = current;
           if (current.status != VpnStatus.disconnected) {
@@ -708,6 +725,15 @@ class ConnectionCoordinator with WidgetsBindingObserver {
               _checkCancelled(cancellation);
             },
           );
+          // A prepared native request may be published before start/commit.
+          // Saved starts are only admitted once it matches committed settings.
+          if (runtime != null && pendingApnsPreset != null) {
+            try {
+              await pendingApnsPreset(false);
+            } catch (error) {
+              ygLogger('Could not enable saved VPN starts: $error');
+            }
+          }
           _publish(running, issue: runtime?.notice);
         } catch (error, stack) {
           if (error is NativePreparationCancelled) {

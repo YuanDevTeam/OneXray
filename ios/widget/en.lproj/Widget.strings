@@ -16,6 +16,7 @@
 "Start or stop VPN in the background using the last prepared configuration." = "Start or stop VPN in the background using the last prepared configuration.";
 "Start or stop VPN" = "Start or stop VPN";
 "Status pending" = "Status pending";
+"VPN connection failed" = "VPN connection failed";
 "Open OneXray to finish setup." = "Open OneXray to finish setup.";
 "This VPN action must run in OneXray." = "This VPN action must run in OneXray.";
 "OneXray cannot open from this system control right now." = "OneXray cannot open from this system control right now.";

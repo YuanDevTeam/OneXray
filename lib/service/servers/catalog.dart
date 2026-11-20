@@ -46,6 +46,14 @@ class ServerCatalog {
   late final List<CoreConfigData> servers = List.unmodifiable(
     _orderedRows(_rows.where(_active)),
   );
+  late final List<CoreConfigData> providerConfigurations = List.unmodifiable(
+    servers.where(
+      (row) =>
+          row.id > 0 &&
+          row.type == CoreConfigType.Remnawave.name &&
+          display(row).readable,
+    ),
+  );
   final ServerSortOrder sortOrder;
   final List<SubscriptionData> sources;
   final List<ManualServerGroupData> manualGroups;

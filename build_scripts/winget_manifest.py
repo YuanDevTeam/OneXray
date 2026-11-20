@@ -125,6 +125,7 @@ def validate_directory(directory, release):
         raise ValueError("Only one flat version directory may be submitted")
     manifests = [read_manifest(path) for path in paths]
     validate_manifests(manifests, release)
+    validators = {}
     for path, manifest in zip(paths, manifests):
         kind = manifest["ManifestType"]
         schema_version = quote(manifest["ManifestVersion"], safe="")
@@ -140,9 +141,10 @@ def validate_directory(directory, release):
             "https://raw.githubusercontent.com/microsoft/winget-cli/master/schemas/JSON/manifests/"
             f"v{schema_version}/manifest.{kind}.{schema_version}.json"
         )
-        with urlopen(url, timeout=30) as response:
-            schema = json.load(response)
-        jsonschema.Draft7Validator(schema).validate(manifest)
+        if url not in validators:
+            with urlopen(url, timeout=30) as response:
+                validators[url] = jsonschema.Draft7Validator(json.load(response))
+        validators[url].validate(manifest)
         print(f"Validated {path.name}")
 
 

@@ -49,6 +49,13 @@ void main() {
     ),
   ];
   final catalog = ServerCatalog(servers: rows, sources: sources);
+  final providerCatalog = ServerCatalog(
+    sources: [...sources, _source(12, 'Travel provider', provider: true)],
+    servers: [
+      ...rows,
+      _node(14, 'Duplicate', -1, sourceId: 12, type: 'Remnawave'),
+    ],
+  );
   final raws = List.generate(
     4,
     (i) => _node(
@@ -76,6 +83,8 @@ void main() {
     double textScale = 1,
     Brightness brightness = Brightness.light,
     ServerCatalog? catalogOverride,
+    bool providersOnly = false,
+    int? providerSourceId,
   }) async {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -101,24 +110,30 @@ void main() {
               onPressed: () async {
                 choice = await showAppDialog<ConnectionTargetChoice>(
                   context,
-                  (_) => ConnectionTargetPicker(
-                    settings: settings,
-                    catalog: catalogOverride ?? catalog,
-                    raws: raws,
-                    candidateCount: (scope) => (catalogOverride ?? catalog)
-                        .servers
-                        .where(
-                          (row) =>
-                              row.id != settings.finalExitId &&
-                              (catalogOverride ?? catalog).outboundEligible(
-                                row,
-                              ) &&
-                              (scope.kind == SelectionKind.automatic ||
-                                  row.subId == scope.id),
+                  (_) => providersOnly
+                      ? ConnectionTargetPicker.providers(
+                          settings: settings,
+                          catalog: catalogOverride ?? catalog,
+                          sourceId: providerSourceId,
                         )
-                        .length,
-                    selectionName: scopeName,
-                  ),
+                      : ConnectionTargetPicker(
+                          settings: settings,
+                          catalog: catalogOverride ?? catalog,
+                          raws: raws,
+                          candidateCount: (scope) =>
+                              (catalogOverride ?? catalog).servers
+                                  .where(
+                                    (row) =>
+                                        row.id != settings.finalExitId &&
+                                        (catalogOverride ?? catalog)
+                                            .outboundEligible(row) &&
+                                        (scope.kind ==
+                                                SelectionKind.automatic ||
+                                            row.subId == scope.id),
+                                  )
+                                  .length,
+                          selectionName: scopeName,
+                        ),
                 );
                 completions++;
               },
@@ -463,6 +478,101 @@ void main() {
       expect(choice?.rawId, 40);
       expect(choice?.selection, isNull);
       expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'automatic with only Provider profiles opens the configurations tab',
+    (tester) async {
+      final settings = ConnectionSettings();
+      await open(
+        tester,
+        settings,
+        catalogOverride: ServerCatalog(
+          servers: rows.where((row) => row.type == 'Remnawave').toList(),
+          sources: sources,
+        ),
+      );
+      final configurations = find.widgetWithText(
+        ChoiceChip,
+        l.serverCompleteConfigurationsTab,
+      );
+      expect(tester.widget<ChoiceChip>(configurations).selected, isTrue);
+      expect(find.text('Provider source'), findsOneWidget);
+      expect(
+        tile('Duplicate', subtitle: l.providerConfigurationTitle),
+        findsOneWidget,
+      );
+      expect(settings.selection.kind, SelectionKind.automatic);
+      expect(completions, 0);
+    },
+  );
+
+  testWidgets(
+    'Provider picker groups by subscription and resolves same-name profiles by ID',
+    (tester) async {
+      final settings = ConnectionSettings(
+        selection: const ServerSelection.server(7),
+      );
+      await open(
+        tester,
+        settings,
+        providersOnly: true,
+        catalogOverride: providerCatalog,
+      );
+      expect(find.text(l.providerConfigurationsTitle), findsOneWidget);
+      expect(find.byType(ChoiceChip), findsNothing);
+      expect(find.text('Provider source'), findsOneWidget);
+      expect(find.text('Travel provider'), findsOneWidget);
+      expect(tile('Duplicate'), findsNWidgets(2));
+      expect(isSelected(tester, tile('Duplicate').first), isTrue);
+      expect(isSelected(tester, tile('Duplicate').last), isFalse);
+      expect(tile('Measured'), findsNothing);
+      expect(tile('Inactive provider cache'), findsNothing);
+      expect(tile('Legacy Raw 2'), findsNothing);
+
+      await search(tester, 'travel provider');
+      expect(find.text('Provider source'), findsNothing);
+      expect(tile('Duplicate'), findsOneWidget);
+      await tester.tap(tile('Duplicate'));
+      await tester.pumpAndSettle();
+      expect(choice?.selection?.id, 14);
+      expect(choice?.rawId, isNull);
+      expect(settings.selection.id, 7);
+    },
+  );
+
+  testWidgets(
+    'scoped Provider picker never falls back to other subscriptions',
+    (tester) async {
+      final settings = ConnectionSettings();
+      await open(
+        tester,
+        settings,
+        providersOnly: true,
+        providerSourceId: 11,
+        catalogOverride: providerCatalog,
+      );
+      expect(find.text('Provider source'), findsOneWidget);
+      expect(find.text('Travel provider'), findsNothing);
+      expect(tile('Duplicate'), findsOneWidget);
+      expect(tile('Inactive provider cache'), findsNothing);
+      await tester.tap(find.widgetWithText(ShadButton, l.prototypeCancel));
+      await tester.pumpAndSettle();
+      expect(choice, isNull);
+
+      await open(
+        tester,
+        settings,
+        providersOnly: true,
+        providerSourceId: 13,
+        catalogOverride: providerCatalog,
+      );
+      expect(find.text(l.prototypeTemporarilyUnavailable), findsOneWidget);
+      expect(find.text('Provider source'), findsNothing);
+      expect(tile('Duplicate'), findsNothing);
+      expect(completions, 0);
+      expect(settings.selection.kind, SelectionKind.automatic);
     },
   );
 

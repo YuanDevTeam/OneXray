@@ -156,6 +156,7 @@ class ConnectionRuntime {
   final String? notice;
   final RuntimeSelectionFallback? selectionFallback;
   final DateTime startedAt;
+  final bool apnsProxyPresetApplied;
   late final List<RuntimeObservationPath> observationPaths =
       configuration.connection.expert || profile != null
       ? const []
@@ -177,6 +178,7 @@ class ConnectionRuntime {
     required this.startedAt,
     this.notice,
     this.selectionFallback,
+    this.apnsProxyPresetApplied = false,
   });
 
   ConnectionRuntime withStartedAt(DateTime value) => ConnectionRuntime._(
@@ -191,6 +193,7 @@ class ConnectionRuntime {
     startedAt: value,
     notice: notice,
     selectionFallback: selectionFallback,
+    apnsProxyPresetApplied: apnsProxyPresetApplied,
   );
 
   factory ConnectionRuntime.create({
@@ -202,6 +205,7 @@ class ConnectionRuntime {
     String? rawName,
     RuntimeSelectionFallback? selectionFallback,
     DateTime? startedAt,
+    bool apnsProxyPresetApplied = false,
   }) {
     startedAt ??= DateTime.now();
     final entries = [
@@ -217,6 +221,7 @@ class ConnectionRuntime {
       'version': 1,
       'startedAt': startedAt.microsecondsSinceEpoch,
       'platform': platform.name,
+      if (apnsProxyPresetApplied) 'apnsProxyPresetApplied': true,
       'configuration': configuration.toJson(),
       'entries': [for (final entry in entries) entry.toJson()],
       'finalExit': finalExit?.toJson(),
@@ -247,6 +252,7 @@ class ConnectionRuntime {
       notice: notice,
       selectionFallback: selectionFallback,
       startedAt: startedAt,
+      apnsProxyPresetApplied: apnsProxyPresetApplied,
     );
   }
 
@@ -273,6 +279,8 @@ class ConnectionRuntime {
         (metadata['profile'] != null &&
             metadata['profile'] is! Map<String, dynamic>) ||
         (metadata['rawName'] != null && metadata['rawName'] is! String) ||
+        (metadata['apnsProxyPresetApplied'] != null &&
+            metadata['apnsProxyPresetApplied'] is! bool) ||
         (metadata['selectionFallback'] != null &&
             metadata['selectionFallback'] is! Map<String, dynamic>)) {
       throw const FormatException('Invalid runtime metadata');
@@ -292,6 +300,7 @@ class ConnectionRuntime {
         metadata['startedAt'] as int,
       ),
       request: request,
+      apnsProxyPresetApplied: metadata['apnsProxyPresetApplied'] == true,
       rawName: metadata['rawName'] as String?,
       selectionFallback: metadata['selectionFallback'] == null
           ? null

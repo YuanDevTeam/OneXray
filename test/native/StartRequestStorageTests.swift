@@ -81,4 +81,37 @@ final class StartRequestStorageTests: XCTestCase {
             XCTAssertEqual(try Data(contentsOf: savedFile), oldCache)
         }
     }
+
+    func testPendingApnsPresetOnlyAllowsExplicitlyPreparedSnapshot() throws {
+        try withContainer { container in
+            try StartRequestKind.tunnel.writeSnapshot(Data(), in: container)
+            let marker = container.appendingPathComponent("run/apns-preset-pending")
+
+            XCTAssertTrue(try ApnsPresetStartGate.permitsSnapshot(
+                in: container, snapshotToken: nil, preparedToken: nil
+            ))
+
+            try Data([1]).write(to: marker, options: .atomic)
+            XCTAssertFalse(try ApnsPresetStartGate.permitsSnapshot(
+                in: container, snapshotToken: nil, preparedToken: nil
+            ))
+            XCTAssertFalse(try ApnsPresetStartGate.permitsSnapshot(
+                in: container, snapshotToken: "candidate", preparedToken: nil
+            ))
+            XCTAssertFalse(try ApnsPresetStartGate.permitsSnapshot(
+                in: container, snapshotToken: "candidate", preparedToken: "older request"
+            ))
+            XCTAssertFalse(try ApnsPresetStartGate.permitsSnapshot(
+                in: container, snapshotToken: "", preparedToken: ""
+            ))
+            XCTAssertTrue(try ApnsPresetStartGate.permitsSnapshot(
+                in: container, snapshotToken: "candidate", preparedToken: "candidate"
+            ))
+
+            try FileManager.default.removeItem(at: marker)
+            XCTAssertTrue(try ApnsPresetStartGate.permitsSnapshot(
+                in: container, snapshotToken: "candidate", preparedToken: nil
+            ))
+        }
+    }
 }

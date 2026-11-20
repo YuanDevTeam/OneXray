@@ -42,6 +42,8 @@ class ConnectView extends StatelessWidget {
     required this.onConnection,
     required this.onAddServers,
     required this.onServer,
+    this.providerConfigurationCount = 0,
+    this.onProviderConfigurations,
     required this.onMethod,
   });
   final ConnectionView view;
@@ -62,6 +64,8 @@ class ConnectView extends StatelessWidget {
   final bool proxyMode;
   final int proxyPort;
   final VoidCallback onConnection, onAddServers, onServer, onMethod;
+  final int providerConfigurationCount;
+  final VoidCallback? onProviderConfigurations;
 
   bool get _connectionPending => pendingChange == 'connection';
   bool get _busy => view.busy || _connectionPending;
@@ -212,6 +216,20 @@ class ConnectView extends StatelessWidget {
                       _busy || pendingChange != null ? null : onServer,
                       selected: true,
                     ),
+                    if (providerConfigurationCount > 0) ...[
+                      const SizedBox(height: 8),
+                      choice(
+                        LucideIcons.fileJson,
+                        l.providerConfigurationsTitle,
+                        l.providerConfigurationsTitle,
+                        l.providerConfigurationCount(
+                          providerConfigurationCount,
+                        ),
+                        _busy || pendingChange != null
+                            ? null
+                            : onProviderConfigurations,
+                      ),
+                    ],
                     const SizedBox(height: 8),
                     choice(
                       LucideIcons.route,

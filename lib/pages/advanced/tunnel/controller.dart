@@ -47,6 +47,8 @@ class PolicyEditorPageState {
   final ConnectionView connection;
   final AppleVpnCapabilities? appleCapabilities;
   final bool appleCapabilitiesLoading;
+  final bool? apnsPresetApplicable;
+  final bool apnsPresetChecking;
   final List<OutboundInterfaceOption> interfaces;
   final bool interfacesLoading;
   final bool interfacesFailed;
@@ -68,6 +70,8 @@ class PolicyEditorPageState {
     this.connection = const ConnectionView(),
     this.appleCapabilities,
     this.appleCapabilitiesLoading = false,
+    this.apnsPresetApplicable,
+    this.apnsPresetChecking = false,
     List<OutboundInterfaceOption> interfaces = const [],
     this.interfacesLoading = true,
     this.interfacesFailed = false,
@@ -91,6 +95,8 @@ class PolicyEditorPageState {
     ConnectionView? connection,
     Object? appleCapabilities = _notProvided,
     bool? appleCapabilitiesLoading,
+    Object? apnsPresetApplicable = _notProvided,
+    bool? apnsPresetChecking,
     List<OutboundInterfaceOption>? interfaces,
     bool? interfacesLoading,
     bool? interfacesFailed,
@@ -120,6 +126,10 @@ class PolicyEditorPageState {
         : appleCapabilities as AppleVpnCapabilities?,
     appleCapabilitiesLoading:
         appleCapabilitiesLoading ?? this.appleCapabilitiesLoading,
+    apnsPresetApplicable: identical(apnsPresetApplicable, _notProvided)
+        ? this.apnsPresetApplicable
+        : apnsPresetApplicable as bool?,
+    apnsPresetChecking: apnsPresetChecking ?? this.apnsPresetChecking,
     interfaces: interfaces ?? this.interfaces,
     interfacesLoading: interfacesLoading ?? this.interfacesLoading,
     interfacesFailed: interfacesFailed ?? this.interfacesFailed,
@@ -145,6 +155,8 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   final _dnsFocusNodes = <TunnelDnsField, FocusNode>{};
   final _dnsTouched = <TunnelDnsField>{};
   bool _dnsSubmitted = false;
+  int _apnsPresetCheck = 0;
+  bool? _apnsPresetPageVisible;
 
   PolicyEditorController({
     PolicyEditorDraft? draft,
@@ -207,6 +219,24 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   bool get runtimeBusy => state.connection.busy;
   Map<String, dynamic> get value => state.draft!.policy;
   Map<String, dynamic> group(String key) => value[key] as Map<String, dynamic>;
+  bool get apnsPresetEnabled =>
+      platform == ConnectionPlatform.ios &&
+      draft != null &&
+      group('apple')['apnsProxyPreset'] == true;
+  bool get canEnableApnsPreset =>
+      state.appleCapabilities?.serviceExclusions == true &&
+      state.apnsPresetApplicable == true;
+  bool get apnsPresetApplied =>
+      connected && state.connection.runtime?.apnsProxyPresetApplied == true;
+  bool get apnsPresetManagesSettings =>
+      apnsPresetEnabled && (canEnableApnsPreset || apnsPresetApplied);
+  bool get effectiveIpv6 =>
+      apnsPresetManagesSettings || value['ipv6Enabled'] == true;
+  bool get apnsPresetDisconnectsOnCellular =>
+      apnsPresetManagesSettings &&
+      group('apple')['alwaysOn'] != true &&
+      group('apple')['onDemandEnabled'] == true &&
+      group('apple')['cellularAction'] == 'disconnect';
   List<String> strings(String groupName, String key) =>
       List<String>.unmodifiable(
         List<String>.from(group(groupName)[key] as List),
@@ -241,8 +271,11 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   ) {
     if (!_dnsSubmitted && _dnsTouched.isEmpty) return null;
     try {
-      PlatformPolicy.fromJson(policy)
-          .validateDns(platform, windowsMode: service.windowsMode);
+      final base = PlatformPolicy.fromJson(policy);
+      final effective = canEnableApnsPreset && base.appleApnsProxyPreset
+          ? base.withApnsProxyPresetApplied()
+          : base;
+      effective.validateDns(platform, windowsMode: service.windowsMode);
     } on TunnelDnsValidationException catch (error) {
       if (_dnsSubmitted || _dnsTouched.contains(error.field)) return error;
     } on FormatException {
@@ -308,7 +341,10 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
     );
     try {
       final loaded = await read();
-      if (loaded != null) emit(state.copyWith(draft: loaded));
+      if (loaded != null) {
+        emit(state.copyWith(draft: loaded));
+        unawaited(refreshApnsPresetApplicability());
+      }
     } catch (error) {
       if (context.mounted) {
         emit(
@@ -319,6 +355,91 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
       }
     } finally {
       emit(state.copyWith(busy: false, loadingDestination: null));
+    }
+  }
+
+  Future<void> readAppleCapabilities({bool reportError = false}) async {
+    if (state.appleCapabilitiesLoading) return;
+    emit(
+      state.copyWith(
+        appleCapabilitiesLoading: true,
+        error: reportError ? null : state.error,
+      ),
+    );
+    try {
+      final capabilities = await AppHostApi().appleVpnCapabilities();
+      emit(state.copyWith(appleCapabilities: capabilities));
+    } catch (error) {
+      emit(state.copyWith(appleCapabilities: null));
+      if (reportError) emit(state.copyWith(error: failureDetails(error)));
+    } finally {
+      emit(state.copyWith(appleCapabilitiesLoading: false));
+    }
+    await refreshApnsPresetApplicability();
+  }
+
+  void apnsPresetPageVisibilityChanged(BuildContext context, bool visible) {
+    final returned = _apnsPresetPageVisible == false && visible;
+    _apnsPresetPageVisible = visible;
+    if (platform != ConnectionPlatform.ios || !visible || !isPageActive) return;
+    if (state.appleCapabilities == null && !blocked && !returned) {
+      unawaited(readAppleCapabilities());
+    } else if (returned &&
+        !blocked &&
+        !runtimeBusy &&
+        state.appleCapabilities?.serviceExclusions == true) {
+      if (draft?.hasChanges == false) {
+        unawaited(load(context));
+      } else {
+        unawaited(refreshApnsPresetApplicability());
+      }
+    }
+  }
+
+  Future<void> refreshApnsPresetApplicability() async {
+    final original = draft?.original;
+    if (platform != ConnectionPlatform.ios ||
+        original == null ||
+        state.appleCapabilities?.serviceExclusions != true ||
+        !isPageActive) {
+      return;
+    }
+    final check = ++_apnsPresetCheck;
+    emit(state.copyWith(apnsPresetChecking: true));
+    bool? applicable;
+    try {
+      applicable = await service.apnsProxyPresetApplicable(original);
+    } catch (_) {
+      // Leave the check retryable without changing the manual preferences.
+    }
+    if (isPageActive && check == _apnsPresetCheck) {
+      emit(
+        state.copyWith(
+          apnsPresetApplicable: applicable,
+          apnsPresetChecking: false,
+        ),
+      );
+    }
+  }
+
+  Future<void> toggleApnsProxyPreset(
+    BuildContext context,
+    bool enabled, {
+    bool saveImmediately = false,
+  }) async {
+    final current = draft;
+    if (platform != ConnectionPlatform.ios ||
+        current == null ||
+        blocked ||
+        runtimeBusy ||
+        enabled == apnsPresetEnabled ||
+        enabled && !canEnableApnsPreset) {
+      return;
+    }
+    update('apnsProxyPreset', enabled, section: 'apple');
+    if (saveImmediately && !current.hasChanges) {
+      final saved = await save(context, pop: false);
+      if (!saved && isPageActive) emit(state.copyWith(draft: current));
     }
   }
 
@@ -521,6 +642,14 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
         draft: current,
         confirm: (disconnect) => confirmSave(context, disconnect),
       );
+      if (!saved &&
+          platform == ConnectionPlatform.ios &&
+          current.original.policy.appleApnsProxyPreset != apnsPresetEnabled) {
+        final restored = current.copy();
+        restored.policy['apple']['apnsProxyPreset'] =
+            current.original.policy.appleApnsProxyPreset;
+        emit(state.copyWith(draft: restored));
+      }
       if (saved && isPageActive) {
         if (context.mounted) {
           ContextAlert.showToast(context, l.prototypeSettingsSaved);
@@ -531,6 +660,7 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
           Navigator.of(context).pop(true);
         } else if (!pop) {
           emit(state.copyWith(draft: await service.load()));
+          unawaited(refreshApnsPresetApplicability());
         }
       }
       return saved;
@@ -555,6 +685,9 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   Future<bool> confirmSave(BuildContext context, bool disconnect) {
     if (!context.mounted) return Future.value(false);
     final l = AppLocalizations.of(context)!;
+    final presetChanged =
+        platform == ConnectionPlatform.ios &&
+        draft?.original.policy.appleApnsProxyPreset != apnsPresetEnabled;
     return ContextAlert.showConfirmDialog(
       context,
       title: l.prototypeApplyChange,
@@ -563,6 +696,10 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
           : l.prototypeReconnectNotice,
       confirmLabel: disconnect
           ? l.prototypeDisconnectVpn
+          : presetChanged
+          ? apnsPresetEnabled
+                ? l.tunnelApnsPresetEnableReconnect
+                : l.tunnelApnsPresetDisableReconnect
           : l.prototypeSaveAndReconnect,
     );
   }
@@ -665,7 +802,14 @@ class PolicyEditorController extends PageCubit<PolicyEditorPageState> {
   }
 
   void _connectionChanged() {
-    emit(state.copyWith(connection: service.coordinator.state.value));
+    final before = state.connection;
+    final after = service.coordinator.state.value;
+    emit(state.copyWith(connection: after));
+    if (!after.busy &&
+        (before.phase != after.phase ||
+            before.runtime?.identity != after.runtime?.identity)) {
+      unawaited(refreshApnsPresetApplicability());
+    }
   }
 
   @override

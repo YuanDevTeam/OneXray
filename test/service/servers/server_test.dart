@@ -23,6 +23,7 @@ import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/runtime_host.dart';
 import 'package:onexray/service/connect/settings.dart';
 import 'package:onexray/service/shared/event_bus/service.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 import 'package:onexray/service/servers/outbound/state_db.dart';
 
 void main() {
@@ -916,6 +917,30 @@ void main() {
     expect((await coordinator.configuration).encode(), configuration.encode());
     expect(coordinator.state.value.runtime, same(runtime));
   });
+
+  test(
+    'scoped Provider JSON stays readable but cannot become a personal Raw',
+    () async {
+      final profile = await _provider(db);
+      final binding = ProviderGeoDataBinding(
+        geoSiteFile: 'onexray-provider-geosite-${'a' * 64}.dat',
+        geoSiteUrl: 'https://assets.example/geosite.dat',
+      );
+      final bound = profile.copyWith(providerGeoData: Value(binding.encode()));
+      await db.coreConfigDao.updateRow(bound);
+      final service = ServerAssetService(
+        database: db,
+        coordinator: ConnectionCoordinator(database: db),
+        validate: (_) async =>
+            throw StateError('Raw copy must stop before validation'),
+      );
+
+      final draft = await service.loadComplete(profile.id);
+      expect(draft.text, utf8.decode(base64Decode(profile.data!)));
+      await expectLater(service.copyAsRaw(profile.id), throwsFormatException);
+      expect(await db.coreConfigDao.searchRow(profile.id), bound);
+    },
+  );
 
   test('Raw copy uses the existing validation and three-item quota', () async {
     final profile = await _provider(db);

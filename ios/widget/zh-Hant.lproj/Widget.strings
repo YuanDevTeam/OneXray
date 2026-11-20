@@ -16,6 +16,7 @@
 "Start or stop VPN in the background using the last prepared configuration." = "使用上次已準備的設定在背景啟動或停止 VPN。";
 "Start or stop VPN" = "啟動或停止 VPN";
 "Status pending" = "狀態待確認";
+"VPN connection failed" = "VPN 連線失敗";
 "Open OneXray to finish setup." = "開啟 OneXray 完成設定。";
 "This VPN action must run in OneXray." = "此 VPN 操作必須在 OneXray 中執行。";
 "OneXray cannot open from this system control right now." = "目前無法從此系統控制項開啟 OneXray。";

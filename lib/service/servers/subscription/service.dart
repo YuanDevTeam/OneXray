@@ -33,6 +33,7 @@ final class SubscriptionLoadResult {
     this.userInfo,
     this.mode = SubscriptionMode.appManaged,
     this.convertedToOrdinary = false,
+    this.geoDataWarning,
   });
 
   final SubscriptionUpdateResult status;
@@ -41,6 +42,7 @@ final class SubscriptionLoadResult {
   final SubscriptionUserInfo? userInfo;
   final SubscriptionMode mode;
   final bool convertedToOrdinary;
+  final FormatException? geoDataWarning;
 
   int get count => rows
       .where(
@@ -226,59 +228,12 @@ class SubscriptionService {
       if (input.hwidEnabled && input.hwid == null) {
         input = input.withHwid(createHwid());
       }
-      final loaded = await _loadRows(input, confirmOrdinary: confirmOrdinary);
-      if (!loaded.hasUsableRows ||
-          (!loaded.convertedToOrdinary &&
-              input.mode != null &&
-              input.mode != loaded.mode)) {
-        return SubscriptionInsertResult(
-          error: loaded.error,
-          status: loaded.status == SubscriptionUpdateResult.success
-              ? SubscriptionUpdateResult.invalidContent
-              : loaded.status,
-        );
-      }
-      final rows = loaded.rows;
-      final db = _database;
-      return await db.transaction(() async {
-        // A concurrent import may have completed while this source downloaded.
-        if (await db.subscriptionDao.urlExists(input.url)) {
-          return const SubscriptionInsertResult(
-            status: SubscriptionUpdateResult.duplicateUrl,
-          );
-        }
-        final row = SubscriptionCompanion.insert(
-          name: input.name,
-          url: input.url,
-          userAgent: Value(input.normalizedUserAgent),
-          panel: Value(
-            loaded.convertedToOrdinary
-                ? SubscriptionPanel.generic.name
-                : input.panel.name,
-          ),
-          mode: Value(loaded.mode.name),
-          ageSecretKey: Value(input.normalizedAgeSecretKey),
-          agePublicKey: Value(input.normalizedAgePublicKey),
-          hwidEnabled: Value(input.hwidEnabled),
-          hwid: Value(input.hwid),
-          timestamp: DateTime.now(),
-          uploadBytes: Value(loaded.userInfo?.uploadBytes),
-          downloadBytes: Value(loaded.userInfo?.downloadBytes),
-          totalBytes: Value(loaded.userInfo?.totalBytes),
-          expireTimestamp: Value(loaded.userInfo?.expireTimestamp),
-          userInfoUpdatedAt: Value(loaded.userInfo?.updatedAt),
-        );
-        final nextSubId = await db.subscriptionDao.insertRow(row);
-        if (nextSubId <= DBConstants.defaultId) {
-          throw StateError('insert subscription failed');
-        }
-        await ConfigWriter.writeRowsBatchInTransaction(db, rows, nextSubId);
-        return SubscriptionInsertResult(
-          status: SubscriptionUpdateResult.success,
-          subId: nextSubId,
-          count: loaded.count,
-        );
-      });
+      return await _loadAndSave(
+        input,
+        confirmOrdinary: confirmOrdinary,
+        save: (loaded) => _saveNew(input, loaded),
+        committed: (result) => result.success,
+      );
     } catch (error, stackTrace) {
       ygLogger(
         'insert subscription failed (${error.runtimeType})\n$stackTrace',
@@ -288,6 +243,68 @@ class SubscriptionService {
         error: error,
       );
     }
+  }
+
+  Future<SubscriptionInsertResult> _saveNew(
+    SubscriptionInput input,
+    SubscriptionLoadResult loaded,
+  ) async {
+    if (!loaded.hasUsableRows ||
+        (!loaded.convertedToOrdinary &&
+            input.mode != null &&
+            input.mode != loaded.mode)) {
+      return SubscriptionInsertResult(
+        error: loaded.error,
+        status: loaded.status == SubscriptionUpdateResult.success
+            ? SubscriptionUpdateResult.invalidContent
+            : loaded.status,
+      );
+    }
+    final db = _database;
+    return db.transaction(() async {
+      // A concurrent import may have completed while this source downloaded.
+      if (await db.subscriptionDao.urlExists(input.url)) {
+        return const SubscriptionInsertResult(
+          status: SubscriptionUpdateResult.duplicateUrl,
+        );
+      }
+      final row = SubscriptionCompanion.insert(
+        name: input.name,
+        url: input.url,
+        userAgent: Value(input.normalizedUserAgent),
+        panel: Value(
+          loaded.convertedToOrdinary
+              ? SubscriptionPanel.generic.name
+              : input.panel.name,
+        ),
+        mode: Value(loaded.mode.name),
+        ageSecretKey: Value(input.normalizedAgeSecretKey),
+        agePublicKey: Value(input.normalizedAgePublicKey),
+        hwidEnabled: Value(input.hwidEnabled),
+        hwid: Value(input.hwid),
+        timestamp: DateTime.now(),
+        uploadBytes: Value(loaded.userInfo?.uploadBytes),
+        downloadBytes: Value(loaded.userInfo?.downloadBytes),
+        totalBytes: Value(loaded.userInfo?.totalBytes),
+        expireTimestamp: Value(loaded.userInfo?.expireTimestamp),
+        userInfoUpdatedAt: Value(loaded.userInfo?.updatedAt),
+      );
+      final nextSubId = await db.subscriptionDao.insertRow(row);
+      if (nextSubId <= DBConstants.defaultId) {
+        throw StateError('insert subscription failed');
+      }
+      await ConfigWriter.writeRowsBatchInTransaction(
+        db,
+        loaded.rows,
+        nextSubId,
+      );
+      return SubscriptionInsertResult(
+        status: SubscriptionUpdateResult.success,
+        subId: nextSubId,
+        count: loaded.count,
+        geoDataWarning: loaded.geoDataWarning,
+      );
+    });
   }
 
   /// Editing a source changes future downloads, not its current node assets.
@@ -513,7 +530,8 @@ class SubscriptionService {
           status: SubscriptionUpdateResult.notFound,
         );
       }
-      final loaded = await _loadRows(
+      var schedulePing = false;
+      final result = await _loadAndSave(
         SubscriptionInput(
           name: subscription.name,
           url: subscription.url,
@@ -530,26 +548,30 @@ class SubscriptionService {
               (throw const FormatException('Unsupported subscription mode')),
         ),
         confirmOrdinary: confirmOrdinary,
+        save: (loaded) async {
+          _ensureCurrent(id, generation);
+          if (!loaded.hasUsableRows ||
+              (!loaded.convertedToOrdinary &&
+                  loaded.mode.name != subscription.mode)) {
+            return SubscriptionRefreshResult(
+              error: loaded.error,
+              status: loaded.status == SubscriptionUpdateResult.success
+                  ? SubscriptionUpdateResult.invalidContent
+                  : loaded.status,
+            );
+          }
+          final result = await _replaceSubscription(
+            subscription,
+            loaded,
+            generation,
+          );
+          schedulePing =
+              result.success && loaded.mode == SubscriptionMode.appManaged;
+          return result;
+        },
+        committed: (result) => result.success,
       );
-      _ensureCurrent(id, generation);
-      if (!loaded.hasUsableRows ||
-          (!loaded.convertedToOrdinary &&
-              loaded.mode.name != subscription.mode)) {
-        return SubscriptionRefreshResult(
-          error: loaded.error,
-          status: loaded.status == SubscriptionUpdateResult.success
-              ? SubscriptionUpdateResult.invalidContent
-              : loaded.status,
-        );
-      }
-      final result = await _replaceSubscription(
-        subscription,
-        loaded,
-        generation,
-      );
-      if (result.success && loaded.mode == SubscriptionMode.appManaged) {
-        _schedulePing(id);
-      }
+      if (schedulePing) _schedulePing(id);
       return result;
     } on _SupersededSubscriptionUpdate {
       return const SubscriptionRefreshResult(
@@ -615,6 +637,7 @@ class SubscriptionService {
       return SubscriptionRefreshResult(
         status: SubscriptionUpdateResult.success,
         count: loaded.count,
+        geoDataWarning: loaded.geoDataWarning,
       );
     });
   }
@@ -638,32 +661,41 @@ class SubscriptionService {
       current.hwidEnabled == expected.hwidEnabled &&
       current.hwid == expected.hwid;
 
-  Future<SubscriptionLoadResult> _loadRows(
+  Future<T> _loadAndSave<T>(
     SubscriptionInput input, {
     SubscriptionFormatConfirmation? confirmOrdinary,
+    required Future<T> Function(SubscriptionLoadResult) save,
+    required bool Function(T) committed,
   }) => AppEventBus.instance.trackDownload(
-    () => _readSubscription(input, confirmOrdinary: confirmOrdinary),
+    () => _readSubscription(
+      input,
+      confirmOrdinary: confirmOrdinary,
+      save: save,
+      committed: committed,
+    ),
   );
 
-  Future<SubscriptionLoadResult> _readSubscription(
+  Future<T> _readSubscription<T>(
     SubscriptionInput input, {
     SubscriptionFormatConfirmation? confirmOrdinary,
+    required Future<T> Function(SubscriptionLoadResult) save,
+    required bool Function(T) committed,
   }) async {
+    Future<T> fail(SubscriptionUpdateResult status, {Object? error}) =>
+        save(SubscriptionLoadResult(status: status, error: error));
+
     if (input.hasIncompleteAgeKeyPair) {
-      return const SubscriptionLoadResult(
-        status: SubscriptionUpdateResult.invalidAgeSecretKey,
-      );
+      return fail(SubscriptionUpdateResult.invalidAgeSecretKey);
     }
     final loadRows = _loadRowsOverride;
     if (loadRows != null) {
-      return loadRows(input);
+      return save(await loadRows(input));
     }
     final ageContext = input.normalizedAgeContext;
 
-    final String text;
-    final SubscriptionUserInfo? userInfo;
+    final Response<String> response;
     try {
-      final response = await _client.getTextResponse(
+      response = await _client.getTextResponse(
         input.url,
         httpsOnly: true,
         requestHeaders: DownloadRequestHeaders(
@@ -672,59 +704,59 @@ class SubscriptionService {
           hwid: input.hwidEnabled ? input.hwid : null,
         ),
       );
-      final denied = _hwidErrorStatus(response.headers);
-      if (denied != null) return SubscriptionLoadResult(status: denied);
-      text = response.data ?? '';
-      userInfo = SubscriptionUserInfo.parse(
-        response.headers['subscription-userinfo']?.join(';'),
-        updatedAt: DateTime.now(),
-      );
     } catch (error) {
       if (error is DioException) {
         final denied = _hwidErrorStatus(error.response?.headers);
-        if (denied != null) return SubscriptionLoadResult(status: denied);
+        if (denied != null) return fail(denied);
       }
-      return SubscriptionLoadResult(
-        status: SubscriptionUpdateResult.downloadFailed,
-        error: error,
-      );
+      return fail(SubscriptionUpdateResult.downloadFailed, error: error);
     }
+    final denied = _hwidErrorStatus(response.headers);
+    if (denied != null) return fail(denied);
+    final userInfo = SubscriptionUserInfo.parse(
+      response.headers['subscription-userinfo']?.join(';'),
+      updatedAt: DateTime.now(),
+    );
+    var saving = false;
     try {
       final reader =
           _configurationReaderOverride ?? SubscriptionConfigurationReader();
-      final result = await reader.read(
-        text,
+      return await reader.readAndSave(
+        response.data ?? '',
         input,
+        routingHeaders: response.headers['routing'],
         confirmOrdinary: confirmOrdinary,
-      );
-      return SubscriptionLoadResult(
-        status: result.count == 0
-            ? SubscriptionUpdateResult.invalidContent
-            : SubscriptionUpdateResult.success,
-        rows: result.rows,
-        mode: result.mode,
-        convertedToOrdinary: result.convertedToOrdinary,
-        userInfo: userInfo,
-      );
-    } on RemnawaveResponseFormatException {
-      return const SubscriptionLoadResult(
-        status: SubscriptionUpdateResult.remnawaveFormatMismatch,
-      );
-    } on LibXrayInvokeException catch (error) {
-      return SubscriptionLoadResult(
-        status: _ageErrorStatus(error.message),
-        error: error,
+        save: (result) {
+          saving = true;
+          return save(
+            SubscriptionLoadResult(
+              status: result.count == 0
+                  ? SubscriptionUpdateResult.invalidContent
+                  : SubscriptionUpdateResult.success,
+              rows: result.rows,
+              mode: result.mode,
+              convertedToOrdinary: result.convertedToOrdinary,
+              userInfo: userInfo,
+              geoDataWarning: result.geoDataWarning,
+            ),
+          );
+        },
+        committed: committed,
       );
     } catch (error, stackTrace) {
+      if (saving) rethrow;
+      if (error is RemnawaveResponseFormatException) {
+        return fail(SubscriptionUpdateResult.remnawaveFormatMismatch);
+      }
+      if (error is LibXrayInvokeException) {
+        return fail(_ageErrorStatus(error.message), error: error);
+      }
       if (!failureCancelled(error)) {
         ygLogger(
           'parse subscription failed (${error.runtimeType})\n$stackTrace',
         );
       }
-      return SubscriptionLoadResult(
-        status: SubscriptionUpdateResult.invalidContent,
-        error: error,
-      );
+      return fail(SubscriptionUpdateResult.invalidContent, error: error);
     }
   }
 

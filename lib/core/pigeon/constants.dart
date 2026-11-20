@@ -15,4 +15,5 @@ class VpnConstants {
 
   static String get startPath => p.join(runDir, startFileName);
   static String get proxyStartPath => p.join(runDir, proxyStartFileName);
+  static const apnsPresetPendingFileName = 'apns-preset-pending';
 }

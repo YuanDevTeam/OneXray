@@ -299,6 +299,7 @@ void main() {
           {'file': 'missing.dat', 'url': 'invalid'},
         ],
       },
+      'GeoData': {'cron': 'invalid'},
       'metrics': false,
       'stats': false,
       'log': false,
@@ -348,6 +349,7 @@ void main() {
       expect(actual[key], source[key]);
     }
     expect(actual.containsKey('geodata'), false);
+    expect(actual.containsKey('GeoData'), false);
     expect(actual.containsKey('metrics'), false);
     expect(actual['stats'], {});
     expect(actual['log']['loglevel'], 'none');

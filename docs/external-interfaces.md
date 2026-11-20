@@ -150,6 +150,9 @@ Runner-only 的 `ForegroundContinuableIntent` conformance 提供主 App 进程�
 过期提交使用 `apple-preparation-cancelled` 类型化错误返回；Dart 不重复停止已由原生处理的连接，也不影响之后的新启动。
 清理/恢复复用现有维护入口建立原生持久 START 阻断，失败不进入数据替换；正常启动就绪后解除异常遗留标记。
 
+APNs 预设变更待应用时，旧快照暂不可供 Widget、控制中心或系统按需启动。App 准备的启动从原生传入
+与候选快照匹配的令牌。成功连接且保存设置后解除阻断；尚未应用的 Widget 或控制中心启动沿用打开 App 的路径。
+
 原生到 Dart 的 `takeAction` 返回消费一次的 JSON envelope：`version:1`、`suppressAutoConnect:bool`、
 `openConnect:bool`、`invalidatedPreparations:[String]`。它只累积启动抑制、导航和旧准备失效信息，
 不重送 start/stop，不形成持久命令队列。Dart 先抑制本次偏好自动连接，再仅取消匹配当前 token 的旧任务，
@@ -162,6 +165,8 @@ Widget 唯一公开 URL 为 `onexray://widget/connect`，只打开连接页，�
 
 状态与有效语言通过 App Group 中独立的原子快照传递，语言更新不覆盖原生状态。
 App/隧道扩展发布状态，Widget 只读取展示；快照不是启动输入，不含连接配置或凭据。
+控制中心另读取按启动尝试关联的失败记录，Runner 和隧道扩展同步更新，迟到结果不得覆盖新尝试。
+普通的已断开快照保留近期警告，详细错误仍由原生启动链返回给 App。
 快照写入或 Widget 刷新不可用不改变 VPN 操作结果。版本、family、过期及隐私边界见
 [iOS/iPadOS Widget](app.md#iosipados-widget)。
 

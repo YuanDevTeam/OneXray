@@ -265,6 +265,7 @@ class ServerImportService {
         subId: row.id,
         count: result.count,
         error: result.error,
+        geoDataWarning: result.geoDataWarning,
       );
     }
     String? secretKey;

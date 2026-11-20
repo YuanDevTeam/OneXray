@@ -18,6 +18,7 @@ import 'package:onexray/core/pigeon/messages.g.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
 import 'package:onexray/service/settings/language/locale.dart';
 import 'package:onexray/pages/connect/controller.dart';
+import 'package:onexray/pages/connect/provider_picker.dart';
 import 'package:onexray/pages/connect/view.dart';
 import 'package:onexray/pages/connect/target_picker.dart';
 import 'package:onexray/pages/main/navigation.dart';
@@ -48,6 +49,89 @@ void main() {
     final bus = AppEventBus();
     addTearDown(bus.close);
   });
+
+  testWidgets(
+    'Provider shortcut saves offline and confirms only a changed running target',
+    (tester) async {
+      final coordinator = _Coordinator();
+      final db = coordinator.db;
+      addTearDown(db.close);
+      addTearDown(coordinator.dispose);
+      final sourceId = await db.subscriptionDao.insertRow(
+        SubscriptionCompanion.insert(
+          name: 'Provider subscription',
+          url: 'https://example.com/sub',
+          timestamp: DateTime(2026),
+          mode: Value(SubscriptionMode.providerManaged.name),
+        ),
+      );
+      final id = await db.coreConfigDao.insertAssetRow(
+        CoreConfigCompanion.insert(
+          name: 'Provider profile',
+          tags: '',
+          type: CoreConfigType.Remnawave.name,
+          delay: PingDelayConstants.unknown,
+          subId: sourceId,
+          data: Value(
+            base64Encode(utf8.encode('{"outbounds":[{"protocol":"freedom"}]}')),
+          ),
+        ),
+      );
+      coordinator.saved = ConnectionConfiguration();
+      coordinator.state.value = const ConnectionView();
+      await tester.pumpWidget(
+        _testApp(
+          Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => chooseProviderConfiguration(
+                  context,
+                  sourceId: sourceId,
+                  database: db,
+                  coordinator: coordinator,
+                ),
+                child: const Text('Open Provider list'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      Future<void> choose() async {
+        await tester.tap(find.text('Open Provider list'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Provider profile'));
+        await tester.pumpAndSettle();
+      }
+
+      final reconnect = find.text('Apply and reconnect');
+      await choose();
+      expect(coordinator.applied?.connection.selection.toJson(), {
+        'kind': 'server',
+        'id': id,
+      });
+      expect(coordinator.reconnectAllowed, isFalse);
+      expect(coordinator.connectCount, 0);
+
+      coordinator.saved = coordinator.applied!;
+      await choose();
+      expect(reconnect, findsNothing);
+      expect(coordinator.applyCount, 1);
+
+      coordinator.saved = ConnectionConfiguration();
+      await choose();
+      expect(reconnect, findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(coordinator.applyCount, 1);
+
+      await choose();
+      await tester.tap(reconnect);
+      await tester.pumpAndSettle();
+      expect(coordinator.applyCount, 2);
+      expect(coordinator.reconnectAllowed, isTrue);
+    },
+  );
 
   testWidgets(
     'provider selection and runtime snapshot preserve provider routing without traffic changes',
@@ -1231,6 +1315,8 @@ class _Coordinator extends ConnectionCoordinator {
   int connectCount = 0;
   int disconnectCount = 0;
   int cancelCount = 0;
+  ConnectionConfiguration? applied;
+  bool? reconnectAllowed;
 
   @override
   void cancel() {
@@ -1275,6 +1361,8 @@ class _Coordinator extends ConnectionCoordinator {
     PrepareConnection? prepare,
   }) async {
     applyCount++;
+    applied = next;
+    reconnectAllowed = allowReconnect;
     if (fail) {
       state.value = const ConnectionView(
         phase: ConnectionPhase.connected,

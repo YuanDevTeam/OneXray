@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/db/database/enum.dart';
 import 'package:onexray/core/ffi/windows/mode.dart';
+import 'package:onexray/core/model/geo_data_type.dart';
 import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/core/pigeon/constants.dart';
 import 'package:onexray/core/tools/json.dart';
@@ -22,6 +23,7 @@ import 'package:onexray/service/shared/xray/runtime_inbounds.dart';
 import 'package:onexray/service/shared/xray/runtime_outbounds.dart';
 import 'package:onexray/service/shared/xray/fake_dns.dart';
 import 'package:onexray/service/shared/xray/fragment.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 import 'package:onexray/service/shared/xray/remnawave.dart';
 import 'package:onexray/service/shared/xray/vpn_config.dart';
 import 'package:onexray/service/shared/xray/server_dialing.dart';
@@ -31,6 +33,7 @@ class ResolvedProfile {
   final int id;
   final int sourceId;
   final String name;
+  final ProviderGeoDataBinding? geoData;
   final Map<String, dynamic> _config;
 
   ResolvedProfile({
@@ -38,6 +41,7 @@ class ResolvedProfile {
     required this.sourceId,
     required this.name,
     required Map<String, dynamic> config,
+    this.geoData,
   }) : _config = JsonTool.copyMap(config) {
     if (id <= 0 || sourceId <= 0 || name.trim().isEmpty) {
       throw const FormatException('Invalid provider profile');
@@ -55,11 +59,20 @@ class ResolvedProfile {
       config: ConnectionCompiler.parseRawJson(
         utf8.decode(base64Decode(row.data!)),
       ),
+      geoData: ProviderGeoDataBinding.decode(row.providerGeoData),
     );
   }
 
   String get type => CoreConfigType.Remnawave.name;
   Map<String, dynamic> get config => JsonTool.copyMap(_config);
+
+  Map<String, dynamic> adaptedConfig() =>
+      RemnawaveAdapter.adapt(geoData?.apply(_config) ?? _config);
+
+  Map<String, GeoDataType> get geoDataDependencies => {
+    ?geoData?.geoIpFile: GeoDataType.ip,
+    ?geoData?.geoSiteFile: GeoDataType.domain,
+  };
 }
 
 class ResolvedServer {
@@ -106,6 +119,7 @@ class RuntimeOptions {
   final bool lanProxyEnabled;
   final int lanProxyPort;
   final bool ipv6;
+  final bool apnsProxyPreset;
   final ServerDialingSettings dialing;
   final String tunDnsIpv4Address;
   final String tunDnsIpv6Address;
@@ -126,6 +140,7 @@ class RuntimeOptions {
     this.lanProxyEnabled = false,
     this.lanProxyPort = defaultLanProxyPort,
     this.ipv6 = true,
+    this.apnsProxyPreset = false,
     this.dialing = const ServerDialingSettings(),
     this.tunDnsIpv4Address = '8.8.8.8',
     this.tunDnsIpv6Address = '2001:4860:4860::8888',
@@ -197,6 +212,23 @@ class CompiledConnection {
 /// Pure value compilation. Never opens a database, edits an asset, allocates a
 /// port or starts Xray. Runtime files and commits belong to the coordinator.
 class ConnectionCompiler {
+  static const _apnsDomains = ['domain:push.apple.com'];
+
+  // https://support.apple.com/102266
+  static const _apnsIpv4Networks = [
+    '17.249.0.0/16',
+    '17.252.0.0/16',
+    '17.57.144.0/22',
+    '17.188.128.0/18',
+    '17.188.20.0/23',
+  ];
+  static const _apnsIpv6Networks = [
+    '2620:149:a44::/48',
+    '2403:300:a42::/48',
+    '2403:300:a51::/48',
+    '2a01:b740:a42::/48',
+  ];
+
   static Map<String, dynamic> parseRawJson(String text) {
     final value = jsonDecode(text);
     if (value is! Map<String, dynamic>) {
@@ -310,8 +342,7 @@ class ConnectionCompiler {
           'Provider configuration requires one matching complete profile',
         );
       }
-      final adapted = RemnawaveAdapter.adapt(profile.config);
-      config = _fullRuntimeMap(adapted, options);
+      config = _fullRuntimeMap(profile.adaptedConfig(), options);
     } else if (settings.expert) {
       if (raw == null || entries.isNotEmpty || finalExit != null) {
         throw const FormatException(
@@ -365,7 +396,7 @@ class ConnectionCompiler {
         }
         template['inbounds'] = inbounds;
         return CompiledConnection(
-          xrayJson: jsonEncode(
+          xrayJson: _encodeRuntime(
             _rawRuntimeMap(
               template,
               options,
@@ -379,6 +410,10 @@ class ConnectionCompiler {
       }
       final ordinary = custom is RoutingProfileState ? custom : null;
       final allVpn = settings.trafficMode == TrafficMode.allVpn;
+      final routeApns =
+          options.platform == ConnectionPlatform.ios &&
+          options.apnsProxyPreset &&
+          !allVpn;
       final rules = <XrayRoutingRule>[];
       if (settings.trafficMode == TrafficMode.smart) {
         rules.addAll(smartRules(settings.smart, regions));
@@ -478,7 +513,12 @@ class ConnectionCompiler {
       sniffing.validate(fakeDns: fakeDns);
       final dns = RoutingDns.compile(
         settings: dnsSettings,
-        rules: allVpn ? const [] : rules,
+        rules: [
+          // The DNS compiler matches the queried name, independent of inbound.
+          if (routeApns)
+            XrayRoutingRule(domain: _apnsDomains, balancerTag: 'proxy'),
+          ...rules,
+        ],
         directEnabled:
             !allVpn && (ordinary != null || settings.smart.directDns),
         fakeDns: fakeDns,
@@ -553,6 +593,26 @@ class ConnectionCompiler {
               port: '853',
               balancerTag: 'proxy',
             ),
+            if (routeApns) ...[
+              XrayRoutingRule(
+                ruleTag: 'app-apns-proxy-domain',
+                domain: _apnsDomains,
+                inboundTag: ['tunIn'],
+                balancerTag: 'proxy',
+              ),
+              XrayRoutingRule(
+                ruleTag: 'app-apns-proxy-ipv4',
+                ip: _apnsIpv4Networks,
+                inboundTag: ['tunIn'],
+                balancerTag: 'proxy',
+              ),
+              XrayRoutingRule(
+                ruleTag: 'app-apns-proxy-ipv6',
+                ip: _apnsIpv6Networks,
+                inboundTag: ['tunIn'],
+                balancerTag: 'proxy',
+              ),
+            ],
             ...rules,
             if (selection.automatic)
               XrayRoutingRule(
@@ -569,12 +629,21 @@ class ConnectionCompiler {
       config = normal.toJson();
     }
     return CompiledConnection(
-      xrayJson: jsonEncode(config),
+      xrayJson: _encodeRuntime(config, profile?.geoData),
       entries: entries,
       finalExit: finalExit,
       nodeTags: nodeTags,
       profile: profile,
     );
+  }
+
+  static String _encodeRuntime(
+    Map<String, dynamic> config, [
+    ProviderGeoDataBinding? geoData,
+  ]) {
+    final encoded = jsonEncode(config);
+    (geoData ?? const ProviderGeoDataBinding()).requireInScope(config, encoded);
+    return encoded;
   }
 
   static Map<String, dynamic> _node(ResolvedServer node, String tag) {
@@ -774,9 +843,8 @@ class ConnectionCompiler {
     env.remove('XRAY_TUN_FD');
     env['xray.location.asset'] = VpnConstants.datDir;
     env['xray.location.cert'] = VpnConstants.datDir;
-    config.remove(
-      'geodata',
-    ); // App controls installed files, never core-side remote downloads.
+    // App controls installed files, never core-side remote downloads.
+    config.removeWhere((key, _) => key.toLowerCase() == 'geodata');
     config['log'] = _runtimeLog(options).toJson();
     config['stats'] = <String, dynamic>{};
     config['metrics'] = {'listen': '127.0.0.1:${options.metricsPort}'};

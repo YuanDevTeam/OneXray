@@ -808,7 +808,7 @@ class _ImportFeedback extends StatelessWidget {
                 color: palette.mutedForeground,
               ),
             ),
-          for (final item in state.subscriptionImports)
+          for (final item in state.subscriptionImports) ...[
             Text(
               item.result.success
                   ? '${item.name}: ${state.subscriptionImportSummary(l10n, item)}'
@@ -819,6 +819,22 @@ class _ImportFeedback extends StatelessWidget {
                     : palette.destructive,
               ),
             ),
+            if (state.hasProviderConfigurations(item))
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton(
+                  onPressed: state.busy
+                      ? null
+                      : () => context
+                            .read<ServerImportController>()
+                            .openProviderConfigurations(
+                              context,
+                              item.result.subId,
+                            ),
+                  child: Text(l10n.chooseProviderConfiguration),
+                ),
+              ),
+          ],
           if (state.error case final error? when showError)
             Semantics(
               liveRegion: true,

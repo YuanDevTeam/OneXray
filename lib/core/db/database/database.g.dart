@@ -58,6 +58,17 @@ class $CoreConfigTable extends CoreConfig
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _providerGeoDataMeta = const VerificationMeta(
+    'providerGeoData',
+  );
+  @override
+  late final GeneratedColumn<String> providerGeoData = GeneratedColumn<String>(
+    'provider_geo_data',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _delayMeta = const VerificationMeta('delay');
   @override
   late final GeneratedColumn<int> delay = GeneratedColumn<int>(
@@ -121,6 +132,7 @@ class $CoreConfigTable extends CoreConfig
     type,
     tags,
     data,
+    providerGeoData,
     delay,
     subId,
     manualGroupId,
@@ -170,6 +182,15 @@ class $CoreConfigTable extends CoreConfig
       context.handle(
         _dataMeta,
         this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    }
+    if (data.containsKey('provider_geo_data')) {
+      context.handle(
+        _providerGeoDataMeta,
+        providerGeoData.isAcceptableOrUnknown(
+          data['provider_geo_data']!,
+          _providerGeoDataMeta,
+        ),
       );
     }
     if (data.containsKey('delay')) {
@@ -241,6 +262,10 @@ class $CoreConfigTable extends CoreConfig
         DriftSqlType.string,
         data['${effectivePrefix}data'],
       ),
+      providerGeoData: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}provider_geo_data'],
+      ),
       delay: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}delay'],
@@ -276,6 +301,7 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
   final String type;
   final String tags;
   final String? data;
+  final String? providerGeoData;
   final int delay;
   final int subId;
   final int? manualGroupId;
@@ -287,6 +313,7 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     required this.type,
     required this.tags,
     this.data,
+    this.providerGeoData,
     required this.delay,
     required this.subId,
     this.manualGroupId,
@@ -302,6 +329,9 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     map['tags'] = Variable<String>(tags);
     if (!nullToAbsent || data != null) {
       map['data'] = Variable<String>(data);
+    }
+    if (!nullToAbsent || providerGeoData != null) {
+      map['provider_geo_data'] = Variable<String>(providerGeoData);
     }
     map['delay'] = Variable<int>(delay);
     map['sub_id'] = Variable<int>(subId);
@@ -320,6 +350,9 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
       type: Value(type),
       tags: Value(tags),
       data: data == null && nullToAbsent ? const Value.absent() : Value(data),
+      providerGeoData: providerGeoData == null && nullToAbsent
+          ? const Value.absent()
+          : Value(providerGeoData),
       delay: Value(delay),
       subId: Value(subId),
       manualGroupId: manualGroupId == null && nullToAbsent
@@ -341,6 +374,7 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
       type: serializer.fromJson<String>(json['type']),
       tags: serializer.fromJson<String>(json['tags']),
       data: serializer.fromJson<String?>(json['data']),
+      providerGeoData: serializer.fromJson<String?>(json['providerGeoData']),
       delay: serializer.fromJson<int>(json['delay']),
       subId: serializer.fromJson<int>(json['subId']),
       manualGroupId: serializer.fromJson<int?>(json['manualGroupId']),
@@ -357,6 +391,7 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
       'type': serializer.toJson<String>(type),
       'tags': serializer.toJson<String>(tags),
       'data': serializer.toJson<String?>(data),
+      'providerGeoData': serializer.toJson<String?>(providerGeoData),
       'delay': serializer.toJson<int>(delay),
       'subId': serializer.toJson<int>(subId),
       'manualGroupId': serializer.toJson<int?>(manualGroupId),
@@ -371,6 +406,7 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     String? type,
     String? tags,
     Value<String?> data = const Value.absent(),
+    Value<String?> providerGeoData = const Value.absent(),
     int? delay,
     int? subId,
     Value<int?> manualGroupId = const Value.absent(),
@@ -382,6 +418,9 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     type: type ?? this.type,
     tags: tags ?? this.tags,
     data: data.present ? data.value : this.data,
+    providerGeoData: providerGeoData.present
+        ? providerGeoData.value
+        : this.providerGeoData,
     delay: delay ?? this.delay,
     subId: subId ?? this.subId,
     manualGroupId: manualGroupId.present
@@ -397,6 +436,9 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
       type: data.type.present ? data.type.value : this.type,
       tags: data.tags.present ? data.tags.value : this.tags,
       data: data.data.present ? data.data.value : this.data,
+      providerGeoData: data.providerGeoData.present
+          ? data.providerGeoData.value
+          : this.providerGeoData,
       delay: data.delay.present ? data.delay.value : this.delay,
       subId: data.subId.present ? data.subId.value : this.subId,
       manualGroupId: data.manualGroupId.present
@@ -417,6 +459,7 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
           ..write('type: $type, ')
           ..write('tags: $tags, ')
           ..write('data: $data, ')
+          ..write('providerGeoData: $providerGeoData, ')
           ..write('delay: $delay, ')
           ..write('subId: $subId, ')
           ..write('manualGroupId: $manualGroupId, ')
@@ -433,6 +476,7 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
     type,
     tags,
     data,
+    providerGeoData,
     delay,
     subId,
     manualGroupId,
@@ -448,6 +492,7 @@ class CoreConfigData extends DataClass implements Insertable<CoreConfigData> {
           other.type == this.type &&
           other.tags == this.tags &&
           other.data == this.data &&
+          other.providerGeoData == this.providerGeoData &&
           other.delay == this.delay &&
           other.subId == this.subId &&
           other.manualGroupId == this.manualGroupId &&
@@ -461,6 +506,7 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
   final Value<String> type;
   final Value<String> tags;
   final Value<String?> data;
+  final Value<String?> providerGeoData;
   final Value<int> delay;
   final Value<int> subId;
   final Value<int?> manualGroupId;
@@ -472,6 +518,7 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     this.type = const Value.absent(),
     this.tags = const Value.absent(),
     this.data = const Value.absent(),
+    this.providerGeoData = const Value.absent(),
     this.delay = const Value.absent(),
     this.subId = const Value.absent(),
     this.manualGroupId = const Value.absent(),
@@ -484,6 +531,7 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     required String type,
     required String tags,
     this.data = const Value.absent(),
+    this.providerGeoData = const Value.absent(),
     required int delay,
     required int subId,
     this.manualGroupId = const Value.absent(),
@@ -500,6 +548,7 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     Expression<String>? type,
     Expression<String>? tags,
     Expression<String>? data,
+    Expression<String>? providerGeoData,
     Expression<int>? delay,
     Expression<int>? subId,
     Expression<int>? manualGroupId,
@@ -512,6 +561,7 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
       if (type != null) 'type': type,
       if (tags != null) 'tags': tags,
       if (data != null) 'data': data,
+      if (providerGeoData != null) 'provider_geo_data': providerGeoData,
       if (delay != null) 'delay': delay,
       if (subId != null) 'sub_id': subId,
       if (manualGroupId != null) 'manual_group_id': manualGroupId,
@@ -526,6 +576,7 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     Value<String>? type,
     Value<String>? tags,
     Value<String?>? data,
+    Value<String?>? providerGeoData,
     Value<int>? delay,
     Value<int>? subId,
     Value<int?>? manualGroupId,
@@ -538,6 +589,7 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
       type: type ?? this.type,
       tags: tags ?? this.tags,
       data: data ?? this.data,
+      providerGeoData: providerGeoData ?? this.providerGeoData,
       delay: delay ?? this.delay,
       subId: subId ?? this.subId,
       manualGroupId: manualGroupId ?? this.manualGroupId,
@@ -563,6 +615,9 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
     }
     if (data.present) {
       map['data'] = Variable<String>(data.value);
+    }
+    if (providerGeoData.present) {
+      map['provider_geo_data'] = Variable<String>(providerGeoData.value);
     }
     if (delay.present) {
       map['delay'] = Variable<int>(delay.value);
@@ -590,6 +645,7 @@ class CoreConfigCompanion extends UpdateCompanion<CoreConfigData> {
           ..write('type: $type, ')
           ..write('tags: $tags, ')
           ..write('data: $data, ')
+          ..write('providerGeoData: $providerGeoData, ')
           ..write('delay: $delay, ')
           ..write('subId: $subId, ')
           ..write('manualGroupId: $manualGroupId, ')
@@ -2830,6 +2886,7 @@ typedef $$CoreConfigTableCreateCompanionBuilder = CoreConfigCompanion Function({
   required String type,
   required String tags,
   Value<String?> data,
+  Value<String?> providerGeoData,
   required int delay,
   required int subId,
   Value<int?> manualGroupId,
@@ -2842,6 +2899,7 @@ typedef $$CoreConfigTableUpdateCompanionBuilder = CoreConfigCompanion Function({
   Value<String> type,
   Value<String> tags,
   Value<String?> data,
+  Value<String?> providerGeoData,
   Value<int> delay,
   Value<int> subId,
   Value<int?> manualGroupId,
@@ -2880,6 +2938,11 @@ class $$CoreConfigTableFilterComposer
 
   ColumnFilters<String> get data => $composableBuilder(
     column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get providerGeoData => $composableBuilder(
+    column: $table.providerGeoData,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2943,6 +3006,11 @@ class $$CoreConfigTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get providerGeoData => $composableBuilder(
+    column: $table.providerGeoData,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<int> get delay => $composableBuilder(
     column: $table.delay,
     builder: (column) => ColumnOrderings(column),
@@ -2992,6 +3060,11 @@ class $$CoreConfigTableAnnotationComposer
 
   GeneratedColumn<String> get data =>
       $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<String> get providerGeoData => $composableBuilder(
+    column: $table.providerGeoData,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<int> get delay =>
       $composableBuilder(column: $table.delay, builder: (column) => column);
@@ -3049,6 +3122,7 @@ class $$CoreConfigTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<String> tags = const Value.absent(),
                 Value<String?> data = const Value.absent(),
+                Value<String?> providerGeoData = const Value.absent(),
                 Value<int> delay = const Value.absent(),
                 Value<int> subId = const Value.absent(),
                 Value<int?> manualGroupId = const Value.absent(),
@@ -3060,6 +3134,7 @@ class $$CoreConfigTableTableManager
                 type: type,
                 tags: tags,
                 data: data,
+                providerGeoData: providerGeoData,
                 delay: delay,
                 subId: subId,
                 manualGroupId: manualGroupId,
@@ -3073,6 +3148,7 @@ class $$CoreConfigTableTableManager
                 required String type,
                 required String tags,
                 Value<String?> data = const Value.absent(),
+                Value<String?> providerGeoData = const Value.absent(),
                 required int delay,
                 required int subId,
                 Value<int?> manualGroupId = const Value.absent(),
@@ -3084,6 +3160,7 @@ class $$CoreConfigTableTableManager
                 type: type,
                 tags: tags,
                 data: data,
+                providerGeoData: providerGeoData,
                 delay: delay,
                 subId: subId,
                 manualGroupId: manualGroupId,

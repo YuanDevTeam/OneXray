@@ -23,6 +23,7 @@ import 'package:onexray/service/connect/routing/custom/advanced.dart';
 import 'package:onexray/service/connect/routing/custom/state.dart';
 import 'package:onexray/service/connect/runtime.dart';
 import 'package:onexray/service/connect/settings.dart';
+import 'package:onexray/service/shared/xray/provider_geodata.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -170,6 +171,91 @@ void main() {
       );
       profile = (await db.coreConfigDao.searchRow(id))!;
     });
+
+    test(
+      'iOS APNs preset pairs the native policy and compiled route',
+      () async {
+        final node = await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: 'Ordinary node',
+            type: 'outbound',
+            tags: '',
+            subId: 0,
+            delay: PingDelayConstants.unknown,
+            data: Value(
+              base64Encode(
+                utf8.encode('{"outbounds":[{"protocol":"freedom"}]}'),
+              ),
+            ),
+          ),
+        );
+        final input = ConnectionConfiguration(
+          policy: PlatformPolicy.fromJson({
+            'ipv6Enabled': false,
+            'apple': {
+              'apnsProxyPreset': true,
+              'excludedCidrs': ['192.0.2.0/24'],
+              'allowLocalNetwork': false,
+            },
+          }),
+          connection: ConnectionSettings(
+            selection: ServerSelection.server(node),
+            smart: SmartRoutingSettings(directRegions: const []),
+          ),
+        );
+        for (final supported in [true, false]) {
+          final runtime = await ConnectionPreparation(
+            db: db,
+            platform: ConnectionPlatform.ios,
+            getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+            requireDependencies: (_) async {},
+            supportsApnsProxyPreset: () async => supported,
+          ).prepare(input);
+          final restored = ConnectionRuntime.fromRequest(runtime.request);
+          final tun = restored.request.tun!;
+          final rules =
+              jsonDecode(restored.xrayJson)['routing']['rules'] as List;
+          expect(restored.apnsProxyPresetApplied, supported);
+          expect(tun.includeAllNetworks, supported);
+          expect(tun.excludeAPNs, !supported);
+          expect(tun.enableIPv6, supported);
+          expect(tun.excludeLocalNetworks, false);
+          expect(tun.excludedRoutes, supported ? isNull : ['192.0.2.0/24']);
+          expect(
+            rules.any((rule) => rule['ruleTag'] == 'app-apns-proxy-domain'),
+            supported,
+          );
+          expect(restored.configuration.encode(), input.encode());
+        }
+      },
+    );
+
+    test(
+      'automatic provider fallback applies neither leg of the iOS APNs preset',
+      () async {
+        final input = ConnectionConfiguration(
+          policy: PlatformPolicy.fromJson({
+            'ipv6Enabled': false,
+            'apple': {'apnsProxyPreset': true},
+          }),
+        );
+        final runtime = await ConnectionPreparation(
+          db: db,
+          platform: ConnectionPlatform.ios,
+          getFreePorts: (count, {excludePorts}) async => [18002, 18003],
+          requireDependencies: (_) async {},
+          supportsApnsProxyPreset: () async =>
+              throw StateError('The provider graph is ineligible'),
+        ).prepare(input);
+        expect(runtime.profile?.id, profile.id);
+        expect(runtime.apnsProxyPresetApplied, false);
+        expect(runtime.request.tun?.includeAllNetworks, false);
+        expect(runtime.request.tun?.excludeAPNs, true);
+        expect(runtime.request.tun?.enableIPv6, false);
+        expect(runtime.xrayJson, isNot(contains('app-apns-proxy-domain')));
+        expect(runtime.configuration.encode(), input.encode());
+      },
+    );
 
     for (final kind in ['Raw', 'provider']) {
       for (final explicitDns in [false, true]) {
@@ -840,6 +926,77 @@ void main() {
       );
     });
 
+    test(
+      'projects subscription GeoData into the selected runtime only',
+      () async {
+        final file = 'onexray-provider-geosite-${'a' * 64}.dat';
+        final binding = ProviderGeoDataBinding(
+          geoSiteFile: file,
+          geoSiteUrl: 'https://assets.example/geosite.dat',
+        );
+        final original = {
+          ..._providerConfig,
+          'routing': {
+            'rules': [
+              {
+                'type': 'field',
+                'domain': ['geosite:private@tag'],
+                'outboundTag': 'provider-proxy',
+              },
+            ],
+          },
+        };
+        final data = base64Encode(utf8.encode(jsonEncode(original)));
+        final bound = profile.copyWith(
+          data: Value(data),
+          providerGeoData: Value(binding.encode()),
+        );
+        await db.coreConfigDao.updateRow(bound);
+        final otherId = await db.coreConfigDao.insertRow(
+          CoreConfigCompanion.insert(
+            name: 'Profile without scoped Geodata',
+            type: CoreConfigType.Remnawave.name,
+            tags: '',
+            delay: PingDelayConstants.unknown,
+            subId: source.id,
+            data: Value(data),
+          ),
+        );
+        final checks = <Map<String, GeoDataType>>[];
+        final preparation = _providerPreparation(
+          db,
+          requireDependencies: (dependencies) async => checks.add(dependencies),
+        );
+
+        final boundRuntime = await preparation.prepare(
+          _providerInput(profile.id),
+        );
+        final unboundRuntime = await preparation.prepare(
+          _providerInput(otherId),
+        );
+
+        List<dynamic> providerDomains(ConnectionRuntime runtime) =>
+            ((jsonDecode(runtime.xrayJson)['routing']['rules'] as List)
+                        .singleWhere(
+                          (rule) => rule['outboundTag'] == 'provider-proxy',
+                        )
+                    as Map)['domain']
+                as List;
+
+        expect(providerDomains(boundRuntime), ['ext:$file:private@tag']);
+        expect(
+          providerDomains(ConnectionRuntime.fromRequest(boundRuntime.request)),
+          ['ext:$file:private@tag'],
+        );
+        expect(providerDomains(unboundRuntime), ['geosite:private@tag']);
+        expect(checks, [
+          {file: GeoDataType.domain},
+          <String, GeoDataType>{},
+        ]);
+        expect(await db.coreConfigDao.searchRow(profile.id), bound);
+      },
+    );
+
     for (final mode in [TrafficMode.smart, TrafficMode.custom]) {
       test(
         'fixed provider bypasses $mode routing, probes and final exit',
@@ -1317,7 +1474,7 @@ void main() {
       },
     );
 
-    for (final change in ['mode', 'row']) {
+    for (final change in ['mode', 'row', 'GeoData binding']) {
       test(
         'rejects a provider $change change while dependencies are checked',
         () async {
@@ -1337,8 +1494,16 @@ void main() {
               await db.subscriptionDao.updateRow(
                 source.copyWith(mode: SubscriptionMode.appManaged.name),
               );
-            } else {
+            } else if (change == 'row') {
               await db.subscriptionDao.deleteRow(source.id);
+            } else {
+              final binding = ProviderGeoDataBinding(
+                geoSiteFile: 'onexray-provider-geosite-${'a' * 64}.dat',
+                geoSiteUrl: 'https://assets.example/geosite.dat',
+              );
+              await db.coreConfigDao.updateRow(
+                profile.copyWith(providerGeoData: Value(binding.encode())),
+              );
             }
           } finally {
             finish.complete();

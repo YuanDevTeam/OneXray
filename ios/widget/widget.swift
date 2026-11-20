@@ -66,14 +66,14 @@ struct ConnectionWidget: Widget {
 
 @available(iOS 18.0, *)
 private struct VpnControlValue {
-    let status: AppleWidgetStatus
+    let status: AppleWidgetControlStatus
     let languageCode: String
 }
 
 @available(iOS 18.0, *)
 private struct VpnControlValueProvider: ControlValueProvider {
     var previewValue: VpnControlValue {
-        VpnControlValue(status: .unknown, languageCode: AppleWidgetStore.shared?.languageCode() ?? "en")
+        VpnControlValue(status: .disconnected, languageCode: AppleWidgetStore.shared?.languageCode() ?? "en")
     }
 
     func currentValue() async throws -> VpnControlValue {
@@ -81,7 +81,7 @@ private struct VpnControlValueProvider: ControlValueProvider {
         // Providers stay in the Widget extension. Re-evaluate expiry whenever
         // the system requests a value; this is not a live NetworkExtension read.
         return VpnControlValue(
-            status: store?.snapshot()?.displayedStatus(at: Date()) ?? .unknown,
+            status: store?.displayedControlStatus(at: Date()) ?? .unknown,
             languageCode: store?.languageCode() ?? "en"
         )
     }
@@ -92,23 +92,25 @@ struct VpnControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         let language = AppleWidgetStore.shared?.languageCode() ?? "en"
         return StaticControlConfiguration(kind: AppleWidgetStore.controlKind, provider: VpnControlValueProvider()) { value in
+            let statusText = widgetText(controlStatusKey(value.status), value.languageCode)
             ControlWidgetButton(action: ToggleVpnWidgetIntent()) {
                 Label {
-                    Text("VPN")
+                    Text("OneXray VPN")
                 } icon: {
-                    Image(systemName: controlSymbol(value.status))
+                    // iOS 18 can glitch when animating symbols from the extension bundle.
+                    controlImage(value.status).contentTransition(.identity)
                 }
                 .environment(\.locale, Locale(identifier: value.languageCode))
                 .environment(\.layoutDirection, value.languageCode == "fa" ? .rightToLeft : .leftToRight)
-                .controlWidgetStatus(Text(verbatim: widgetText(controlStatusKey(value.status), value.languageCode)))
+                .controlWidgetStatus(Text(verbatim: statusText))
                 .controlWidgetActionHint(Text(verbatim: widgetText("Start or stop VPN", value.languageCode)))
-                .accessibilityLabel(Text(verbatim: "VPN, \(widgetText(controlStatusKey(value.status), value.languageCode))"))
+                .accessibilityLabel(Text(verbatim: "OneXray VPN, \(statusText)"))
             }
             // A button remains actionable for unknown and expired observations.
             // The intent decides from current native state, never this snapshot.
             .tint(value.status == .connected ? Color("WidgetSuccess") : nil)
         }
-        .displayName(LocalizedStringResource("VPN", table: "Widget", locale: Locale(identifier: language)))
+        .displayName(LocalizedStringResource("OneXray VPN", table: "Widget", locale: Locale(identifier: language)))
         .description(controlDescription(language: language))
     }
 
@@ -124,22 +126,24 @@ struct VpnControl: ControlWidget {
         )
     }
 
-    private func controlStatusKey(_ status: AppleWidgetStatus) -> String {
+    private func controlStatusKey(_ status: AppleWidgetControlStatus) -> String {
         switch status {
         case .unknown: "Status pending"
         case .disconnected: "Disconnected"
         case .connecting: "Connecting"
         case .connected: "Connected"
         case .disconnecting: "Disconnecting"
+        case .failed: "VPN connection failed"
         }
     }
 
-    private func controlSymbol(_ status: AppleWidgetStatus) -> String {
+    private func controlImage(_ status: AppleWidgetControlStatus) -> Image {
         switch status {
-        case .unknown: "questionmark.circle"
-        case .disconnected: "shield"
-        case .connecting, .disconnecting: "arrow.triangle.2.circlepath"
-        case .connected: "checkmark.shield"
+        case .unknown: Image(systemName: "questionmark.circle")
+        case .disconnected: Image("OneXrayControl")
+        case .connecting, .disconnecting: Image(systemName: "arrow.triangle.2.circlepath")
+        case .connected: Image("OneXrayControlFill")
+        case .failed: Image(systemName: "exclamationmark.triangle.fill")
         }
     }
 }

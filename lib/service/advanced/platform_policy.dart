@@ -101,6 +101,16 @@ final class PlatformPolicy {
   Map<String, dynamic> toJson() => jsonDecode(_json) as Map<String, dynamic>;
 
   bool get ipv6Enabled => toJson()['ipv6Enabled'] as bool;
+  bool get appleApnsProxyPreset => toJson()['apple']['apnsProxyPreset'] as bool;
+
+  PlatformPolicy withApnsProxyPresetApplied() {
+    final effective = toJson();
+    effective['ipv6Enabled'] = true;
+    effective['apple']['captureAllTraffic'] = true;
+    effective['apple']['bypassApplePushNotifications'] = false;
+    return PlatformPolicy._(effective);
+  }
+
   CaptureMode get captureMode =>
       CaptureMode.values.byName(toJson()['captureMode'] as String);
   bool get autoSetSystemProxy => toJson()['autoSetSystemProxy'] as bool;
@@ -315,6 +325,7 @@ const _defaults = <String, dynamic>{
     'excludedAppPackageNames': <String>[],
   },
   'apple': {
+    'apnsProxyPreset': false,
     'captureAllTraffic': false,
     'hideVpnIcon': false,
     'excludedCidrs': <String>[],
