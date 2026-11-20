@@ -16,7 +16,7 @@ Add Flutter, Go and Go-installed tools (`GOBIN`, or `GOPATH/bin`) to `PATH`.
 | iOS / macOS | macOS, full Xcode and the target SDK/simulator runtime. |
 | Android | Android SDK/NDK from [Gradle configuration](../android/app/build.gradle.kts), and a JDK compatible with the [Gradle wrapper](../android/gradle/wrapper/gradle-wrapper.properties). Set `ANDROID_HOME` and `ANDROID_NDK_HOME`. |
 | Linux | Native Linux toolchain and GTK/plugin packages below. |
-| Windows | Native Windows, Visual Studio C++ tools, Windows SDK, Rust, `uv`, and matching-architecture Go/C compiler tools; see [Windows preparation](../build_scripts/README.md#windows). |
+| Windows | Native Windows, Visual Studio C++ tools, Windows SDK, `uv`, and matching-architecture Go/C compiler tools; see [Windows preparation](../build_scripts/README.md#windows). |
 
 From your workspace, clone only missing repositories:
 
@@ -26,8 +26,8 @@ git clone https://github.com/XTLS/libXray.git
 cd OneXray
 ```
 
-Keep them as siblings; Windows also needs Vole (see [checkout layout](../build_scripts/README.md#prepare-the-workspace)). All commands
-below start in the App root. Use compatible dependency revisions from the
+Keep the checkouts as siblings. All commands below start in the App root.
+Use compatible dependency revisions from the
 [Build workflow](../.github/workflows/build.yml); a separate Xray-core checkout
 is unnecessary. Check `flutter doctor -v` before continuing. Run Flutter/Dart
 commands serially; stop an active `flutter run` before generation/checks.

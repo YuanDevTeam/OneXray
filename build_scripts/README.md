@@ -5,10 +5,7 @@ Debug and [Validation](../docs/validation.md) for device/channel acceptance.
 
 ## Prepare the workspace
 
-Keep `OneXray/` and `libXray/` as sibling checkouts. Windows also needs a compatible
-Vole checkout at sibling `Vole/`, workspace `references/Vole/`, or `VOLE_DIR`.
-The configured checkout must support custom VPN profiles and the retained Windows
-host MTA lifetime. A local commit is not available to CI until published upstream.
+Keep `OneXray/` and `libXray/` as sibling checkouts.
 Xray-core remains supplied by libXray's Go module.
 
 Install Python 3.12+, `uv`, Flutter/Dart, Go and LLVM/libclang on `PATH`.
@@ -18,7 +15,7 @@ Platform tools and CI versions are defined in the [Build workflow](../.github/wo
 | --- | --- |
 | Apple | macOS, Xcode, SwiftPM, Fastlane and signing credentials. |
 | Android | Android SDK/NDK, compatible JDK, Fastlane and Play credentials; see [Gradle](../android/app/build.gradle.kts). |
-| Windows | Native x64/ARM64 host, Visual Studio C++, Windows SDK, Rust and matching Go/C tools. EXE/ZIP also need Dart Fastforge; EXE needs Inno Setup (`INNO_SETUP_PATH`). |
+| Windows | Native x64/ARM64 host, Visual Studio C++, Windows SDK and matching Go/C tools. EXE/ZIP also need Dart Fastforge; EXE needs Inno Setup (`INNO_SETUP_PATH`). |
 | Linux | Native Linux toolchain, GTK/plugin dependencies, Dart Fastforge, native Fastforge 0.7.0-dev.7 for pacman, `rpmbuild`, `patchelf`, `bsdtar` and zstd (`rpm`, `patchelf`, `libarchive-tools`, `zstd` on Ubuntu build hosts). |
 
 Linux hosts also need `clang`, `pkg-config`, `libgtk-3-dev`, `libx11-dev` and
@@ -220,11 +217,10 @@ to the host and requires matching toolchains.
   including target MSVC CRT DLLs. ZIP users must extract the complete bundle.
   Never substitute DLLs from System32.
 
-[windows.py](app/windows.py) builds Vole with `--backend uwp` and copies its runtime
-files and public headers from `dist/windows/<arch>/uwp/`. Wintun is extracted for
-the selected architecture from its official archive. Missing inputs fail during
-copying or CMake installation; compiler and packager failures propagate directly.
-There is no additional hash, PE scan, or source-header comparison.
+For each build, [windows.py](app/windows.py) downloads the UWP ZIP for the target
+architecture from the [latest Vole release](https://github.com/YuanDevTeam/Vole/releases/latest).
+It extracts the runtime files and public headers used for FFI generation. Wintun
+is extracted for the selected architecture from its official archive.
 
 The [Scoop manifest and validation guide](../windows/packaging/scoop/README.md)
 reuse the stable x64/ARM64 ZIP packages for a proposed Extras listing, including
