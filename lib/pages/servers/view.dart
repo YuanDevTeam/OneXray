@@ -54,42 +54,16 @@ class _ServerBrowserState extends State<ServerBrowser> {
 
   @override
   Widget build(BuildContext context) {
+    if (controller.state.catalogIsEmpty) {
+      return PageEmptyState(
+        onAddServers: () => controller.addServers(context),
+        scrollController: widget.scroll,
+      );
+    }
     final l = AppLocalizations.of(context)!;
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final gutter = mobile ? AppSpacing.mobilePage : AppSpacing.page;
-    if (controller.servers.isEmpty &&
-        controller.sources.isEmpty &&
-        controller.rawConfigurations.isEmpty &&
-        controller.catalog.manualGroups.isEmpty) {
-      final empty = PageEmptyState(
-        title: l.prototypeNoServersYet,
-        primaryLabel: l.prototypeAddServer,
-        onPrimary: () => controller.addServers(context),
-        secondaryLabel: l.prototypeHowGetServers,
-        onSecondary: () => controller.openServerHelp(context),
-        scrollController: widget.scroll,
-      );
-      if (MediaQuery.sizeOf(context).width > AppLayout.mobileBreakpoint) {
-        return empty;
-      }
-      return Column(
-        children: [
-          Expanded(child: empty),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: TextButton.icon(
-              onPressed: () => context.pushScoped(
-                AppPageDestination.serverManualGroups,
-                extra: controller,
-              ),
-              icon: const Icon(LucideIcons.folder, size: 18),
-              label: Text(l.manualGroupsTitle),
-            ),
-          ),
-        ],
-      );
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

@@ -50,17 +50,11 @@ class _Controller extends ServersController {
   });
 
   int groupBrowseCount = 0;
-  bool helpOpened = false;
   bool addOpened = false;
 
   @override
   Future<void> browse(BuildContext context, ServerGroup group) async {
     groupBrowseCount++;
-  }
-
-  @override
-  Future<void> openServerHelp(BuildContext context) async {
-    helpOpened = true;
   }
 
   @override
@@ -1388,7 +1382,7 @@ void main() {
     });
   }
 
-  testWidgets('empty server browser replaces browsing controls with actions', (
+  testWidgets('empty server browser reuses the connection page empty state', (
     tester,
   ) async {
     controller.servers = [];
@@ -1417,15 +1411,12 @@ void main() {
       card.height,
       greaterThanOrEqualTo(AppLayout.emptyStateDesktopMinHeight),
     );
-    expect(find.text(l.prototypeNoServersYet), findsOneWidget);
+    expect(find.text(l.prototypeStartUsingOneXray), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
     expect(find.byType(ServerGroupView), findsNothing);
     expect(find.text(l.prototypeAutomaticRecommended), findsNothing);
 
-    await tester.tap(find.text(l.prototypeHowGetServers));
-    await tester.pump();
-    expect(controller.helpOpened, isTrue);
-    await tester.tap(find.text(l.prototypeAddServer));
+    await tester.tap(find.widgetWithText(FilledButton, l.prototypeAddServers));
     await tester.pump();
     expect(controller.addOpened, isTrue);
     expect(tester.takeException(), isNull);

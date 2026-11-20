@@ -11,24 +11,16 @@ import 'package:onexray/service/settings/backup/service.dart';
 class PageEmptyState extends StatelessWidget {
   const PageEmptyState({
     super.key,
-    required this.title,
-    this.description,
-    required this.primaryLabel,
-    required this.onPrimary,
-    this.secondaryLabel,
-    this.onSecondary,
+    required this.onAddServers,
     this.scrollController,
   });
 
-  final String title, primaryLabel;
-  final String? description;
-  final String? secondaryLabel;
-  final VoidCallback onPrimary;
-  final VoidCallback? onSecondary;
+  final VoidCallback onAddServers;
   final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context)!;
     final mobile =
         MediaQuery.sizeOf(context).width <= AppLayout.mobileBreakpoint;
     final palette = ColorManager.palette(context);
@@ -72,32 +64,17 @@ class PageEmptyState extends StatelessWidget {
                   ),
                   const SizedBox(height: 13),
                   Text(
-                    title,
+                    l.prototypeStartUsingOneXray,
                     textAlign: TextAlign.center,
                     style: AppTypography.panelTitle.copyWith(
                       color: palette.foreground,
                     ),
                   ),
-                  if (description?.isNotEmpty ?? false) ...[
-                    const SizedBox(height: 13),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AppLayout.emptyStateTextMaxWidth,
-                      ),
-                      child: Text(
-                        description!,
-                        textAlign: TextAlign.center,
-                        style: AppTypography.dialogBody.copyWith(
-                          color: palette.mutedForeground,
-                        ),
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 13),
                   FilledButton.icon(
-                    onPressed: onPrimary,
+                    onPressed: onAddServers,
                     icon: const Icon(LucideIcons.plus, size: 18),
-                    label: Text(primaryLabel),
+                    label: Text(l.prototypeAddServers),
                   ),
                   if (BackupService.supported) ...[
                     const SizedBox(height: 8),
@@ -106,16 +83,9 @@ class PageEmptyState extends StatelessWidget {
                           context.pushScoped(AppPageDestination.backup),
                       icon: const Icon(LucideIcons.rotateCcw, size: 18),
                       label: Text(
-                        AppLocalizations.of(context)!.backupRestoreFrom,
+                        l.backupRestoreFrom,
                         textAlign: TextAlign.center,
                       ),
-                    ),
-                  ],
-                  if (secondaryLabel != null && onSecondary != null) ...[
-                    const SizedBox(height: 4),
-                    TextButton(
-                      onPressed: onSecondary,
-                      child: Text(secondaryLabel!, textAlign: TextAlign.center),
                     ),
                   ],
                 ],

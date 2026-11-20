@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:onexray/pages/shared/widgets/app_activity.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:onexray/l10n/localizations/app_localizations.dart';
+import 'package:onexray/pages/main/navigation.dart';
 import 'package:onexray/pages/servers/controller.dart';
 import 'package:onexray/pages/servers/view.dart';
 import 'package:onexray/pages/servers/sort.dart';
@@ -57,6 +58,15 @@ class _ServersPageState extends State<ServersPage> {
                   tooltip: l.manualGroupNew,
                   onPressed: () => controller.createManualGroup(context),
                   icon: const Icon(LucideIcons.folderPlus, size: 20),
+                )
+              else if (state.ready && !state.failed && state.catalogIsEmpty)
+                IconButton(
+                  tooltip: l.manualGroupsTitle,
+                  onPressed: () => context.pushScoped(
+                    AppPageDestination.serverManualGroups,
+                    extra: controller,
+                  ),
+                  icon: const Icon(LucideIcons.folder, size: 20),
                 ),
               IconButton(
                 key: const ValueKey('servers-add'),

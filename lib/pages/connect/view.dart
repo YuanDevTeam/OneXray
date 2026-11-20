@@ -156,11 +156,7 @@ class ConnectView extends StatelessWidget {
     );
     if (!hasServers && raws.isEmpty && !view.canDisconnect && !_busy) {
       return ResponsiveContent(
-        child: PageEmptyState(
-          title: l.prototypeStartUsingOneXray,
-          primaryLabel: l.prototypeAddServers,
-          onPrimary: onAddServers,
-        ),
+        child: PageEmptyState(onAddServers: onAddServers),
       );
     }
     return SingleChildScrollView(

@@ -1167,26 +1167,6 @@
   "@prototypeNoServersYet": {
     "description": "Approved prototype copy: No servers yet"
   },
-  "prototypeHowGetServers": "How do I get servers?",
-  "@prototypeHowGetServers": {
-    "description": "Approved prototype copy: How do I get servers?"
-  },
-  "prototypeHowToGetServers": "How to get servers",
-  "@prototypeHowToGetServers": {
-    "description": "Approved prototype copy: How to get servers"
-  },
-  "prototypeAskVpnProvider": "Ask your VPN provider for a subscription link or a server share link.",
-  "@prototypeAskVpnProvider": {
-    "description": "Approved prototype copy: Ask your VPN provider for a subscription link or a server share link."
-  },
-  "prototypeImportConfigurationFileHint": "You can also import a configuration file.",
-  "@prototypeImportConfigurationFileHint": {
-    "description": "Approved prototype copy: You can also import a configuration file."
-  },
-  "prototypeScanServerQrOrImportConfiguration": "You can also scan a server QR code or import a configuration file.",
-  "@prototypeScanServerQrOrImportConfiguration": {
-    "description": "Approved prototype copy: You can also scan a server QR code or import a configuration file."
-  },
   "prototypeCheckedToday": "Checked today",
   "@prototypeCheckedToday": {
     "description": "Approved prototype copy: Checked today"

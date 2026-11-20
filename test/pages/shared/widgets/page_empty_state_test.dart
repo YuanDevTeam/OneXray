@@ -31,16 +31,8 @@ void main() {
           routes: [
             GoRoute(
               path: tab.rootPath,
-              builder: (_, _) => Scaffold(
-                body: PageEmptyState(
-                  title: 'No servers',
-                  description: 'Add servers or restore a backup.',
-                  primaryLabel: 'Add servers',
-                  onPrimary: () {},
-                  secondaryLabel: 'Learn more',
-                  onSecondary: () {},
-                ),
-              ),
+              builder: (_, _) =>
+                  Scaffold(body: PageEmptyState(onAddServers: () {})),
               routes: [
                 GoRoute(
                   path: AppPageDestination.backup.segment,
