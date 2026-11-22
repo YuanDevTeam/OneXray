@@ -601,6 +601,9 @@ class JsonEditing {
           'fragment',
           'noises',
         ],
+        'direct' when _freedomSettingsPath(path, shape, kind) => const [
+          'finalRules',
+        ],
         'blackhole' => const ['response'],
         'dns' => const [
           'rules',
@@ -635,7 +638,17 @@ class JsonEditing {
       return const ['action', 'qType', 'domain', 'rCode'];
     }
     if (_isFreedomRule(path, shape, kind)) {
-      return const ['action', 'network', 'port', 'ip', 'blockDelay'];
+      return [
+        'action',
+        'network',
+        'port',
+        'ip',
+        if (_supportsFreedomBlockFields(path, shape)) ...[
+          if (shape.keys[_pathKey(path)]?.contains('blockDelay') != true)
+            'delay',
+          'logLevel',
+        ],
+      ];
     }
     if (_endsWith(path, ['vnext', '*'])) {
       return const ['address', 'port', 'users'];
@@ -844,6 +857,11 @@ class JsonEditing {
     if (field == 'action' && _isFreedomRule(parent, shape, kind)) {
       return const ['allow', 'block'];
     }
+    if (field == 'logLevel' &&
+        _isFreedomRule(parent, shape, kind) &&
+        _supportsFreedomBlockFields(parent, shape)) {
+      return _logLevels;
+    }
     if (field == 'rewriteNetwork' &&
         parent.lastOrNull == 'settings' &&
         shape.value([...parent.sublist(0, parent.length - 1), 'protocol']) ==
@@ -905,10 +923,19 @@ class JsonEditing {
         'dns',
         'misconfigtun',
         'windnsclient',
+        'all',
+        'allexceptlan',
+        'tcp',
+        'udp',
+        'icmp',
+        '53',
+        '8000-8100',
         'tcp/53',
         'udp/53',
         'tcp/853',
         'udp/853',
+        '192.0.2.0/24:udp/53',
+        '[2001:db8::/32]:icmp',
       ];
     }
     if (field == 'type' &&
@@ -921,7 +948,7 @@ class JsonEditing {
       return const ['random', 'roundRobin', 'leastPing', 'leastLoad'];
     }
     if (field == 'loglevel' && _matches(parent, ['log'])) {
-      return const ['debug', 'info', 'warning', 'error', 'none'];
+      return _logLevels;
     }
     if (field == 'flow' &&
         _accountFields(parent, kind, shape).contains('flow')) {
@@ -976,6 +1003,8 @@ class JsonEditing {
     'proxySettings',
     'targetStrategy',
   ];
+
+  static const _logLevels = ['debug', 'info', 'warning', 'error', 'none'];
 
   static const _dialingStrategies = [
     'AsIs',
@@ -1068,14 +1097,21 @@ bool _freedomSettingsPath(
     return false;
   }
   final owner = path.sublist(0, path.length - 1);
+  final protocol = shape.value([...owner, 'protocol']);
   return (kind == JsonEditorKind.outbound && owner.isEmpty ||
           _matches(owner, ['outbounds', '*'])) &&
-      shape.value([...owner, 'protocol']) == 'freedom';
+      (protocol == 'freedom' ||
+          protocol == 'direct' && kind != JsonEditorKind.advancedRouting);
 }
 
 bool _isFreedomRule(List<Object> path, _Shape shape, JsonEditorKind kind) =>
     _endsWith(path, ['finalRules', '*']) &&
     _freedomSettingsPath(path.sublist(0, path.length - 2), shape, kind);
+
+bool _supportsFreedomBlockFields(List<Object> path, _Shape shape) {
+  final action = shape.value([...path, 'action'])?.toLowerCase();
+  return action == null || action == 'block';
+}
 
 bool _advancedFreedomMaskPath(List<Object> path, _Shape shape) =>
     path.length >= 4 &&

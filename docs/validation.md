@@ -221,12 +221,14 @@ Fragment 覆盖新默认 FinalMask、旧导入 helper 及高级 Freedom mask 的
 验证 1–3 条代理链、最终出口、sockopt 和物理接口不因 mask 改写或丢失；Raw/提供方的旧 fragment/noises 保持原样。
 XDrive S3 覆盖 pathStyle 缺省/true/false、域名/IP/带端口 endpoint、域名/IP fronting 及链式入口，
 检查实际引导域名与源 Map 保留；逻辑 VLESS 地址不替代存储端点，Raw/高级/提供方继续不受全局拨号覆盖。
+XDrive Google Drive 覆盖两种 service 写法、两个实际 API 域名、域名/IP fronting 优先及 Fragment 辅助出站。
 bootstrap 精确域名规则需先于业务 DNS/FakeDNS，固定独立直连且截止通用备用；
 同名 App 查询也会命中该规则，不能将其断言为只对内核自身的查询生效。
 页面验证帮助、策略选择、停用但保留的开关、保存反馈与 macOS SE 可编辑，长文案及 RTL 沿用共享尺寸检查。
 JSON 提示分别验证 socket、DNS、routing 和高级模板合同，不把顺序或 Force 拨号值加入 DNS 查询策略。
 FinalMask 提示区分 TCP Fragment、UDP mask 和 Freedom owner，未知嵌套对象不串入无关传输字段；
 S3 字段、keepalive 和 finalRules 覆盖位置过滤、重复键、布尔值及 IP Geodata 候选，未知字段与凭据原文仍可保留。
+Freedom `finalRules` 验证阻断动作的 `delay`、`logLevel` 提示与旧 `blockDelay`。Raw TUN 验证 WFP 模式、端口范围及 CIDR 候选。
 原生校验分别覆盖私网/回环/链路本地与 CGNAT/文档/公网地址上的无加密 VLESS/Trojan，
 有效 VLESS 自身加密不被误要求 TLS；混合订阅跳过无效项、全部失败报错，不在 Dart 自动修补安全配置。
 Geodata 验证保持 App 下载/索引与交换 assets 元数据边界，不启用 Core cron，也不把 Core 调度器限额套到 App 下载。
