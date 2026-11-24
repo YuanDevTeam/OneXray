@@ -113,6 +113,21 @@ void main() {
     (widget) => widget is RoutingCardHeader && widget.title == title,
   );
 
+  testWidgets('Google Play routing switch is visible only on Android', (
+    tester,
+  ) async {
+    await pumpContent(tester, windowWidth: 440, contentWidth: 408);
+    final l = AppLocalizations.of(
+      tester.element(find.byType(SmartRoutingEditorContent)),
+    )!;
+    expect(
+      find.text(l.smartRoutingGooglePlayViaVpn),
+      defaultTargetPlatform == TargetPlatform.android
+          ? findsOneWidget
+          : findsNothing,
+    );
+  }, variant: TargetPlatformVariant(TargetPlatform.values.toSet()));
+
   for (final brightness in Brightness.values) {
     testWidgets('preview small text has readable contrast ($brightness)', (
       tester,

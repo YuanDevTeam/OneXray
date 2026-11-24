@@ -103,6 +103,7 @@ class BackupAssets {
         directPrivate: settings.directPrivate,
         directApple: settings.directApple,
         directWindows: settings.directWindows,
+        proxyGooglePlay: settings.proxyGooglePlay,
         directDns: settings.directDns,
         dns: settings.dns.toJson(),
         sniffing: settings.sniffing.toJson(),

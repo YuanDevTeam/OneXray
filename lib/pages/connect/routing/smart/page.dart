@@ -199,6 +199,17 @@ class SmartRoutingEditorContent extends StatelessWidget {
             enabled: !state.busy,
             onTap: () => controller.chooseRegions(context, openRegions),
           ),
+          if (Theme.of(context).platform == TargetPlatform.android)
+            _switch(
+              l.smartRoutingGooglePlayViaVpn,
+              LucideIcons.shoppingBag,
+              'proxyGooglePlay',
+              smart.proxyGooglePlay,
+              state,
+              available: smart.hasCnDirect,
+              help: l.smartRoutingGooglePlayViaVpnHint,
+              divider: false,
+            ),
           _switch(
             l.prototypeDirectPrivateAddresses,
             LucideIcons.network,
@@ -323,22 +334,26 @@ class SmartRoutingEditorContent extends StatelessWidget {
     Widget? below,
     String? help,
     bool divider = true,
-  }) => RoutingSettingRow(
-    icon: icon,
-    title: title,
-    help: help,
-    divider: divider,
-    enabled: state.original != null && !state.busy,
-    below: below,
-    leading: Semantics(
-      label: title,
-      child: AppSwitch(
-        value: value,
-        enabled: state.original != null && !state.busy,
-        onChanged: (value) => controller.update(key, value),
+    bool available = true,
+  }) {
+    final enabled = available && state.original != null && !state.busy;
+    return RoutingSettingRow(
+      icon: icon,
+      title: title,
+      help: help,
+      divider: divider,
+      enabled: enabled,
+      below: below,
+      leading: Semantics(
+        label: title,
+        child: AppSwitch(
+          value: value,
+          enabled: enabled,
+          onChanged: (value) => controller.update(key, value),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   Widget _preview(BuildContext context, SmartRoutingEditorState state) {
     final l = AppLocalizations.of(context)!;

@@ -269,8 +269,9 @@ class ConnectionCompiler {
   /// The editor and runtime share these exact built-in rules and their order.
   static List<XrayRoutingRule> smartRules(
     SmartRoutingSettings smart,
-    RegionCatalog regions,
-  ) {
+    RegionCatalog regions, {
+    required ConnectionPlatform platform,
+  }) {
     final domains = <String>{
       if (smart.directPrivate) 'geosite:PRIVATE',
       if (smart.directApple) 'geosite:APPLE',
@@ -295,7 +296,9 @@ class ConnectionCompiler {
           balancerTag: 'proxy',
         ),
       // Keep Play traffic and its derived DNS ahead of broad CN direct rules.
-      if (smart.directRegions.any((code) => code.toUpperCase() == 'CN'))
+      if (platform == ConnectionPlatform.android &&
+          smart.proxyGooglePlay &&
+          smart.hasCnDirect)
         XrayRoutingRule(
           ruleTag: 'app-smart-google-play',
           domain: ['full:services.googleapis.cn', 'domain:xn--ngstr-lra8j.com'],
@@ -416,7 +419,9 @@ class ConnectionCompiler {
           !allVpn;
       final rules = <XrayRoutingRule>[];
       if (settings.trafficMode == TrafficMode.smart) {
-        rules.addAll(smartRules(settings.smart, regions));
+        rules.addAll(
+          smartRules(settings.smart, regions, platform: options.platform),
+        );
       } else if (settings.trafficMode == TrafficMode.custom) {
         for (final (index, rule) in ordinary!.rules.indexed) {
           rules.add(rule.xrayJson..ruleTag = 'app-custom-$index');

@@ -1351,6 +1351,14 @@
   "@directWindowsServicesHint": {
     "description": "Microsoft and Bing use direct routing, with a higher-priority GitHub proxy exception when the Windows services switch is enabled."
   },
+  "smartRoutingGooglePlayViaVpn": "Google Play via VPN",
+  "@smartRoutingGooglePlayViaVpn": {
+    "description": "Smart Routing switch for the Google Play proxy exception."
+  },
+  "smartRoutingGooglePlayViaVpnHint": "Use the VPN for Google Play’s regional API and download domains, including DNS queries. Requires Mainland China in Direct regions.",
+  "@smartRoutingGooglePlayViaVpnHint": {
+    "description": "Explains the Google Play exception and its direct region requirement."
+  },
   "windowsServices": "Windows services",
   "@windowsServices": {
     "description": "Windows services label in the Smart Routing direct-traffic preview."

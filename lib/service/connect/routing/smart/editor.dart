@@ -3,6 +3,7 @@ import 'package:onexray/core/db/database/database.dart';
 import 'package:onexray/core/errors/failure.dart';
 import 'package:onexray/core/model/xray_json.dart';
 import 'package:onexray/core/pigeon/host_api.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/connect/compiler.dart';
 import 'package:onexray/service/connect/coordinator.dart';
 import 'package:onexray/service/connect/runtime.dart';
@@ -202,10 +203,16 @@ class SmartRoutingEditorService {
   static bool sameRuntime(
     ConnectionSettings original,
     SmartRoutingSettings next,
-    RegionCatalog regions,
-  ) {
+    RegionCatalog regions, {
+    ConnectionPlatform? platform,
+  }) {
+    final targetPlatform = platform ?? connectionPlatform;
     Object semantic(SmartRoutingSettings value) {
-      final rules = ConnectionCompiler.smartRules(value, regions);
+      final rules = ConnectionCompiler.smartRules(
+        value,
+        regions,
+        platform: targetPlatform,
+      );
       // Region order does not change a rule's OR set or the direct DNS set.
       for (final rule in rules) {
         rule.domain?.sort();

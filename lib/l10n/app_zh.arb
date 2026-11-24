@@ -552,6 +552,8 @@
   "prototypeDirectAppleServicesHint": "App Store、iCloud 等 Apple 服务保持本地连接。",
   "directWindowsServices": "Windows 服务直连",
   "directWindowsServicesHint": "Microsoft 和 Bing 分类中的域名使用直连，GitHub 使用 VPN。",
+  "smartRoutingGooglePlayViaVpn": "Google Play 走 VPN",
+  "smartRoutingGooglePlayViaVpnHint": "Google Play 的区域 API、下载域名及其 DNS 查询使用 VPN。仅在直连地区选择中国大陆时可用。",
   "windowsServices": "Windows 服务",
   "prototypeBlockAdDomains": "阻止常见广告域名",
   "prototypeBlockAdDomainsHint": "使用内置广告域名列表，个别网站可能受到影响。",

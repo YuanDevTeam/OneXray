@@ -285,6 +285,7 @@ void main() {
         smart: SmartRoutingSettings(
           finalExitId: 2,
           fragment: true,
+          proxyGooglePlay: true,
           entryCount: 2,
           dns: const RoutingDnsSettings(
             proxyResolvers: [
@@ -327,6 +328,7 @@ void main() {
     expect(document.coreConfigs.last.data, outbound);
     expect(document.routingProfiles.map((row) => row.data), routeData);
     expect(document.smartRouting.fragment, true);
+    expect(document.smartRouting.proxyGooglePlay, true);
     expect(document.smartRouting.dns, original.connection.smart.dns.toJson());
     expect(
       document.smartRouting.sniffing,
@@ -402,6 +404,7 @@ void main() {
     expect(connection.connection.rememberedOrdinarySelection, isNull);
     expect(connection.connection.smart.finalExitId, null);
     expect(connection.connection.smart.fragment, true);
+    expect(connection.connection.smart.proxyGooglePlay, true);
     expect(
       connection.connection.smart.dns.toJson(),
       original.connection.smart.dns.toJson(),

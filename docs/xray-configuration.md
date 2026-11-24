@@ -48,14 +48,14 @@ Raw 用户字段不适用此删减。
 智能/常规自定义固定 `routing.domainStrategy: IPIfNonMatch`：域名首轮未命中再解析 IP 重匹配。
 全部使用 VPN 为 `AsIs`，高级/Raw 保留用户值。App 生成规则省略可选 `type: field`。
 智能路由把直连域名/IP 分别去重合并为一条规则，无条件时省略对应规则。
-顺序为广告阻断、Windows 开关对应的 GitHub 代理、CN 直连时的 Google Play 代理例外、合并域名直连、合并 IP 直连。
+顺序为广告阻断、Windows 开关对应的 GitHub 代理、按需启用的 Google Play 代理例外、合并域名直连、合并 IP 直连。
 Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；该开关在所有平台显示。
-Smart 的 `directRegions` 包含 CN 时，`full:services.googleapis.cn` 与 `domain:xn--ngstr-lra8j.com`（含下载子域名）使用代理，
-同一规则派生代理 DNS 并先于宽泛 CN 直连匹配；移除 CN 后不生成该例外。
-例外仅在编译 Smart 运行配置时加入，不改写已保存配置或缓存，也不注入自定义路由、Raw 或提供方配置。
-已保存启动快照沿用原内容；新例外在 App 下一次编译并启动连接时生效。
+「Google Play 走 VPN」仅在 Android 上显示及生效，默认关闭，已有设置缺少该字段时也按关闭读取。开关开启且 `directRegions` 包含 CN 时，
+`full:services.googleapis.cn` 与 `domain:xn--ngstr-lra8j.com`（含下载子域名）使用代理。
+同一规则派生代理 DNS 并先于宽泛 CN 直连匹配。移除 CN 后保留开关偏好，暂不生成例外。
+开关只影响 Smart 运行配置；从 App 连接或重连时重新编译，快捷入口沿用最近一次生成的启动快照。
 直连地区来自安装的官方分类与随包映射，Smart/Setup UI 保持单选/显式清空；底层历史 List 仍可读取和编译，不在本轮迁移中删字段或改写历史配置。
-这项直连规则配置与已退役的服务器地区筛选、节点出口地区缓存无关。广告、FakeDNS、Fragment 默认关闭，其余智能开关默认开启；保留已保存值。
+这项直连规则配置与已退役的服务器地区筛选、节点出口地区缓存无关。广告、Google Play 走 VPN、FakeDNS 和 Fragment 默认关闭，其余智能开关默认开启；保留已保存值。
 
 ### DNS
 
