@@ -39,6 +39,7 @@ class SmartRoutingSettings {
   final bool directPrivate;
   final bool directApple;
   final bool directWindows;
+  final bool proxyGooglePlay;
   final bool directDns;
   final RoutingDnsSettings dns;
   final RoutingSniffingSettings sniffing;
@@ -48,6 +49,9 @@ class SmartRoutingSettings {
   final bool fragment;
   final bool blockAds;
 
+  bool get hasCnDirect =>
+      directRegions.any((code) => code.toUpperCase() == 'CN');
+
   SmartRoutingSettings({
     this.entryCount = 1,
     this.finalExitId,
@@ -55,6 +59,7 @@ class SmartRoutingSettings {
     this.directPrivate = true,
     this.directApple = true,
     this.directWindows = true,
+    this.proxyGooglePlay = false,
     this.directDns = true,
     String? directDnsAddress,
     RoutingDnsSettings dns = const RoutingDnsSettings(),
@@ -81,6 +86,7 @@ class SmartRoutingSettings {
         directPrivate: value['directPrivate'] as bool? ?? true,
         directApple: value['directApple'] as bool? ?? true,
         directWindows: value['directWindows'] as bool? ?? true,
+        proxyGooglePlay: value['proxyGooglePlay'] as bool? ?? false,
         directDns: value['directDns'] as bool? ?? true,
         directDnsAddress: value['directDnsAddress'] as String?,
         dns: RoutingDnsSettings.fromJson(
@@ -104,6 +110,7 @@ class SmartRoutingSettings {
     'directPrivate': directPrivate,
     'directApple': directApple,
     'directWindows': directWindows,
+    'proxyGooglePlay': proxyGooglePlay,
     'directDns': directDns,
     'dns': dns.toJson(),
     'sniffing': sniffing.toJson(),

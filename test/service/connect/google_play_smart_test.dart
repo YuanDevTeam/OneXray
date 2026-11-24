@@ -25,6 +25,41 @@ const _customDns = RoutingDnsSettings(
 );
 
 void main() {
+  for (final platform in ConnectionPlatform.values.where(
+    (platform) => platform != ConnectionPlatform.android,
+  )) {
+    test('Google Play opt-in leaves ${platform.name} Smart routing intact', () {
+      final defaults = _compileSmart(
+        SmartRoutingSettings(),
+        platform: platform,
+      );
+      final optedIn = _compileSmart(
+        SmartRoutingSettings(proxyGooglePlay: true),
+        platform: platform,
+      );
+
+      expect(_rules(optedIn), _rules(defaults));
+      expect(_dnsServers(optedIn), _dnsServers(defaults));
+      expect(
+        _rules(optedIn).where((rule) => rule['ruleTag'] == _ruleTag),
+        isEmpty,
+      );
+      expect(_targetServers(optedIn), isEmpty);
+      expect(
+        _rules(optedIn).singleWhere(
+          (rule) => rule['ruleTag'] == 'app-smart-direct-domain',
+        )['domain'],
+        contains('geosite:CN'),
+      );
+      expect(
+        _dnsServers(optedIn).singleWhere(
+          (server) => server['tag'] == RoutingDnsSettings.directTag,
+        )['domains'],
+        contains('geosite:CN'),
+      );
+    });
+  }
+
   for (final (label, regions, enabled) in [
     ('empty regions', <String>[], false),
     ('Russia only', ['RU'], false),
@@ -35,7 +70,7 @@ void main() {
   ]) {
     test('Google Play proxy exception follows CN intent: $label', () {
       final config = _compileSmart(
-        SmartRoutingSettings(directRegions: regions),
+        SmartRoutingSettings(directRegions: regions, proxyGooglePlay: true),
       );
       expect(
         _rules(config).where((rule) => rule['ruleTag'] == _ruleTag),
@@ -69,6 +104,7 @@ void main() {
           directPrivate: false,
           directApple: false,
           directWindows: false,
+          proxyGooglePlay: true,
         ),
         regions: const RegionCatalog.empty(),
       );
@@ -100,6 +136,7 @@ void main() {
             SmartRoutingSettings(
               blockAds: blockAds,
               directWindows: directWindows,
+              proxyGooglePlay: true,
             ),
           );
           final rules = _rules(config);
@@ -156,7 +193,12 @@ void main() {
   ]) {
     test('Google Play DNS uses ordered proxy resolvers: $label', () {
       final config = _compileSmart(
-        SmartRoutingSettings(dns: dns, directDns: directDns, fakeDns: fakeDns),
+        SmartRoutingSettings(
+          dns: dns,
+          directDns: directDns,
+          fakeDns: fakeDns,
+          proxyGooglePlay: true,
+        ),
         ipv6: ipv6,
       );
       final servers = _dnsServers(config);
@@ -231,7 +273,7 @@ void main() {
   }
 
   test(
-    'compiling old settings leaves their input and encoded settings unchanged',
+    'old settings keep the Google Play exception off and preserve CN direct',
     () {
       for (final input in <Map<String, dynamic>>[
         {},
@@ -249,6 +291,7 @@ void main() {
         final originalInput = jsonEncode(input);
         final settings = ConnectionSettings.fromJson(input);
         final originalSettings = jsonEncode(settings.toJson());
+        expect(settings.smart.proxyGooglePlay, false);
         for (final regions in [catalog, const RegionCatalog.empty()]) {
           final config = ConnectionCompiler.compile(
             settings: settings,
@@ -258,8 +301,17 @@ void main() {
           ).config;
           expect(
             _rules(config).where((rule) => rule['ruleTag'] == _ruleTag),
-            hasLength(1),
+            isEmpty,
           );
+          expect(_targetServers(config), isEmpty);
+          if (regions == catalog) {
+            expect(
+              _rules(config).singleWhere(
+                (rule) => rule['ruleTag'] == 'app-smart-direct-domain',
+              )['domain'],
+              contains('geosite:CN'),
+            );
+          }
           expect(jsonEncode(input), originalInput);
           expect(jsonEncode(settings.toJson()), originalSettings);
         }
@@ -276,7 +328,10 @@ void main() {
     );
     final before = custom.encode();
     final config = ConnectionCompiler.compile(
-      settings: ConnectionSettings(trafficMode: TrafficMode.custom),
+      settings: ConnectionSettings(
+        trafficMode: TrafficMode.custom,
+        smart: SmartRoutingSettings(proxyGooglePlay: true),
+      ),
       custom: custom,
       entries: [node(1)],
       regions: catalog,
@@ -298,7 +353,10 @@ void main() {
 
   test('All VPN does not inherit the Smart exception or domain DNS blocks', () {
     final config = ConnectionCompiler.compile(
-      settings: ConnectionSettings(trafficMode: TrafficMode.allVpn),
+      settings: ConnectionSettings(
+        trafficMode: TrafficMode.allVpn,
+        smart: SmartRoutingSettings(proxyGooglePlay: true),
+      ),
       entries: [node(1)],
       regions: catalog,
       options: options(),
@@ -318,7 +376,10 @@ void main() {
     ).state;
     final before = custom.encode();
     final config = ConnectionCompiler.compile(
-      settings: ConnectionSettings(trafficMode: TrafficMode.custom),
+      settings: ConnectionSettings(
+        trafficMode: TrafficMode.custom,
+        smart: SmartRoutingSettings(proxyGooglePlay: true),
+      ),
       custom: custom,
       entries: [node(1)],
       regions: catalog,
@@ -343,7 +404,10 @@ void main() {
         final source = _directSource();
         final before = jsonEncode(source);
         final config = ConnectionCompiler.compile(
-          settings: ConnectionSettings(expert: !provider),
+          settings: ConnectionSettings(
+            expert: !provider,
+            smart: SmartRoutingSettings(proxyGooglePlay: true),
+          ),
           entries: const [],
           raw: provider ? null : source,
           profile: provider
@@ -375,12 +439,21 @@ void main() {
 Map<String, dynamic> _compileSmart(
   SmartRoutingSettings smart, {
   RegionCatalog? regions,
+  ConnectionPlatform platform = ConnectionPlatform.android,
   bool ipv6 = true,
 }) => ConnectionCompiler.compile(
   settings: ConnectionSettings(smart: smart),
   entries: [node(1)],
   regions: regions ?? catalog,
-  options: options(ipv6: ipv6),
+  options: options(
+    platform: platform,
+    ipv6: ipv6,
+    interfaceName: switch (platform) {
+      ConnectionPlatform.windows => 'Ethernet',
+      ConnectionPlatform.linux => 'eth0',
+      _ => '',
+    },
+  ),
 ).config;
 
 List<Map<String, dynamic>> _rules(Map<String, dynamic> config) =>

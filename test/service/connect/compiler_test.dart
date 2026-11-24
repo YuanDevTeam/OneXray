@@ -1007,7 +1007,7 @@ void main() {
       expect(servers.last['queryStrategy'], 'UseIPv4');
       expect(
         servers.length,
-        mode == TrafficMode.allVpn ? 1 : (mode == TrafficMode.smart ? 4 : 2),
+        mode == TrafficMode.allVpn ? 1 : (mode == TrafficMode.smart ? 3 : 2),
       );
       if (mode != TrafficMode.allVpn) {
         final direct = servers.singleWhere(
@@ -1669,7 +1669,6 @@ void main() {
               .map((rule) => rule['ruleTag']),
           [
             if (enabled) 'app-smart-github',
-            'app-smart-google-play',
             'app-smart-direct-domain',
             'app-smart-direct-ip',
           ],
@@ -1744,6 +1743,7 @@ void main() {
         ConnectionCompiler.smartRules(
           smart,
           catalog,
+          platform: ConnectionPlatform.android,
         ).map((rule) => rule.toJson()),
         expected,
       );

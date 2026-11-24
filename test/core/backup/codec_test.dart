@@ -12,6 +12,7 @@ void main() {
     directPrivate: true,
     directApple: true,
     directWindows: true,
+    proxyGooglePlay: true,
     directDns: true,
     directDnsAddress: '8.8.8.8',
     fakeDns: false,
@@ -57,6 +58,7 @@ void main() {
       expect(result.subscriptions.single.hwidEnabled, false);
       expect(result.smartRouting.toJson(), isNot(contains('finalExitId')));
       expect(result.smartRouting.fragment, true);
+      expect(result.smartRouting.proxyGooglePlay, true);
     },
   );
 
@@ -113,6 +115,15 @@ void main() {
     );
     expect(document.smartRouting.fragment, false);
     expect(document.smartRouting.toJson()['fragment'], false);
+  });
+
+  test('previous v1 backups default Google Play routing to disabled', () {
+    final json = sample().toJson();
+    (json['smartRouting'] as Map<String, dynamic>).remove('proxyGooglePlay');
+    final document = decodeBackup(
+      Uint8List.fromList(utf8.encode(jsonEncode(json))),
+    );
+    expect(document.smartRouting.proxyGooglePlay, false);
   });
 
   test('previous v1 backups have ungrouped nodes in their original order', () {

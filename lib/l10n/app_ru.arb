@@ -552,6 +552,8 @@
   "prototypeDirectAppleServicesHint": "Использовать App Store, iCloud и другие службы Apple через прямое подключение.",
   "directWindowsServices": "Службы Windows напрямую",
   "directWindowsServicesHint": "Подключаться напрямую к доменам Microsoft и Bing; GitHub — через VPN.",
+  "smartRoutingGooglePlayViaVpn": "Google Play через VPN",
+  "smartRoutingGooglePlayViaVpnHint": "Региональный API Google Play, домены загрузки и их DNS-запросы идут через VPN. Доступно, если в регионах прямого доступа выбран Материковый Китай.",
   "windowsServices": "Службы Windows",
   "prototypeBlockAdDomains": "Блокировать известные рекламные домены",
   "prototypeBlockAdDomainsHint": "Использовать встроенный список рекламных доменов. Некоторые сайты могут работать некорректно.",

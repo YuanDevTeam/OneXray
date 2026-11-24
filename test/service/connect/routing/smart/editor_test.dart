@@ -720,28 +720,36 @@ void main() {
   });
 
   test(
-    'CN changes Smart runtime even without an installed region category',
+    'Google Play preference changes runtime only with Android CN direct',
     () {
-      final original = ConnectionSettings(
-        smart: SmartRoutingSettings(directRegions: []),
-      );
-      final withCn = SmartRoutingSettings(directRegions: ['cn']);
-      expect(
-        SmartRoutingEditorService.sameRuntime(
-          original,
-          withCn,
-          const RegionCatalog.empty(),
-        ),
-        false,
-      );
-      expect(
-        SmartRoutingEditorService.sameRuntime(
-          ConnectionSettings(smart: withCn),
-          original.smart,
-          const RegionCatalog.empty(),
-        ),
-        false,
-      );
+      for (final regions in <List<String>>[
+        [],
+        ['RU'],
+        ['cn'],
+      ]) {
+        final before = SmartRoutingSettings(directRegions: regions);
+        final after = SmartRoutingSettings.fromJson({
+          ...before.toJson(),
+          'proxyGooglePlay': true,
+        });
+        expect(
+          SmartRoutingSettings.fromJson(after.toJson()).proxyGooglePlay,
+          true,
+        );
+        for (final platform in ConnectionPlatform.values) {
+          final affectsRuntime =
+              platform == ConnectionPlatform.android && after.hasCnDirect;
+          expect(
+            SmartRoutingEditorService.sameRuntime(
+              ConnectionSettings(smart: before),
+              after,
+              const RegionCatalog.empty(),
+              platform: platform,
+            ),
+            !affectsRuntime,
+          );
+        }
+      }
     },
   );
 
@@ -750,8 +758,13 @@ void main() {
     final smart = SmartRoutingSettings(
       directRegions: ['RU', 'CN'],
       blockAds: true,
+      proxyGooglePlay: true,
     );
-    final rules = ConnectionCompiler.smartRules(smart, regions);
+    final rules = ConnectionCompiler.smartRules(
+      smart,
+      regions,
+      platform: ConnectionPlatform.android,
+    );
     expect(rules.map((rule) => rule.ruleTag), [
       'app-smart-ads',
       'app-smart-github',
@@ -810,6 +823,7 @@ void main() {
           entryCount: 3,
           directRegions: ['CN', 'RU'],
           blockAds: true,
+          proxyGooglePlay: true,
         ),
         regions,
       ),
@@ -821,6 +835,7 @@ void main() {
         SmartRoutingSettings(
           directRegions: ['CN', 'RU'],
           blockAds: true,
+          proxyGooglePlay: true,
           directDns: false,
         ),
         regions,

@@ -128,6 +128,7 @@ class BackupSmartRouting {
   final bool directPrivate;
   final bool directApple;
   final bool directWindows;
+  final bool proxyGooglePlay;
   final bool directDns;
   @JsonKey(includeIfNull: false)
   final String? directDnsAddress;
@@ -147,6 +148,7 @@ class BackupSmartRouting {
     required this.directPrivate,
     required this.directApple,
     required this.directWindows,
+    this.proxyGooglePlay = false,
     required this.directDns,
     this.directDnsAddress,
     this.dns,

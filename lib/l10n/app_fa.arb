@@ -552,6 +552,8 @@
     "prototypeDirectAppleServicesHint": "App Store، iCloud و سایر خدمات Apple از اتصال محلی استفاده کنند.",
     "directWindowsServices": "اتصال مستقیم به خدمات Windows",
     "directWindowsServicesHint": "اتصال مستقیم به دامنه‌های Microsoft و Bing؛ GitHub از VPN استفاده می‌کند.",
+    "smartRoutingGooglePlayViaVpn": "Google Play از طریق VPN",
+    "smartRoutingGooglePlayViaVpnHint": "API منطقه‌ای و دامنه‌های دانلود Google Play همراه با درخواست‌های DNS آن‌ها از VPN عبور می‌کنند. این گزینه زمانی در دسترس است که سرزمین اصلی چین در مناطق اتصال مستقیم انتخاب شده باشد.",
     "windowsServices": "خدمات Windows",
     "prototypeBlockAdDomains": "مسدود کردن دامنه‌های تبلیغاتی رایج",
     "prototypeBlockAdDomainsHint": "استفاده از فهرست داخلی دامنه‌های تبلیغاتی. ممکن است روی برخی سایت‌ها اثر بگذارد.",

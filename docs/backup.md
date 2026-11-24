@@ -67,7 +67,7 @@ iOS 与 macOS 独立匹配，macOS SE 使用 `macos`；Windows 各分发使用 `
   包含 [Fragment 辅助出站及其参数](xray-configuration.md#fragment)。
   Smart 显式保存连接设置（含 Fragment 开关、可选 dns/sniffing/selection maps），排除最终出口选择。
   新增设置沿用协议 v1；旧备份缺这些 maps 时恢复旧默认：8.8.8.8、全局缓存开启、相同出口备用关闭，
-  嗅探开启/routeOnly=false/metadataOnly=false，选路轮询；缺省 Fragment 为关闭。
+  嗅探开启/routeOnly=false/metadataOnly=false，选路轮询。旧备份缺少 Fragment 或 Google Play 代理开关时恢复为关闭。
   旧 directDnsAddress 回填主直连 resolver，新捕获只写 dns 规范字段，不维护两份可变地址。
   Smart 的旧 DNS map 忽略单 resolver 超时/缓存覆盖、应答过滤、过期缓存和并发字段，
   后续写出仅包含地址列表、全局缓存和同出口备用设置；其余 resolver 参数沿用 Core 默认值。

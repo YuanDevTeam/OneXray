@@ -106,8 +106,15 @@ abstract final class ManagedServerDialing {
           addresses = [streamAddress];
         } else {
           final xdrive = _map(stream['xdriveSettings']);
-          if (xdrive != null && xdrive['service'] == 's3') {
-            addresses = _s3Addresses(xdrive);
+          if (xdrive != null) {
+            addresses = switch (xdrive['service']) {
+              's3' => _s3Addresses(xdrive),
+              'google-drive' || 'Google Drive' => const [
+                'oauth2.googleapis.com',
+                'www.googleapis.com',
+              ],
+              _ => addresses,
+            };
           }
         }
       }

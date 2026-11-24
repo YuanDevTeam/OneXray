@@ -133,6 +133,37 @@ void main() {
     },
   );
 
+  test('managed Google Drive compiles DNS for both physical API hosts', () {
+    const source = <String, dynamic>{
+      'protocol': 'vless',
+      'settings': {'address': 'logical.example', 'port': 443},
+      'streamSettings': {
+        'network': 'xdrive',
+        'security': 'tls',
+        'tlsSettings': {'serverName': 'certificate.example'},
+        'xdriveSettings': {'service': 'google-drive'},
+      },
+    };
+    final entry = ResolvedServer(id: 1, sourceId: 0, outbound: source);
+    final config = ConnectionCompiler.compile(
+      settings: ConnectionSettings(
+        smart: SmartRoutingSettings(fakeDns: true, fragment: true),
+      ),
+      entries: [entry],
+      regions: catalog,
+      options: _options(dialing: _happyEyeballs),
+    ).config;
+
+    _expectBootstrap(config, ['oauth2.googleapis.com', 'www.googleapis.com']);
+    final outbound = _outbound(config, 'app-entry-0');
+    expect(_socket(outbound)['dialerProxy'], 'fragment');
+    expect(_socket(_outbound(config, 'fragment'))['domainStrategy'], 'UseIP');
+    expect(outbound['streamSettings']['tlsSettings'], {
+      'serverName': 'certificate.example',
+    });
+    expect(entry.outbound, source);
+  });
+
   test(
     'S3 fronting and final exits retain the physical Fragment bootstrap target',
     () {

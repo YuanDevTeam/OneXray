@@ -13,6 +13,9 @@ import 'package:path_provider/path_provider.dart';
 // Test-only platform seam supplied by the path_provider plugin.
 // ignore: depend_on_referenced_packages
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
+import 'package:win32/win32.dart';
+
+import '../../support/test_directory.dart';
 
 class _SupportDirectory extends PathProviderPlatform {
   _SupportDirectory(this.path);
@@ -24,6 +27,63 @@ class _SupportDirectory extends PathProviderPlatform {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test('Windows recovery ignores a real exited child PID after its handle disappears', () async {
+    final directory = await createTestDirectory('proxy-windows-recovery-');
+    addTearDown(() => directory.delete(recursive: true));
+    final child = await Process.start(
+      p.join(Platform.environment['SystemRoot']!, 'System32', 'cmd.exe'),
+      ['/d', '/q', '/c', 'exit', '0'],
+      workingDirectory: directory.path,
+    );
+    var exited = false;
+    addTearDown(() async {
+      if (!exited) {
+        child.kill();
+        await child.exitCode.timeout(const Duration(seconds: 5));
+      }
+      await child.stdin.close();
+    });
+    final output = [child.stdout.drain<void>(), child.stderr.drain<void>()];
+    final exitCode = await child.exitCode.timeout(const Duration(seconds: 5));
+    exited = true;
+    expect(exitCode, 0);
+    await Future.wait(output);
+
+    // Windows can briefly retain an exited process object. Establish that
+    // this owned PID is gone before exercising the real recovery reader.
+    final deadline = DateTime.now().add(const Duration(seconds: 5));
+    while (true) {
+      final opened = OpenProcess(
+        PROCESS_QUERY_LIMITED_INFORMATION,
+        false,
+        child.pid,
+      );
+      if (!opened.value.isValid) {
+        expect(opened.error, isIn([ERROR_INVALID_PARAMETER, ERROR_NOT_FOUND]));
+        break;
+      }
+      CloseHandle(opened.value);
+      if (DateTime.now().isAfter(deadline)) {
+        fail('The exited fixture PID ${child.pid} is still openable.');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+
+    final core = ProcessProxyCoreSession(
+      directory: () async => directory.path,
+      executable: p.join(directory.path, 'missing-installation', 'Core.exe'),
+    );
+    await core.recover({
+      'platform': 'windows',
+      'pid': child.pid,
+      // Deliberately cannot match a numeric Windows creation time, so even
+      // an immediately reused PID must never identify another process.
+      'created': 'exited-fixture',
+      'executable': p.join(directory.path, 'old-installation', 'Core.exe'),
+    });
+    expect(await core.isRunning(), false);
+  }, skip: !Platform.isWindows);
+
   for (final reused in [false, true]) {
     test(
       'recovery clears a ${reused ? 'reused' : 'gone'} PID after the installation moves',

@@ -13,6 +13,7 @@ import 'package:onexray/core/pigeon/model.dart';
 import 'package:onexray/core/proxy/system_proxy.dart';
 import 'package:onexray/core/proxy/linux_process_identity.dart';
 import 'package:path/path.dart' as p;
+import 'package:win32/win32.dart' as win32;
 
 abstract interface class ProxyCoreSession {
   Stream<void> get exits;
@@ -330,115 +331,88 @@ final class ProcessProxyCoreSession implements ProxyCoreSession {
 }
 
 final class _WindowsProcessIdentity {
-  final _kernel = DynamicLibrary.open('kernel32.dll');
-  late final _open = _kernel
-      .lookupFunction<
-        Pointer<Void> Function(Uint32, Int32, Uint32),
-        Pointer<Void> Function(int, int, int)
-      >('OpenProcess');
-  late final _close = _kernel
-      .lookupFunction<
-        Int32 Function(Pointer<Void>),
-        int Function(Pointer<Void>)
-      >('CloseHandle');
-  late final _times = _kernel
-      .lookupFunction<
-        Int32 Function(
-          Pointer<Void>,
-          Pointer<Uint64>,
-          Pointer<Uint64>,
-          Pointer<Uint64>,
-          Pointer<Uint64>,
-        ),
-        int Function(
-          Pointer<Void>,
-          Pointer<Uint64>,
-          Pointer<Uint64>,
-          Pointer<Uint64>,
-          Pointer<Uint64>,
-        )
-      >('GetProcessTimes');
-  late final _image = _kernel
-      .lookupFunction<
-        Int32 Function(Pointer<Void>, Uint32, Pointer<Utf16>, Pointer<Uint32>),
-        int Function(Pointer<Void>, int, Pointer<Utf16>, Pointer<Uint32>)
-      >('QueryFullProcessImageNameW');
-  late final _error = _kernel.lookupFunction<Uint32 Function(), int Function()>(
-    'GetLastError',
-  );
-  late final _terminate = _kernel
-      .lookupFunction<
-        Int32 Function(Pointer<Void>, Uint32),
-        int Function(Pointer<Void>, int)
-      >('TerminateProcess');
-
-  Pointer<Void> _handle(int pid, {bool terminate = false}) {
-    final handle = _open(0x1000 | (terminate ? 1 : 0), 0, pid);
-    if (handle == nullptr) {
-      final error = _error();
-      if (error == 87 || error == 1168) return nullptr;
-      throw StateError(
-        'Unable to verify the previous local proxy Core ($error).',
-      );
+  win32.HANDLE? _handle(int pid, {bool terminate = false}) {
+    var access = win32.PROCESS_QUERY_LIMITED_INFORMATION;
+    if (terminate) access |= win32.PROCESS_TERMINATE;
+    // The Win32 wrapper resolves GetLastError before opening the process, then
+    // captures the error immediately so FFI lookup cannot overwrite it.
+    final opened = win32.OpenProcess(access, false, pid);
+    if (opened.value.isValid) return opened.value;
+    if (opened.error == win32.ERROR_INVALID_PARAMETER ||
+        opened.error == win32.ERROR_NOT_FOUND) {
+      return null;
     }
-    return handle;
+    throw StateError(
+      'Unable to verify the previous local proxy Core (${opened.error.code}).',
+    );
   }
 
   Map<String, dynamic>? read(int pid) {
     final handle = _handle(pid);
-    if (handle == nullptr) return null;
+    if (handle == null) return null;
     try {
       return _readHandle(handle, pid);
     } finally {
-      _close(handle);
+      win32.CloseHandle(handle);
     }
   }
 
-  Map<String, dynamic> _readHandle(Pointer<Void> handle, int pid) =>
+  Map<String, dynamic> _readHandle(win32.HANDLE handle, int pid) =>
       using((arena) {
-        final created = arena<Uint64>();
-        if (_times(
-              handle,
-              created,
-              arena<Uint64>(),
-              arena<Uint64>(),
-              arena<Uint64>(),
-            ) ==
-            0) {
+        final created = arena<win32.FILETIME>();
+        final times = win32.GetProcessTimes(
+          handle,
+          created,
+          arena<win32.FILETIME>(),
+          arena<win32.FILETIME>(),
+          arena<win32.FILETIME>(),
+        );
+        if (!times.value) {
           throw StateError(
-            'Unable to verify proxy Core creation time (${_error()}).',
+            'Unable to verify proxy Core creation time (${times.error.code}).',
           );
         }
-        final image = arena<Uint16>(32768).cast<Utf16>();
-        final length = arena<Uint32>()..value = 32768;
-        if (_image(handle, 0, image, length) == 0) {
-          throw StateError('Unable to verify proxy Core image (${_error()}).');
+        const pathCapacity = 32768;
+        final image = win32.PWSTR(arena<Uint16>(pathCapacity).cast());
+        final length = arena<Uint32>()..value = pathCapacity;
+        final queried = win32.QueryFullProcessImageName(
+          handle,
+          win32.PROCESS_NAME_WIN32,
+          image,
+          length,
+        );
+        if (!queried.value) {
+          throw StateError(
+            'Unable to verify proxy Core image (${queried.error.code}).',
+          );
         }
+        // Keep the original decimal FILETIME value for persisted identities.
+        final createdTicks =
+            (created.ref.dwHighDateTime << 32) | created.ref.dwLowDateTime;
         return {
           'platform': 'windows',
           'pid': pid,
-          'executable': p.windows.normalize(image.toDartString()).toLowerCase(),
-          'created': '${created.value}',
+          'executable': p.windows
+              .normalize(image.toDartString(length: length.value))
+              .toLowerCase(),
+          'created': createdTicks.toString(),
         };
       });
 
   void terminate(Map<String, dynamic> identity) {
-    final handle = _handle(identity['pid'] as int, terminate: true);
-    if (handle == nullptr) return;
+    final pid = identity['pid'] as int;
+    final handle = _handle(pid, terminate: true);
+    if (handle == null) return;
     try {
-      if (!proxyValuesEqual(
-        _readHandle(handle, identity['pid'] as int),
-        identity,
-      )) {
-        return;
-      }
-      if (_terminate(handle, 0) == 0) {
+      if (!proxyValuesEqual(_readHandle(handle, pid), identity)) return;
+      final terminated = win32.TerminateProcess(handle, 0);
+      if (!terminated.value) {
         throw StateError(
-          'Unable to stop the previous local proxy Core (${_error()}).',
+          'Unable to stop the previous local proxy Core (${terminated.error.code}).',
         );
       }
     } finally {
-      _close(handle);
+      win32.CloseHandle(handle);
     }
   }
 }

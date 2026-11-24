@@ -5,6 +5,7 @@ import 'package:onexray/pages/connect/dialogs.dart';
 import 'package:onexray/pages/launch/setup/selectors.dart';
 import 'package:onexray/pages/shared/alert.dart';
 import 'package:onexray/pages/shared/page_cubit.dart';
+import 'package:onexray/service/advanced/platform_policy.dart';
 import 'package:onexray/service/shared/failure.dart';
 import 'package:onexray/pages/connect/routing/smart/exit_picker_controller.dart';
 
@@ -134,6 +135,7 @@ class SmartRoutingEditorController extends PageCubit<SmartRoutingEditorState> {
       : ConnectionCompiler.smartRules(
           state.draft,
           state.original!.regions,
+          platform: connectionPlatform,
         ).where((rule) => rule.outboundTag == action).toList();
 
   String directPreview(AppLocalizations l) {

@@ -48,14 +48,14 @@ Raw 用户字段不适用此删减。
 智能/常规自定义固定 `routing.domainStrategy: IPIfNonMatch`：域名首轮未命中再解析 IP 重匹配。
 全部使用 VPN 为 `AsIs`，高级/Raw 保留用户值。App 生成规则省略可选 `type: field`。
 智能路由把直连域名/IP 分别去重合并为一条规则，无条件时省略对应规则。
-顺序为广告阻断、Windows 开关对应的 GitHub 代理、CN 直连时的 Google Play 代理例外、合并域名直连、合并 IP 直连。
+顺序为广告阻断、Windows 开关对应的 GitHub 代理、按需启用的 Google Play 代理例外、合并域名直连、合并 IP 直连。
 Windows 服务直连使用 Microsoft/Bing 分类，同时优先代理 GitHub；该开关在所有平台显示。
-Smart 的 `directRegions` 包含 CN 时，`full:services.googleapis.cn` 与 `domain:xn--ngstr-lra8j.com`（含下载子域名）使用代理，
-同一规则派生代理 DNS 并先于宽泛 CN 直连匹配；移除 CN 后不生成该例外。
-例外仅在编译 Smart 运行配置时加入，不改写已保存配置或缓存，也不注入自定义路由、Raw 或提供方配置。
-已保存启动快照沿用原内容；新例外在 App 下一次编译并启动连接时生效。
+「Google Play 走 VPN」仅在 Android 上显示及生效，默认关闭，已有设置缺少该字段时也按关闭读取。开关开启且 `directRegions` 包含 CN 时，
+`full:services.googleapis.cn` 与 `domain:xn--ngstr-lra8j.com`（含下载子域名）使用代理。
+同一规则派生代理 DNS 并先于宽泛 CN 直连匹配。移除 CN 后保留开关偏好，暂不生成例外。
+开关只影响 Smart 运行配置；从 App 连接或重连时重新编译，快捷入口沿用最近一次生成的启动快照。
 直连地区来自安装的官方分类与随包映射，Smart/Setup UI 保持单选/显式清空；底层历史 List 仍可读取和编译，不在本轮迁移中删字段或改写历史配置。
-这项直连规则配置与已退役的服务器地区筛选、节点出口地区缓存无关。广告、FakeDNS、Fragment 默认关闭，其余智能开关默认开启；保留已保存值。
+这项直连规则配置与已退役的服务器地区筛选、节点出口地区缓存无关。广告、Google Play 走 VPN、FakeDNS 和 Fragment 默认关闭，其余智能开关默认开启；保留已保存值。
 
 ### DNS
 
@@ -110,7 +110,7 @@ App 设置 250 ms 竞速延迟，其余竞速参数由 Core 管理；关闭开�
 运行副本只修改实际打开物理 socket 的代理出站，不改 TLS SNI、HTTP Host 或存储中的节点原文。
 代理链的后续节点继续由上游代理解析，策略落在物理接入；使用 Fragment 时落到最终辅助出站。
 XHTTP 独立下载按实际生效的配置对象处理自己的地址与 socket，`extra` 替换和 `penetrate` 继承沿用 Core 语义；
-XDrive fronting 使用实际物理地址；S3 的端点和寻址规则见 [XDrive](#xdrive)。
+XDrive fronting 使用实际物理地址；Google Drive 和 S3 的端点见 [XDrive](#xdrive)。
 普通 direct 出站和无物理拨号的中间链不统一覆盖。
 WireGuard 使用 `peers[].endpoint` 的 host，保留其端口、本机隧道地址与 `remoteDNS`。
 Core 在发送 UDP 前使用 WireGuard 自身的 socket 策略本地解析 peer，即使通过代理链也应用地址族策略与引导 DNS；
@@ -192,8 +192,10 @@ S3 backend 使用 `xdriveSettings.service: s3`，`s3` 对象包含 `endpoint`、
 `secrets` 按 AccessKeyID、SecretAccessKey、可选 SessionToken 排列，`remoteFolder` 是对象键的相对前缀。
 凭据、endpoint、bucket 及 VLESS encryption/mux 的有效性统一交由 libXray，App 不补凭据或复制校验器。
 
-S3 的普通显式服务器拨号从实际物理端点生成精确 bootstrap DNS：显式 `streamSettings.address` fronting 优先，
-否则使用 S3 endpoint 的 host；虚拟主机寻址使用 `bucket.endpoint-host`。IP 字面量不产生域名引导规则。
+Google Drive 和 S3 的普通显式服务器拨号从实际物理端点生成精确 bootstrap DNS。
+有显式 `streamSettings.address` 时优先使用该地址。否则 Google Drive 使用 `oauth2.googleapis.com` 和
+`www.googleapis.com`，S3 使用 endpoint 的 host，虚拟主机寻址时使用 `bucket.endpoint-host`。
+IP 字面量不产生域名引导规则。
 端口、URL 路径、TLS SNI、HTTP Host 和保存的节点原文不改写，链式出站仍由实际物理入口承担拨号策略。
 Raw、提供方和高级模板继续遵循各自边界，不应用全局服务器拨号。
 
@@ -493,11 +495,13 @@ XDrive template 提示限定在节点/Raw 的原生传输对象，覆盖认证�
 HTTP 方法仅给常用候选，headers/form、URL、JSON 路径、模板变量和未知字段保持自由编辑，保存及分享不投影嵌套 Map。
 XDrive S3 字段只在对应传输对象提示，`pathStyle` 提示键而不插入字符串形式的布尔值，secrets 不生成凭据候选。
 FinalMask 的 TCP Fragment 与 UDP mask 分别按实际路径提示；高级模板只在 Freedom 辅助出站开放相关提示，旧 Freedom 字段仍可编辑。
-sockopt 提示包含 tcpKeepAliveIdle/tcpKeepAliveInterval 与 tcpMptcp，Freedom finalRules 提示 action/network/port/ip/blockDelay；
-这些既有 Core 能力的编辑辅助不增加运行默认值或自动放行规则，IP Geodata 候选仅进入对应 ip 字段。
+sockopt 提示包含 tcpKeepAliveIdle/tcpKeepAliveInterval 与 tcpMptcp。
+Freedom `finalRules` 提示 `action`、`network`、`port` 和 `ip`，阻断规则还提示 `delay` 和 `logLevel`。
+Core 继续接受阻断规则中已有的 `blockDelay`，并在两个字段都存在时使用该旧值。IP Geodata 候选仅进入对应 `ip` 字段。
 Core v26.10.31 默认关闭系统 TCP listener 的 MPTCP，App 托管 LAN 入站沿用此默认值；
 Raw/提供方显式 `tcpMptcp` 布尔值继续保留，不向运行配置统一注入 false，也不改变出站拨号策略。
-Raw TUN 的 WFP 值提示包含 DNS Client 与 53/853 端口示例；其它端口仍可自由输入，不将候选当作白名单。
+Raw TUN 的 WFP 值提示包含 DNS Client、`all`、`allexceptlan`、`tcp`、`udp`、`icmp` 和端口及地址范围示例。
+自由输入可使用 Core 支持的其它端口、端口范围及 IPv4/IPv6 CIDR，候选仅供编辑时参考。
 XHTTP 的 `xhttpSettings` 与兼容别名 `splithttpSettings` 在真实传输对象及 `extra` 下提示 `uplinkHTTPMethod`，
 提供 POST/PUT/OPTIONS 常用候选，其它方法仍可输入，GET 的模式约束由 Core 检查。默认仍为 POST；
 OPTIONS 上行修复需要远端服务端升级，单独更新客户端不能修复旧服务端。

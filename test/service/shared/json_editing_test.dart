@@ -109,16 +109,30 @@ void main() {
         'dns',
         'misconfigtun',
         'windnsclient',
-        'tcp/53',
-        'udp/53',
-        'tcp/853',
-        'udp/853',
+        'all',
+        'allexceptlan',
+        'tcp',
+        'udp',
+        'icmp',
+        '53',
+        '8000-8100',
       ],
     );
-    expect(
-      labels(settings('"autoSystemWfpBlockLeak":["mi|"]'), JsonEditorKind.raw),
-      ['misconfigtun'],
-    );
+    for (final (prefix, expected) in [
+      ('mi', ['misconfigtun']),
+      ('tcp/', ['tcp/53', 'tcp/853']),
+      ('udp/', ['udp/53', 'udp/853']),
+      ('192.0.', ['192.0.2.0/24:udp/53']),
+      ('[2001:', ['[2001:db8::/32]:icmp']),
+    ]) {
+      expect(
+        labels(
+          settings('"autoSystemWfpBlockLeak":["$prefix|"]'),
+          JsonEditorKind.raw,
+        ),
+        expected,
+      );
+    }
     expect(
       labels(settings('"autoSystem|"'), JsonEditorKind.advancedRouting),
       isEmpty,
@@ -945,7 +959,8 @@ void main() {
         'network',
         'port',
         'ip',
-        'blockDelay',
+        'delay',
+        'logLevel',
       ]);
       expect(labels(source('"finalRules":[{"action":"|"}]'), kind), [
         'allow',
@@ -995,6 +1010,78 @@ void main() {
       ),
       isEmpty,
     );
+  });
+
+  test('Freedom final rules offer delay and log level for blocks', () {
+    String source(String rules) =>
+        '{"outbounds":[{"protocol":"freedom","settings":{"finalRules":[$rules]}}]}';
+
+    expect(
+      labels(source('{"d|":"100-200","action":"block"}'), JsonEditorKind.raw),
+      ['delay'],
+    );
+    expect(
+      labels(source('{"l|":"info","action":"BLOCK"}'), JsonEditorKind.raw),
+      ['logLevel'],
+    );
+    expect(
+      labels(source('{"logLevel":"|","action":"block"}'), JsonEditorKind.raw),
+      ['debug', 'info', 'warning', 'error', 'none'],
+    );
+    expect(
+      labels(
+        source('{"action":"ALLOW","|"},{"action":"block"}'),
+        JsonEditorKind.raw,
+      ),
+      ['network', 'port', 'ip'],
+    );
+    expect(
+      labels(source('{"logLevel":"|","action":"allow"}'), JsonEditorKind.raw),
+      isEmpty,
+    );
+  });
+
+  test('Freedom final rules preserve the legacy blockDelay field', () {
+    String source(String body) =>
+        '{"protocol":"freedom","settings":{"finalRules":[{$body}]}}';
+
+    const kind = JsonEditorKind.outbound;
+    expect(labels(source('"action":"block","blockD|"'), kind), isEmpty);
+    expect(labels(source('"action":"block","blockDelay":"50-100","|"'), kind), [
+      'network',
+      'port',
+      'ip',
+      'logLevel',
+    ]);
+    final marked = source('"action":"block","blockDelay":"50-100","l|":"info"');
+    final completion = completions(marked, kind).single;
+    final text = marked.replaceFirst('|', '');
+    final inserted = jsonDecode(
+      text.replaceRange(
+        completion.start,
+        completion.end,
+        completion.insertText,
+      ),
+    );
+    expect(inserted['settings']['finalRules'], [
+      {'action': 'block', 'blockDelay': '50-100', 'logLevel': 'info'},
+    ]);
+  });
+
+  test('direct aliases Freedom final rules in node and Raw editors', () {
+    String source(String body) => '{"protocol":"direct","settings":{$body}}';
+
+    expect(labels(source('"fi|"'), JsonEditorKind.outbound), ['finalRules']);
+    final outbound = source(
+      '"finalRules":[{"action":"block","logLevel":"wa|"}]',
+    );
+    expect(labels(outbound, JsonEditorKind.outbound), ['warning']);
+    final config = '{"outbounds":[{},$outbound]}';
+    expect(labels(config, JsonEditorKind.raw), ['warning']);
+    expect(labels(config, JsonEditorKind.advancedRouting), isEmpty);
+    expect(labels(config, JsonEditorKind.customRouting), isEmpty);
+    expect(labels('{"inbounds":[$outbound]}', JsonEditorKind.raw), isEmpty);
+    expect(labels('{"future":$outbound}', JsonEditorKind.raw), isEmpty);
   });
 
   test('XDNS completes names and addrs in UDP masks without old fields', () {

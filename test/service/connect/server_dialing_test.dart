@@ -232,16 +232,30 @@ void main() {
     );
   });
 
-  test('XDrive fronting replaces the shadowed protocol endpoint for DNS', () {
+  test('Google Drive fronting takes precedence over the API hosts', () {
     for (final fronting in ['fronting.example', '192.0.2.1']) {
       final value = _node('shadowed.example');
       value['streamSettings']['network'] = 'xdrive';
       value['streamSettings']['address'] = fronting;
+      value['streamSettings']['xdriveSettings'] = {'service': 'google-drive'};
       expect(
         ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
         fronting == 'fronting.example' ? ['fronting.example'] : isEmpty,
       );
       expect(_sockopt(value)['domainStrategy'], 'UseIP');
+    }
+  });
+
+  test('Google Drive uses the API hosts for both Core service names', () {
+    for (final service in ['google-drive', 'Google Drive']) {
+      final value = _node('logical.example');
+      value['streamSettings']['network'] = 'xdrive';
+      value['streamSettings']['xdriveSettings'] = {'service': service};
+      expect(
+        ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
+        ['oauth2.googleapis.com', 'www.googleapis.com'],
+      );
+      expect(value['streamSettings']['xdriveSettings']['service'], service);
     }
   });
 
@@ -389,8 +403,7 @@ void main() {
       final inactive = _s3();
       inactive['streamSettings']['network'] = 'tcp';
       final otherService = _s3();
-      otherService['streamSettings']['xdriveSettings']['service'] =
-          'google-drive';
+      otherService['streamSettings']['xdriveSettings']['service'] = 'template';
       for (final value in [inactive, otherService]) {
         expect(
           ManagedServerDialing.apply(outbounds: [value], settings: dualStack),
